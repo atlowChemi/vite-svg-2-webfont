@@ -9,7 +9,7 @@ const webfontGenerator = promisify(_webfontGenerator);
 const VIRTUAL_MODULE_ID = 'virtual:vite-svg-2-webfont.css'
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`
 
-export function iconPlugin(options: IconPluginOptions): Plugin {
+export function viteSvgToWebfont(options: IconPluginOptions): Plugin {
     const processedOptions = parseOptions(options);
     let isBuild: boolean;
     let fileRefs: { [T in IconType]?: string } | undefined;
@@ -88,4 +88,4 @@ export function iconPlugin(options: IconPluginOptions): Plugin {
         },
     };
 }
-export default iconPlugin;
+export default viteSvgToWebfont;
