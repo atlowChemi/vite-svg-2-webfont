@@ -8,13 +8,13 @@ const { sync } = glob;
 type WebfontsGeneratorOptions = Parameters<typeof webfontGenerator>[0];
 
 export interface IconPluginOptions {
+    /** Context directory in which the SVG files will be read from */
+    context: string;
     /**
      * Name of font and base name of font files.
      * @default 'iconfont'
      */
-    fontName: string;
-    /** Context directory in which the SVG files will be read from */
-    context: string;
+    fontName?: string;
     /**
      * Directory for generated font files.
      * @default path.resolve(options.context, '..', 'artifacts')
@@ -76,7 +76,7 @@ export interface IconPluginOptions {
     cssTemplate?: string;
     /**
      * Fonts path used in CSS file.
-     * @default options.destCss
+     * @default options.cssDest
      */
     cssFontsUrl?: string;
     /**
@@ -97,13 +97,13 @@ export interface IconPluginOptions {
      * It is possible to not create files and get generated fonts in object to write them to files later.
      *
      * Also results object will have function generateCss([urls]) where urls is an object with future fonts urls.
-     * @default true
+     * @default false
      */
     writeFiles?: boolean;
     /**
-     * Specific per format arbitrary options to pass to the generator
+     * Specific per format arbitrary options to pass to the generator.
      *
-     * format and matching generator:
+     * Format and matching generator:
      * - svg - [svgicons2svgfont](https://github.com/nfroidure/svgicons2svgfont).
      * - ttf - [svg2ttf](https://github.com/fontello/svg2ttf).
      * - woff2 - [ttf2woff2](https://github.com/nfroidure/ttf2woff2).
@@ -156,6 +156,7 @@ export function parseOptions(options: IconPluginOptions): WebfontsGeneratorOptio
     const formats = parseIconTypesOption(options);
     const files = parseFiles(options);
     options.dest ||= resolve(options.context, '..', 'artifacts')
+    options.fontName ||= 'iconfont';
     return {
         files,
         types: formats,
