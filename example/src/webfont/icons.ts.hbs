@@ -1,0 +1,8 @@
+export const iconBaseSelector = '{{baseSelector}}' as const;
+export const iconClassPrefix = '{{classPrefix}}' as const;
+export const icons = [
+{{#each names}}    '{{this}}',
+{{/each}}
+] as const;
+
+export type IconOption = typeof icons[number];
