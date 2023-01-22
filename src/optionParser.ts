@@ -15,8 +15,11 @@ export interface IconPluginOptions {
     fontName: string;
     /** Context directory in which the SVG files will be read from */
     context: string;
-    /** Directory for generated font files. */
-    dest: string;
+    /**
+     * Directory for generated font files.
+     * @default path.resolve(options.context, '..', 'artifacts')
+     */
+    dest?: string;
     /**
      * Whether to generate CSS file.
      * @default false
