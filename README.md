@@ -1,0 +1,1 @@
+# vite-svg-2-webfont

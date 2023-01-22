@@ -1,0 +1,67 @@
+{
+    "name": "vite-svg-2-webfont",
+    "version": "0.0.1",
+    "description": "A vite plugin which generates a webfont out of svg icons",
+    "type": "module",
+    "main": "./dist/index.js",
+    "module": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "type": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "require": "./dist/index.cjs"
+        }
+    },
+    "files": [
+        "dist"
+    ],
+    "engines": {
+        "node": ">=16.0.0"
+    },
+    "scripts": {
+        "dev": "tsup --watch",
+        "build": "tsup",
+        "lint": "eslint --cache .",
+        "format": "prettier --write --cache .",
+        "type-check": "tsc --noEmit",
+        "test": "vitest"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/chemiAtlow/vite-svg-2-webfont.git"
+    },
+    "keywords": [
+        "vite",
+        "vite-plugin",
+        "svg-font",
+        "webfont",
+        "webfont-loader"
+    ],
+    "author": "Chemi Atlow",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/chemiAtlow/vite-svg-2-webfont/issues"
+    },
+    "homepage": "https://github.com/chemiAtlow/vite-svg-2-webfont#readme",
+    "peerDependencies": {
+        "vite": "^3.0.0 || ^4.0.0"
+    },
+    "devDependencies": {
+        "@types/glob": "^8.0.0",
+        "@types/node": "^18.11.18",
+        "@typescript-eslint/eslint-plugin": "^5.47.1",
+        "@typescript-eslint/parser": "^5.47.1",
+        "eslint": "^8.31.0",
+        "eslint-config-prettier": "^8.5.0",
+        "prettier": "^2.8.1",
+        "tsup": "^6.5.0",
+        "typescript": "^4.9.4",
+        "vite": "^4.0.3",
+        "vitest": "^0.26.2"
+    },
+    "dependencies": {
+        "@vusion/webfonts-generator": "^0.8.0",
+        "glob": "^8.1.0"
+    }
+}
