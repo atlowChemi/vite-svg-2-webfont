@@ -10,6 +10,7 @@ export const MIME_TYPES = {
     woff: 'application/font-woff',
     woff2: 'font/woff2',
 } as const;
+export type IconType = keyof typeof MIME_TYPES;
 
 async function doesFileExist(folderPath: string, fileName: string) {
     const fileToFind = resolve(folderPath, fileName);
@@ -40,4 +41,14 @@ export async function setupWatcher(folderPath: string, signal: AbortSignal, hand
         }
         throw err;
     }
+}
+
+const alphabet = 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890';
+export function guid(length = 8) {
+    let result = '';
+    for (let i = 0; i < length; i++) {
+        const index = Math.floor((Math.random() * (alphabet.length)));
+        result += alphabet[index];
+    }
+    return result;
 }

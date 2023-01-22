@@ -149,8 +149,8 @@ interface WebfontsGeneratorResult {
     eot: Buffer;
     woff: Buffer;
     woff2: Buffer;
-    generateHtml(urls?: Record<GeneratedFontTypes, string>): string;
-    generateCss(urls?: Record<GeneratedFontTypes, string>): string;
+    generateHtml(urls?: Partial<Record<GeneratedFontTypes, string>>): string;
+    generateCss(urls?: Partial<Record<GeneratedFontTypes, string>>): string;
 }
 
 declare function webfontGenerator(

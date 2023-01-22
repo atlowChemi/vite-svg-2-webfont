@@ -1,11 +1,10 @@
 import glob from 'glob';
 import { resolve } from 'path';
-import type { MIME_TYPES } from './utils';
+import type { IconType } from './utils';
 import type webfontGenerator = require('@vusion/webfonts-generator');
 
 const { sync } = glob;
 
-type IconType = keyof typeof MIME_TYPES;
 type WebfontsGeneratorOptions = Parameters<typeof webfontGenerator>[0];
 
 export interface IconPluginOptions {
@@ -18,6 +17,11 @@ export interface IconPluginOptions {
     context: string;
     /** Directory for generated font files. */
     dest: string;
+    /**
+     * Whether to generate CSS file.
+     * @default false
+     */
+    css?: boolean;
     /**
      * Whether to generate HTML preview.
      * @default false
@@ -140,7 +144,7 @@ function parseIconTypesOption({ types }: IconPluginOptions): IconType[] {
     return ['eot', 'woff', 'woff2', 'ttf', 'svg'];
 }
 
-function parseFiles({ files, context }: IconPluginOptions) {
+export function parseFiles({ files, context }: IconPluginOptions) {
     files ||= ['*.svg']
     return files.flatMap(fileGlob => sync(fileGlob, { cwd: context })).map(file => `${context}/${file}`);
 }
@@ -160,9 +164,10 @@ export function parseOptions(options: IconPluginOptions): WebfontsGeneratorOptio
             baseSelector: options.baseSelector || '.icon',
             classPrefix: options.classPrefix ?? 'icon-',
         },
-        html: Boolean(options.html),
+        html: Boolean(options.html || options.htmlDest),
+        css: Boolean(options.css || options.cssDest),
         ligature: options.ligature ?? true,
-        writeFiles: options.writeFiles ?? true,
+        writeFiles: options.writeFiles ?? false,
         formatOptions: options.formatOptions || {},
         dest: options.dest.endsWith('/') ? options.dest : `${options.dest}/`,
         ...(options.cssDest && { cssDest: resolve(options.dest, options.fontName.toLowerCase() + '.css') }),
