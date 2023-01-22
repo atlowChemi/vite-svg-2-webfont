@@ -107,7 +107,7 @@ export interface IconPluginOptions {
      * - woff - [ttf2woff](https://github.com/fontello/ttf2woff).
      * - eot - [ttf2eot](https://github.com/fontello/ttf2eot).
      */
-    formatOptions?: { [format in GeneratedFontTypes]?: unknown };
+    formatOptions?: { [format in IconType]?: unknown };
     /**
      * An array of globs, of the SVG files to add into the webfont
      * @default ['*.svg']
