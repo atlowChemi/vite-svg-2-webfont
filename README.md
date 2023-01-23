@@ -1,8 +1,10 @@
 # vite-svg-2-webfont
 
 [![npm](https://img.shields.io/npm/v/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
+[![npm](https://img.shields.io/npm/dm/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
 [![license](https://img.shields.io/github/license/ChemiAtlow/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/ChemiAtlow/vite-svg-2-webfont/blob/master/LICENSE)
-<!-- [![npm](https://img.shields.io/npm/dm/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont) -->
+[![npm bundle size](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)
+[![node engine](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)
 
 A Vite Plugin that generates fonts from your SVG icons and allows you to use your icons in your HTML.
 
