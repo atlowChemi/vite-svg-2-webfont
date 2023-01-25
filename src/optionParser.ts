@@ -1,13 +1,10 @@
 import glob from 'glob';
 import { resolve } from 'path';
-import type { IconType } from './utils';
-import type webfontGenerator = require('@vusion/webfonts-generator');
+import type { WebfontsGeneratorOptions, GeneratedFontTypes } from '@vusion/webfonts-generator';
 
 const { sync } = glob;
 
-type WebfontsGeneratorOptions = Parameters<typeof webfontGenerator>[0];
-
-export interface IconPluginOptions {
+export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontTypes> {
     /** Context directory in which the SVG files will be read from */
     context: string;
     /**
@@ -110,7 +107,7 @@ export interface IconPluginOptions {
      * - woff - [ttf2woff](https://github.com/fontello/ttf2woff).
      * - eot - [ttf2eot](https://github.com/fontello/ttf2eot).
      */
-    formatOptions?: { [format in IconType]?: unknown };
+    formatOptions?: { [format in T]?: unknown };
     /**
      * An array of globs, of the SVG files to add into the webfont
      * @default ['*.svg']
@@ -120,7 +117,7 @@ export interface IconPluginOptions {
      * Font file types to generate. Possible values: `svg`, `ttf`, `woff`, `woff2`, `eot`.
      * @default ['eot', 'woff', 'woff2', 'ttf', 'svg']
      */
-    types?: IconType | IconType[];
+    types?: T | T[];
     /** Specific codepoints for certain icons. Icons without codepoints will have codepoints incremented from startCodepoint skipping duplicates. */
     codepoints?: { [key: string]: number };
     /** The outputted font height (defaults to the height of the highest input icon). */
@@ -137,14 +134,14 @@ export interface IconPluginOptions {
     baseSelector?: string;
 }
 
-function parseIconTypesOption({ types }: IconPluginOptions): IconType[] {
+function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: IconPluginOptions<T>): T[] {
     if (Array.isArray(types)) {
         return types;
     }
     if (types) {
         return [types];
     }
-    return ['eot', 'woff', 'woff2', 'ttf', 'svg'];
+    return ['eot', 'woff', 'woff2', 'ttf', 'svg'] as T[];
 }
 
 export function parseFiles({ files, context }: IconPluginOptions) {
@@ -152,8 +149,8 @@ export function parseFiles({ files, context }: IconPluginOptions) {
     return files.flatMap(fileGlob => sync(fileGlob, { cwd: context })).map(file => `${context}/${file}`);
 }
 
-export function parseOptions(options: IconPluginOptions): WebfontsGeneratorOptions {
-    const formats = parseIconTypesOption(options);
+export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): WebfontsGeneratorOptions<T> {
+    const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
     options.dest ||= resolve(options.context, '..', 'artifacts')
     options.fontName ||= 'iconfont';

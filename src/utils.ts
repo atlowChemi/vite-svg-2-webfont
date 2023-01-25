@@ -1,16 +1,16 @@
 import { resolve } from 'path';
 import { constants } from 'fs';
 import { watch, access, FileChangeInfo } from 'fs/promises';
+import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
 
 let watcher: ReturnType<typeof watch> | undefined;
-export const MIME_TYPES = {
+export const MIME_TYPES: Record<GeneratedFontTypes, string> = {
     eot: 'application/vnd.ms-fontobject',
     svg: 'image/svg+xml',
     ttf: 'application/x-font-ttf',
     woff: 'application/font-woff',
     woff2: 'font/woff2',
-} as const;
-export type IconType = keyof typeof MIME_TYPES;
+};
 
 async function doesFileExist(folderPath: string, fileName: string) {
     const fileToFind = resolve(folderPath, fileName);

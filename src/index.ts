@@ -1,21 +1,22 @@
 import { promisify } from 'util';
 import _webfontGenerator from '@vusion/webfonts-generator';
-import { setupWatcher, MIME_TYPES, IconType, guid } from './utils';
+import { setupWatcher, MIME_TYPES, guid } from './utils';
 import { type IconPluginOptions, parseOptions, parseFiles } from './optionParser';
 import type { Plugin, ModuleGraph, ModuleNode } from 'vite';
+import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfonts-generator';
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);
 const VIRTUAL_MODULE_ID = 'virtual:vite-svg-2-webfont.css'
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`
 
-export function viteSvgToWebfont(options: IconPluginOptions): Plugin {
+export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin {
     const processedOptions = parseOptions(options);
     let isBuild: boolean;
-    let fileRefs: { [T in IconType]?: string } | undefined;
+    let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
     let _reloadModule: undefined | ((module: ModuleNode) => void);
-    let generatedFonts: undefined | Awaited<ReturnType<typeof webfontGenerator>>;
+    let generatedFonts: undefined | Pick<WebfontsGeneratorResult, "generateCss" | "generateHtml" | T>;
 
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
@@ -44,7 +45,7 @@ export function viteSvgToWebfont(options: IconPluginOptions): Plugin {
             if (id !== RESOLVED_VIRTUAL_MODULE_ID) {
                 return undefined;
             }
-            return generatedFonts?.generateCss(fileRefs);
+            return generatedFonts?.generateCss?.(fileRefs) || '';
         },
         load(id) {
             if (id !== RESOLVED_VIRTUAL_MODULE_ID) {
@@ -58,11 +59,11 @@ export function viteSvgToWebfont(options: IconPluginOptions): Plugin {
             }
             await generate();
             if (isBuild) {
-                const emitted = processedOptions.types.map<[IconType, string]>(type => [
+                const emitted = processedOptions.types.map<[T, string]>(type => [
                     type,
                     `/${this.getFileName(this.emitFile({ type: 'asset', fileName: `assets/${processedOptions.fontName}-${guid()}.${type}`, source: generatedFonts?.[type] }))}`,
                 ]);
-                fileRefs = Object.fromEntries(emitted)
+                fileRefs = Object.fromEntries(emitted) as { [Ref in T]: string };
             }
         },
         configureServer({ middlewares, reloadModule, moduleGraph }) {
