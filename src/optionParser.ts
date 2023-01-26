@@ -134,7 +134,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     baseSelector?: string;
 }
 
-function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: IconPluginOptions<T>): T[] {
+export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
     if (Array.isArray(types)) {
         return types;
     }
@@ -144,12 +144,12 @@ function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>
     return ['eot', 'woff', 'woff2', 'ttf', 'svg'] as T[];
 }
 
-export function parseFiles({ files, context }: IconPluginOptions) {
+export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>) {
     files ||= ['*.svg'];
     return files.flatMap(fileGlob => sync(fileGlob, { cwd: context })).map(file => `${context}/${file}`);
 }
 
-export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): WebfontsGeneratorOptions<T> {
+export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>) {
     const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
     options.dest ||= resolve(options.context, '..', 'artifacts');
@@ -165,21 +165,21 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
             baseSelector: options.baseSelector || '.icon',
             classPrefix: options.classPrefix ?? 'icon-',
         },
-        html: Boolean(options.html || options.htmlDest),
-        css: Boolean(options.css || options.cssDest),
+        html: Boolean(options.html ?? options.htmlDest),
+        css: Boolean(options.css ?? options.cssDest),
         ligature: options.ligature ?? true,
         writeFiles: options.writeFiles ?? false,
         formatOptions: options.formatOptions || {},
         dest: options.dest.endsWith('/') ? options.dest : `${options.dest}/`,
-        ...(options.cssDest && { cssDest: resolve(options.dest, options.fontName.toLowerCase() + '.css') }),
+        ...(options.cssDest && { cssDest: resolve(options.dest, options.cssDest, options.fontName.toLowerCase() + '.css') }),
         ...(options.cssTemplate && { cssTemplate: resolve(options.dest, options.cssTemplate) }),
         ...(options.cssFontsUrl && { cssFontsUrl: resolve(options.dest, options.cssFontsUrl) }),
         ...(options.htmlTemplate && { htmlTemplate: resolve(options.dest, options.htmlTemplate) }),
-        ...(options.htmlDest && { htmlDest: resolve(options.dest, options.htmlDest) }),
+        ...(options.htmlDest && { htmlDest: resolve(options.dest, options.htmlDest, options.fontName.toLowerCase() + '.html') }),
         ...(typeof options.fixedWidth !== 'undefined' && { fixedWidth: options.fixedWidth }),
         ...(typeof options.centerHorizontally !== 'undefined' && { centerHorizontally: options.centerHorizontally }),
         ...(typeof options.normalize !== 'undefined' && { normalize: options.normalize }),
         ...(typeof options.round !== 'undefined' && { round: options.round }),
         ...(typeof options.descent !== 'undefined' && { descent: options.descent }),
-    };
+    } satisfies WebfontsGeneratorOptions<T>;
 }
