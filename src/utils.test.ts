@@ -96,7 +96,7 @@ describe('utils', () => {
         });
     });
 
-    describe('guid', () => {
+    describe.concurrent('guid', () => {
         it('should generate a string', () => {
             const spy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
             expect(utils.guid()).to.matchSnapshot();

@@ -6,7 +6,7 @@ import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
 vi.mock('glob', () => ({ default: { sync: vi.fn() } }));
 
 describe('optionParser', () => {
-    describe('parseIconTypesOption', () => {
+    describe.concurrent('parseIconTypesOption', () => {
         it('Returns arrays as received', () => {
             const types: GeneratedFontTypes[] = ['eot', 'svg', 'ttf'];
             expect(optionParser.parseIconTypesOption({ types })).to.eq(types);
@@ -25,7 +25,7 @@ describe('optionParser', () => {
         });
     });
 
-    describe('parseFiles', () => {
+    describe.concurrent('parseFiles', () => {
         afterEach(() => {
             vi.restoreAllMocks();
         });
@@ -50,7 +50,7 @@ describe('optionParser', () => {
         });
     });
 
-    describe('parseOptions', () => {
+    describe.concurrent('parseOptions', () => {
         const context = '';
 
         it('returns order identical to types', () => {
