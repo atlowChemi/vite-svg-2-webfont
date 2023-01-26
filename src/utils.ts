@@ -12,7 +12,7 @@ export const MIME_TYPES: Record<GeneratedFontTypes, string> = {
     woff2: 'font/woff2',
 };
 
-async function doesFileExist(folderPath: string, fileName: string) {
+export async function doesFileExist(folderPath: string, fileName: string) {
     const fileToFind = resolve(folderPath, fileName);
     try {
         await access(fileToFind, constants.R_OK);
@@ -22,8 +22,13 @@ async function doesFileExist(folderPath: string, fileName: string) {
     }
 }
 
-async function handleWatchEvent(folderPath: string, { eventType, filename }: FileChangeInfo<string>, onIconAdded: (e: FileChangeInfo<string>) => void) {
-    if (eventType !== 'rename' || !filename.endsWith('.svg') || !(await doesFileExist(folderPath, filename))) {
+export async function handleWatchEvent(
+    folderPath: string,
+    { eventType, filename }: FileChangeInfo<string>,
+    onIconAdded: (e: FileChangeInfo<string>) => void,
+    _doesFileExist = doesFileExist,
+) {
+    if (eventType !== 'rename' || !filename.endsWith('.svg') || !(await _doesFileExist(folderPath, filename))) {
         return;
     }
     onIconAdded({ eventType, filename });
