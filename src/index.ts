@@ -7,8 +7,8 @@ import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfon
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);
-const VIRTUAL_MODULE_ID = 'virtual:vite-svg-2-webfont.css'
-const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`
+const VIRTUAL_MODULE_ID = 'virtual:vite-svg-2-webfont.css';
+const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
 
 export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin {
     const processedOptions = parseOptions(options);
@@ -16,7 +16,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
     let _reloadModule: undefined | ((module: ModuleNode) => void);
-    let generatedFonts: undefined | Pick<WebfontsGeneratorResult, "generateCss" | "generateHtml" | T>;
+    let generatedFonts: undefined | Pick<WebfontsGeneratorResult, 'generateCss' | 'generateHtml' | T>;
 
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {

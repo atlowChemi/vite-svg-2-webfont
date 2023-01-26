@@ -4,5 +4,5 @@ export default defineConfig({
     entry: ['src/index.ts'],
     target: 'node16',
     dts: true,
-    format: ['esm', 'cjs']
-})
+    format: ['esm', 'cjs'],
+});

@@ -45,7 +45,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     /**
      * The font descent. It is useful to fix the font baseline yourself.
      * @default 0
-    */
+     */
     descent?: number;
     /**
      * Creates a monospace font of the width of the largest input icon.
@@ -145,14 +145,14 @@ function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>
 }
 
 export function parseFiles({ files, context }: IconPluginOptions) {
-    files ||= ['*.svg']
+    files ||= ['*.svg'];
     return files.flatMap(fileGlob => sync(fileGlob, { cwd: context })).map(file => `${context}/${file}`);
 }
 
 export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): WebfontsGeneratorOptions<T> {
     const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
-    options.dest ||= resolve(options.context, '..', 'artifacts')
+    options.dest ||= resolve(options.context, '..', 'artifacts');
     options.fontName ||= 'iconfont';
     return {
         files,

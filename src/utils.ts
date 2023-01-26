@@ -47,7 +47,7 @@ const alphabet = 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890
 export function guid(length = 8) {
     let result = '';
     for (let i = 0; i < length; i++) {
-        const index = Math.floor((Math.random() * (alphabet.length)));
+        const index = Math.floor(Math.random() * alphabet.length);
         result += alphabet[index];
     }
     return result;
