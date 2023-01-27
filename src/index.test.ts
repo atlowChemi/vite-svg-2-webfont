@@ -8,9 +8,10 @@ import type { PreviewServer, ViteDevServer, InlineConfig } from 'vite';
 
 // Currently @types/node doesn't include the fetch typing yet.
 declare global {
-    let fetch: typeof import('node-fetch').default;
+    // eslint-disable-next-line no-var
+    var fetch: typeof import('node-fetch').default;
 }
-fetch ||= nodeFetch;
+global.fetch ||= nodeFetch;
 
 // #region test utils
 const root = new URL('./fixtures/', import.meta.url);
