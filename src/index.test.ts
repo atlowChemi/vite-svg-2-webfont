@@ -1,5 +1,6 @@
 import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
+import nodeFetch from 'node-fetch';
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { build, createServer, preview, normalizePath } from 'vite';
 import type { RollupOutput } from 'rollup';
@@ -7,8 +8,9 @@ import type { PreviewServer, ViteDevServer, InlineConfig } from 'vite';
 
 // Currently @types/node doesn't include the fetch typing yet.
 declare global {
-    const fetch: typeof import('node-fetch').default;
+    let fetch: typeof import('node-fetch').default;
 }
+fetch ||= nodeFetch;
 
 // #region test utils
 const root = new URL('./fixtures/', import.meta.url);

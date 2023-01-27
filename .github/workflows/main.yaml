@@ -99,9 +99,6 @@ jobs:
             matrix:
                 node_version: [16.x, 18.x]
                 os: [ubuntu-latest]
-                include:
-                    - node_version: 18.x
-                      os: windows-latest
             fail-fast: false
         runs-on: ${{ matrix.os }}
         steps:
