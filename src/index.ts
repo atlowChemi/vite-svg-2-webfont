@@ -32,6 +32,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     };
     return {
         name: 'vite-svg-2-webfont',
+        enforce: 'pre',
         configResolved(_config) {
             isBuild = _config.command === 'build';
         },
