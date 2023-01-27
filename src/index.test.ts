@@ -88,10 +88,7 @@ describe('serve - handles virtual import and has all font types available', () =
 
     types.forEach(type => {
         it.concurrent(`has font of type ${type} available`, async () => {
-            const [expected, res] = await Promise.all([
-                loadFileContent(`fonts/iconfont.${type}`, 'buffer'),
-                fetchBufferContent(server, `/iconfont.${type}`),
-            ]);
+            const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/iconfont.${type}`)]);
             expect(res).toStrictEqual(expected);
         });
     });
@@ -101,7 +98,7 @@ describe('build', () => {
     let output: RollupOutput['output'];
     let server: PreviewServer;
     beforeAll(async () => {
-        output = (await build(getConfig()) as RollupOutput).output;
+        output = ((await build(getConfig())) as RollupOutput).output;
         server = await preview(getConfig());
         server.printUrls();
     });
@@ -121,10 +118,7 @@ describe('build', () => {
         it.concurrent(`has font of type ${type} available`, async () => {
             // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             const iconAssetName = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type))!.fileName;
-            const [expected, res] = await Promise.all([
-                loadFileContent(`fonts/iconfont.${type}`, 'buffer'),
-                fetchBufferContent(server, `/${iconAssetName}`),
-            ]);
+            const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/${iconAssetName}`)]);
             expect(res).toStrictEqual(expected);
         });
     });
