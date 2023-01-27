@@ -97,7 +97,7 @@ describe('utils', () => {
     });
 
     describe.concurrent('guid', () => {
-        it('should generate a string', () => {
+        it.concurrent('should generate a string', () => {
             const spy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
             expect(utils.guid()).to.matchSnapshot();
             expect(utils.guid(1)).to.matchSnapshot();
@@ -105,11 +105,41 @@ describe('utils', () => {
             expect(utils.guid(20)).to.matchSnapshot();
             spy.mockRestore();
         });
-        it('should default to a string length of 8', () => {
+        it.concurrent('should default to a string length of 8', () => {
             expect(utils.guid()).to.have.lengthOf(8);
         });
-        it('should return a string of requested length', () => {
+        it.concurrent('should return a string of requested length', () => {
             expect(utils.guid(16)).to.have.lengthOf(16);
+        });
+    });
+
+    describe.concurrent('hasFileExtension', () => {
+        it.concurrent('should return true for normal file', () => {
+            expect(utils.hasFileExtension('example.svg')).to.be.true;
+        });
+
+        it.concurrent('should return true for file with many dots', () => {
+            expect(utils.hasFileExtension('example.with.many.dots.in.file.name.svg')).to.be.true;
+        });
+
+        it.concurrent('should return true for file even if absolute route', () => {
+            expect(utils.hasFileExtension('/example/from/route.svg')).to.be.true;
+        });
+
+        it.concurrent('should return false for file without any dot', () => {
+            expect(utils.hasFileExtension('example')).to.be.false;
+        });
+
+        it.concurrent('should return false for empty string', () => {
+            expect(utils.hasFileExtension('')).to.be.false;
+        });
+
+        it.concurrent('should return false for null', () => {
+            expect(utils.hasFileExtension(null)).to.be.false;
+        });
+
+        it.concurrent('should return false for undefined', () => {
+            expect(utils.hasFileExtension(undefined)).to.be.false;
         });
     });
 });

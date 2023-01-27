@@ -1,5 +1,6 @@
 import glob from 'glob';
 import { resolve } from 'path';
+import { hasFileExtension } from './utils';
 import type { WebfontsGeneratorOptions, GeneratedFontTypes } from '@vusion/webfonts-generator';
 
 const { sync } = glob;
@@ -149,6 +150,13 @@ export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' |
     return files.flatMap(fileGlob => sync(fileGlob, { cwd: context })).map(file => `${context}/${file}`);
 }
 
+export function resolveFileDest(globalDest: string, fileDest: string, fontName: string, extension: 'css' | 'html') {
+    if (hasFileExtension(fileDest)) {
+        return resolve(globalDest, fileDest);
+    }
+    return resolve(globalDest, fileDest, `${fontName.toLowerCase()}.${extension}`);
+}
+
 export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>) {
     const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
@@ -171,11 +179,11 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
         writeFiles: options.writeFiles ?? false,
         formatOptions: options.formatOptions || {},
         dest: options.dest.endsWith('/') ? options.dest : `${options.dest}/`,
-        ...(options.cssDest && { cssDest: resolve(options.dest, options.cssDest, options.fontName.toLowerCase() + '.css') }),
+        ...(options.cssDest && { cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css') }),
         ...(options.cssTemplate && { cssTemplate: resolve(options.dest, options.cssTemplate) }),
         ...(options.cssFontsUrl && { cssFontsUrl: resolve(options.dest, options.cssFontsUrl) }),
         ...(options.htmlTemplate && { htmlTemplate: resolve(options.dest, options.htmlTemplate) }),
-        ...(options.htmlDest && { htmlDest: resolve(options.dest, options.htmlDest, options.fontName.toLowerCase() + '.html') }),
+        ...(options.htmlDest && { htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName.toLowerCase(), 'html') }),
         ...(typeof options.fixedWidth !== 'undefined' && { fixedWidth: options.fixedWidth }),
         ...(typeof options.centerHorizontally !== 'undefined' && { centerHorizontally: options.centerHorizontally }),
         ...(typeof options.normalize !== 'undefined' && { normalize: options.normalize }),

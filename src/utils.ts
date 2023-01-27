@@ -57,3 +57,8 @@ export function guid(length = 8) {
     }
     return result;
 }
+
+export function hasFileExtension(fileName?: string | null | undefined) {
+    const fileExtensionRegex = /(?:\.([^.]+))?$/;
+    return Boolean(fileExtensionRegex.exec(fileName || '')?.[1]);
+}
