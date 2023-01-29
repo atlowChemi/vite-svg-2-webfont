@@ -11,18 +11,25 @@ const VIRTUAL_MODULE_ID = 'virtual:vite-svg-2-webfont.css';
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
 
 export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin {
-    const processedOptions = parseOptions(options);
+    const { processedOptions, generateFilesOptions } = parseOptions(options);
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
     let _reloadModule: undefined | ((module: ModuleNode) => void);
-    let generatedFonts: undefined | Pick<WebfontsGeneratorResult, 'generateCss' | 'generateHtml' | T>;
+    let generatedFonts: undefined | Pick<WebfontsGeneratorResult<T>, 'generateCss' | 'generateHtml' | T>;
 
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
             processedOptions.files = parseFiles(options);
         }
+        if (isBuild) {
+            processedOptions.writeFiles = false;
+        }
         generatedFonts = await webfontGenerator(processedOptions);
+        const hasFilesToSave = !processedOptions.writeFiles && (generateFilesOptions.css || generateFilesOptions.html);
+        if (!isBuild && hasFilesToSave) {
+            // Save required files.
+        }
         if (updateFiles) {
             const module = _moduleGraph?.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
             if (module && _reloadModule) {
@@ -91,3 +98,8 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     };
 }
 export default viteSvgToWebfont;
+
+/**
+ * Paths of default templates available for use.
+ */
+export const templates = _webfontGenerator.templates;
