@@ -115,5 +115,9 @@ jobs:
               with:
                   name: dist
                   path: dist
-            - name: run test
-              run: npm run test
+            - name: run coverage test
+              run: npm run coverage
+            - uses: actions/upload-artifact@v3
+              with:
+                  name: coverage
+                  path: coverage
