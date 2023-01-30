@@ -191,7 +191,7 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
     const generateFilesOptions = parseGenerateFilesOption(options);
     options.dest ||= resolve(options.context, '..', 'artifacts');
     options.fontName ||= 'iconfont';
-    const processedOptions = {
+    return {
         files,
         types: formats,
         order: formats,
@@ -219,6 +219,4 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
         ...(typeof options.round !== 'undefined' && { round: options.round }),
         ...(typeof options.descent !== 'undefined' && { descent: options.descent }),
     } satisfies WebfontsGeneratorOptions<T>;
-
-    return { processedOptions, generateFilesOptions };
 }

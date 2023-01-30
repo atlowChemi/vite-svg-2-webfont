@@ -18,7 +18,7 @@ const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
  * It also generates CSS files that allow using the icons directly in your HTML output, using CSS classes per-icon.
  */
 export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin {
-    const { processedOptions, generateFilesOptions } = parseOptions(options);
+    const processedOptions = parseOptions(options);
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
@@ -33,13 +33,13 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
             processedOptions.writeFiles = false;
         }
         generatedFonts = await webfontGenerator(processedOptions);
-        const hasFilesToSave = !processedOptions.writeFiles && (generateFilesOptions.css || generateFilesOptions.html);
+        const hasFilesToSave = !processedOptions.writeFiles && (processedOptions.css || processedOptions.html);
         if (!isBuild && hasFilesToSave) {
             const promises: Promise<void>[] = [];
-            if (generateFilesOptions.css) {
+            if (processedOptions.css) {
                 promises.push(ensureDirExistsAndWriteFile(generatedFonts.generateCss(), processedOptions.cssDest));
             }
-            if (generateFilesOptions.html) {
+            if (processedOptions.html) {
                 promises.push(ensureDirExistsAndWriteFile(generatedFonts.generateHtml(), processedOptions.htmlDest));
             }
             await Promise.all(promises);
