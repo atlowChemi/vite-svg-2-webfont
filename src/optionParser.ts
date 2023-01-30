@@ -152,7 +152,10 @@ export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' |
     return resolvedFiles;
 }
 
-export function resolveFileDest(globalDest: string, fileDest: string, fontName: string, extension: 'css' | 'html') {
+export function resolveFileDest(globalDest: string, fileDest: string | undefined, fontName: string, extension: 'css' | 'html') {
+    if (!fileDest) {
+        return resolve(globalDest, `${fontName.toLowerCase()}.${extension}`);
+    }
     if (hasFileExtension(fileDest)) {
         return resolve(globalDest, fileDest);
     }
@@ -205,11 +208,11 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
         formatOptions: options.formatOptions || {},
         dest: options.dest.endsWith('/') ? options.dest : `${options.dest}/`,
         writeFiles: generateFilesOptions.fonts,
-        ...(options.cssDest && { cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css') }),
+        cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css'),
+        htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName, 'html'),
         ...(options.cssTemplate && { cssTemplate: resolve(options.dest, options.cssTemplate) }),
         ...(options.cssFontsUrl && { cssFontsUrl: resolve(options.dest, options.cssFontsUrl) }),
         ...(options.htmlTemplate && { htmlTemplate: resolve(options.dest, options.htmlTemplate) }),
-        ...(options.htmlDest && { htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName.toLowerCase(), 'html') }),
         ...(typeof options.fixedWidth !== 'undefined' && { fixedWidth: options.fixedWidth }),
         ...(typeof options.centerHorizontally !== 'undefined' && { centerHorizontally: options.centerHorizontally }),
         ...(typeof options.normalize !== 'undefined' && { normalize: options.normalize }),
