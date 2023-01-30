@@ -90,7 +90,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      */
     htmlTemplate?: string;
     /**
-     * Sets the type of file to be saved to system during development.
+     * Sets the type of files to be saved to system during development.
      *
      * `true` will generate all, and `false` will generate no files.
      * @default false
