@@ -200,11 +200,11 @@ The plugin has an API consisting of one required parameter and multiple optional
 -   **type**: `boolean | string | string[]`
 -   **description**: Sets the type of files to be saved to system during development.
 -   **valid inputs**:
-    - `true` Generate all file types.
-    - `false` Generate no files.
-    - `'html'` - Generate a HTML file
-    - `'css'` - Generate CSS file
-    - `'fonts'` - Generate font files (based on the [types](#types) requested)
+    -   `true` Generate all file types.
+    -   `false` Generate no files.
+    -   `'html'` - Generate a HTML file
+    -   `'css'` - Generate CSS file
+    -   `'fonts'` - Generate font files (based on the [types](#types) requested)
 -   **default** `false`
 
 ### types
