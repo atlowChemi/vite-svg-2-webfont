@@ -1,28 +1,49 @@
 import { promisify } from 'util';
 import _webfontGenerator from '@vusion/webfonts-generator';
-import { setupWatcher, MIME_TYPES, guid } from './utils';
-import { type IconPluginOptions, parseOptions, parseFiles } from './optionParser';
+import { setupWatcher, MIME_TYPES, guid, ensureDirExistsAndWriteFile } from './utils';
+import { parseOptions, parseFiles } from './optionParser';
 import type { Plugin, ModuleGraph, ModuleNode } from 'vite';
 import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfonts-generator';
+import type { IconPluginOptions } from './optionParser';
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);
 const VIRTUAL_MODULE_ID = 'virtual:vite-svg-2-webfont.css';
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
 
+/**
+ * A Vite plugin that generates a webfont from your SVG icons.
+ *
+ * The plugin uses {@link https://github.com/vusion/webfonts-generator/ webfonts-generator} package to create fonts in any format.
+ * It also generates CSS files that allow using the icons directly in your HTML output, using CSS classes per-icon.
+ */
 export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin {
     const processedOptions = parseOptions(options);
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
     let _reloadModule: undefined | ((module: ModuleNode) => void);
-    let generatedFonts: undefined | Pick<WebfontsGeneratorResult, 'generateCss' | 'generateHtml' | T>;
+    let generatedFonts: undefined | Pick<WebfontsGeneratorResult<T>, 'generateCss' | 'generateHtml' | T>;
 
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
             processedOptions.files = parseFiles(options);
         }
+        if (isBuild) {
+            processedOptions.writeFiles = false;
+        }
         generatedFonts = await webfontGenerator(processedOptions);
+        const hasFilesToSave = !processedOptions.writeFiles && (processedOptions.css || processedOptions.html);
+        if (!isBuild && hasFilesToSave) {
+            const promises: Promise<void>[] = [];
+            if (processedOptions.css) {
+                promises.push(ensureDirExistsAndWriteFile(generatedFonts.generateCss(), processedOptions.cssDest));
+            }
+            if (processedOptions.html) {
+                promises.push(ensureDirExistsAndWriteFile(generatedFonts.generateHtml(), processedOptions.htmlDest));
+            }
+            await Promise.all(promises);
+        }
         if (updateFiles) {
             const module = _moduleGraph?.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
             if (module && _reloadModule) {
@@ -91,3 +112,8 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     };
 }
 export default viteSvgToWebfont;
+
+/**
+ * Paths of default templates available for use.
+ */
+export const templates = _webfontGenerator.templates;

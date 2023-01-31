@@ -1,6 +1,7 @@
-import { resolve } from 'path';
 import { constants } from 'fs';
-import { watch, access, FileChangeInfo } from 'fs/promises';
+import { resolve, dirname } from 'path';
+import { watch, access, mkdir, writeFile } from 'fs/promises';
+import type { FileChangeInfo } from 'fs/promises';
 import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
 
 let watcher: ReturnType<typeof watch> | undefined;
@@ -61,4 +62,10 @@ export function guid(length = 8) {
 export function hasFileExtension(fileName?: string | null | undefined) {
     const fileExtensionRegex = /(?:\.([^.]+))?$/;
     return Boolean(fileExtensionRegex.exec(fileName || '')?.[1]);
+}
+
+export async function ensureDirExistsAndWriteFile(content: string | Buffer, dest: string) {
+    const options = { mode: 0o777, recursive: true };
+    await mkdir(dirname(dest), options);
+    await writeFile(dest, content);
 }

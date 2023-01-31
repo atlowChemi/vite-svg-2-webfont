@@ -104,13 +104,6 @@ The plugin has an API consisting of one required parameter and multiple optional
 -   **default** `path.resolve(context, '..', 'artifacts')`
 -   See [webfonts-generator#dest](https://github.com/vusion/webfonts-generator#dest)
 
-### css
-
--   **type**: `boolean`
--   **description**: Whether to generate CSS file.
--   **default** `false`
--   See [webfonts-generator#css](https://github.com/vusion/webfonts-generator#css)
-
 ### cssDest
 
 -   **type**: `string`
@@ -137,13 +130,6 @@ The plugin has an API consisting of one required parameter and multiple optional
 -   **type**: `string`
 -   **description**: Fonts path used in CSS file.
 -   **default** [`cssDest`](#cssdest)
-
-### html
-
--   **type**: `boolean`
--   **description**: Whether to generate HTML preview.
--   **default** `false`
--   See [webfonts-generator#html](https://github.com/vusion/webfonts-generator#html)
 
 ### htmlDest
 
@@ -209,13 +195,17 @@ The plugin has an API consisting of one required parameter and multiple optional
 -   **default** `false`
 -   See [svgicons2svgfont#optionscenterhorizontally](https://github.com/nfroidure/svgicons2svgfont#optionscenterhorizontally)
 
-### writeFiles
+### generateFiles
 
--   **type**: `boolean`
--   **description**: It is possible to not create files and get generated fonts in object to write them to files later.
-    Also results object will have function generateCss([urls]) where urls is an object with future fonts urls.
+-   **type**: `boolean | string | string[]`
+-   **description**: Sets the type of files to be saved to system during development.
+-   **valid inputs**:
+    -   `true` Generate all file types.
+    -   `false` Generate no files.
+    -   `'html'` - Generate a HTML file
+    -   `'css'` - Generate CSS file
+    -   `'fonts'` - Generate font files (based on the [types](#types) requested)
 -   **default** `false`
--   See [webfonts-generator#writefiles](https://github.com/vusion/webfonts-generator#writefiles)
 
 ### types
 

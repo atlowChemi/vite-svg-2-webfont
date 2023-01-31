@@ -5,7 +5,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 vi.mock('fs/promises', async () => {
     const fsPromises = await vi.importActual<typeof import('fs/promises')>('fs/promises');
     const access = vi.fn().mockRejectedValueOnce(new Error());
-    return { ...fsPromises, access, watch: vi.fn(fsPromises.watch) };
+    return { ...fsPromises, access, watch: vi.fn(fsPromises.watch), mkdir: vi.fn(), writeFile: vi.fn() };
 });
 
 describe('utils', () => {
@@ -140,6 +140,17 @@ describe('utils', () => {
 
         it.concurrent('should return false for undefined', () => {
             expect(utils.hasFileExtension(undefined)).to.be.false;
+        });
+    });
+
+    describe.concurrent('ensureDirExistsAndWriteFile', () => {
+        it.concurrent('makes a parent directory and writes file', async () => {
+            const dir = '/root/example';
+            const file = `${dir}/file.css`;
+            const content = 'content';
+            await utils.ensureDirExistsAndWriteFile(content, file);
+            expect(fs.mkdir).toBeCalledWith(dir, { mode: 0o777, recursive: true });
+            expect(fs.writeFile).toBeCalledWith(file, content);
         });
     });
 });

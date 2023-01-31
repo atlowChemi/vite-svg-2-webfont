@@ -8,15 +8,12 @@ const webfontFolder = resolve('./src/webfont');
 export default defineConfig({
     plugins: [
         viteSvgToWebfont({
-            files: ['*.svg'],
             context: webfontFolder,
-            dest: resolve(webfontFolder, 'artifacts'),
             htmlDest: resolve(webfontFolder, 'icons.ts'),
             htmlTemplate: resolve(webfontFolder, 'icons.ts.hbs'),
             fontName: 'exampleIcon',
             baseSelector: '.exIcon',
-            html: true,
-            writeFiles: true,
+            generateFiles: 'html',
         }),
     ],
 });

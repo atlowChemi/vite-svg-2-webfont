@@ -1,9 +1,13 @@
 import glob from 'glob';
 import { resolve } from 'path';
 import { hasFileExtension } from './utils';
+import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
 import type { WebfontsGeneratorOptions, GeneratedFontTypes } from '@vusion/webfonts-generator';
 
 const { sync } = glob;
+
+const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
+type FileType = (typeof FILE_TYPE_OPTIONS)[number];
 
 export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontTypes> {
     /** Context directory in which the SVG files will be read from */
@@ -18,16 +22,6 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      * @default path.resolve(options.context, '..', 'artifacts')
      */
     dest?: string;
-    /**
-     * Whether to generate CSS file.
-     * @default false
-     */
-    css?: boolean;
-    /**
-     * Whether to generate HTML preview.
-     * @default false
-     */
-    html?: boolean;
     /**
      * Enable or disable ligature function.
      * @default true
@@ -57,19 +51,21 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     centerHorizontally?: boolean;
     /**
      * Path for generated CSS file.
+     * - Relative to the {@link dest} property, unless set to an absolute path.
+     * - Postfixed with {@link fontName} unless set to a file name with a file extension.
      * @default path.join(options.dest, options.fontName + '.css')
      */
     cssDest?: string;
     /**
      * Path of custom CSS template. Generator uses handlebars templates.
-     * Template receives options from options.templateOptions along with the following options:
-     * - fontName
+     * Template receives options from {@link WebfontsGeneratorOptions.templateOptions `templateOptions`} along with the following options:
+     * - {@link fontName} `string`
      * - src `string` – Value of the `src` property for `@font-face`.
-     * - codepoints `object` – Codepoints of icons in hex format.
+     * - {@link codepoints} `object` – Codepoints of icons in hex format.
      *
-     * Paths of default templates are stored in the `webfontsGenerator.templates` object.
-     * - `webfontsGenerator.templates.css` – Default CSS template path. It generates classes with names based on values from `options.templateOptions`.
-     * - `webfontsGenerator.templates.scss` – Default SCSS template path. It generates mixin `webfont-icon` to add icon styles. It is safe to use multiple generated files with mixins together.
+     * Paths of default templates are stored in the `templates` object.
+     * - `templates.css` – Default CSS template path. It generates classes with names based on values from {@link WebfontsGeneratorOptions.templateOptions `templateOptions`}.
+     * - `templates.scss` – Default SCSS template path. It generates mixin `webfont-icon` to add icon styles. It is safe to use multiple generated files with mixins together.
      */
     cssTemplate?: string;
     /**
@@ -79,25 +75,27 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     cssFontsUrl?: string;
     /**
      * Path for generated HTML file.
+     * - Relative to the {@link dest} property, unless set to an absolute path.
+     * - Postfixed with {@link fontName} unless set to a file name with a file extension.
      * @default path.join(options.dest, options.fontName + '.html')
      */
     htmlDest?: string;
     /**
      * HTML template path. Generator uses handlebars templates.
      *
-     * Template receives options from `options.templateOptions` along with the following options:
-     * - fontName
-     * - styles `string` – Styles generated with default CSS template. (`cssFontsPath` is changed to relative path from `htmlDest` to `dest`)
+     * Template receives options from {@link WebfontsGeneratorOptions.templateOptions `templateOptions`} along with the following options:
+     * - {@link fontName} `string`
+     * - styles `string` – Styles generated with default CSS template. ({@link cssFontsPath `cssFontsPath`} is changed to relative path from {@link htmlDest `htmlDest`} to {@link dest `dest`})
      * - names `string[]` – Names of icons.
      */
     htmlTemplate?: string;
     /**
-     * It is possible to not create files and get generated fonts in object to write them to files later.
+     * Sets the type of files to be saved to system during development.
      *
-     * Also results object will have function generateCss([urls]) where urls is an object with future fonts urls.
+     * `true` will generate all, and `false` will generate no files.
      * @default false
      */
-    writeFiles?: boolean;
+    generateFiles?: boolean | FileType | FileType[];
     /**
      * Specific per format arbitrary options to pass to the generator.
      *
@@ -147,19 +145,50 @@ export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFon
 
 export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>) {
     files ||= ['*.svg'];
-    return files.flatMap(fileGlob => sync(fileGlob, { cwd: context })).map(file => `${context}/${file}`);
+    const resolvedFiles = files.flatMap(fileGlob => sync(fileGlob, { cwd: context })).map(file => `${context}/${file}`);
+    if (!resolvedFiles.length) {
+        throw new NoIconsAvailableError('The specified file globs did not resolve any files in the context.');
+    }
+    return resolvedFiles;
 }
 
-export function resolveFileDest(globalDest: string, fileDest: string, fontName: string, extension: 'css' | 'html') {
+export function resolveFileDest(globalDest: string, fileDest: string | undefined, fontName: string, extension: 'css' | 'html') {
+    if (!fileDest) {
+        return resolve(globalDest, `${fontName.toLowerCase()}.${extension}`);
+    }
     if (hasFileExtension(fileDest)) {
         return resolve(globalDest, fileDest);
     }
     return resolve(globalDest, fileDest, `${fontName.toLowerCase()}.${extension}`);
 }
 
+export function buildFileTypeList({ generateFiles }: Pick<IconPluginOptions, 'generateFiles'>): readonly FileType[] {
+    if (!generateFiles || typeof generateFiles === 'boolean') {
+        return generateFiles ? FILE_TYPE_OPTIONS : [];
+    }
+    if (!Array.isArray(generateFiles)) {
+        generateFiles = [generateFiles];
+    }
+    const invalidTypes = generateFiles.filter(type => !FILE_TYPE_OPTIONS.includes(type));
+    if (invalidTypes.length) {
+        throw new InvalidWriteFilesTypeError(invalidTypes);
+    }
+    return generateFiles;
+}
+
+export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'generateFiles'>) {
+    const fileTypes = new Set(buildFileTypeList(options));
+    return {
+        fonts: fileTypes.has('fonts'),
+        html: fileTypes.has('html'),
+        css: fileTypes.has('css'),
+    };
+}
+
 export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>) {
     const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
+    const generateFilesOptions = parseGenerateFilesOption(options);
     options.dest ||= resolve(options.context, '..', 'artifacts');
     options.fontName ||= 'iconfont';
     return {
@@ -173,17 +202,17 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
             baseSelector: options.baseSelector || '.icon',
             classPrefix: options.classPrefix ?? 'icon-',
         },
-        html: Boolean(options.html ?? options.htmlDest),
-        css: Boolean(options.css ?? options.cssDest),
+        html: generateFilesOptions.html,
+        css: generateFilesOptions.css,
         ligature: options.ligature ?? true,
-        writeFiles: options.writeFiles ?? false,
         formatOptions: options.formatOptions || {},
         dest: options.dest.endsWith('/') ? options.dest : `${options.dest}/`,
-        ...(options.cssDest && { cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css') }),
+        writeFiles: generateFilesOptions.fonts,
+        cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css'),
+        htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName, 'html'),
         ...(options.cssTemplate && { cssTemplate: resolve(options.dest, options.cssTemplate) }),
         ...(options.cssFontsUrl && { cssFontsUrl: resolve(options.dest, options.cssFontsUrl) }),
         ...(options.htmlTemplate && { htmlTemplate: resolve(options.dest, options.htmlTemplate) }),
-        ...(options.htmlDest && { htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName.toLowerCase(), 'html') }),
         ...(typeof options.fixedWidth !== 'undefined' && { fixedWidth: options.fixedWidth }),
         ...(typeof options.centerHorizontally !== 'undefined' && { centerHorizontally: options.centerHorizontally }),
         ...(typeof options.normalize !== 'undefined' && { normalize: options.normalize }),

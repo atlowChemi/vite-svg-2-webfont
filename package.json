@@ -25,7 +25,8 @@
         "lint": "eslint --cache .",
         "format": "prettier --write --cache .",
         "type-check": "tsc --noEmit",
-        "test": "vitest"
+        "test": "vitest",
+        "coverage": "vitest run --coverage"
     },
     "repository": {
         "type": "git",
@@ -51,9 +52,10 @@
         "@types/glob": "^8.0.0",
         "@types/node": "^18.11.18",
         "@types/node-fetch": "^2.6.2",
-        "@types/vusion__webfonts-generator": "^0.8.0",
+        "@types/vusion__webfonts-generator": "^0.8.1",
         "@typescript-eslint/eslint-plugin": "^5.47.1",
         "@typescript-eslint/parser": "^5.47.1",
+        "@vitest/coverage-istanbul": "^0.28.3",
         "eslint": "^8.31.0",
         "eslint-config-prettier": "^8.5.0",
         "node-fetch": "^3.3.0",
