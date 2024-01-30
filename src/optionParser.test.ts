@@ -26,23 +26,23 @@ describe('optionParser', () => {
         });
     });
 
-    describe.concurrent('parseFiles', () => {
+    describe('parseFiles', () => {
         afterEach(() => {
             vi.restoreAllMocks();
         });
 
         const { sync } = glob as unknown as { sync: Mock };
 
-        it.concurrent('defaults to all svg files in context', () => {
+        it('defaults to all svg files in context', () => {
             optionParser.parseFiles({ context: '' });
             expect(sync).toHaveBeenCalledOnce();
             expect(sync).toBeCalledWith('*.svg', { cwd: '' });
         });
 
-        it.concurrent('concatenates the context to the file name', () => {
+        it('concatenates the context to the file name', () => {
             const file = 'ex.svg';
             const context = 'prefix';
-            sync.mockReturnValueOnce([file]);
+            vi.mocked(sync).mockReturnValueOnce([file]);
             const resp = optionParser.parseFiles({ context });
             expect(sync).toHaveBeenCalledOnce();
             expect(sync).toBeCalledWith('*.svg', { cwd: context });
@@ -50,8 +50,8 @@ describe('optionParser', () => {
             expect(resp[0]).to.be.eq(`${context}/${file}`);
         });
 
-        it.concurrent('throws if no files found', async () => {
-            sync.mockReturnValueOnce([]);
+        it('throws if no files found', async () => {
+            vi.mocked(sync).mockReturnValueOnce([]);
             try {
                 optionParser.parseFiles({ context: '' });
                 throw new Error('Should never get to this error!');
