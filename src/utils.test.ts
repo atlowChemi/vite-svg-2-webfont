@@ -1,6 +1,6 @@
 import * as fs from 'fs/promises';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as utils from './utils';
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 vi.mock('fs/promises', async () => {
     const fsPromises = await vi.importActual<typeof import('fs/promises')>('fs/promises');
@@ -97,7 +97,7 @@ describe('utils', () => {
     });
 
     describe.concurrent('guid', () => {
-        it.concurrent('should generate a string', () => {
+        it.concurrent('should generate a string', ({ expect }) => {
             const spy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
             expect(utils.guid()).to.matchSnapshot();
             expect(utils.guid(1)).to.matchSnapshot();
@@ -105,10 +105,10 @@ describe('utils', () => {
             expect(utils.guid(20)).to.matchSnapshot();
             spy.mockRestore();
         });
-        it.concurrent('should default to a string length of 8', () => {
+        it.concurrent('should default to a string length of 8', ({ expect }) => {
             expect(utils.guid()).to.have.lengthOf(8);
         });
-        it.concurrent('should return a string of requested length', () => {
+        it.concurrent('should return a string of requested length', ({ expect }) => {
             expect(utils.guid(16)).to.have.lengthOf(16);
         });
     });
