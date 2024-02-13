@@ -131,6 +131,13 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      * @default '.icon'
      */
     baseSelector?: string;
+    /**
+     * Virtual module id which is used by Vite to import the plugin artifacts.
+     * E.g. the default value is "vite-svg-2-webfont.css" so "virtual:vite-svg-2-webfont.css" should be imported.
+     *
+     * @default 'vite-svg-2-webfont.css'
+     */
+    moduleId?: string;
 }
 
 export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {

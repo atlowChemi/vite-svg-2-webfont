@@ -249,3 +249,9 @@ The plugin has an API consisting of one required parameter and multiple optional
     -   woff - [ttf2woff](https://github.com/fontello/ttf2woff).
     -   eot - [ttf2eot](https://github.com/fontello/ttf2eot).
 -   See [webfonts-generator#formatoptions](https://github.com/vusion/webfonts-generator#formatoptions)
+
+### moduleId
+
+-   **type**: `string`
+-   **description**: Virtual module id which is used by Vite to import the plugin artifacts. E.g. the default value is "vite-svg-2-webfont.css" so "virtual:vite-svg-2-webfont.css" should be imported.
+-   **default** `'vite-svg-2-webfont.css'`
