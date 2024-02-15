@@ -5,6 +5,8 @@ import { parseOptions, parseFiles } from './optionParser';
 import type { Plugin, ModuleGraph, ModuleNode } from 'vite';
 import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfonts-generator';
 import type { IconPluginOptions } from './optionParser';
+import type { GeneratedWebfont } from './types/generatedWebfont';
+import type { PublicApi } from './types/publicApi';
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);
@@ -24,6 +26,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     let _moduleGraph: ModuleGraph;
     let _reloadModule: undefined | ((module: ModuleNode) => void);
     let generatedFonts: undefined | Pick<WebfontsGeneratorResult<T>, 'generateCss' | 'generateHtml' | T>;
+    const generatedWebfonts: GeneratedWebfont[] = [];
 
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
@@ -54,6 +57,11 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     return {
         name: 'vite-svg-2-webfont',
         enforce: 'pre',
+        api: {
+            getGeneratedWebfonts(): GeneratedWebfont[] {
+                return generatedWebfonts;
+            },
+        } satisfies PublicApi,
         configResolved(_config) {
             isBuild = _config.command === 'build';
         },
@@ -85,6 +93,10 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                     type,
                     `/${this.getFileName(this.emitFile({ type: 'asset', fileName: `assets/${processedOptions.fontName}-${guid()}.${type}`, source: generatedFonts?.[type] }))}`,
                 ]);
+
+                emitted.forEach(([type, href]) => {
+                    generatedWebfonts.push({ type, href });
+                });
                 fileRefs = Object.fromEntries(emitted) as { [Ref in T]: string };
             }
         },
@@ -112,6 +124,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     };
 }
 export default viteSvgToWebfont;
+export { type GeneratedWebfont, type PublicApi };
 
 /**
  * Paths of default templates available for use.
