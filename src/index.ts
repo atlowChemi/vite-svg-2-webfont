@@ -19,7 +19,7 @@ const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
  * The plugin uses {@link https://github.com/vusion/webfonts-generator/ webfonts-generator} package to create fonts in any format.
  * It also generates CSS files that allow using the icons directly in your HTML output, using CSS classes per-icon.
  */
-export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin {
+export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin<PublicApi> {
     const processedOptions = parseOptions(options);
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
@@ -61,7 +61,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
             getGeneratedWebfonts(): GeneratedWebfont[] {
                 return generatedWebfonts;
             },
-        } satisfies PublicApi,
+        },
         configResolved(_config) {
             isBuild = _config.command === 'build';
         },
