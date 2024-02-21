@@ -5,6 +5,8 @@ import { parseOptions, parseFiles } from './optionParser';
 import type { Plugin, ModuleGraph, ModuleNode } from 'vite';
 import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfonts-generator';
 import type { IconPluginOptions } from './optionParser';
+import type { GeneratedWebfont } from './types/generatedWebfont';
+import type { PublicApi } from './types/publicApi';
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);
@@ -17,13 +19,14 @@ const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
  * The plugin uses {@link https://github.com/vusion/webfonts-generator/ webfonts-generator} package to create fonts in any format.
  * It also generates CSS files that allow using the icons directly in your HTML output, using CSS classes per-icon.
  */
-export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin {
+export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin<PublicApi> {
     const processedOptions = parseOptions(options);
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
     let _reloadModule: undefined | ((module: ModuleNode) => void);
     let generatedFonts: undefined | Pick<WebfontsGeneratorResult<T>, 'generateCss' | 'generateHtml' | T>;
+    const generatedWebfonts: GeneratedWebfont[] = [];
 
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
@@ -54,6 +57,11 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     return {
         name: 'vite-svg-2-webfont',
         enforce: 'pre',
+        api: {
+            getGeneratedWebfonts(): GeneratedWebfont[] {
+                return generatedWebfonts;
+            },
+        },
         configResolved(_config) {
             isBuild = _config.command === 'build';
         },
@@ -85,6 +93,10 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                     type,
                     `/${this.getFileName(this.emitFile({ type: 'asset', fileName: `assets/${processedOptions.fontName}-${guid()}.${type}`, source: generatedFonts?.[type] }))}`,
                 ]);
+
+                emitted.forEach(([type, href]) => {
+                    generatedWebfonts.push({ type, href });
+                });
                 fileRefs = Object.fromEntries(emitted) as { [Ref in T]: string };
             }
         },
@@ -112,6 +124,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     };
 }
 export default viteSvgToWebfont;
+export { type GeneratedWebfont, type PublicApi };
 
 /**
  * Paths of default templates available for use.
