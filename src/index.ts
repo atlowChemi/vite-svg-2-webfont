@@ -10,8 +10,15 @@ import type { PublicApi } from './types/publicApi';
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);
-const VIRTUAL_MODULE_ID = 'virtual:vite-svg-2-webfont.css';
-const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
+const DEFAULT_MODULE_ID = 'vite-svg-2-webfont.css';
+
+function getVirtualModuleId<T extends string>(moduleId: T): `virtual:${T}` {
+    return `virtual:${moduleId}`;
+}
+
+function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${T}` {
+    return `\0${virtualModuleId}`;
+}
 
 /**
  * A Vite plugin that generates a webfont from your SVG icons.
@@ -27,6 +34,9 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     let _reloadModule: undefined | ((module: ModuleNode) => void);
     let generatedFonts: undefined | Pick<WebfontsGeneratorResult<T>, 'generateCss' | 'generateHtml' | T>;
     const generatedWebfonts: GeneratedWebfont[] = [];
+    const moduleId = options.moduleId ?? DEFAULT_MODULE_ID;
+    const virtualModuleId = getVirtualModuleId(moduleId);
+    const resolvedVirtualModuleId = getResolvedVirtualModuleId(virtualModuleId);
 
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
@@ -48,7 +58,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
             await Promise.all(promises);
         }
         if (updateFiles) {
-            const module = _moduleGraph?.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
+            const module = _moduleGraph?.getModuleById(resolvedVirtualModuleId);
             if (module && _reloadModule) {
                 _reloadModule(module);
             }
@@ -66,22 +76,22 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
             isBuild = _config.command === 'build';
         },
         resolveId(id) {
-            if (id !== VIRTUAL_MODULE_ID) {
+            if (id !== virtualModuleId) {
                 return undefined;
             }
-            return RESOLVED_VIRTUAL_MODULE_ID;
+            return resolvedVirtualModuleId;
         },
         transform(_code, id) {
-            if (id !== RESOLVED_VIRTUAL_MODULE_ID) {
+            if (id !== resolvedVirtualModuleId) {
                 return undefined;
             }
             return generatedFonts?.generateCss?.(fileRefs) || '';
         },
         load(id) {
-            if (id !== RESOLVED_VIRTUAL_MODULE_ID) {
+            if (id !== resolvedVirtualModuleId) {
                 return undefined;
             }
-            return RESOLVED_VIRTUAL_MODULE_ID;
+            return resolvedVirtualModuleId;
         },
         async buildStart() {
             if (!isBuild) {
