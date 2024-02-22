@@ -9,6 +9,9 @@ jobs:
     release:
         name: release
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
         steps:
             - name: checkout
               uses: actions/checkout@v4
@@ -23,6 +26,6 @@ jobs:
             - name: build
               run: npm run build
             - name: deploy
-              run: npm publish
+              run: npm publish --provenance
               env:
                   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

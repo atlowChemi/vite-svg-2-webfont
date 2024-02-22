@@ -1,10 +1,12 @@
 # vite-svg-2-webfont
 
 [![npm](https://img.shields.io/npm/v/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
+![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/atlowChemi/vite-svg-2-webfont/main.yaml?branch=main&style=flat-square)
 [![npm](https://img.shields.io/npm/dm/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
-[![license](https://img.shields.io/github/license/ChemiAtlow/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/ChemiAtlow/vite-svg-2-webfont/blob/master/LICENSE)
+[![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/master/LICENSE)
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)
 [![node engine](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)
+[![Package Quality](https://packagequality.com/shield/vite-svg-2-webfont.svg)](https://packagequality.com/#?package=vite-svg-2-webfont)
 
 A Vite Plugin that generates fonts from your SVG icons and allows you to use your icons in your HTML.
 
