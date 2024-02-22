@@ -12,9 +12,9 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: setup Node
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
                   node-version: '18.x'
                   cache: npm
@@ -26,9 +26,9 @@ jobs:
         needs: [packages]
         steps:
             - name: checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: setup Node
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
                   node-version: '18.x'
                   cache: npm
@@ -42,9 +42,9 @@ jobs:
         needs: [packages]
         steps:
             - name: checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: setup Node
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
                   node-version: '18.x'
                   cache: npm
@@ -58,9 +58,9 @@ jobs:
         needs: [packages]
         steps:
             - name: checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: setup Node
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
                   node-version: '18.x'
                   cache: npm
@@ -68,7 +68,7 @@ jobs:
               run: npm ci
             - name: run build
               run: npm run build
-            - uses: actions/upload-artifact@v3
+            - uses: actions/upload-artifact@v4
               with:
                   name: dist
                   path: dist
@@ -78,15 +78,15 @@ jobs:
         needs: [packages, build]
         steps:
             - name: checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: setup Node
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
                   node-version: '18.x'
                   cache: npm
             - name: npm ci
               run: npm ci
-            - uses: actions/download-artifact@v3
+            - uses: actions/download-artifact@v4
               with:
                   name: dist
                   path: dist
@@ -103,21 +103,21 @@ jobs:
         runs-on: ${{ matrix.os }}
         steps:
             - name: checkout
-              uses: actions/checkout@v3
+              uses: actions/checkout@v4
             - name: setup Node
-              uses: actions/setup-node@v3
+              uses: actions/setup-node@v4
               with:
                   node-version: ${{ matrix.node_version }}
                   cache: npm
             - name: npm ci
               run: npm ci
-            - uses: actions/download-artifact@v3
+            - uses: actions/download-artifact@v4
               with:
                   name: dist
                   path: dist
             - name: run coverage test
               run: npm run coverage
-            - uses: actions/upload-artifact@v3
+            - uses: actions/upload-artifact@v4
               with:
                   name: coverage
                   path: coverage
