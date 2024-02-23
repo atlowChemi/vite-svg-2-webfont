@@ -38,6 +38,15 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     const virtualModuleId = getVirtualModuleId(moduleId);
     const resolvedVirtualModuleId = getResolvedVirtualModuleId(virtualModuleId);
 
+    const inline = options.inline
+        ? <U extends string | undefined>(css: U) =>
+              css?.replace(/url\(".*?\.([^?]+)\?[^"]+"\)/g, (_, type: T) => {
+                  const font = generatedFonts?.[type];
+                  const fontData = typeof font === 'string' ? btoa(font) : font?.toString('base64');
+                  return `url("data:${MIME_TYPES[type]};charset=utf-8;base64,${fontData}")`;
+              }) as U
+        : <U>(css: U) => css;
+
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
             processedOptions.files = parseFiles(options);
@@ -50,7 +59,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
         if (!isBuild && hasFilesToSave) {
             const promises: Promise<void>[] = [];
             if (processedOptions.css) {
-                promises.push(ensureDirExistsAndWriteFile(generatedFonts.generateCss(), processedOptions.cssDest));
+                promises.push(ensureDirExistsAndWriteFile(inline(generatedFonts.generateCss()), processedOptions.cssDest));
             }
             if (processedOptions.html) {
                 promises.push(ensureDirExistsAndWriteFile(generatedFonts.generateHtml(), processedOptions.htmlDest));
@@ -85,7 +94,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
             if (id !== resolvedVirtualModuleId) {
                 return undefined;
             }
-            return generatedFonts?.generateCss?.(fileRefs) || '';
+            return inline(generatedFonts?.generateCss?.(fileRefs)) || '';
         },
         load(id) {
             if (id !== resolvedVirtualModuleId) {
@@ -98,7 +107,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                 setupWatcher(options.context, ac.signal, () => generate(true));
             }
             await generate();
-            if (isBuild) {
+            if (isBuild && !options.inline) {
                 const emitted = processedOptions.types.map<[T, string]>(type => [
                     type,
                     `/${this.getFileName(this.emitFile({ type: 'asset', fileName: `assets/${processedOptions.fontName}-${guid()}.${type}`, source: generatedFonts?.[type] }))}`,
@@ -111,6 +120,9 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
             }
         },
         configureServer({ middlewares, reloadModule, moduleGraph }) {
+            if (options.inline) {
+                return;
+            }
             for (const fontType of processedOptions.types) {
                 const fileName = `${processedOptions.fontName}.${fontType}`;
                 middlewares.use(`/${fileName}`, (_req, res) => {

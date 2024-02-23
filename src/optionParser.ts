@@ -138,6 +138,11 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      * @default 'vite-svg-2-webfont.css'
      */
     moduleId?: string;
+    /**
+     * Inline font assets in CSS using base64 encoding.
+     * @default false
+     */
+    inline?: boolean;
 }
 
 export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
