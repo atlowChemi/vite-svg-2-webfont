@@ -29,7 +29,7 @@ export async function handleWatchEvent(
     onIconAdded: (e: FileChangeInfo<string>) => void,
     _doesFileExist = doesFileExist,
 ) {
-    if (eventType !== 'rename' || !filename.endsWith('.svg') || !(await _doesFileExist(folderPath, filename))) {
+    if (eventType !== 'rename' || !filename?.endsWith('.svg') || !(await _doesFileExist(folderPath, filename))) {
         return;
     }
     onIconAdded({ eventType, filename });

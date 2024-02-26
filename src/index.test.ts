@@ -1,17 +1,9 @@
 import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
-import nodeFetch from 'node-fetch';
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { build, createServer, preview, normalizePath } from 'vite';
 import type { RollupOutput } from 'rollup';
 import type { PreviewServer, ViteDevServer, InlineConfig } from 'vite';
-
-// Currently @types/node doesn't include the fetch typing yet.
-declare global {
-    // eslint-disable-next-line no-var
-    var fetch: typeof import('node-fetch').default;
-}
-global.fetch ||= nodeFetch;
 
 // #region test utils
 const root = new URL('./fixtures/', import.meta.url);
@@ -111,7 +103,6 @@ describe('build', () => {
     });
 
     it.concurrent('injects fonts css to page', async () => {
-        // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
         const cssFileName = output.find(({ type, name }) => type === 'asset' && name === 'index.css')!.fileName;
         const res = await fetchTextContent(server, `/${cssFileName}`);
         expect(res).toMatch(/^@font-face{font-family:iconfont;/);
@@ -119,7 +110,6 @@ describe('build', () => {
 
     types.forEach(type => {
         it.concurrent(`has font of type ${type} available`, async () => {
-            // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
             const iconAssetName = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type))!.fileName;
             const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/${iconAssetName}`)]);
             expect(res).toStrictEqual(expected);

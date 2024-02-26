@@ -4,7 +4,6 @@ import { iconBaseSelector, iconClassPrefix, icons } from './webfont/icons';
 
 const baseSelector = iconBaseSelector.replace('.', '');
 
-// eslint-disable-next-line @typescript-eslint/no-non-null-assertion
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div>
     <h1>vite-svg-2-webfont</h1>
