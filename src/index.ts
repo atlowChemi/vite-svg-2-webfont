@@ -41,9 +41,8 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     const inline = options.inline
         ? <U extends string | undefined>(css: U) =>
               css?.replace(/url\(".*?\.([^?]+)\?[^"]+"\)/g, (_, type: T) => {
-                  const font = generatedFonts?.[type];
-                  const fontData = typeof font === 'string' ? btoa(font) : font?.toString('base64');
-                  return `url("data:${MIME_TYPES[type]};charset=utf-8;base64,${fontData}")`;
+                  const font = Buffer.from(generatedFonts?.[type] || []);
+                  return `url("data:${MIME_TYPES[type]};charset=utf-8;base64,${font.toString('base64')}")`;
               }) as U
         : <U>(css: U) => css;
 
