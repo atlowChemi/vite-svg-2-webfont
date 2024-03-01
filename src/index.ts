@@ -38,13 +38,15 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     const virtualModuleId = getVirtualModuleId(moduleId);
     const resolvedVirtualModuleId = getResolvedVirtualModuleId(virtualModuleId);
 
-    const inline = options.inline
-        ? <U extends string | undefined>(css: U) =>
-              css?.replace(/url\(".*?\.([^?]+)\?[^"]+"\)/g, (_, type: T) => {
-                  const font = Buffer.from(generatedFonts?.[type] || []);
-                  return `url("data:${MIME_TYPES[type]};charset=utf-8;base64,${font.toString('base64')}")`;
-              }) as U
-        : <U>(css: U) => css;
+    const inline = <U extends string | undefined>(css: U) => {
+        if (!options.inline) {
+            return css;
+        }
+        return css?.replace(/url\(".*?\.([^?]+)\?[^"]+"\)/g, (_, type: T) => {
+            const font = Buffer.from(generatedFonts?.[type] || []);
+            return `url("data:${MIME_TYPES[type]};charset=utf-8;base64,${font.toString('base64')}")`;
+        }) as U;
+    };
 
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
