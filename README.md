@@ -258,6 +258,12 @@ The plugin has an API consisting of one required parameter and multiple optional
 -   **description**: Virtual module id which is used by Vite to import the plugin artifacts. E.g. the default value is "vite-svg-2-webfont.css" so "virtual:vite-svg-2-webfont.css" should be imported.
 -   **default** `'vite-svg-2-webfont.css'`
 
+### inline
+
+-   **type**: `boolean`
+-   **description**: Inline font assets in CSS using base64 encoding.
+-   **default** `false`
+
 ## Public API
 
 The plugin exposes a public API that can be used inside another plugins using [Rollup inter-plugin communication mechanism](https://rollupjs.org/plugin-development/#inter-plugin-communication).
