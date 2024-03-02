@@ -2,11 +2,11 @@ import { promisify } from 'util';
 import _webfontGenerator from '@vusion/webfonts-generator';
 import { setupWatcher, MIME_TYPES, guid, ensureDirExistsAndWriteFile } from './utils';
 import { parseOptions, parseFiles } from './optionParser';
-import type { Plugin, ModuleGraph, ModuleNode } from 'vite';
+import type { ModuleGraph, ModuleNode } from 'vite';
 import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfonts-generator';
 import type { IconPluginOptions } from './optionParser';
 import type { GeneratedWebfont } from './types/generatedWebfont';
-import type { PublicApi } from './types/publicApi';
+import type { CompatiblePlugin, PublicApi } from './types/publicApi';
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);
@@ -26,7 +26,7 @@ function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${
  * The plugin uses {@link https://github.com/vusion/webfonts-generator/ webfonts-generator} package to create fonts in any format.
  * It also generates CSS files that allow using the icons directly in your HTML output, using CSS classes per-icon.
  */
-export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin<PublicApi> {
+export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): CompatiblePlugin<PublicApi> {
     const processedOptions = parseOptions(options);
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;

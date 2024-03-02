@@ -1,10 +1,10 @@
-import glob from 'glob';
 import * as optionParser from './optionParser';
-import { describe, it, expect, vi, afterEach, Mock } from 'vitest';
+import { globSync } from 'glob';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
 import { NoIconsAvailableError, InvalidWriteFilesTypeError } from './errors';
 import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
 
-vi.mock('glob', () => ({ default: { sync: vi.fn() } }));
+vi.mock('glob', () => ({ globSync: vi.fn() }));
 
 describe('optionParser', () => {
     describe.concurrent('parseIconTypesOption', () => {
@@ -31,35 +31,37 @@ describe('optionParser', () => {
             vi.restoreAllMocks();
         });
 
-        const { sync } = glob as unknown as { sync: Mock };
-
         it('defaults to all svg files in context', () => {
-            optionParser.parseFiles({ context: '' });
-            expect(sync).toHaveBeenCalledOnce();
-            expect(sync).toBeCalledWith('*.svg', { cwd: '' });
+            try {
+                optionParser.parseFiles({ context: '' });
+            } catch {
+                /* ignore */
+            }
+            expect(globSync).toHaveBeenCalledOnce();
+            expect(globSync).toBeCalledWith(['*.svg'], { cwd: '' });
         });
 
         it('concatenates the context to the file name', () => {
             const file = 'ex.svg';
             const context = 'prefix';
-            vi.mocked(sync).mockReturnValueOnce([file]);
+            vi.mocked(globSync).mockReturnValueOnce([file]);
             const resp = optionParser.parseFiles({ context });
-            expect(sync).toHaveBeenCalledOnce();
-            expect(sync).toBeCalledWith('*.svg', { cwd: context });
+            expect(globSync).toHaveBeenCalledOnce();
+            expect(globSync).toBeCalledWith(['*.svg'], { cwd: context });
             expect(resp).to.be.lengthOf(1);
             expect(resp[0]).to.be.eq(`${context}/${file}`);
         });
 
         it('throws if no files found', async () => {
-            vi.mocked(sync).mockReturnValueOnce([]);
+            vi.mocked(globSync).mockReturnValueOnce([]);
             try {
                 optionParser.parseFiles({ context: '' });
                 throw new Error('Should never get to this error!');
             } catch (err) {
                 expect(err).to.be.instanceOf(NoIconsAvailableError);
             }
-            expect(sync).toHaveBeenCalledOnce();
-            expect(sync).toBeCalledWith('*.svg', { cwd: '' });
+            expect(globSync).toHaveBeenCalledOnce();
+            expect(globSync).toBeCalledWith(['*.svg'], { cwd: '' });
         });
     });
 
@@ -230,6 +232,9 @@ describe('optionParser', () => {
 
     describe.concurrent('parseOptions', () => {
         const context = '';
+        beforeAll(() => {
+            vi.mocked(globSync).mockReturnValue(['']);
+        });
 
         it.concurrent('returns order identical to types', () => {
             const types: GeneratedFontTypes[] = ['ttf', 'woff', 'svg'];

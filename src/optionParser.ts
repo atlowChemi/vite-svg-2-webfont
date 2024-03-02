@@ -1,10 +1,8 @@
-import glob from 'glob';
 import { resolve } from 'path';
+import { globSync } from 'glob';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
 import type { WebfontsGeneratorOptions, GeneratedFontTypes } from '@vusion/webfonts-generator';
-
-const { sync } = glob;
 
 const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
 type FileType = (typeof FILE_TYPE_OPTIONS)[number];
@@ -157,7 +155,7 @@ export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFon
 
 export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>) {
     files ||= ['*.svg'];
-    const resolvedFiles = files.flatMap(fileGlob => sync(fileGlob, { cwd: context })).map(file => `${context}/${file}`);
+    const resolvedFiles = globSync(files, { cwd: context })?.map(file => `${context}/${file}`) || [];
     if (!resolvedFiles.length) {
         throw new NoIconsAvailableError('The specified file globs did not resolve any files in the context.');
     }
