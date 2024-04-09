@@ -1,8 +1,10 @@
-import { constants } from 'fs';
-import { resolve, dirname } from 'path';
+import { constants, rm as fsRm, mkdtempSync } from 'fs';
+import { resolve, dirname, join as pathJoin } from 'path';
 import { watch, access, mkdir, writeFile } from 'fs/promises';
 import type { FileChangeInfo } from 'fs/promises';
 import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
+import { tmpdir as osTmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 
 let watcher: ReturnType<typeof watch> | undefined;
 export const MIME_TYPES: Record<GeneratedFontTypes, string> = {
@@ -59,6 +61,10 @@ export function guid(length = 8) {
     return result;
 }
 
+export function getBufferHash(buf: Buffer) {
+    return createHash('sha256').update(buf).digest('hex');
+}
+
 export function hasFileExtension(fileName?: string | null | undefined) {
     const fileExtensionRegex = /(?:\.([^.]+))?$/;
     return Boolean(fileExtensionRegex.exec(fileName || '')?.[1]);
@@ -68,4 +74,12 @@ export async function ensureDirExistsAndWriteFile(content: string | Buffer, dest
     const options = { mode: 0o777, recursive: true };
     await mkdir(dirname(dest), options);
     await writeFile(dest, content);
+}
+
+export function getTmpDir() {
+    return mkdtempSync(pathJoin(osTmpdir(), '__vite-svg-2-webfont-'));
+}
+
+export function rmDir(path: string) {
+    fsRm(path, { force: true, recursive: true }, () => {});
 }
