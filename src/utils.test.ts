@@ -152,4 +152,15 @@ describe('utils', () => {
             expect(calculatedHash).toEqual(hash);
         });
     });
+
+    describe.concurrent('base64ToArrayBuffer', () => {
+        const strings = ['vite-svg-2-webfont', 'test-string-1', 'test-string-2'];
+
+        it.each(strings)('should match "%s"', string => {
+            const stringAsBase64 = btoa(string);
+            const arrayBuffer = utils.base64ToArrayBuffer(stringAsBase64);
+            const decodedString = new TextDecoder('utf-8').decode(arrayBuffer);
+            expect(decodedString).toEqual(string);
+        });
+    });
 });

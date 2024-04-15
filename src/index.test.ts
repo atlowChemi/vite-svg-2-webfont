@@ -4,6 +4,7 @@ import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { build, createServer, preview, normalizePath } from 'vite';
 import type { RollupOutput } from 'rollup';
 import type { PreviewServer, ViteDevServer, InlineConfig } from 'vite';
+import { base64ToArrayBuffer } from './utils';
 
 // #region test utils
 const root = new URL('./fixtures/', import.meta.url);
@@ -12,10 +13,14 @@ const types = ['svg', 'eot', 'woff', 'woff2', 'ttf'];
 const normalizeLineBreak = (input: string) => input.replace(/\r\n/g, '\n');
 const fileURLToNormalizedPath = (url: URL) => normalizePath(fileURLToPath(url));
 
-const getConfig = (): InlineConfig => ({
+const enum ConfigType {
+    Basic = './vite.basic.config.ts',
+    NoInline = './vite.no-inline.config.ts',
+}
+const getConfig = (configType: ConfigType): InlineConfig => ({
     logLevel: 'silent',
     root: fileURLToNormalizedPath(root),
-    configFile: fileURLToNormalizedPath(new URL('./vite.basic.config.ts', root)),
+    configFile: fileURLToNormalizedPath(new URL(configType, root)),
 });
 
 const getServerPort = (server: ViteDevServer | PreviewServer) => {
@@ -65,10 +70,12 @@ const loadFileContent = async (path: string, encoding: BufferEncoding | 'buffer'
 // #endregion
 
 describe('serve - handles virtual import and has all font types available', () => {
+    const buildConfig = getConfig(ConfigType.Basic);
+
     let server: ViteDevServer;
 
     beforeAll(async () => {
-        const createdServer = await createServer(getConfig());
+        const createdServer = await createServer(buildConfig);
         server = await createdServer.listen();
     });
 
@@ -90,11 +97,73 @@ describe('serve - handles virtual import and has all font types available', () =
 });
 
 describe('build', () => {
+    const buildConfig = getConfig(ConfigType.Basic);
+
+    let output: RollupOutput['output'];
+    let server: PreviewServer;
+    let cssContent: string | undefined;
+
+    const typeToMimeMap: Record<string, string> = {
+        svg: 'image/svg+xml',
+        eot: 'application/vnd.ms-fontobject',
+        woff: 'font/woff',
+        woff2: 'font/woff2',
+        ttf: 'font/ttf',
+    };
+
+    beforeAll(async () => {
+        output = ((await build(buildConfig)) as RollupOutput).output;
+        server = await preview(buildConfig);
+        server.printUrls();
+
+        const cssFileName = output.find(({ type, name }) => type === 'asset' && name === 'index.css')!.fileName;
+        cssContent = await fetchTextContent(server, `/${cssFileName}`);
+    });
+
+    afterAll(() => {
+        server.httpServer.close();
+    });
+
+    it.concurrent('injects fonts css to page', async () => {
+        expect(cssContent).toMatch(/^@font-face{font-family:iconfont;/);
+    });
+
+    types.forEach(type => {
+        it.concurrent(`has font of type ${type} available`, async () => {
+            const iconAsset = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type));
+            if (iconAsset) {
+                const iconAssetName = iconAsset.fileName;
+                const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/${iconAssetName}`)]);
+                expect(res).toStrictEqual(expected);
+            } else if (cssContent) {
+                // File asset not found in output, check if it's inlined in CSS
+
+                const regex = /url\(data:(?<mime>.+?);base64,(?<data>.*?)\) format\("(?<format>.+?)"\)/g;
+
+                let m;
+                while ((m = regex.exec(cssContent)) !== null) {
+                    if (m && m.groups && 'mime' in m.groups && 'data' in m.groups) {
+                        const typeMime = typeToMimeMap[type];
+                        if (m.groups.mime === typeMime) {
+                            const buf = base64ToArrayBuffer(m.groups.data);
+                            const expected = await loadFileContent(`fonts/iconfont.${type}`, 'buffer');
+                            expect(buf).toStrictEqual(expected);
+                        }
+                    }
+                }
+            }
+        });
+    });
+});
+
+describe('build:no-inline', () => {
+    const buildConfig = getConfig(ConfigType.NoInline);
+
     let output: RollupOutput['output'];
     let server: PreviewServer;
     beforeAll(async () => {
-        output = ((await build(getConfig())) as RollupOutput).output;
-        server = await preview(getConfig());
+        output = ((await build(buildConfig)) as RollupOutput).output;
+        server = await preview(buildConfig);
         server.printUrls();
     });
 
