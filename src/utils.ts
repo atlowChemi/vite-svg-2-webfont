@@ -75,7 +75,7 @@ export function rmDir(path: string) {
 }
 
 export function base64ToArrayBuffer(base64: string) {
-    const binaryString = atob(base64);
+    const binaryString = Buffer.from(base64, 'base64').toString('binary');
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
