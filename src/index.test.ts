@@ -144,7 +144,7 @@ describe('build', () => {
 
                 let m;
                 while ((m = regex.exec(cssContent)) !== null) {
-                    if (m && m.groups && 'mime' in m.groups && 'data' in m.groups) {
+                    if (m?.groups && 'mime' in m.groups && 'data' in m.groups) {
                         const typeMime = typeToMimeMap[type];
                         if (m.groups.mime === typeMime) {
                             expected = base64ToArrayBuffer(m.groups.data);
