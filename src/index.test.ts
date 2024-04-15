@@ -128,13 +128,15 @@ describe('build', () => {
         expect(cssContent).toMatch(/^@font-face{font-family:iconfont;/);
     });
 
-    types.forEach(type => {
+    types.forEach(async type => {
         it.concurrent(`has font of type ${type} available`, async () => {
+            const res = await loadFileContent(`fonts/iconfont.${type}`, 'buffer');
+            let expected: ArrayBuffer | string | undefined;
+
             const iconAsset = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type));
             if (iconAsset) {
                 const iconAssetName = iconAsset.fileName;
-                const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/${iconAssetName}`)]);
-                expect(res).toStrictEqual(expected);
+                expected = await fetchBufferContent(server, `/${iconAssetName}`);
             } else if (cssContent) {
                 // File asset not found in output, check if it's inlined in CSS
 
@@ -145,13 +147,14 @@ describe('build', () => {
                     if (m && m.groups && 'mime' in m.groups && 'data' in m.groups) {
                         const typeMime = typeToMimeMap[type];
                         if (m.groups.mime === typeMime) {
-                            const buf = base64ToArrayBuffer(m.groups.data);
-                            const expected = await loadFileContent(`fonts/iconfont.${type}`, 'buffer');
-                            expect(buf).toStrictEqual(expected);
+                            expected = base64ToArrayBuffer(m.groups.data);
                         }
                     }
                 }
             }
+
+            expect(res).not.toEqual(undefined);
+            expect(res).toStrictEqual(expected);
         });
     });
 });
