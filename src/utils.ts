@@ -51,16 +51,6 @@ export async function setupWatcher(folderPath: string, signal: AbortSignal, hand
     }
 }
 
-const alphabet = 'qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890';
-export function guid(length = 8) {
-    let result = '';
-    for (let i = 0; i < length; i++) {
-        const index = Math.floor(Math.random() * alphabet.length);
-        result += alphabet[index];
-    }
-    return result;
-}
-
 export function getBufferHash(buf: Buffer) {
     return createHash('sha256').update(buf).digest('hex');
 }

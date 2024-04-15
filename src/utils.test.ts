@@ -96,23 +96,6 @@ describe('utils', () => {
         });
     });
 
-    describe.concurrent('guid', () => {
-        it.concurrent('should generate a string', ({ expect }) => {
-            const spy = vi.spyOn(Math, 'random').mockReturnValue(0.2);
-            expect(utils.guid()).to.matchSnapshot();
-            expect(utils.guid(1)).to.matchSnapshot();
-            expect(utils.guid(10)).to.matchSnapshot();
-            expect(utils.guid(20)).to.matchSnapshot();
-            spy.mockRestore();
-        });
-        it.concurrent('should default to a string length of 8', ({ expect }) => {
-            expect(utils.guid()).to.have.lengthOf(8);
-        });
-        it.concurrent('should return a string of requested length', ({ expect }) => {
-            expect(utils.guid(16)).to.have.lengthOf(16);
-        });
-    });
-
     describe.concurrent('hasFileExtension', () => {
         it.concurrent('should return true for normal file', () => {
             expect(utils.hasFileExtension('example.svg')).to.be.true;
@@ -151,6 +134,22 @@ describe('utils', () => {
             await utils.ensureDirExistsAndWriteFile(content, file);
             expect(fs.mkdir).toBeCalledWith(dir, { mode: 0o777, recursive: true });
             expect(fs.writeFile).toBeCalledWith(file, content);
+        });
+    });
+
+    describe.concurrent('getBufferHash', () => {
+        const testData: [string, string][] = [
+            // [string, sha256 of string]
+            ['test data 1', '05e8fdb3598f91bcc3ce41a196e587b4592c8cdfc371c217274bfda2d24b1b4e'],
+            ['test data 2', '26637da1bd793f9011a3d304372a9ec44e36cc677d2bbfba32a2f31f912358fe'],
+            ['test data 3', 'b2ce6625a947373fe8d578dca152cf152a5bd8aeca805b2d3b1fb4a340e1a123'],
+            ['test data 4', '1e2b98ff6439d48d42ae71c0ea44f3c1e03665a34d1c368ac590aec5dadc48eb'],
+            ['test data 5', '225b2e6c5664bb388cc40c9abeb289f9569ebc683ed4fdd76fef8421c32369b5'],
+        ];
+
+        it.each(testData)('should generate a correct hash for "%s"', (data, hash) => {
+            const calculatedHash = utils.getBufferHash(Buffer.from(data));
+            expect(calculatedHash).toEqual(hash);
         });
     });
 });
