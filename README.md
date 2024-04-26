@@ -127,6 +127,10 @@ The plugin has an API consisting of one required parameter and multiple optional
     -   `webfontsGenerator.templates.scss` – Default SCSS template path. It generates mixin `webfont-icon` to add icon styles. It is safe to use multiple generated files with mixins together.
 -   See [webfonts-generator#csstemplate](https://github.com/vusion/webfonts-generator#csstemplate)
 
+### cssContext
+
+-   See [webfonts-generator#cssContext](https://github.com/vusion/webfonts-generator#cssContext)
+
 ### cssFontsUrl
 
 -   **type**: `string`
