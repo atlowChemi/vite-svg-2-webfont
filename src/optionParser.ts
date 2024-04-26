@@ -2,7 +2,7 @@ import { resolve } from 'path';
 import { globSync } from 'glob';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
-import type { WebfontsGeneratorOptions, GeneratedFontTypes } from '@vusion/webfonts-generator';
+import type { WebfontsGeneratorOptions, GeneratedFontTypes, CSSTemplateContext } from '@vusion/webfonts-generator';
 
 const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
 type FileType = (typeof FILE_TYPE_OPTIONS)[number];
@@ -66,6 +66,10 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      * - `templates.scss` – Default SCSS template path. It generates mixin `webfont-icon` to add icon styles. It is safe to use multiple generated files with mixins together.
      */
     cssTemplate?: string;
+    /**
+     *
+     */
+    cssContext?: (context: CSSTemplateContext, options: WebfontsGeneratorOptions<T>, handlebars: typeof import('handlebars')) => void;
     /**
      * Fonts path used in CSS file.
      * @default options.cssDest
@@ -221,6 +225,7 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
         cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css'),
         htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName, 'html'),
         ...(options.cssTemplate && { cssTemplate: resolve(options.dest, options.cssTemplate) }),
+        ...(options.cssContext && { cssContext: options.cssContext }),
         ...(options.cssFontsUrl && { cssFontsUrl: resolve(options.dest, options.cssFontsUrl) }),
         ...(options.htmlTemplate && { htmlTemplate: resolve(options.dest, options.htmlTemplate) }),
         ...(typeof options.fixedWidth !== 'undefined' && { fixedWidth: options.fixedWidth }),

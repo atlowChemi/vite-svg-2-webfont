@@ -396,6 +396,16 @@ describe('optionParser', () => {
             expect(resExplicit.cssTemplate).to.eq(cssTemplate);
         });
 
+        it.concurrent('sets cssContext only if defined in options', () => {
+            const resDefault = optionParser.parseOptions({ context });
+            expect('cssContext' in resDefault).to.be.false;
+            const cssContext = () => {
+                throw new Error("Shouldn't be called!");
+            };
+            const resExplicit = optionParser.parseOptions({ context, cssContext });
+            expect(resExplicit.cssContext).to.eq(cssContext);
+        });
+
         it.concurrent('concatenates dest to cssTemplate', () => {
             const dest = '/root';
             const cssTemplate = 'cssTemplate';
