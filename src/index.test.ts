@@ -203,7 +203,9 @@ describe('build allowWriteFilesInBuild', () => {
     });
 
     it.concurrent.each([...types, 'html', 'css'])('has generated font of type %s', async type => {
-        const filePath = new URL(`webfont-test/artifacts/allowWriteFilesInBuild-test.${type}`.toLowerCase(), root);
+        const fileName = `webfont-test/artifacts/allowWriteFilesInBuild-test.${type}`;
+        const fileNameCasing = !types.includes(type) ? fileName : fileName.toLowerCase();
+        const filePath = new URL(fileNameCasing, root);
 
         await expect(access(filePath, constants.F_OK)).resolves.not.toThrow();
     });
