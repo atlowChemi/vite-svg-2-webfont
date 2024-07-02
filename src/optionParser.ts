@@ -145,6 +145,12 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      * @default false
      */
     inline?: boolean;
+    /**
+     * Allow outputting assets (HTML, CSS, and Fonts) during build.
+     * @see {@link https://github.com/atlowChemi/vite-svg-2-webfont/issues/32#issuecomment-2203187501}
+     * @default false
+     */
+    allowWriteFilesInBuild?: boolean;
 }
 
 export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {

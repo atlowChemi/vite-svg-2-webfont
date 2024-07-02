@@ -55,20 +55,16 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
         if (updateFiles) {
             processedOptions.files = parseFiles(options);
         }
-        if (isBuild) {
+        if (isBuild && !options.allowWriteFilesInBuild) {
             processedOptions.writeFiles = false;
         }
         generatedFonts = await webfontGenerator(processedOptions);
         const hasFilesToSave = !processedOptions.writeFiles && (processedOptions.css || processedOptions.html);
         if (!isBuild && hasFilesToSave) {
-            const promises: Promise<void>[] = [];
-            if (processedOptions.css) {
-                promises.push(ensureDirExistsAndWriteFile(inline(generatedFonts.generateCss()), processedOptions.cssDest));
-            }
-            if (processedOptions.html) {
-                promises.push(ensureDirExistsAndWriteFile(generatedFonts.generateHtml(), processedOptions.htmlDest));
-            }
-            await Promise.all(promises);
+            await Promise.all([
+                processedOptions.css && ensureDirExistsAndWriteFile(inline(generatedFonts.generateCss()), processedOptions.cssDest),
+                processedOptions.html && ensureDirExistsAndWriteFile(generatedFonts.generateHtml(), processedOptions.htmlDest),
+            ]);
         }
         if (updateFiles) {
             const module = _moduleGraph?.getModuleById(resolvedVirtualModuleId);
