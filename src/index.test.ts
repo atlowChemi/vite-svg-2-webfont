@@ -199,12 +199,12 @@ describe('build allowWriteFilesInBuild', () => {
     });
 
     afterAll(async () => {
-        rmdir(new URL('webfont-test/artifacts', root), { recursive: true });
+        await rmdir(new URL('webfont-test/artifacts', root), { recursive: true });
     });
 
     it.concurrent.each([...types, 'html', 'css'])('has generated font of type %s', async type => {
         const filePath = new URL(`webfont-test/artifacts/allowWriteFilesInBuild-test.${type}`, root);
 
-        expect(access(filePath, constants.F_OK)).to.resolves.not.toThrow();
+        await expect(access(filePath, constants.F_OK)).resolves.not.toThrow();
     });
 });
