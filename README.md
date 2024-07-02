@@ -268,6 +268,12 @@ The plugin has an API consisting of one required parameter and multiple optional
 -   **description**: Inline font assets in CSS using base64 encoding.
 -   **default** `false`
 
+### allowWriteFilesInBuild
+
+-   **type**: `boolean`
+-   **description**: Allow outputting assets (HTML, CSS, and Fonts) during build. [see](https://github.com/atlowChemi/vite-svg-2-webfont/issues/32#issuecomment-2203187501)
+-   **default** `false`
+
 ## Public API
 
 The plugin exposes a public API that can be used inside another plugins using [Rollup inter-plugin communication mechanism](https://rollupjs.org/plugin-development/#inter-plugin-communication).
