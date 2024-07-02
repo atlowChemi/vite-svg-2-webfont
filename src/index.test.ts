@@ -1,6 +1,6 @@
 import { constants } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { readFile, access } from 'node:fs/promises';
+import { readFile, access, rmdir } from 'node:fs/promises';
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { build, createServer, preview, normalizePath } from 'vite';
 import type { RollupOutput } from 'rollup';
@@ -196,6 +196,10 @@ describe('build allowWriteFilesInBuild', () => {
 
     beforeAll(async () => {
         await build(buildConfig);
+    });
+
+    afterAll(async () => {
+        rmdir(new URL('webfont-test/artifacts', root), { recursive: true });
     });
 
     it.concurrent.each([...types, 'html', 'css'])('has generated font of type %s', async type => {
