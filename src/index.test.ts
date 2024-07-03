@@ -1,5 +1,6 @@
-import { fileURLToPath } from 'url';
-import { readFile } from 'fs/promises';
+import { constants } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { readFile, access, rmdir } from 'node:fs/promises';
 import { describe, it, beforeAll, afterAll, expect } from 'vitest';
 import { build, createServer, preview, normalizePath } from 'vite';
 import type { RollupOutput } from 'rollup';
@@ -16,6 +17,7 @@ const fileURLToNormalizedPath = (url: URL) => normalizePath(fileURLToPath(url));
 const enum ConfigType {
     Basic = './vite.basic.config.ts',
     NoInline = './vite.no-inline.config.ts',
+    AllowWriteFilesInBuild = './vite.allowWriteFilesInBuild.config.ts',
 }
 const getConfig = (configType: ConfigType): InlineConfig => ({
     logLevel: 'silent',
@@ -181,10 +183,30 @@ describe('build:no-inline', () => {
     });
 
     types.forEach(type => {
-        it.concurrent(`has font of type ${type} available`, async () => {
+        it.concurrent.each(types)('has font of type %s available', async () => {
             const iconAssetName = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type))!.fileName;
             const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/${iconAssetName}`)]);
             expect(res).toStrictEqual(expected);
         });
+    });
+});
+
+describe('build allowWriteFilesInBuild', () => {
+    const buildConfig = getConfig(ConfigType.AllowWriteFilesInBuild);
+
+    beforeAll(async () => {
+        await build(buildConfig);
+    });
+
+    afterAll(async () => {
+        await rmdir(new URL('webfont-test/artifacts', root), { recursive: true });
+    });
+
+    it.concurrent.each([...types, 'html', 'css'])('has generated font of type %s', async type => {
+        const fileName = `webfont-test/artifacts/allowWriteFilesInBuild-test.${type}`;
+        const fileNameCasing = types.includes(type) ? fileName : fileName.toLowerCase();
+        const filePath = new URL(fileNameCasing, root);
+
+        await expect(access(filePath, constants.F_OK)).resolves.not.toThrow();
     });
 });
