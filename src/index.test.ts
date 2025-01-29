@@ -126,13 +126,12 @@ describe('build', () => {
         server.httpServer.close();
     });
 
-    it.concurrent('injects fonts css to page', async () => {
+    it.concurrent('injects fonts css to page', () => {
         expect(cssContent).toMatch(/^@font-face{font-family:iconfont;/);
     });
 
-    types.forEach(async type => {
-        it.concurrent(`has font of type ${type} available`, async () => {
-            const res = await loadFileContent(`fonts/iconfont.${type}`, 'buffer');
+    it.concurrent.each(types)('has font of type %s available', async type => {
+        const res = await loadFileContent(`fonts/iconfont.${type}`, 'buffer');
             let expected: ArrayBuffer | string | undefined;
 
             const iconAsset = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type));
@@ -157,7 +156,6 @@ describe('build', () => {
 
             expect(res).not.toEqual(undefined);
             expect(res).toStrictEqual(expected);
-        });
     });
 });
 

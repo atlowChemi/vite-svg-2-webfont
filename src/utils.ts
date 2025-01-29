@@ -28,20 +28,20 @@ export async function doesFileExist(folderPath: string, fileName: string) {
 export async function handleWatchEvent(
     folderPath: string,
     { eventType, filename }: FileChangeInfo<string>,
-    onIconAdded: (e: FileChangeInfo<string>) => void,
+    onIconAdded: (e: FileChangeInfo<string>) => void | Promise<void>,
     _doesFileExist = doesFileExist,
 ) {
     if (eventType !== 'rename' || !filename?.endsWith('.svg') || !(await _doesFileExist(folderPath, filename))) {
         return;
     }
-    onIconAdded({ eventType, filename });
+    Promise.resolve().then(() => onIconAdded({ eventType, filename })).catch(() => null);
 }
 
-export async function setupWatcher(folderPath: string, signal: AbortSignal, handler: (e: FileChangeInfo<string>) => void) {
+export async function setupWatcher(folderPath: string, signal: AbortSignal, handler: (e: FileChangeInfo<string>) => void | Promise<void>) {
     try {
         watcher = watch(folderPath, { signal });
         for await (const event of watcher) {
-            handleWatchEvent(folderPath, event, handler);
+            handleWatchEvent(folderPath, event, handler).catch(() => null);
         }
     } catch (err) {
         if (err.name === 'AbortError') {
@@ -55,7 +55,7 @@ export function getBufferHash(buf: Buffer) {
     return createHash('sha256').update(buf).digest('hex');
 }
 
-export function hasFileExtension(fileName?: string | null | undefined) {
+export function hasFileExtension(fileName?: string | null) {
     const fileExtensionRegex = /(?:\.([^.]+))?$/;
     return Boolean(fileExtensionRegex.exec(fileName || '')?.[1]);
 }
