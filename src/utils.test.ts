@@ -15,12 +15,12 @@ describe('utils', () => {
         });
 
         it("return false if file doesn't have read access", async () => {
-            expect(await utils.doesFileExist('foo', 'bar')).to.be.false;
+            expect(await utils.doesFileExist('foo', 'bar')).toEqual(false);
             expect(fs.access).toHaveBeenCalledOnce();
         });
 
         it('return true if file has read access', async () => {
-            expect(await utils.doesFileExist('foo', 'bar')).to.be.true;
+            expect(await utils.doesFileExist('foo', 'bar')).toEqual(true);
             expect(fs.access).toHaveBeenCalledOnce();
         });
     });
@@ -70,59 +70,64 @@ describe('utils', () => {
         });
 
         it('throws error if no such folder', async () => {
-            const err = await utils.setupWatcher(folderPath, ac.signal, handler).catch(e => e);
+            const err: unknown = await utils.setupWatcher(folderPath, ac.signal, handler).catch(e => e);
             expect(err).toBeInstanceOf(Error);
-            expect(err.message).to.be.eq(`ENOENT: no such file or directory, watch '${folderPath}'`);
+            expect((err as Error).message).to.be.eq(`ENOENT: no such file or directory, watch '${folderPath}'`);
         });
 
         it('handles AbortError without throwing an error', async () => {
             ac.abort();
-            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).to.be.undefined;
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
         });
 
         it('triggers the handler for files that exist', async () => {
             const { watch, access } = fs;
             const event = { eventType: 'rename', filename: 'ex.svg' };
             async function* mock() {
+                await Promise.resolve();
                 yield event;
-                vi.isMockFunction(access) && access.mockRejectedValueOnce(new Error());
+                if (vi.isMockFunction(access)) {
+                    access.mockRejectedValueOnce(new Error());
+                }
                 yield event;
                 yield event;
             }
-            vi.isMockFunction(watch) && watch.mockReturnValue(mock());
+            if (vi.isMockFunction(watch)) {
+                watch.mockReturnValue(mock());
+            }
 
-            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).to.be.undefined;
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
             expect(handler).toBeCalledTimes(2);
         });
     });
 
     describe.concurrent('hasFileExtension', () => {
         it.concurrent('should return true for normal file', () => {
-            expect(utils.hasFileExtension('example.svg')).to.be.true;
+            expect(utils.hasFileExtension('example.svg')).toEqual(true);
         });
 
         it.concurrent('should return true for file with many dots', () => {
-            expect(utils.hasFileExtension('example.with.many.dots.in.file.name.svg')).to.be.true;
+            expect(utils.hasFileExtension('example.with.many.dots.in.file.name.svg')).toEqual(true);
         });
 
         it.concurrent('should return true for file even if absolute route', () => {
-            expect(utils.hasFileExtension('/example/from/route.svg')).to.be.true;
+            expect(utils.hasFileExtension('/example/from/route.svg')).toEqual(true);
         });
 
         it.concurrent('should return false for file without any dot', () => {
-            expect(utils.hasFileExtension('example')).to.be.false;
+            expect(utils.hasFileExtension('example')).toEqual(false);
         });
 
         it.concurrent('should return false for empty string', () => {
-            expect(utils.hasFileExtension('')).to.be.false;
+            expect(utils.hasFileExtension('')).toEqual(false);
         });
 
         it.concurrent('should return false for null', () => {
-            expect(utils.hasFileExtension(null)).to.be.false;
+            expect(utils.hasFileExtension(null)).toEqual(false);
         });
 
         it.concurrent('should return false for undefined', () => {
-            expect(utils.hasFileExtension(undefined)).to.be.false;
+            expect(utils.hasFileExtension(undefined)).toEqual(false);
         });
     });
 
