@@ -1,13 +1,13 @@
-import { promisify } from 'util';
+import { promisify } from 'node:util';
+import { join as pathJoin } from 'node:path';
+import type { ModuleGraph, ModuleNode } from 'vite';
 import _webfontGenerator from '@vusion/webfonts-generator';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, parseFiles } from './optionParser';
-import type { ModuleGraph, ModuleNode } from 'vite';
 import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfonts-generator';
 import type { IconPluginOptions } from './optionParser';
 import type { GeneratedWebfont } from './types/generatedWebfont';
 import type { CompatiblePlugin, PublicApi } from './types/publicApi';
-import { join as pathJoin } from 'node:path';
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);

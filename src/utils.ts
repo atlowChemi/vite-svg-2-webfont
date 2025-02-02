@@ -1,10 +1,10 @@
-import { constants, rm as fsRm, mkdtempSync } from 'fs';
-import { resolve, dirname, join as pathJoin } from 'path';
-import { watch, access, mkdir, writeFile } from 'fs/promises';
-import type { FileChangeInfo } from 'fs/promises';
-import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
-import { tmpdir as osTmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
+import { tmpdir as osTmpdir } from 'node:os';
+import { constants, rm as fsRm, mkdtempSync } from 'node:fs';
+import { resolve, dirname, join as pathJoin } from 'node:path';
+import { watch, access, mkdir, writeFile } from 'node:fs/promises';
+import type { FileChangeInfo } from 'node:fs/promises';
+import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
 
 let watcher: ReturnType<typeof watch> | undefined;
 export const MIME_TYPES: Record<GeneratedFontTypes, string> = {
