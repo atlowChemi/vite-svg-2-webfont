@@ -33,7 +33,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
-    let _reloadModule: undefined | ((module: ModuleNode) => void);
+    let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
     let generatedFonts: undefined | Pick<WebfontsGeneratorResult<T>, 'generateCss' | 'generateHtml' | T>;
     const generatedWebfonts: GeneratedWebfont[] = [];
     const tmpGeneratedWebfonts: GeneratedWebfont[] = [];
@@ -69,7 +69,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
         if (updateFiles) {
             const module = _moduleGraph?.getModuleById(resolvedVirtualModuleId);
             if (module && _reloadModule) {
-                _reloadModule(module);
+                _reloadModule(module).catch(() => null);
             }
         }
     };
@@ -113,7 +113,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
         },
         async buildStart() {
             if (!isBuild) {
-                setupWatcher(options.context, ac.signal, () => generate(true));
+                setupWatcher(options.context, ac.signal, () => generate(true)).catch(() => null);
             }
             await generate();
             if (isBuild && !options.inline) {
@@ -125,7 +125,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                     const fileContents = Buffer.from(generatedFonts[type]);
                     const hash = getBufferHash(fileContents);
                     const filePath = pathJoin(TMP_DIR, `${processedOptions.fontName}-${hash}.${type}`);
-                    ensureDirExistsAndWriteFile(fileContents, filePath); // write font file to a temporary dir
+                    ensureDirExistsAndWriteFile(fileContents, filePath).catch(() => null); // write font file to a temporary dir
 
                     return [type, filePath];
                 });

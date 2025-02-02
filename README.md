@@ -83,196 +83,196 @@ The plugin has an API consisting of one required parameter and multiple optional
 
 ### context
 
--   **required**
--   **type**: `string`
--   **description**: A path that resolves to a directory, in which a [glob pattern to find `svg` files will execute](#files). The SVG files will be used to generate the icon font.
+- **required**
+- **type**: `string`
+- **description**: A path that resolves to a directory, in which a [glob pattern to find `svg` files will execute](#files). The SVG files will be used to generate the icon font.
 
 ### files
 
--   **type**: `string`
--   **description**: An array of globs, of the SVG files to add into the webfont, from within the [context](#context)
--   **default** `['*.svg']`
+- **type**: `string`
+- **description**: An array of globs, of the SVG files to add into the webfont, from within the [context](#context)
+- **default** `['*.svg']`
 
 ### fontName
 
--   **type**: `string`
--   **description**: Name of font and base name of font files.
--   **default** `'iconfont'`
+- **type**: `string`
+- **description**: Name of font and base name of font files.
+- **default** `'iconfont'`
 
 ### dest
 
--   **type**: `string`
--   **description**: Directory for generated font files.
--   **default** `path.resolve(context, '..', 'artifacts')`
--   See [webfonts-generator#dest](https://github.com/vusion/webfonts-generator#dest)
+- **type**: `string`
+- **description**: Directory for generated font files.
+- **default** `path.resolve(context, '..', 'artifacts')`
+- See [webfonts-generator#dest](https://github.com/vusion/webfonts-generator#dest)
 
 ### cssDest
 
--   **type**: `string`
--   **description**: Path for generated CSS file.
--   **default** `path.join(dest, fontName + '.css')`
--   See [webfonts-generator#cssdest](https://github.com/vusion/webfonts-generator#cssdest)
+- **type**: `string`
+- **description**: Path for generated CSS file.
+- **default** `path.join(dest, fontName + '.css')`
+- See [webfonts-generator#cssdest](https://github.com/vusion/webfonts-generator#cssdest)
 
 ### cssTemplate
 
--   **type**: `string`
--   **description**: Path of custom CSS template. Generator uses handlebars templates. Tht template receives options from `templateOptions` along with the following options:
+- **type**: `string`
+- **description**: Path of custom CSS template. Generator uses handlebars templates. Tht template receives options from `templateOptions` along with the following options:
 
-    -   fontName
-    -   src `string` – Value of the `src` property for `@font-face`.
-    -   codepoints `object` - Codepoints of icons in hex format.
+    - fontName
+    - src `string` – Value of the `src` property for `@font-face`.
+    - codepoints `object` - Codepoints of icons in hex format.
 
--   Paths of default templates are stored in the `webfontsGenerator.templates` object.
-    -   `webfontsGenerator.templates.css` – Default CSS template path. It generates classes with names based on values from `options.templateOptions`.
-    -   `webfontsGenerator.templates.scss` – Default SCSS template path. It generates mixin `webfont-icon` to add icon styles. It is safe to use multiple generated files with mixins together.
--   See [webfonts-generator#csstemplate](https://github.com/vusion/webfonts-generator#csstemplate)
+- Paths of default templates are stored in the `webfontsGenerator.templates` object.
+    - `webfontsGenerator.templates.css` – Default CSS template path. It generates classes with names based on values from `options.templateOptions`.
+    - `webfontsGenerator.templates.scss` – Default SCSS template path. It generates mixin `webfont-icon` to add icon styles. It is safe to use multiple generated files with mixins together.
+- See [webfonts-generator#csstemplate](https://github.com/vusion/webfonts-generator#csstemplate)
 
 ### cssContext
 
--   See [webfonts-generator#cssContext](https://github.com/vusion/webfonts-generator#cssContext)
+- See [webfonts-generator#cssContext](https://github.com/vusion/webfonts-generator#cssContext)
 
 ### cssFontsUrl
 
--   **type**: `string`
--   **description**: Fonts path used in CSS file.
--   **default** [`cssDest`](#cssdest)
+- **type**: `string`
+- **description**: Fonts path used in CSS file.
+- **default** [`cssDest`](#cssdest)
 
 ### htmlDest
 
--   **type**: `string`
--   **description**: Path for generated HTML file.
--   **default** `path.join(dest, fontName + '.html')`
--   See [webfonts-generator#htmldest](https://github.com/vusion/webfonts-generator#htmldest)
+- **type**: `string`
+- **description**: Path for generated HTML file.
+- **default** `path.join(dest, fontName + '.html')`
+- See [webfonts-generator#htmldest](https://github.com/vusion/webfonts-generator#htmldest)
 
 ### htmlTemplate
 
--   **type**: `string`
--   **description**: HTML template path. Generator uses handlebars templates. Template receives options from `options.templateOptions` along with the following options:
-    -   fontName
-    -   styles `string` – Styles generated with default CSS template. (`cssFontsPath` is changed to relative path from `htmlDest` to `dest`)
-    -   names `string[]` – Names of icons.
--   See [webfonts-generator#htmltemplate](https://github.com/vusion/webfonts-generator#htmltemplate)
+- **type**: `string`
+- **description**: HTML template path. Generator uses handlebars templates. Template receives options from `options.templateOptions` along with the following options:
+    - fontName
+    - styles `string` – Styles generated with default CSS template. (`cssFontsPath` is changed to relative path from `htmlDest` to `dest`)
+    - names `string[]` – Names of icons.
+- See [webfonts-generator#htmltemplate](https://github.com/vusion/webfonts-generator#htmltemplate)
 
 ### ligature
 
--   **type**: `boolean`
--   **description**: Enable or disable ligature function.
--   **default** `true`
--   See [webfonts-generator#ligature](https://github.com/vusion/webfonts-generator#ligature)
+- **type**: `boolean`
+- **description**: Enable or disable ligature function.
+- **default** `true`
+- See [webfonts-generator#ligature](https://github.com/vusion/webfonts-generator#ligature)
 
 ### normalize
 
--   **type**: `boolean`
--   **description**: Normalize icons by scaling them to the height of the highest icon.
--   **default** `false`
--   See [svgicons2svgfont#optionsnormalize](https://github.com/nfroidure/svgicons2svgfont#optionsnormalize)
+- **type**: `boolean`
+- **description**: Normalize icons by scaling them to the height of the highest icon.
+- **default** `false`
+- See [svgicons2svgfont#optionsnormalize](https://github.com/nfroidure/svgicons2svgfont#optionsnormalize)
 
 ### round
 
--   **type**: `number`
--   **description**: Setup SVG path rounding.
--   **default** `10e12`
--   See [svgicons2svgfont#optionsround](https://github.com/nfroidure/svgicons2svgfont#optionsround)
+- **type**: `number`
+- **description**: Setup SVG path rounding.
+- **default** `10e12`
+- See [svgicons2svgfont#optionsround](https://github.com/nfroidure/svgicons2svgfont#optionsround)
 
 ### descent
 
--   **type**: `number`
--   **description**: The font descent. It is useful to fix the font baseline yourself.
--   **default** `0`
--   See [svgicons2svgfont#optionsdescent](https://github.com/nfroidure/svgicons2svgfont#optionsdescent)
+- **type**: `number`
+- **description**: The font descent. It is useful to fix the font baseline yourself.
+- **default** `0`
+- See [svgicons2svgfont#optionsdescent](https://github.com/nfroidure/svgicons2svgfont#optionsdescent)
 
 ### fixedWidth
 
--   **type**: `boolean`
--   **description**: Creates a monospace font of the width of the largest input icon.
--   **default** `false`
--   See [svgicons2svgfont#optionsfixedwidth](https://github.com/nfroidure/svgicons2svgfont#optionsfixedwidth)
+- **type**: `boolean`
+- **description**: Creates a monospace font of the width of the largest input icon.
+- **default** `false`
+- See [svgicons2svgfont#optionsfixedwidth](https://github.com/nfroidure/svgicons2svgfont#optionsfixedwidth)
 
 ### fontHeight
 
--   **type**: `number`
--   **description**: The outputted font height (defaults to the height of the highest input icon).
--   See [svgicons2svgfont#optionsfontheight](https://github.com/nfroidure/svgicons2svgfont#optionsfontheight)
+- **type**: `number`
+- **description**: The outputted font height (defaults to the height of the highest input icon).
+- See [svgicons2svgfont#optionsfontheight](https://github.com/nfroidure/svgicons2svgfont#optionsfontheight)
 
 ### centerHorizontally
 
--   **type**: `boolean`
--   **description**: Calculate the bounds of a glyph and center it horizontally.
--   **default** `false`
--   See [svgicons2svgfont#optionscenterhorizontally](https://github.com/nfroidure/svgicons2svgfont#optionscenterhorizontally)
+- **type**: `boolean`
+- **description**: Calculate the bounds of a glyph and center it horizontally.
+- **default** `false`
+- See [svgicons2svgfont#optionscenterhorizontally](https://github.com/nfroidure/svgicons2svgfont#optionscenterhorizontally)
 
 ### generateFiles
 
--   **type**: `boolean | string | string[]`
--   **description**: Sets the type of files to be saved to system during development.
--   **valid inputs**:
-    -   `true` Generate all file types.
-    -   `false` Generate no files.
-    -   `'html'` - Generate a HTML file
-    -   `'css'` - Generate CSS file
-    -   `'fonts'` - Generate font files (based on the [types](#types) requested)
--   **default** `false`
+- **type**: `boolean | string | string[]`
+- **description**: Sets the type of files to be saved to system during development.
+- **valid inputs**:
+    - `true` Generate all file types.
+    - `false` Generate no files.
+    - `'html'` - Generate a HTML file
+    - `'css'` - Generate CSS file
+    - `'fonts'` - Generate font files (based on the [types](#types) requested)
+- **default** `false`
 
 ### types
 
--   **type**: `string | string[]`
--   **description**: Font file types to generate. Possible values:
-    -   `svg`
-    -   `ttf`
-    -   `woff`
-    -   `woff2`
-    -   `eot`
--   **default** `['eot', 'woff', 'woff2', 'ttf', 'svg']`
--   See [webfonts-generator#types](https://github.com/vusion/webfonts-generator#types)
+- **type**: `string | string[]`
+- **description**: Font file types to generate. Possible values:
+    - `svg`
+    - `ttf`
+    - `woff`
+    - `woff2`
+    - `eot`
+- **default** `['eot', 'woff', 'woff2', 'ttf', 'svg']`
+- See [webfonts-generator#types](https://github.com/vusion/webfonts-generator#types)
 
 ### codepoints
 
--   **type**: `{ [key: string]: number }`
--   **description**: Specific code-points for certain icons. Icons without code-points will have code-points incremented from [`startCodepoint`](https://github.com/vusion/webfonts-generator#startcodepoint) skipping duplicates.
--   See [webfonts-generator#codepoints](https://github.com/vusion/webfonts-generator#codepoints)
+- **type**: `{ [key: string]: number }`
+- **description**: Specific code-points for certain icons. Icons without code-points will have code-points incremented from [`startCodepoint`](https://github.com/vusion/webfonts-generator#startcodepoint) skipping duplicates.
+- See [webfonts-generator#codepoints](https://github.com/vusion/webfonts-generator#codepoints)
 
 ### classPrefix
 
--   **type**: `string`
--   **description**: CSS class prefix for each of the generated icons.
--   **default** `'icon-'`
--   See [webfonts-generator#templateoptions](https://github.com/vusion/webfonts-generator#templateoptions)
+- **type**: `string`
+- **description**: CSS class prefix for each of the generated icons.
+- **default** `'icon-'`
+- See [webfonts-generator#templateoptions](https://github.com/vusion/webfonts-generator#templateoptions)
 
 ### baseSelector
 
--   **type**: `string`
--   **description**: CSS base selector to which the font will be applied.
--   **default** `'.icon'`
--   See [webfonts-generator#templateoptions](https://github.com/vusion/webfonts-generator#templateoptions)
+- **type**: `string`
+- **description**: CSS base selector to which the font will be applied.
+- **default** `'.icon'`
+- See [webfonts-generator#templateoptions](https://github.com/vusion/webfonts-generator#templateoptions)
 
 ### formatOptions
 
--   **type**: `{ [format in 'svg' | 'ttf' | 'woff2' | 'woff' | 'eot']?: unknown };`
--   **description**: Specific per format arbitrary options to pass to the generator. Format and matching generator:
-    -   svg - [svgicons2svgfont](https://github.com/nfroidure/svgicons2svgfont).
-    -   ttf - [svg2ttf](https://github.com/fontello/svg2ttf).
-    -   woff2 - [ttf2woff2](https://github.com/nfroidure/ttf2woff2).
-    -   woff - [ttf2woff](https://github.com/fontello/ttf2woff).
-    -   eot - [ttf2eot](https://github.com/fontello/ttf2eot).
--   See [webfonts-generator#formatoptions](https://github.com/vusion/webfonts-generator#formatoptions)
+- **type**: `{ [format in 'svg' | 'ttf' | 'woff2' | 'woff' | 'eot']?: unknown };`
+- **description**: Specific per format arbitrary options to pass to the generator. Format and matching generator:
+    - svg - [svgicons2svgfont](https://github.com/nfroidure/svgicons2svgfont).
+    - ttf - [svg2ttf](https://github.com/fontello/svg2ttf).
+    - woff2 - [ttf2woff2](https://github.com/nfroidure/ttf2woff2).
+    - woff - [ttf2woff](https://github.com/fontello/ttf2woff).
+    - eot - [ttf2eot](https://github.com/fontello/ttf2eot).
+- See [webfonts-generator#formatoptions](https://github.com/vusion/webfonts-generator#formatoptions)
 
 ### moduleId
 
--   **type**: `string`
--   **description**: Virtual module id which is used by Vite to import the plugin artifacts. E.g. the default value is "vite-svg-2-webfont.css" so "virtual:vite-svg-2-webfont.css" should be imported.
--   **default** `'vite-svg-2-webfont.css'`
+- **type**: `string`
+- **description**: Virtual module id which is used by Vite to import the plugin artifacts. E.g. the default value is "vite-svg-2-webfont.css" so "virtual:vite-svg-2-webfont.css" should be imported.
+- **default** `'vite-svg-2-webfont.css'`
 
 ### inline
 
--   **type**: `boolean`
--   **description**: Inline font assets in CSS using base64 encoding.
--   **default** `false`
+- **type**: `boolean`
+- **description**: Inline font assets in CSS using base64 encoding.
+- **default** `false`
 
 ### allowWriteFilesInBuild
 
--   **type**: `boolean`
--   **description**: Allow outputting assets (HTML, CSS, and Fonts) during build. [see](https://github.com/atlowChemi/vite-svg-2-webfont/issues/32#issuecomment-2203187501)
--   **default** `false`
+- **type**: `boolean`
+- **description**: Allow outputting assets (HTML, CSS, and Fonts) during build. [see](https://github.com/atlowChemi/vite-svg-2-webfont/issues/32#issuecomment-2203187501)
+- **default** `false`
 
 ## Public API
 
@@ -282,8 +282,8 @@ Currently available methods:
 
 ### getGeneratedWebfonts
 
--   **returns**: `Array<{ type: 'svg' | 'ttf' | 'woff2' | 'woff' | 'eot', href: string }>`
--   **description**
-    -   `type` - a font format generated by a plugin
-    -   `href` - a path to a generated font
--   [This repo](https://github.com/stryaponoff/vite-plugin-preload-webfont) contains the usage example.
+- **returns**: `Array<{ type: 'svg' | 'ttf' | 'woff2' | 'woff' | 'eot', href: string }>`
+- **description**
+    - `type` - a font format generated by a plugin
+    - `href` - a path to a generated font
+- [This repo](https://github.com/stryaponoff/vite-plugin-preload-webfont) contains the usage example.
