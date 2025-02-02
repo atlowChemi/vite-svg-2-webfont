@@ -34,14 +34,14 @@ export async function handleWatchEvent(
     if (eventType !== 'rename' || !filename?.endsWith('.svg') || !(await _doesFileExist(folderPath, filename))) {
         return;
     }
-    Promise.resolve().then(() => onIconAdded({ eventType, filename })).catch(() => null);
+    await onIconAdded({ eventType, filename });
 }
 
 export async function setupWatcher(folderPath: string, signal: AbortSignal, handler: (e: FileChangeInfo<string>) => void | Promise<void>) {
     try {
         watcher = watch(folderPath, { signal });
         for await (const event of watcher) {
-            handleWatchEvent(folderPath, event, handler).catch(() => null);
+            await handleWatchEvent(folderPath, event, handler);
         }
     } catch (err) {
         if (err.name === 'AbortError') {

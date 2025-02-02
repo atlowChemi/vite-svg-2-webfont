@@ -132,30 +132,30 @@ describe('build', () => {
 
     it.concurrent.each(types)('has font of type %s available', async type => {
         const res = await loadFileContent(`fonts/iconfont.${type}`, 'buffer');
-            let expected: ArrayBuffer | string | undefined;
+        let expected: ArrayBuffer | string | undefined;
 
-            const iconAsset = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type));
-            if (iconAsset) {
-                const iconAssetName = iconAsset.fileName;
-                expected = await fetchBufferContent(server, `/${iconAssetName}`);
-            } else if (cssContent) {
-                // File asset not found in output, check if it's inlined in CSS
+        const iconAsset = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type));
+        if (iconAsset) {
+            const iconAssetName = iconAsset.fileName;
+            expected = await fetchBufferContent(server, `/${iconAssetName}`);
+        } else if (cssContent) {
+            // File asset not found in output, check if it's inlined in CSS
 
-                const regex = /url\(data:(?<mime>.+?);base64,(?<data>.*?)\) format\("(?<format>.+?)"\)/g;
+            const regex = /url\(data:(?<mime>.+?);base64,(?<data>.*?)\) format\("(?<format>.+?)"\)/g;
 
-                let m;
-                while ((m = regex.exec(cssContent)) !== null) {
-                    if (m?.groups && 'mime' in m.groups && 'data' in m.groups) {
-                        const typeMime = typeToMimeMap[type];
-                        if (m.groups.mime === typeMime) {
-                            expected = base64ToArrayBuffer(m.groups.data);
-                        }
+            let m;
+            while ((m = regex.exec(cssContent)) !== null) {
+                if (m?.groups && 'mime' in m.groups && 'data' in m.groups) {
+                    const typeMime = typeToMimeMap[type];
+                    if (m.groups.mime === typeMime) {
+                        expected = base64ToArrayBuffer(m.groups.data);
                     }
                 }
             }
+        }
 
-            expect(res).not.toEqual(undefined);
-            expect(res).toStrictEqual(expected);
+        expect(res).not.toEqual(undefined);
+        expect(res).toStrictEqual(expected);
     });
 });
 
