@@ -117,7 +117,6 @@ The plugin has an API consisting of one required parameter and multiple optional
 
 - **type**: `string`
 - **description**: Path of custom CSS template. Generator uses handlebars templates. Tht template receives options from `templateOptions` along with the following options:
-
     - fontName
     - src `string` – Value of the `src` property for `@font-face`.
     - codepoints `object` - Codepoints of icons in hex format.

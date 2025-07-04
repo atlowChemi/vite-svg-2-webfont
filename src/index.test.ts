@@ -1,10 +1,10 @@
 import { constants } from 'node:fs';
+import { access, readFile, rmdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { readFile, access, rmdir } from 'node:fs/promises';
-import { describe, it, beforeAll, afterAll, expect } from 'vitest';
-import { build, createServer, preview, normalizePath } from 'vite';
 import type { RollupOutput } from 'rollup';
-import type { PreviewServer, ViteDevServer, InlineConfig } from 'vite';
+import type { InlineConfig, PreviewServer, ViteDevServer } from 'vite';
+import { build, createServer, normalizePath, preview } from 'vite';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { base64ToArrayBuffer } from './utils';
 
 // #region test utils
@@ -60,7 +60,7 @@ const fetchBufferContent = async (server: ViteDevServer | PreviewServer, path: s
     return await res.arrayBuffer();
 };
 
-const loadFileContent = async (path: string, encoding: BufferEncoding | 'buffer' = 'utf8'): Promise<string | ArrayBuffer> => {
+const loadFileContent = async (path: string, encoding: BufferEncoding | 'buffer' = 'utf8'): Promise<string | ArrayBufferLike> => {
     const absolutePath = new URL(path, root);
     const content = await readFile(absolutePath, encoding === 'buffer' ? null : encoding);
 
