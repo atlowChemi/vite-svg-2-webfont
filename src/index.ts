@@ -169,4 +169,4 @@ export { type GeneratedWebfont, type PublicApi };
 /**
  * Paths of default templates available for use.
  */
-export const templates = _webfontGenerator.templates;
+export const templates: _webfontGenerator.Templates = _webfontGenerator.templates;

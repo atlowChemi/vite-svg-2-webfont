@@ -1,11 +1,11 @@
 import { resolve } from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type UserConfig } from 'vite';
 import { viteSvgToWebfont } from '../../';
 
 const webfontFolder = resolve(__dirname, './webfont-test/svg');
 const outputFolder = resolve(__dirname, './webfont-test/artifacts');
 
-export default defineConfig({
+const config: UserConfig = defineConfig({
     build: {
         assetsInlineLimit: 0,
     },
@@ -19,3 +19,4 @@ export default defineConfig({
         }),
     ],
 });
+export default config;

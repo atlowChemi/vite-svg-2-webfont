@@ -15,7 +15,7 @@ export const MIME_TYPES: Record<GeneratedFontTypes, string> = {
     woff2: 'font/woff2',
 };
 
-export async function doesFileExist(folderPath: string, fileName: string) {
+export async function doesFileExist(folderPath: string, fileName: string): Promise<boolean> {
     const fileToFind = resolve(folderPath, fileName);
     try {
         await access(fileToFind, constants.R_OK);
@@ -29,15 +29,15 @@ export async function handleWatchEvent(
     folderPath: string,
     { eventType, filename }: FileChangeInfo<string>,
     onIconAdded: (e: FileChangeInfo<string>) => void | Promise<void>,
-    _doesFileExist = doesFileExist,
-) {
+    _doesFileExist: typeof doesFileExist = doesFileExist,
+): Promise<void> {
     if (eventType !== 'rename' || !filename?.endsWith('.svg') || !(await _doesFileExist(folderPath, filename))) {
         return;
     }
     await onIconAdded({ eventType, filename });
 }
 
-export async function setupWatcher(folderPath: string, signal: AbortSignal, handler: (e: FileChangeInfo<string>) => void | Promise<void>) {
+export async function setupWatcher(folderPath: string, signal: AbortSignal, handler: (e: FileChangeInfo<string>) => void | Promise<void>): Promise<void> {
     try {
         watcher = watch(folderPath, { signal });
         for await (const event of watcher) {
@@ -51,30 +51,30 @@ export async function setupWatcher(folderPath: string, signal: AbortSignal, hand
     }
 }
 
-export function getBufferHash(buf: Buffer) {
+export function getBufferHash(buf: Buffer): string {
     return createHash('sha256').update(buf).digest('hex');
 }
 
-export function hasFileExtension(fileName?: string | null) {
+export function hasFileExtension(fileName?: string | null): boolean {
     const fileExtensionRegex = /(?:\.([^.]+))?$/;
     return Boolean(fileExtensionRegex.exec(fileName || '')?.[1]);
 }
 
-export async function ensureDirExistsAndWriteFile(content: string | Buffer, dest: string) {
+export async function ensureDirExistsAndWriteFile(content: string | Buffer, dest: string): Promise<void> {
     const options = { mode: 0o777, recursive: true };
     await mkdir(dirname(dest), options);
     await writeFile(dest, content);
 }
 
-export function getTmpDir() {
+export function getTmpDir(): string {
     return mkdtempSync(pathJoin(osTmpdir(), '__vite-svg-2-webfont-'));
 }
 
-export function rmDir(path: string) {
+export function rmDir(path: string): void {
     fsRm(path, { force: true, recursive: true }, () => {});
 }
 
-export function base64ToArrayBuffer(base64: string) {
+export function base64ToArrayBuffer(base64: string): ArrayBuffer {
     const binaryString = Buffer.from(base64, 'base64').toString('binary');
     const bytes = new Uint8Array(binaryString.length);
     for (let i = 0; i < binaryString.length; i++) {
