@@ -1,9 +1,11 @@
 import { resolve } from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, type UserConfig } from 'vite';
 import { viteSvgToWebfont } from '../../';
 
 const webfontFolder = resolve(__dirname, './webfont-test/svg');
 
-export default defineConfig({
+const config: UserConfig = defineConfig({
     plugins: [viteSvgToWebfont({ context: webfontFolder })],
 });
+
+export default config;

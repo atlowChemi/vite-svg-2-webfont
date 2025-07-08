@@ -163,7 +163,7 @@ export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFon
     return ['eot', 'woff', 'woff2', 'ttf', 'svg'] as T[];
 }
 
-export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>) {
+export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>): string[] {
     files ||= ['*.svg'];
     const resolvedFiles = globSync(files, { cwd: context })?.map(file => `${context}/${file}`) || [];
     if (!resolvedFiles.length) {
@@ -172,7 +172,7 @@ export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' |
     return resolvedFiles;
 }
 
-export function resolveFileDest(globalDest: string, fileDest: string | undefined, fontName: string, extension: 'css' | 'html') {
+export function resolveFileDest(globalDest: string, fileDest: string | undefined, fontName: string, extension: 'css' | 'html'): string {
     if (!fileDest) {
         return resolve(globalDest, `${fontName.toLowerCase()}.${extension}`);
     }
@@ -196,7 +196,7 @@ export function buildFileTypeList({ generateFiles }: Pick<IconPluginOptions, 'ge
     return generateFiles;
 }
 
-export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'generateFiles'>) {
+export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'generateFiles'>): Record<'fonts' | 'html' | 'css', boolean> {
     const fileTypes = new Set(buildFileTypeList(options));
     return {
         fonts: fileTypes.has('fonts'),
@@ -205,7 +205,12 @@ export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'gener
     };
 }
 
-export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>) {
+type RequiredKeys = 'fontHeight' | 'codepoints' | 'templateOptions' | 'html' | 'css' | 'ligature' | 'formatOptions' | 'writeFiles' | 'cssDest' | 'htmlDest';
+interface ParsedOptions<T extends GeneratedFontTypes = GeneratedFontTypes>
+    extends Omit<WebfontsGeneratorOptions<T>, RequiredKeys>,
+        Pick<Required<WebfontsGeneratorOptions<GeneratedFontTypes>>, RequiredKeys> {}
+
+export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): ParsedOptions<T> {
     const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
     const generateFilesOptions = parseGenerateFilesOption(options);

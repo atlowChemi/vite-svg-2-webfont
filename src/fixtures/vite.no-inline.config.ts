@@ -1,7 +1,7 @@
-import { defineConfig, mergeConfig } from 'vite';
+import { defineConfig, mergeConfig, type UserConfig } from 'vite';
 import configBasic from './vite.basic.config';
 
-export default mergeConfig(
+const config: UserConfig = mergeConfig(
     configBasic,
     defineConfig({
         build: {
@@ -9,3 +9,5 @@ export default mergeConfig(
         },
     }),
 );
+
+export default config;
