@@ -41,7 +41,7 @@ export async function setupWatcher(folderPath: string, signal: AbortSignal, hand
     try {
         watcher = watch(folderPath, { signal });
         for await (const event of watcher) {
-            await handleWatchEvent(folderPath, event, handler);
+            await handleWatchEvent(folderPath, event as FileChangeInfo<string>, handler);
         }
     } catch (err) {
         if (err.name === 'AbortError') {

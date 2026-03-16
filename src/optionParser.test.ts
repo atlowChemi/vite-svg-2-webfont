@@ -32,6 +32,7 @@ describe('optionParser', () => {
         });
 
         it('defaults to all svg files in context', () => {
+            vi.mocked(globSync).mockClear();
             try {
                 optionParser.parseFiles({ context: '' });
             } catch {
@@ -44,15 +45,17 @@ describe('optionParser', () => {
         it('concatenates the context to the file name', () => {
             const file = 'ex.svg';
             const context = 'prefix';
+            vi.mocked(globSync).mockClear();
             vi.mocked(globSync).mockReturnValueOnce([file]);
             const resp = optionParser.parseFiles({ context });
             expect(globSync).toHaveBeenCalledOnce();
-            expect(globSync).toBeCalledWith(['*.svg'], { cwd: context });
+            expect(globSync).toHaveBeenCalledWith(['*.svg'], { cwd: context });
             expect(resp).to.be.lengthOf(1);
             expect(resp[0]).to.be.eq(`${context}/${file}`);
         });
 
         it('throws if no files found', () => {
+            vi.mocked(globSync).mockClear();
             vi.mocked(globSync).mockReturnValueOnce([]);
             try {
                 optionParser.parseFiles({ context: '' });

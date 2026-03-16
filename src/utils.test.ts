@@ -15,11 +15,13 @@ describe('utils', () => {
         });
 
         it("return false if file doesn't have read access", async () => {
+            vi.mocked(fs.access).mockClear();
             expect(await utils.doesFileExist('foo', 'bar')).toEqual(false);
             expect(fs.access).toHaveBeenCalledOnce();
         });
 
         it('return true if file has read access', async () => {
+            vi.mocked(fs.access).mockClear();
             expect(await utils.doesFileExist('foo', 'bar')).toEqual(true);
             expect(fs.access).toHaveBeenCalledOnce();
         });
@@ -53,6 +55,7 @@ describe('utils', () => {
         });
 
         it('execute callback for new/renamed file', async () => {
+            doesFileExist.mockClear();
             doesFileExist.mockResolvedValueOnce(true);
             await utils.handleWatchEvent('', { eventType: 'rename', filename: validFileName }, onIconAdded, doesFileExist);
             expect(doesFileExist).toHaveBeenCalledOnce();

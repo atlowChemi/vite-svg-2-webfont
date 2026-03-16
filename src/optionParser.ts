@@ -207,8 +207,7 @@ export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'gener
 
 type RequiredKeys = 'fontHeight' | 'codepoints' | 'templateOptions' | 'html' | 'css' | 'ligature' | 'formatOptions' | 'writeFiles' | 'cssDest' | 'htmlDest';
 interface ParsedOptions<T extends GeneratedFontTypes = GeneratedFontTypes>
-    extends Omit<WebfontsGeneratorOptions<T>, RequiredKeys>,
-        Pick<Required<WebfontsGeneratorOptions<GeneratedFontTypes>>, RequiredKeys> {}
+    extends Omit<WebfontsGeneratorOptions<T>, RequiredKeys>, Pick<Required<WebfontsGeneratorOptions<GeneratedFontTypes>>, RequiredKeys> {}
 
 export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): ParsedOptions<T> {
     const formats = parseIconTypesOption<T>(options);
