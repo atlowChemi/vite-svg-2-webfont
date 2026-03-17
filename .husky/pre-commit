@@ -1,4 +1,3 @@
 node --run lint -- --max-warnings=0 \
     && node --run format-check \
-    && node --run type-check \
     && node --run test

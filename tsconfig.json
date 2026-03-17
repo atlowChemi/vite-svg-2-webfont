@@ -14,12 +14,11 @@
         "noUncheckedIndexedAccess": true,
         "verbatimModuleSyntax": true,
         "moduleResolution": "node",
-        "baseUrl": ".",
         "esModuleInterop": true,
         "skipLibCheck": true,
         "useUnknownInCatchVariables": false,
         "isolatedDeclarations": true
     },
-    "include": ["src", "vite.config.ts", "tsdown.config.ts", "eslint.config.mjs"],
+    "include": ["src", "{vite,tsdown,oxlint,oxfmt}.config.ts"],
     "exclude": ["node_modules", "example/**"]
 }

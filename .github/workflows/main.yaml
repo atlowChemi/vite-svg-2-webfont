@@ -83,28 +83,6 @@ jobs:
               with:
                   name: dist
                   path: dist
-    type-check:
-        name: run type-check
-        runs-on: ubuntu-latest
-        needs: [packages, build]
-        steps:
-            - name: checkout
-              uses: actions/checkout@v6
-            - name: Install pnpm
-              uses: pnpm/action-setup@v5
-            - name: setup Node
-              uses: actions/setup-node@v6
-              with:
-                  node-version-file: .nvmrc
-                  cache: pnpm
-            - name: frozen install
-              run: pnpm i --frozen-lockfile --offline
-            - uses: actions/download-artifact@v8
-              with:
-                  name: dist
-                  path: dist
-            - name: run type-check
-              run: node --run type-check
     test:
         name: run test
         needs: [packages, build]

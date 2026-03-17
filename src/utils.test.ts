@@ -72,7 +72,8 @@ describe('utils', () => {
         it('throws error if no such folder', async () => {
             const err: unknown = await utils.setupWatcher(folderPath, ac.signal, handler).catch(e => e);
             expect(err).toBeInstanceOf(Error);
-            expect((err as Error).message).to.be.eq(`ENOENT: no such file or directory, watch '${folderPath}'`);
+            // oxlint-disable-next-line typescript/no-unsafe-type-assertion
+            expect((err as Error).message).toBe(`ENOENT: no such file or directory, watch '${folderPath}'`);
         });
 
         it('handles AbortError without throwing an error', async () => {

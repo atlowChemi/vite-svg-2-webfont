@@ -13,7 +13,7 @@ type RollupOutput = Extract<ViteBuildResult, { output: unknown }>;
 const root = new URL('./fixtures/', import.meta.url);
 const types = ['svg', 'eot', 'woff', 'woff2', 'ttf'];
 
-const normalizeLineBreak = (input: string) => input.replace(/\r\n/g, '\n');
+const normalizeLineBreak = (input: string) => input.replaceAll('\r\n', '\n');
 const fileURLToNormalizedPath = (url: URL) => normalizePath(fileURLToPath(url));
 
 const enum ConfigType {
@@ -34,7 +34,7 @@ const getServerPort = (server: ViteDevServer | PreviewServer) => {
     }
     if (typeof address === 'string') {
         const [, port] = address.split(':');
-        return parseInt(port || '80');
+        return parseInt(port || '80', 10);
     }
     return address.port;
 };
@@ -116,6 +116,7 @@ describe('build', () => {
     };
 
     beforeAll(async () => {
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         output = ((await build(buildConfig)) as RollupOutput).output;
         server = await preview(buildConfig);
         server.printUrls();
@@ -167,6 +168,7 @@ describe('build:no-inline', () => {
     let output: RollupOutput['output'];
     let server: PreviewServer;
     beforeAll(async () => {
+        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         output = ((await build(buildConfig)) as RollupOutput).output;
         server = await preview(buildConfig);
         server.printUrls();
