@@ -11,7 +11,7 @@ vi.mock('fs/promises', async () => {
 describe('utils', () => {
     describe('doesFileExist', () => {
         afterEach(() => {
-            vi.restoreAllMocks();
+            vi.resetAllMocks();
         });
 
         it("return false if file doesn't have read access", async () => {
@@ -27,7 +27,7 @@ describe('utils', () => {
 
     describe('handleWatchEvent', () => {
         afterEach(() => {
-            vi.restoreAllMocks();
+            vi.resetAllMocks();
         });
 
         const validFileName = 'ex.svg';

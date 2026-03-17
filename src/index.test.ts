@@ -1,11 +1,13 @@
 import { constants } from 'node:fs';
-import { access, readFile, rmdir } from 'node:fs/promises';
+import { access, readFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import type { RollupOutput } from 'rollup';
 import type { InlineConfig, PreviewServer, ViteDevServer } from 'vite';
 import { build, createServer, normalizePath, preview } from 'vite';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { base64ToArrayBuffer } from './utils';
+
+type ViteBuildResult = Awaited<ReturnType<typeof build>>;
+type RollupOutput = Extract<ViteBuildResult, { output: unknown }>;
 
 // #region test utils
 const root = new URL('./fixtures/', import.meta.url);
@@ -197,7 +199,7 @@ describe('build allowWriteFilesInBuild', () => {
     });
 
     afterAll(async () => {
-        await rmdir(new URL('webfont-test/artifacts', root), { recursive: true });
+        await rm(new URL('webfont-test/artifacts', root), { recursive: true });
     });
 
     it.concurrent.each([...types, 'html', 'css'])('has generated font of type %s', async type => {

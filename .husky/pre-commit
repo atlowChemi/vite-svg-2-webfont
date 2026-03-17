@@ -1,4 +1,4 @@
-npm run lint -- --max-warnings=0 \
-    && npx prettier --check . \
-    && npm run type-check \
-    && npm test run
+node --run lint -- --max-warnings=0 \
+    && node --run format-check \
+    && node --run type-check \
+    && node --run test
