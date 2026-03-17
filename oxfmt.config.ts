@@ -1,0 +1,24 @@
+import { defineConfig } from 'oxfmt';
+
+export default defineConfig({
+    printWidth: 180,
+    tabWidth: 4,
+    useTabs: false,
+    semi: true,
+    singleQuote: true,
+    quoteProps: 'as-needed',
+    jsxSingleQuote: false,
+    trailingComma: 'all',
+    bracketSpacing: true,
+    bracketSameLine: false,
+    arrowParens: 'avoid',
+    rangeStart: 0,
+    filepath: 'none',
+    requirePragma: false,
+    insertPragma: false,
+    proseWrap: 'preserve',
+    htmlWhitespaceSensitivity: 'css',
+    vueIndentScriptAndStyle: false,
+    sortPackageJson: false,
+    ignorePatterns: ['dist', 'dist-*', 'webfont', 'node_modules', 'coverage/*'],
+});
