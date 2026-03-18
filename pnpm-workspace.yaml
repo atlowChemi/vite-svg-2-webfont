@@ -1,6 +1,8 @@
 catalog:
-    vite: ^8.0.0
+    vite: npm:@voidzero-dev/vite-plus-core@latest
     typescript: ^5.9.3
+    vitest: npm:@voidzero-dev/vite-plus-test@latest
+    vite-plus: latest
 
 packages:
     - '.'
@@ -8,3 +10,12 @@ packages:
 
 overrides:
     make-fetch-happen: 13.0.0
+    vite: 'catalog:'
+    vitest: 'catalog:'
+peerDependencyRules:
+    allowAny:
+        - vite
+        - vitest
+    allowedVersions:
+        vite: '*'
+        vitest: '*'

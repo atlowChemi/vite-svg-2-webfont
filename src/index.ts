@@ -94,7 +94,10 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
             for (const { type, href } of tmpGeneratedWebfonts) {
                 for (const chunk of Object.values(bundle)) {
                     if (chunk.name && href.endsWith(chunk.name)) {
-                        generatedWebfonts.push({ type, href: `/${chunk.fileName}` });
+                        generatedWebfonts.push({
+                            type,
+                            href: `/${chunk.fileName}`,
+                        });
                     }
                 }
             }
@@ -133,7 +136,9 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                 emitted.forEach(([type, href]) => {
                     tmpGeneratedWebfonts.push({ type, href });
                 });
-                fileRefs = Object.fromEntries(emitted) as { [Ref in T]: string };
+                fileRefs = Object.fromEntries(emitted) as {
+                    [Ref in T]: string;
+                };
             }
         },
         configureServer(server) {

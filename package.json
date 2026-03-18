@@ -21,17 +21,7 @@
         "node": "^20 || ^22 || >=24"
     },
     "scripts": {
-        "dev": "tsdown --watch",
-        "build": "tsdown",
-        "example:dev": "pnpm -r --parallel --filter vite-svg-2-webfont --filter example dev",
-        "example:build": "pnpm build && pnpm --filter example build",
-        "example:preview": "pnpm --filter example preview",
-        "lint": "oxlint",
-        "format": "oxfmt --write",
-        "format-check": "oxfmt --check",
-        "test": "vitest",
-        "coverage": "vitest run --coverage",
-        "prepare": "husky"
+        "prepare": "vp config"
     },
     "repository": {
         "type": "git",
@@ -57,14 +47,10 @@
         "@types/node": "^24.0.7",
         "@types/vusion__webfonts-generator": "^0.8.6",
         "@vitest/coverage-istanbul": "^4.1.0",
-        "husky": "^9.1.7",
-        "oxfmt": "^0.41.0",
-        "oxlint": "^1.56.0",
-        "oxlint-tsgolint": "^0.17.0",
-        "tsdown": "^0.21.4",
         "typescript": "catalog:",
         "vite": "catalog:",
-        "vitest": "^4.1.0"
+        "vitest": "catalog:",
+        "vite-plus": "catalog:"
     },
     "dependencies": {
         "@vusion/webfonts-generator": "^0.8.0",

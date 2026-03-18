@@ -1,6 +1,6 @@
 import * as optionParser from './optionParser';
 import type { globSync as GlobSyncFn } from 'glob';
-import { describe, it, expect, vi, afterEach, beforeAll } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeAll } from 'vite-plus/test';
 import { NoIconsAvailableError, InvalidWriteFilesTypeError } from './errors';
 import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
 
