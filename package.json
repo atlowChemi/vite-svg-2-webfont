@@ -23,10 +23,12 @@
     "scripts": {
         "dev": "tsdown --watch",
         "build": "tsdown",
+        "example:dev": "pnpm -r --parallel --filter vite-svg-2-webfont --filter example dev",
+        "example:build": "pnpm build && pnpm --filter example build",
+        "example:preview": "pnpm --filter example preview",
         "lint": "oxlint",
         "format": "oxfmt --write",
         "format-check": "oxfmt --check",
-        "type-check": "tsc --noEmit",
         "test": "vitest",
         "coverage": "vitest run --coverage",
         "prepare": "husky"
@@ -60,8 +62,8 @@
         "oxlint": "^1.56.0",
         "oxlint-tsgolint": "^0.17.0",
         "tsdown": "^0.21.4",
-        "typescript": "^5.9.3",
-        "vite": "^8.0.0",
+        "typescript": "catalog:",
+        "vite": "catalog:",
         "vitest": "^4.1.0"
     },
     "dependencies": {
