@@ -125,7 +125,6 @@ describe('optionParser', () => {
         it.concurrent('throws an error if received invalid value', () => {
             let error: unknown;
             try {
-                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- explicit for testing invalid value
                 optionParser.buildFileTypeList({ generateFiles: 'invalid' as never });
                 expect.fail('Should never get to this error!');
             } catch (err) {
@@ -133,7 +132,6 @@ describe('optionParser', () => {
             }
             expect(error).toBeInstanceOf(InvalidWriteFilesTypeError);
             try {
-                // oxlint-disable-next-line typescript/no-unsafe-type-assertion -- explicit for testing invalid value
                 optionParser.buildFileTypeList({ generateFiles: ['invalid'] as never });
                 expect.fail('Should never get to this error!');
             } catch (err) {
