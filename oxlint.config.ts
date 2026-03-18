@@ -27,6 +27,9 @@ export default defineConfig({
             typecheck: true,
         },
     },
+    rules: {
+        'typescript/no-unsafe-type-assertion': 'off',
+    },
     env: {
         builtin: true,
     },

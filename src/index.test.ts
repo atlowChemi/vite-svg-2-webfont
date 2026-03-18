@@ -7,11 +7,12 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { base64ToArrayBuffer } from './utils';
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;
-type RollupOutput = Extract<ViteBuildResult, { output: unknown }>;
+type RolldownOutput = Extract<ViteBuildResult, { output: unknown }>;
+type OutputAsset = Extract<RolldownOutput['output'][1], { type: 'asset' }>;
 
 // #region test utils
 const root = new URL('./fixtures/', import.meta.url);
-const types = ['svg', 'eot', 'woff', 'woff2', 'ttf'];
+const types = ['svg', 'eot', 'woff', 'woff2', 'ttf'] as const;
 
 const normalizeLineBreak = (input: string) => input.replaceAll('\r\n', '\n');
 const fileURLToNormalizedPath = (url: URL) => normalizePath(fileURLToPath(url));
@@ -33,7 +34,7 @@ const getServerPort = (server: ViteDevServer | PreviewServer) => {
         throw new Error('Address not found');
     }
     if (typeof address === 'string') {
-        const [, port] = address.split(':');
+        const [, port] = address.split(':', 2);
         return parseInt(port || '80', 10);
     }
     return address.port;
@@ -92,18 +93,16 @@ describe('serve - handles virtual import and has all font types available', () =
         expect(res).toMatch(/^import "\/@id\/__x00__virtual:vite-svg-2-webfont\.css";/);
     });
 
-    types.forEach(type => {
-        it.concurrent(`has font of type ${type} available`, async () => {
-            const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/iconfont.${type}`)]);
-            expect(res).toStrictEqual(expected);
-        });
+    it.concurrent.each(types)(`has font of type %s available`, async type => {
+        const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/iconfont.${type}`)]);
+        expect(res).toStrictEqual(expected);
     });
 });
 
 describe('build', () => {
     const buildConfig = getConfig(ConfigType.Basic);
 
-    let output: RollupOutput['output'];
+    let output: RolldownOutput['output'];
     let server: PreviewServer;
     let cssContent: string | undefined;
 
@@ -116,12 +115,19 @@ describe('build', () => {
     };
 
     beforeAll(async () => {
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-        output = ((await build(buildConfig)) as RollupOutput).output;
+        let buildResult = await build(buildConfig);
+        if (Array.isArray(buildResult)) {
+            buildResult = buildResult[0]!;
+        }
+        if (!('output' in buildResult)) {
+            throw new Error('Unexpected build result');
+        }
+
+        output = buildResult.output;
         server = await preview(buildConfig);
         server.printUrls();
 
-        const cssFileName = output.find(({ type, name }) => type === 'asset' && name === 'index.css')!.fileName;
+        const cssFileName = output.find((out): out is OutputAsset => out.type === 'asset' && out.names.includes('index.css'))!.fileName;
         cssContent = await fetchTextContent(server, `/${cssFileName}`);
     });
 
@@ -137,23 +143,19 @@ describe('build', () => {
         const res = await loadFileContent(`fonts/iconfont.${type}`, 'buffer');
         let expected: ArrayBuffer | string | undefined;
 
-        const iconAsset = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type));
+        const iconAsset = output.find((out): out is OutputAsset => out.type === 'asset' && out.fileName.startsWith('assets/iconfont-') && out.fileName.endsWith(type));
         if (iconAsset) {
             const iconAssetName = iconAsset.fileName;
             expected = await fetchBufferContent(server, `/${iconAssetName}`);
         } else if (cssContent) {
             // File asset not found in output, check if it's inlined in CSS
 
-            const regex = /url\(data:(?<mime>.+?);base64,(?<data>.*?)\) format\("(?<format>.+?)"\)/g;
+            const typeMime = typeToMimeMap[type];
+            const regex = new RegExp(`url\\(data:(?<mime>${typeMime});base64,(?<data>.*?)\\)\\s?format\\("(?<format>.+?)"\\)`);
 
-            let m;
-            while ((m = regex.exec(cssContent)) !== null) {
-                if (m?.groups && 'mime' in m.groups && 'data' in m.groups) {
-                    const typeMime = typeToMimeMap[type];
-                    if (m.groups.mime === typeMime) {
-                        expected = base64ToArrayBuffer(m.groups.data);
-                    }
-                }
+            const match = cssContent.match(regex);
+            if (match?.groups && 'mime' in match.groups && 'data' in match.groups && match.groups.mime === typeMime) {
+                expected = base64ToArrayBuffer(match.groups.data);
             }
         }
 
@@ -165,11 +167,17 @@ describe('build', () => {
 describe('build:no-inline', () => {
     const buildConfig = getConfig(ConfigType.NoInline);
 
-    let output: RollupOutput['output'];
+    let output: RolldownOutput['output'];
     let server: PreviewServer;
     beforeAll(async () => {
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
-        output = ((await build(buildConfig)) as RollupOutput).output;
+        let buildResult = await build(buildConfig);
+        if (Array.isArray(buildResult)) {
+            buildResult = buildResult[0]!;
+        }
+        if (!('output' in buildResult)) {
+            throw new Error('Unexpected build result');
+        }
+        output = buildResult.output;
         server = await preview(buildConfig);
         server.printUrls();
     });
@@ -184,12 +192,10 @@ describe('build:no-inline', () => {
         expect(res).toMatch(/^@font-face{font-family:iconfont;/);
     });
 
-    types.forEach(type => {
-        it.concurrent.each(types)('has font of type %s available', async () => {
-            const iconAssetName = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type))!.fileName;
-            const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/${iconAssetName}`)]);
-            expect(res).toStrictEqual(expected);
-        });
+    it.concurrent.each(types)('has font of type %s available', async type => {
+        const iconAssetName = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type))!.fileName;
+        const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/${iconAssetName}`)]);
+        expect(res).toStrictEqual(expected);
     });
 });
 
@@ -206,7 +212,7 @@ describe('build allowWriteFilesInBuild', () => {
 
     it.concurrent.each([...types, 'html', 'css'])('has generated font of type %s', async type => {
         const fileName = `webfont-test/artifacts/allowWriteFilesInBuild-test.${type}`;
-        const fileNameCasing = types.includes(type) ? fileName : fileName.toLowerCase();
+        const fileNameCasing = types.includes(type as unknown as (typeof types)[number]) ? fileName : fileName.toLowerCase();
         const filePath = new URL(fileNameCasing, root);
 
         await expect(access(filePath, constants.F_OK)).resolves.not.toThrow();

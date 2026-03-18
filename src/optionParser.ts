@@ -160,7 +160,6 @@ export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFon
     if (types) {
         return [types];
     }
-    // oxlint-disable-next-line typescript/no-unsafe-type-assertion
     return ['eot', 'woff', 'woff2', 'ttf', 'svg'] as T[];
 }
 

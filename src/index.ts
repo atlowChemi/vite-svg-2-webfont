@@ -45,7 +45,6 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
         if (!options.inline) {
             return css;
         }
-        // oxlint-disable-next-line typescript/no-unsafe-type-assertion
         return css?.replace(/url\(".*?\.([^?]+)\?[^"]+"\)/g, (_, type: T) => {
             const font = Buffer.from(generatedFonts?.[type] || []);
             return `url("data:${MIME_TYPES[type]};charset=utf-8;base64,${font.toString('base64')}")`;
@@ -134,7 +133,6 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                 emitted.forEach(([type, href]) => {
                     tmpGeneratedWebfonts.push({ type, href });
                 });
-                // oxlint-disable-next-line typescript/no-unsafe-type-assertion
                 fileRefs = Object.fromEntries(emitted) as { [Ref in T]: string };
             }
         },
