@@ -93,7 +93,7 @@ const config: UserConfig = defineConfig({
             },
             publish: {
                 cache: false,
-                command: 'pnpm publish',
+                command: 'pnpm publish --no-git-checks',
                 dependsOn: ['pack'],
             },
         },
