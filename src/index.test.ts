@@ -3,7 +3,7 @@ import { access, readFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import type { InlineConfig, PreviewServer, ViteDevServer } from 'vite';
 import { build, createServer, normalizePath, preview } from 'vite';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 import { base64ToArrayBuffer } from './utils';
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;

@@ -18,15 +18,10 @@ jobs:
               uses: actions/checkout@v6
             - name: Install pnpm
               uses: pnpm/action-setup@v5
-            - name: setup Node
-              uses: actions/setup-node@v6
+            - uses: voidzero-dev/setup-vp@v1
               with:
                   node-version-file: .nvmrc
-                  cache: 'pnpm'
-                  registry-url: 'https://registry.npmjs.org'
-            - name: frozen install
-              run: pnpm i --frozen-lockfile --prefer-offline
-            - name: build
-              run: node --run build
-            - name: deploy
-              run: pnpm publish --provenance
+                  run-install: true
+                  cache: true
+            - name: publish
+              run: vp run publish
