@@ -24,11 +24,29 @@ jobs:
             - run: vp check
 
     test:
-        name: run test
+        name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
         needs: [ci]
         strategy:
             matrix:
-                node_version: [20.x, 22.x, 24.x, 25.x]
+                include:
+                    - node_version: 20.x
+                      vite_major: 8
+                      primary: false
+                    - node_version: 22.x
+                      vite_major: 8
+                      primary: false
+                    - node_version: 24.x
+                      vite_major: 8
+                      primary: true
+                    - node_version: 25.x
+                      vite_major: 8
+                      primary: false
+                    - node_version: 24.x
+                      vite_major: 6
+                      primary: false
+                    - node_version: 24.x
+                      vite_major: 7
+                      primary: false
             fail-fast: false
         runs-on: ubuntu-latest
         steps:
@@ -36,12 +54,32 @@ jobs:
               uses: actions/checkout@v6
             - uses: voidzero-dev/setup-vp@v1
               with:
-                  node-version-file: .nvmrc
-                  run-install: true
-                  cache: true
+                  node-version: ${{ matrix.node_version }}
+                  run-install: false
+                  cache: false
+            - name: select vite major
+              run: node ./scripts/ci/set-vite-major.js ${{ matrix.vite_major }}
+            - name: install dependencies
+              run: vp install --no-frozen-lockfile
+            - name: verify vite version
+              run: |
+                  VITE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('node_modules/vite/package.json', 'utf8')).version")
+                  echo "Resolved vite version: ${VITE_VERSION}"
+                  case "${VITE_VERSION}" in
+                    ${{ matrix.vite_major }}.*) ;;
+                    *)
+                      echo "Expected Vite major ${{ matrix.vite_major }}, got ${VITE_VERSION}" >&2
+                      exit 1
+                      ;;
+                  esac
             - name: run coverage test
+              if: ${{ matrix.primary }}
               run: vp run coverage
+            - name: run test
+              if: ${{ !matrix.primary }}
+              run: vp run test
             - uses: actions/upload-artifact@v7
+              if: ${{ matrix.primary }}
               with:
-                  name: coverage-${{ matrix.node_version }}
+                  name: coverage-node-${{ matrix.node_version }}-vite-${{ matrix.vite_major }}
                   path: coverage
