@@ -30,6 +30,25 @@ describe('optionParser', () => {
         });
     });
 
+    describe.concurrent('parsePreloadFormatsOption', () => {
+        it.concurrent('returns arrays as received', () => {
+            const preloadFormats: GeneratedFontTypes[] = ['woff2', 'ttf'];
+            expect(optionParser.parsePreloadFormatsOption({ preloadFormats })).toBe(preloadFormats);
+        });
+
+        it.concurrent('transfers string into an array', () => {
+            const preloadFormats = 'woff2';
+            const val = optionParser.parsePreloadFormatsOption({ preloadFormats });
+            expect(Array.isArray(val)).toBe(true);
+            expect(val).toHaveLength(1);
+            expect(val[0]).toBe(preloadFormats);
+        });
+
+        it.concurrent('returns empty array if no preload formats received', () => {
+            expect(optionParser.parsePreloadFormatsOption({})).toEqual([]);
+        });
+    });
+
     describe('parseFiles', () => {
         afterEach(() => {
             vi.resetAllMocks();
@@ -250,6 +269,11 @@ describe('optionParser', () => {
             const res = optionParser.parseOptions({ context, types });
             expect(res.types).toEqual(types);
             expect(res.order).toEqual(types);
+        });
+
+        it.concurrent('ignores preloadFormats when parsing generator options', () => {
+            const res = optionParser.parseOptions({ context, preloadFormats: ['woff2'] });
+            expect('preloadFormats' in res).toBe(false);
         });
 
         it.concurrent('appends a / to dest', () => {

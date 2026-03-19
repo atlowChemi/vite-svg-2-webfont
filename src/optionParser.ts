@@ -119,6 +119,12 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      * @default ['eot', 'woff', 'woff2', 'ttf', 'svg']
      */
     types?: T | T[];
+    /**
+     * Font file types to preload in build HTML output.
+     *
+     * Only generated formats can be preloaded, so values outside {@link types} are ignored.
+     */
+    preloadFormats?: T | T[];
     /** Specific codepoints for certain icons. Icons without codepoints will have codepoints incremented from startCodepoint skipping duplicates. */
     codepoints?: { [key: string]: number };
     /** The outputted font height (defaults to the height of the highest input icon). */
@@ -153,14 +159,26 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     allowWriteFilesInBuild?: boolean;
 }
 
-export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
+function parseGeneratedFontTypeOption<T extends GeneratedFontTypes = GeneratedFontTypes>(types?: T | T[]): T[] {
     if (Array.isArray(types)) {
         return types;
     }
     if (types) {
         return [types];
     }
+    return [];
+}
+
+export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
+    const parsedTypes = parseGeneratedFontTypeOption(types);
+    if (parsedTypes.length) {
+        return parsedTypes;
+    }
     return ['eot', 'woff', 'woff2', 'ttf', 'svg'] as T[];
+}
+
+export function parsePreloadFormatsOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ preloadFormats }: Pick<IconPluginOptions<T>, 'preloadFormats'>): T[] {
+    return parseGeneratedFontTypeOption(preloadFormats);
 }
 
 export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>): string[] {

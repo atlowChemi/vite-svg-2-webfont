@@ -224,6 +224,24 @@ The plugin has an API consisting of one required parameter and multiple optional
 - **default** `['eot', 'woff', 'woff2', 'ttf', 'svg']`
 - See [webfonts-generator#types](https://github.com/vusion/webfonts-generator#types)
 
+### preloadFormats
+
+- **type**: `string | string[]`
+- **description**: Font file types to preload in build HTML output.
+- **notes**:
+    - Only affects production build HTML output.
+    - Only generated formats can be preloaded, so values outside [`types`](#types) are ignored.
+    - No preload tags are injected when [`inline`](#inline) is `true`.
+- **example**:
+
+```ts
+viteSvgToWebfont({
+    context: './src/icons',
+    types: ['woff2', 'ttf'],
+    preloadFormats: ['woff2'],
+});
+```
+
 ### codepoints
 
 - **type**: `{ [key: string]: number }`

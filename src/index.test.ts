@@ -21,6 +21,8 @@ const enum ConfigType {
     Basic = './vite.basic.config.ts',
     NoInline = './vite.no-inline.config.ts',
     AllowWriteFilesInBuild = './vite.allowWriteFilesInBuild.config.ts',
+    Preload = './vite.preload.config.ts',
+    PreloadInline = './vite.preload-inline.config.ts',
 }
 const getConfig = (configType: ConfigType): InlineConfig => ({
     logLevel: 'silent',
@@ -196,6 +198,95 @@ describe('build:no-inline', () => {
         const iconAssetName = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith(type))!.fileName;
         const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/${iconAssetName}`)]);
         expect(res).toStrictEqual(expected);
+    });
+});
+
+describe('build:preloadFormats', () => {
+    const buildConfig = getConfig(ConfigType.Preload);
+
+    let output: RolldownOutput['output'];
+    let server: PreviewServer;
+    let htmlContent: string | undefined;
+
+    beforeAll(async () => {
+        let buildResult = await build(buildConfig);
+        if (Array.isArray(buildResult)) {
+            buildResult = buildResult[0]!;
+        }
+        if (!('output' in buildResult)) {
+            throw new Error('Unexpected build result');
+        }
+
+        output = buildResult.output;
+        server = await preview(buildConfig);
+        server.printUrls();
+        htmlContent = await fetchTextContent(server, '/');
+    });
+
+    afterAll(() => {
+        server.httpServer.close();
+    });
+
+    it.concurrent('injects preload links into build html', () => {
+        expect(htmlContent).toContain('<link rel="preload"');
+    });
+
+    it.concurrent('preloads only requested generated font formats', () => {
+        const woff2AssetName = output.find(({ fileName }) => fileName.startsWith('assets/iconfont-') && fileName.endsWith('woff2'))!.fileName;
+
+        expect(htmlContent).toContain(`href="/${woff2AssetName}"`);
+        expect(htmlContent).toContain('as="font"');
+        expect(htmlContent).toContain('type="font/woff2"');
+        expect(htmlContent).toContain('crossorigin');
+        expect(htmlContent).not.toContain('.ttf');
+    });
+
+    it.concurrent('ignores preload formats that are not being generated', () => {
+        expect(htmlContent).not.toContain('type="application/font-woff"');
+    });
+});
+
+describe('build:preloadFormats:inline', () => {
+    const buildConfig = getConfig(ConfigType.PreloadInline);
+
+    let server: PreviewServer;
+    let htmlContent: string | undefined;
+
+    beforeAll(async () => {
+        await build(buildConfig);
+        server = await preview(buildConfig);
+        server.printUrls();
+        htmlContent = await fetchTextContent(server, '/');
+    });
+
+    afterAll(() => {
+        server.httpServer.close();
+    });
+
+    it.concurrent('does not inject preload links when plugin fonts are inlined', () => {
+        expect(htmlContent).not.toContain('<link rel="preload"');
+    });
+});
+
+describe('build without preloadFormats', () => {
+    const buildConfig = getConfig(ConfigType.Basic);
+
+    let server: PreviewServer;
+    let htmlContent: string | undefined;
+
+    beforeAll(async () => {
+        await build(buildConfig);
+        server = await preview(buildConfig);
+        server.printUrls();
+        htmlContent = await fetchTextContent(server, '/');
+    });
+
+    afterAll(() => {
+        server.httpServer.close();
+    });
+
+    it.concurrent('does not inject preload links when preloadFormats is omitted', () => {
+        expect(htmlContent).not.toContain('<link rel="preload"');
     });
 });
 
