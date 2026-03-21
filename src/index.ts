@@ -128,6 +128,9 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                 if (!isBuild || options.inline || preloadFormats.length === 0 || !('bundle' in ctx) || !ctx.bundle) {
                     return undefined;
                 }
+                if (options.shouldProcessHtml && !options.shouldProcessHtml(ctx)) {
+                    return undefined;
+                }
 
                 const preloadWebfonts = resolveGeneratedWebfonts(ctx.bundle).filter(({ type }) => preloadFormats.includes(type));
 

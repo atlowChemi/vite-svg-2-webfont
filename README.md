@@ -242,6 +242,25 @@ viteSvgToWebfont({
 });
 ```
 
+### shouldProcessHtml
+
+- **type**: `(context: IndexHtmlTransformContext) => boolean`
+- **description**: Allows skipping preload tag injection for specific HTML entrypoints during build.
+- **notes**:
+    - Only affects preload injection.
+    - Returning `false` skips adding preload tags for the current HTML file.
+- **example**:
+
+```ts
+import { resolve as pathResolve } from 'node:path';
+
+viteSvgToWebfont({
+    context: './src/icons',
+    preloadFormats: ['woff2'],
+    shouldProcessHtml: context => context.filename === pathResolve(__dirname, 'src', 'index.html'),
+});
+```
+
 ### codepoints
 
 - **type**: `{ [key: string]: number }`

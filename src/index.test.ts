@@ -1,14 +1,16 @@
 import { constants } from 'node:fs';
 import { access, readFile, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import type { InlineConfig, PreviewServer, ViteDevServer } from 'vite';
+import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite';
 import { build, createServer, normalizePath, preview } from 'vite';
 import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
+import { viteSvgToWebfont } from './index';
 import { base64ToArrayBuffer } from './utils';
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;
 type RolldownOutput = Extract<ViteBuildResult, { output: unknown }>;
 type OutputAsset = Extract<RolldownOutput['output'][1], { type: 'asset' }>;
+type TransformIndexHtmlHook = Extract<Exclude<ReturnType<typeof viteSvgToWebfont>['transformIndexHtml'], undefined>, { handler: unknown }>;
 
 // #region test utils
 const root = new URL('./fixtures/', import.meta.url);
@@ -287,6 +289,69 @@ describe('build without preloadFormats', () => {
 
     it.concurrent('does not inject preload links when preloadFormats is omitted', () => {
         expect(htmlContent).not.toContain('<link rel="preload"');
+    });
+});
+
+describe('transformIndexHtml shouldProcessHtml', () => {
+    const contextPath = fileURLToNormalizedPath(new URL('./webfont-test/svg', root));
+    const buildContext = {
+        bundle: {
+            'assets/iconfont-test.woff2': {
+                type: 'asset',
+                fileName: 'assets/iconfont-test.woff2',
+                names: ['iconfont-test.woff2'],
+                originalFileNames: [],
+                source: '',
+            },
+        },
+        filename: '/virtual/index.html',
+        path: '/index.html',
+    } as unknown as IndexHtmlTransformContext;
+
+    it.concurrent('skips preload tags when shouldProcessHtml returns false', async () => {
+        const plugin = viteSvgToWebfont({
+            context: contextPath,
+            fontName: 'iconfont-test',
+            preloadFormats: ['woff2'],
+            shouldProcessHtml: () => false,
+            types: ['woff2'],
+        });
+        const transformIndexHtml = plugin.transformIndexHtml as TransformIndexHtmlHook;
+        const configResolved = plugin.configResolved as (config: { command: 'build' | 'serve' }) => void;
+
+        configResolved({ command: 'build' });
+        const result = await transformIndexHtml.handler.call({} as never, '', buildContext);
+
+        expect(result).toBe(undefined);
+    });
+
+    it.concurrent('injects preload tags when shouldProcessHtml returns true', async () => {
+        const plugin = viteSvgToWebfont({
+            context: contextPath,
+            fontName: 'iconfont-test',
+            preloadFormats: ['woff2'],
+            shouldProcessHtml: () => true,
+            types: ['woff2'],
+        });
+        const transformIndexHtml = plugin.transformIndexHtml as TransformIndexHtmlHook;
+        const configResolved = plugin.configResolved as (config: { command: 'build' | 'serve' }) => void;
+
+        configResolved({ command: 'build' });
+        const result = await transformIndexHtml.handler.call({} as never, '', buildContext);
+
+        expect(result).toEqual([
+            {
+                attrs: {
+                    as: 'font',
+                    crossorigin: true,
+                    href: '/assets/iconfont-test.woff2',
+                    rel: 'preload',
+                    type: 'font/woff2',
+                },
+                injectTo: 'head',
+                tag: 'link',
+            },
+        ]);
     });
 });
 

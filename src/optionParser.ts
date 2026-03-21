@@ -3,6 +3,7 @@ import { globSync } from 'glob';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
 import type { WebfontsGeneratorOptions, GeneratedFontTypes, CSSTemplateContext } from '@vusion/webfonts-generator';
+import type { IndexHtmlTransformContext } from 'vite';
 
 const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
 type FileType = (typeof FILE_TYPE_OPTIONS)[number];
@@ -125,6 +126,10 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      * Only generated formats can be preloaded, so values outside {@link types} are ignored.
      */
     preloadFormats?: T | T[];
+    /**
+     * Allows skipping preload tag injection for specific HTML entrypoints.
+     */
+    shouldProcessHtml?: (context: IndexHtmlTransformContext) => boolean;
     /** Specific codepoints for certain icons. Icons without codepoints will have codepoints incremented from startCodepoint skipping duplicates. */
     codepoints?: { [key: string]: number };
     /** The outputted font height (defaults to the height of the highest input icon). */
