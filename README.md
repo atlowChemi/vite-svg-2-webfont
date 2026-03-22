@@ -224,6 +224,43 @@ The plugin has an API consisting of one required parameter and multiple optional
 - **default** `['eot', 'woff', 'woff2', 'ttf', 'svg']`
 - See [webfonts-generator#types](https://github.com/vusion/webfonts-generator#types)
 
+### preloadFormats
+
+- **type**: `string | string[]`
+- **description**: Font file types to preload in build HTML output.
+- **notes**:
+    - Only affects production build HTML output.
+    - Only generated formats can be preloaded, so values outside [`types`](#types) are ignored.
+    - No preload tags are injected when [`inline`](#inline) is `true`.
+- **example**:
+
+```ts
+viteSvgToWebfont({
+    context: './src/icons',
+    types: ['woff2', 'ttf'],
+    preloadFormats: ['woff2'],
+});
+```
+
+### shouldProcessHtml
+
+- **type**: `(context: IndexHtmlTransformContext) => boolean`
+- **description**: Allows skipping preload tag injection for specific HTML entrypoints during build.
+- **notes**:
+    - Only affects preload injection.
+    - Returning `false` skips adding preload tags for the current HTML file.
+- **example**:
+
+```ts
+import { resolve as pathResolve } from 'node:path';
+
+viteSvgToWebfont({
+    context: './src/icons',
+    preloadFormats: ['woff2'],
+    shouldProcessHtml: context => context.filename === pathResolve(__dirname, 'src', 'index.html'),
+});
+```
+
 ### codepoints
 
 - **type**: `{ [key: string]: number }`

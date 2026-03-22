@@ -3,11 +3,14 @@ import { join as pathJoin } from 'node:path';
 import type { ModuleGraph, ModuleNode, Plugin } from 'vite';
 import _webfontGenerator from '@vusion/webfonts-generator';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
-import { parseOptions, parseFiles } from './optionParser';
+import { parseOptions, parseFiles, parsePreloadFormatsOption } from './optionParser';
 import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfonts-generator';
 import type { IconPluginOptions } from './optionParser';
 import type { GeneratedWebfont } from './types/generatedWebfont';
 import type { PublicApi } from './types/publicApi';
+
+type GenerateBundle = Extract<NonNullable<Plugin['generateBundle']>, Function>;
+type OutputBundle = Parameters<GenerateBundle>[1];
 
 const ac = new AbortController();
 const webfontGenerator = promisify(_webfontGenerator);
@@ -30,16 +33,41 @@ function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${
  */
 export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin<PublicApi> {
     const processedOptions = parseOptions(options);
+    const preloadFormats = parsePreloadFormatsOption(options).filter((type): type is T => processedOptions.types.includes(type));
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
     let generatedFonts: undefined | Pick<WebfontsGeneratorResult<T>, 'generateCss' | 'generateHtml' | T>;
     const generatedWebfonts: GeneratedWebfont[] = [];
-    const tmpGeneratedWebfonts: GeneratedWebfont[] = [];
     const moduleId = options.moduleId ?? DEFAULT_MODULE_ID;
     const virtualModuleId = getVirtualModuleId(moduleId);
     const resolvedVirtualModuleId = getResolvedVirtualModuleId(virtualModuleId);
+    const fontName = processedOptions.fontName || 'iconfont';
+
+    const resolveGeneratedWebfonts = (bundle: OutputBundle) => {
+        const resolvedWebfonts = new Map<T, string>();
+
+        for (const chunk of Object.values(bundle)) {
+            if (chunk.type !== 'asset') {
+                continue;
+            }
+            const lastSlashIndex = chunk.fileName.lastIndexOf('/');
+            const fileName = chunk.fileName.slice(lastSlashIndex + 1);
+            if (!fileName.startsWith(fontName)) {
+                continue;
+            }
+
+            const fontType = processedOptions.types.find(type => fileName.endsWith(`.${type}`));
+            if (!fontType || resolvedWebfonts.has(fontType)) {
+                continue;
+            }
+
+            resolvedWebfonts.set(fontType, `/${chunk.fileName}`);
+        }
+
+        return Array.from(resolvedWebfonts, ([type, href]) => ({ type, href }));
+    };
 
     const inline = <U extends string | undefined>(css: U) => {
         if (!options.inline) {
@@ -91,16 +119,37 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
             return resolvedVirtualModuleId;
         },
         generateBundle(_, bundle) {
-            for (const { type, href } of tmpGeneratedWebfonts) {
-                for (const chunk of Object.values(bundle)) {
-                    if (chunk.name && href.endsWith(chunk.name)) {
-                        generatedWebfonts.push({
-                            type,
-                            href: `/${chunk.fileName}`,
-                        });
-                    }
+            const resolvedGeneratedWebfonts = resolveGeneratedWebfonts(bundle);
+            generatedWebfonts.push(...resolvedGeneratedWebfonts);
+        },
+        transformIndexHtml: {
+            order: 'post',
+            handler(_html, ctx) {
+                if (!isBuild || options.inline || preloadFormats.length === 0 || !('bundle' in ctx) || !ctx.bundle) {
+                    return undefined;
                 }
-            }
+                if (options.shouldProcessHtml && !options.shouldProcessHtml(ctx)) {
+                    return undefined;
+                }
+
+                const preloadWebfonts = resolveGeneratedWebfonts(ctx.bundle).filter(({ type }) => preloadFormats.includes(type));
+
+                if (preloadWebfonts.length === 0) {
+                    return undefined;
+                }
+
+                return preloadWebfonts.map(({ type, href }) => ({
+                    tag: 'link',
+                    attrs: {
+                        rel: 'preload',
+                        href,
+                        as: 'font',
+                        type: MIME_TYPES[type],
+                        crossorigin: true,
+                    },
+                    injectTo: 'head',
+                }));
+            },
         },
         transform(_code, id) {
             if (id !== resolvedVirtualModuleId) {
@@ -131,10 +180,6 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                     ensureDirExistsAndWriteFile(fileContents, filePath).catch(() => null); // write font file to a temporary dir
 
                     return [type, filePath];
-                });
-
-                emitted.forEach(([type, href]) => {
-                    tmpGeneratedWebfonts.push({ type, href });
                 });
                 fileRefs = Object.fromEntries(emitted) as {
                     [Ref in T]: string;
