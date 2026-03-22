@@ -30,7 +30,9 @@ for (const [index, line] of lines.entries()) {
         continue;
     }
 
-    if (!line.includes('vite:')) {
+    const viteKeyMatch = /^\s+vite:\s*/.exec(line);
+
+    if (!viteKeyMatch) {
         continue;
     }
 

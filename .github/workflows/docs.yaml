@@ -1,0 +1,49 @@
+name: Docs
+
+on:
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    pages: write
+    id-token: write
+
+concurrency:
+    group: pages
+    cancel-in-progress: true
+
+jobs:
+    build:
+        name: build docs
+        runs-on: ubuntu-latest
+        steps:
+            - name: checkout
+              uses: actions/checkout@v6
+            - name: setup pages
+              uses: actions/configure-pages@v5
+            - uses: voidzero-dev/setup-vp@v1
+              with:
+                  node-version-file: .nvmrc
+                  run-install: true
+                  cache: true
+            - name: build docs
+              run: vp run docs:build
+            - name: upload pages artifact
+              uses: actions/upload-pages-artifact@v4
+              with:
+                  path: docs/.vitepress/dist
+
+    deploy:
+        name: deploy docs
+        needs: build
+        runs-on: ubuntu-latest
+        environment:
+            name: github-pages
+            url: ${{ steps.deployment.outputs.page_url }}
+        steps:
+            - name: deploy to github pages
+              id: deployment
+              uses: actions/deploy-pages@v4
