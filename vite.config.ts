@@ -89,6 +89,7 @@ const config: UserConfig = defineConfig({
             },
             'docs:build': {
                 command: './node_modules/.bin/vitepress build docs',
+                env: ['GITHUB_ACTIONS'],
             },
             'docs:preview': {
                 cache: false,
