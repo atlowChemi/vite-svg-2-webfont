@@ -20,10 +20,16 @@ hero:
 
 features:
     - title: Vite-native workflow
+      icon:
+          src: /native-workflow.svg
       details: Add one plugin to your Vite config, import the virtual stylesheet, and let the plugin generate font assets for your icons.
     - title: Flexible output
+      icon:
+          src: /flexible-output.svg
       details: Generate HTML, CSS, and multiple font formats during development, with support for inline assets and preload hints during build.
     - title: Highly configurable
+      icon:
+          src: /configurable.svg
       details: Control file globs, destinations, selectors, class prefixes, codepoints, font formats, template paths, and generator options.
 ---
 
