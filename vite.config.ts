@@ -85,15 +85,20 @@ const config: UserConfig = defineConfig({
             },
             'docs:dev': {
                 cache: false,
-                command: './node_modules/.bin/vitepress dev docs',
+                command: 'vp exec vitepress dev docs',
+                dependsOn: ['docs:social-card'],
+            },
+            'docs:social-card': {
+                command: 'node ./scripts/generate-social-card.ts',
             },
             'docs:build': {
-                command: './node_modules/.bin/vitepress build docs',
+                command: 'vp exec vitepress build docs',
+                dependsOn: ['docs:social-card'],
                 env: ['GITHUB_ACTIONS'],
             },
             'docs:preview': {
                 cache: false,
-                command: './node_modules/.bin/vitepress preview docs',
+                command: 'vp exec vitepress preview docs',
                 dependsOn: ['docs:build'],
             },
             coverage: {

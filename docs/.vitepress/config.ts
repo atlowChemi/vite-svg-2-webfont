@@ -6,7 +6,7 @@ const repoName = 'vite-svg-2-webfont';
 const repo = `https://github.com/atlowChemi/${repoName}`;
 const base = process.env.GITHUB_ACTIONS ? `/${repoName}/` : '/';
 const docsUrl = `https://atlowChemi.github.io/${repoName}/`;
-const socialImage = `${docsUrl}social-card.svg`;
+const socialImage = `${docsUrl}social-card.png`;
 
 export default defineConfig({
     title: repoName,
