@@ -30,6 +30,9 @@ vp lint
 vp fmt
 vp run test
 vp run coverage
+vp run docs:dev
+vp run docs:build
+vp run docs:preview
 ```
 
 Run the example app:
@@ -50,6 +53,13 @@ Preview the example production build:
 vp run example#preview
 ```
 
+Build or preview the documentation site:
+
+```bash
+vp run docs:build
+vp run docs:preview
+```
+
 ## Tools
 
 - `vp` is the entry point for the development workflow in this repository.
@@ -62,6 +72,7 @@ vp run example#preview
 
 - `src/`: plugin source code and tests
 - `example/`: Vite app used for local development and manual verification
+- `docs/`: VitePress documentation site, published to GitHub Pages
 - `dist/`: generated build output
 
 ## Pull Requests
@@ -72,6 +83,7 @@ Before opening a pull request, please:
 2. Run `vp pack`.
 3. Run `vp run test` or `vp run coverage` when your change affects behavior.
 4. Verify the example app with `vp run example#dev` or `vp run example#build` for user-facing changes.
+5. Verify the docs site with `vp run docs:build` when you change documentation or docs config.
 
 ## Before You Commit
 
@@ -87,3 +99,4 @@ In practice, assume formatting, linting, and unit tests are part of the validati
 - Keep lockfile changes in `pnpm-lock.yaml` when dependencies change.
 - Do not commit `package-lock.json` files to the workspace.
 - Use `vp` instead of calling `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly for normal repository workflows.
+- The docs site is driven by Vite+ run tasks, so prefer `vp run docs:dev`, `vp run docs:build`, and `vp run docs:preview` over direct `vitepress` commands.

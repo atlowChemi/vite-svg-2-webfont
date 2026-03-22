@@ -83,6 +83,18 @@ const config: UserConfig = defineConfig({
             pack: {
                 command: 'vp pack',
             },
+            'docs:dev': {
+                cache: false,
+                command: './node_modules/.bin/vitepress dev docs',
+            },
+            'docs:build': {
+                command: './node_modules/.bin/vitepress build docs',
+            },
+            'docs:preview': {
+                cache: false,
+                command: './node_modules/.bin/vitepress preview docs',
+                dependsOn: ['docs:build'],
+            },
             coverage: {
                 command: 'vp test --coverage',
                 dependsOn: ['pack'],

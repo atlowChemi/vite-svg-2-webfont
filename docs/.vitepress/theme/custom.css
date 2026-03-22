@@ -1,0 +1,130 @@
+:root {
+    --vp-c-brand-1: #646cff;
+    --vp-c-brand-2: #7b82ff;
+    --vp-c-brand-3: #5259db;
+    --vp-c-brand-soft: rgb(100 108 255 / 0.16);
+
+    --vp-c-indigo-1: #646cff;
+    --vp-c-indigo-2: #7b82ff;
+    --vp-c-indigo-3: #5259db;
+    --vp-c-indigo-soft: rgb(100 108 255 / 0.16);
+
+    --vp-c-default-soft: rgb(100 108 255 / 0.08);
+    --vp-c-tip-1: #646cff;
+    --vp-c-tip-2: #7b82ff;
+    --vp-c-tip-3: #5259db;
+    --vp-c-tip-soft: rgb(100 108 255 / 0.14);
+
+    --vp-home-hero-name-color: transparent;
+    --vp-home-hero-name-background: linear-gradient(120deg, #646cff 0%, #8a68ff 50%, #ffb339 100%);
+    --vp-home-hero-image-background-image: radial-gradient(circle at center, rgb(100 108 255 / 0.18) 0%, rgb(255 179 57 / 0.14) 45%, transparent 72%);
+    --vp-home-hero-image-filter: drop-shadow(0 22px 48px rgb(100 108 255 / 0.16)) drop-shadow(0 10px 24px rgb(255 179 57 / 0.18));
+
+    --vp-custom-block-tip-border: rgb(100 108 255 / 0.32);
+    --vp-custom-block-tip-bg: linear-gradient(135deg, rgb(100 108 255 / 0.1), rgb(255 179 57 / 0.08));
+    --vp-custom-block-tip-text: var(--vp-c-text-1);
+}
+
+.dark {
+    --vp-c-brand-1: #7f85ff;
+    --vp-c-brand-2: #98a0ff;
+    --vp-c-brand-3: #646cff;
+    --vp-c-brand-soft: rgb(127 133 255 / 0.2);
+
+    --vp-c-indigo-1: #7f85ff;
+    --vp-c-indigo-2: #98a0ff;
+    --vp-c-indigo-3: #646cff;
+    --vp-c-indigo-soft: rgb(127 133 255 / 0.2);
+
+    --vp-c-default-soft: rgb(127 133 255 / 0.12);
+    --vp-c-tip-1: #8c91ff;
+    --vp-c-tip-2: #a4abff;
+    --vp-c-tip-3: #6a71f2;
+    --vp-c-tip-soft: rgb(127 133 255 / 0.18);
+
+    --vp-home-hero-image-background-image: radial-gradient(circle at center, rgb(100 108 255 / 0.24) 0%, rgb(255 179 57 / 0.14) 48%, transparent 74%);
+    --vp-home-hero-image-filter: drop-shadow(0 22px 56px rgb(100 108 255 / 0.24)) drop-shadow(0 10px 28px rgb(255 179 57 / 0.14));
+
+    --vp-custom-block-tip-border: rgb(127 133 255 / 0.34);
+    --vp-custom-block-tip-bg: linear-gradient(135deg, rgb(100 108 255 / 0.14), rgb(255 179 57 / 0.08));
+}
+
+a {
+    text-decoration-color: rgb(255 179 57 / 0.45);
+    text-underline-offset: 0.18em;
+}
+
+a:hover {
+    text-decoration-color: rgb(255 179 57 / 0.8);
+}
+
+.VPNavBarMenuLink.active,
+.VPNavBarMenuLink:hover,
+.VPSidebarItem.is-active > .item > .link > .text,
+.VPSidebarItem .link:hover .text,
+.outline-link:hover,
+.outline-link.active {
+    color: var(--vp-c-brand-1);
+}
+
+.VPNavBarMenuLink.active::after,
+.VPSidebarItem.is-active > .item > .indicator {
+    background: linear-gradient(90deg, #646cff, #ffb339);
+}
+
+.VPButton.brand {
+    box-shadow: 0 10px 24px rgb(100 108 255 / 0.18);
+}
+
+.VPButton.brand:hover {
+    box-shadow: 0 14px 30px rgb(100 108 255 / 0.22);
+}
+
+.VPButton.alt:hover {
+    border-color: rgb(255 179 57 / 0.55);
+    color: var(--vp-c-text-1);
+    background: linear-gradient(135deg, rgb(100 108 255 / 0.08), rgb(255 179 57 / 0.12));
+}
+
+.vp-doc :is(h2, h3) {
+    scroll-margin-top: 88px;
+}
+
+.vp-doc :is(h2, h3) a:hover {
+    color: var(--vp-c-brand-1);
+}
+
+.vp-doc :not(pre) > code {
+    border-color: rgb(100 108 255 / 0.12);
+    background: linear-gradient(135deg, rgb(100 108 255 / 0.08), rgb(255 179 57 / 0.08));
+}
+
+.vp-doc ::selection,
+.VPContent ::selection {
+    background: rgb(255 179 57 / 0.22);
+}
+
+.vp-code-group .tabs label {
+    transition:
+        color 0.2s ease,
+        border-color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.vp-code-group .tabs label:hover {
+    color: var(--vp-c-brand-1);
+}
+
+.vp-code-group .tabs input:checked + label {
+    color: var(--vp-c-brand-1);
+    border-bottom-color: #ffb339;
+}
+
+.VPFeature {
+    border-color: rgb(100 108 255 / 0.12);
+}
+
+.VPFeature:hover {
+    border-color: rgb(100 108 255 / 0.2);
+    background: linear-gradient(180deg, rgb(100 108 255 / 0.04), rgb(255 179 57 / 0.05));
+}
