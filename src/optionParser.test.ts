@@ -505,6 +505,61 @@ describe('optionParser', () => {
             expect(resExplicitTrue.centerHorizontally).toEqual(true);
         });
 
+        it.concurrent('adds centerVertically to formatOptions.svg only if defined in options', () => {
+            const resDefault = optionParser.parseOptions({ context });
+            expect(resDefault.formatOptions).not.toHaveProperty('svg.centerVertically');
+            const resExplicitFalse = optionParser.parseOptions({ context, centerVertically: false });
+            expect(resExplicitFalse.formatOptions).toEqual({
+                svg: {
+                    centerVertically: false,
+                },
+            });
+            const resExplicitTrue = optionParser.parseOptions({ context, centerVertically: true });
+            expect(resExplicitTrue.formatOptions).toEqual({
+                svg: {
+                    centerVertically: true,
+                },
+            });
+        });
+
+        it.concurrent('preserves existing formatOptions.svg values when setting centerVertically', () => {
+            const formatOptions = {
+                svg: {
+                    fontHeight: 2048,
+                },
+                woff2: {
+                    custom: true,
+                },
+            };
+            const res = optionParser.parseOptions({ context, centerVertically: true, formatOptions });
+            expect(res.formatOptions).toEqual({
+                svg: {
+                    fontHeight: 2048,
+                    centerVertically: true,
+                },
+                woff2: {
+                    custom: true,
+                },
+            });
+        });
+
+        it.concurrent('does not override formatOptions.svg.centerVertically when both are defined', () => {
+            const res = optionParser.parseOptions({
+                context,
+                centerVertically: true,
+                formatOptions: {
+                    svg: {
+                        centerVertically: false,
+                    },
+                },
+            });
+            expect(res.formatOptions).toEqual({
+                svg: {
+                    centerVertically: false,
+                },
+            });
+        });
+
         it.concurrent('sets normalize only if defined in options', () => {
             const resDefault = optionParser.parseOptions({ context });
             expect('normalize' in resDefault).toEqual(false);

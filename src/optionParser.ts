@@ -48,6 +48,8 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     fixedWidth?: boolean;
     /** Calculate the bounds of a glyph and center it horizontally. */
     centerHorizontally?: boolean;
+    /** Calculate the bounds of a glyph and center it vertically. */
+    centerVertically?: boolean;
     /**
      * Path for generated CSS file.
      * - Relative to the {@link dest} property, unless set to an absolute path.
@@ -70,7 +72,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     /**
      *
      */
-    cssContext?: (context: CSSTemplateContext, options: WebfontsGeneratorOptions<T>, handlebars: typeof import('handlebars')) => void;
+    cssContext?: (context: CSSTemplateContext, options: WebfontsGeneratorOptions<NoInfer<T>>, handlebars: typeof import('handlebars')) => void;
     /**
      * Fonts path used in CSS file.
      * @default options.cssDest
@@ -109,7 +111,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      * - woff - [ttf2woff](https://github.com/fontello/ttf2woff).
      * - eot - [ttf2eot](https://github.com/fontello/ttf2eot).
      */
-    formatOptions?: { [format in T]?: unknown };
+    formatOptions?: { [format in NoInfer<T>]?: unknown };
     /**
      * An array of globs, of the SVG files to add into the webfont
      * @default ['*.svg']
@@ -125,7 +127,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      *
      * Only generated formats can be preloaded, so values outside {@link types} are ignored.
      */
-    preloadFormats?: T | T[];
+    preloadFormats?: NoInfer<T> | NoInfer<T>[];
     /**
      * Allows skipping preload tag injection for specific HTML entrypoints.
      */
@@ -236,6 +238,8 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
     const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
     const generateFilesOptions = parseGenerateFilesOption(options);
+    const formatOptions = options.formatOptions as NonNullable<WebfontsGeneratorOptions<T | 'svg'>['formatOptions']> | undefined;
+    const svgFormatOptions = formatOptions?.svg;
     options.dest ||= resolve(options.context, '..', 'artifacts');
     options.fontName ||= 'iconfont';
     return {
@@ -252,7 +256,15 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
         html: generateFilesOptions.html,
         css: generateFilesOptions.css,
         ligature: options.ligature ?? true,
-        formatOptions: options.formatOptions || {},
+        formatOptions: {
+            ...formatOptions,
+            ...(typeof options.centerVertically !== 'undefined' && {
+                svg: {
+                    centerVertically: options.centerVertically,
+                    ...(typeof svgFormatOptions === 'object' && svgFormatOptions),
+                },
+            }),
+        },
         dest: options.dest.endsWith('/') ? options.dest : `${options.dest}/`,
         writeFiles: generateFilesOptions.fonts,
         cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css'),
