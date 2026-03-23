@@ -33,7 +33,7 @@ function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${
  */
 export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin<PublicApi> {
     const processedOptions = parseOptions(options);
-    const preloadFormats = parsePreloadFormatsOption(options).filter((type): type is T => processedOptions.types.includes(type));
+    const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type));
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;

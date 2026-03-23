@@ -126,6 +126,17 @@ The plugin API consists of one required option and multiple optional options for
 - Default: `false`
 - Reference: [`svgicons2svgfont#centerHorizontally`](https://github.com/nfroidure/svgicons2svgfont#optionscenterhorizontally)
 
+## `centerVertically`
+
+- Type: `boolean`
+- Description: Center glyphs vertically based on their bounds
+- Default: `false`
+- Notes:
+    - This option is a convenience alias for `formatOptions.svg.centerVertically`
+    - If both `centerVertically` and `formatOptions.svg.centerVertically` are defined, `formatOptions.svg.centerVertically` takes precedence
+    - Any other properties inside `formatOptions.svg` are preserved
+- Reference: [`svgicons2svgfont#centerVertically`](https://github.com/nfroidure/svgicons2svgfont#optionscentervertically)
+
 ## `generateFiles`
 
 - Type: `boolean | string | string[]`
