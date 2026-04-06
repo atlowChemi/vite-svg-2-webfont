@@ -40,9 +40,16 @@ export declare const enum FontType {
   Woff2 = 'woff2'
 }
 
+/**
+ * Per-format configuration object. Each field carries options that only apply
+ * to the corresponding output format.
+ */
 export interface FormatOptions {
+  /** SVG-format options. */
   svg?: SvgFormatOptions
+  /** TTF-format options. */
   ttf?: TtfFormatOptions
+  /** WOFF1-format options. (WOFF2 has no format-specific options.) */
   woff?: WoffFormatOptions
 }
 
@@ -108,22 +115,61 @@ export interface HtmlContext {
   codepoints: Record<string, number>
 }
 
+/**
+ * SVG-format–specific options for the intermediate SVG font and the per-glyph
+ * path processing that feeds every other format.
+ */
 export interface SvgFormatOptions {
+  /**
+   * SVG-format override of the top-level `centerVertically` option. When set,
+   * it wins over the top-level value; centers each glyph vertically inside
+   * the em-square based on its bounding box.
+   */
   centerVertically?: boolean
+  /**
+   * Value of the SVG font's `id` attribute. Defaults to `fontName` when
+   * omitted.
+   */
   fontId?: string
+  /** Content embedded inside the generated SVG font's `<metadata>` element. */
   metadata?: string
+  /**
+   * SVG-format override of the top-level `optimizeOutput` option. When set,
+   * it wins over the top-level value; runs an SVG path optimizer over each
+   * glyph, trading a small amount of build time for smaller output bytes.
+   */
   optimizeOutput?: boolean
+  /**
+   * SVG-format override of the top-level `preserveAspectRatio` option. When
+   * set, it wins over the top-level value; preserves the source viewBox
+   * aspect ratio when scaling glyphs into the em-square.
+   */
   preserveAspectRatio?: boolean
 }
 
+/**
+ * TTF-format–specific options. Populates fields in the generated TTF `name`
+ * and `head` tables.
+ */
 export interface TtfFormatOptions {
+  /** Copyright string written to the TTF `name` table (record id 0). */
   copyright?: string
+  /** Description string written to the TTF `name` table (record id 10). */
   description?: string
+  /**
+   * Unix timestamp in seconds used for the `created` and `modified` fields
+   * in the TTF `head` table. Pin to a fixed value to produce byte-stable
+   * reproducible builds.
+   */
   ts?: number
+  /** Manufacturer URL written to the TTF `name` table (record id 11). */
   url?: string
+  /** Version string written to the TTF `name` table (record id 5). */
   version?: string
 }
 
+/** WOFF-format–specific options. Affects only WOFF1 output; WOFF2 ignores these. */
 export interface WoffFormatOptions {
+  /** XML string embedded in the WOFF1 metadata block. */
   metadata?: string
 }

@@ -2,13 +2,13 @@ import { join, resolve, sep } from 'node:path';
 import { globSync } from 'glob';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
-import type { WebfontsGeneratorOptions, GeneratedFontTypes, CSSTemplateContext } from '@vusion/webfonts-generator';
+import type { CssContext, FontType, FormatOptions, GenerateWebfontsInputOptions } from '@atlowchemi/webfont-generator';
 import type { IndexHtmlTransformContext } from 'vite';
 
 const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
 type FileType = (typeof FILE_TYPE_OPTIONS)[number];
 
-export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontTypes> {
+export interface IconPluginOptions<T extends FontType = FontType> {
     /** Context directory in which the SVG files will be read from */
     context: string;
     /**
@@ -51,6 +51,12 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     /** Calculate the bounds of a glyph and center it vertically. */
     centerVertically?: boolean;
     /**
+     * Run an SVG path optimizer over each glyph before assembling the font.
+     * Trades a small amount of build time for smaller output bytes.
+     * @default false
+     */
+    optimizeOutput?: boolean;
+    /**
      * Path for generated CSS file.
      * - Relative to the {@link dest} property, unless set to an absolute path.
      * - Postfixed with {@link fontName} unless set to a file name with a file extension.
@@ -58,21 +64,22 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      */
     cssDest?: string;
     /**
-     * Path of custom CSS template. Generator uses handlebars templates.
-     * Template receives options from {@link WebfontsGeneratorOptions.templateOptions `templateOptions`} along with the following options:
-     * - {@link fontName} `string`
-     * - src `string` – Value of the `src` property for `@font-face`.
-     * - {@link codepoints} `object` – Codepoints of icons in hex format.
+     * Path of a custom Handlebars CSS template. The rendering context provides the
+     * fields documented on {@link CssContext} (`fontName`, `src`, `codepoints`),
+     * and the plugin also forwards {@link baseSelector} and {@link classPrefix} into
+     * it so default templates can read them.
      *
-     * Paths of default templates are stored in the `templates` object.
-     * - `templates.css` – Default CSS template path. It generates classes with names based on values from {@link WebfontsGeneratorOptions.templateOptions `templateOptions`}.
-     * - `templates.scss` – Default SCSS template path. It generates mixin `webfont-icon` to add icon styles. It is safe to use multiple generated files with mixins together.
+     * Paths of default templates are exposed via the `templates` export:
+     * - `templates.css` – Default CSS template; generates classes prefixed with {@link classPrefix}.
+     * - `templates.scss` – Default SCSS template; generates a `webfont-icon` mixin that's safe to combine with other generated mixin files.
      */
     cssTemplate?: string;
     /**
-     *
+     * Hook for mutating the rendering context passed to the CSS template before the CSS file is generated.
+     * The `context` object includes the named fields documented on {@link CssContext} (`fontName`, `src`, `codepoints`),
+     * plus the {@link baseSelector} and {@link classPrefix} keys the plugin forwards to the underlying generator.
      */
-    cssContext?: (context: CSSTemplateContext, options: WebfontsGeneratorOptions<NoInfer<T>>, handlebars: typeof import('handlebars')) => void;
+    cssContext?: (context: CssContext) => void;
     /**
      * Fonts path used in CSS file.
      * @default options.cssDest
@@ -86,12 +93,12 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      */
     htmlDest?: string;
     /**
-     * HTML template path. Generator uses handlebars templates.
-     *
-     * Template receives options from {@link WebfontsGeneratorOptions.templateOptions `templateOptions`} along with the following options:
-     * - {@link fontName} `string`
-     * - styles `string` – Styles generated with default CSS template. ({@link cssFontsPath `cssFontsPath`} is changed to relative path from {@link htmlDest `htmlDest`} to {@link dest `dest`})
-     * - names `string[]` – Names of icons.
+     * Path of a custom Handlebars HTML template. The rendering context provides
+     * `fontName` `string`, `names` `string[]`, `codepoints` (as numbers), and
+     * `styles` `string` — the pre-rendered CSS using the default CSS template,
+     * with {@link cssFontsUrl} rewritten to a relative path from {@link htmlDest}
+     * to {@link dest}. The plugin also forwards {@link baseSelector} and
+     * {@link classPrefix} into the context.
      */
     htmlTemplate?: string;
     /**
@@ -102,16 +109,11 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
      */
     generateFiles?: boolean | FileType | FileType[];
     /**
-     * Specific per format arbitrary options to pass to the generator.
-     *
-     * Format and matching generator:
-     * - svg - [svgicons2svgfont](https://github.com/nfroidure/svgicons2svgfont).
-     * - ttf - [svg2ttf](https://github.com/fontello/svg2ttf).
-     * - woff2 - [ttf2woff2](https://github.com/nfroidure/ttf2woff2).
-     * - woff - [ttf2woff](https://github.com/fontello/ttf2woff).
-     * - eot - [ttf2eot](https://github.com/fontello/ttf2eot).
+     * Per-format options forwarded to the underlying webfont generator. See
+     * {@link FormatOptions} — its `svg`, `ttf`, and `woff` fields each carry
+     * their own typed and documented per-format options.
      */
-    formatOptions?: { [format in NoInfer<T>]?: unknown };
+    formatOptions?: FormatOptions;
     /**
      * An array of globs, of the SVG files to add into the webfont
      * @default ['*.svg']
@@ -166,7 +168,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     allowWriteFilesInBuild?: boolean;
 }
 
-function parseGeneratedFontTypeOption<T extends GeneratedFontTypes = GeneratedFontTypes>(types?: T | T[]): T[] {
+function parseGeneratedFontTypeOption<T extends FontType = FontType>(types?: T | T[]): T[] {
     if (Array.isArray(types)) {
         return types;
     }
@@ -176,7 +178,7 @@ function parseGeneratedFontTypeOption<T extends GeneratedFontTypes = GeneratedFo
     return [];
 }
 
-export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
+export function parseIconTypesOption<T extends FontType = FontType>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
     const parsedTypes = parseGeneratedFontTypeOption(types);
     if (parsedTypes.length) {
         return parsedTypes;
@@ -184,7 +186,7 @@ export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFon
     return ['eot', 'woff', 'woff2', 'ttf', 'svg'] as T[];
 }
 
-export function parsePreloadFormatsOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ preloadFormats }: Pick<IconPluginOptions<T>, 'preloadFormats'>): T[] {
+export function parsePreloadFormatsOption<T extends FontType = FontType>({ preloadFormats }: Pick<IconPluginOptions<T>, 'preloadFormats'>): T[] {
     return parseGeneratedFontTypeOption(preloadFormats);
 }
 
@@ -230,15 +232,14 @@ export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'gener
     };
 }
 
-type RequiredKeys = 'fontHeight' | 'codepoints' | 'templateOptions' | 'html' | 'css' | 'ligature' | 'formatOptions' | 'writeFiles' | 'cssDest' | 'htmlDest';
-interface ParsedOptions<T extends GeneratedFontTypes = GeneratedFontTypes>
-    extends Omit<WebfontsGeneratorOptions<T>, RequiredKeys>, Pick<Required<WebfontsGeneratorOptions<GeneratedFontTypes>>, RequiredKeys> {}
+type RequiredKeys = 'fontHeight' | 'codepoints' | 'templateOptions' | 'html' | 'css' | 'ligature' | 'formatOptions' | 'writeFiles' | 'cssDest' | 'htmlDest' | 'types' | 'order';
+interface ParsedOptions<T extends FontType = FontType> extends Omit<GenerateWebfontsInputOptions<T>, RequiredKeys>, Required<Pick<GenerateWebfontsInputOptions<T>, RequiredKeys>> {}
 
-export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): ParsedOptions<T> {
+export function parseOptions<T extends FontType = FontType>(options: IconPluginOptions<T>): ParsedOptions<T> {
     const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
     const generateFilesOptions = parseGenerateFilesOption(options);
-    const formatOptions = options.formatOptions as NonNullable<WebfontsGeneratorOptions<T | 'svg'>['formatOptions']> | undefined;
+    const formatOptions = options.formatOptions;
     const svgFormatOptions = formatOptions?.svg;
     options.dest ||= resolve(options.context, '..', 'artifacts');
     options.fontName ||= 'iconfont';
@@ -249,6 +250,7 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
         fontName: options.fontName,
         fontHeight: options.fontHeight || 1000, // Fixes conversion issues with small svgs,
         codepoints: options.codepoints || {},
+        optimizeOutput: options.optimizeOutput ?? false,
         templateOptions: {
             baseSelector: options.baseSelector || '.icon',
             classPrefix: options.classPrefix ?? 'icon-',
@@ -278,5 +280,5 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
         ...(typeof options.normalize !== 'undefined' && { normalize: options.normalize }),
         ...(typeof options.round !== 'undefined' && { round: options.round }),
         ...(typeof options.descent !== 'undefined' && { descent: options.descent }),
-    } satisfies WebfontsGeneratorOptions<T>;
+    } satisfies GenerateWebfontsInputOptions<T>;
 }

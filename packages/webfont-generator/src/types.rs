@@ -52,37 +52,67 @@ impl FontType {
     }
 }
 
+/// SVG-format–specific options for the intermediate SVG font and the per-glyph
+/// path processing that feeds every other format.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
 pub struct SvgFormatOptions {
+    /// SVG-format override of the top-level `centerVertically` option. When set,
+    /// it wins over the top-level value; centers each glyph vertically inside
+    /// the em-square based on its bounding box.
     pub center_vertically: Option<bool>,
+    /// Value of the SVG font's `id` attribute. Defaults to `fontName` when
+    /// omitted.
     pub font_id: Option<String>,
+    /// Content embedded inside the generated SVG font's `<metadata>` element.
     pub metadata: Option<String>,
+    /// SVG-format override of the top-level `optimizeOutput` option. When set,
+    /// it wins over the top-level value; runs an SVG path optimizer over each
+    /// glyph, trading a small amount of build time for smaller output bytes.
     pub optimize_output: Option<bool>,
+    /// SVG-format override of the top-level `preserveAspectRatio` option. When
+    /// set, it wins over the top-level value; preserves the source viewBox
+    /// aspect ratio when scaling glyphs into the em-square.
     pub preserve_aspect_ratio: Option<bool>,
 }
 
+/// TTF-format–specific options. Populates fields in the generated TTF `name`
+/// and `head` tables.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
 pub struct TtfFormatOptions {
+    /// Copyright string written to the TTF `name` table (record id 0).
     pub copyright: Option<String>,
+    /// Description string written to the TTF `name` table (record id 10).
     pub description: Option<String>,
+    /// Unix timestamp in seconds used for the `created` and `modified` fields
+    /// in the TTF `head` table. Pin to a fixed value to produce byte-stable
+    /// reproducible builds.
     pub ts: Option<i64>,
+    /// Manufacturer URL written to the TTF `name` table (record id 11).
     pub url: Option<String>,
+    /// Version string written to the TTF `name` table (record id 5).
     pub version: Option<String>,
 }
 
+/// WOFF-format–specific options. Affects only WOFF1 output; WOFF2 ignores these.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
 pub struct WoffFormatOptions {
+    /// XML string embedded in the WOFF1 metadata block.
     pub metadata: Option<String>,
 }
 
+/// Per-format configuration object. Each field carries options that only apply
+/// to the corresponding output format.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
 pub struct FormatOptions {
+    /// SVG-format options.
     pub svg: Option<SvgFormatOptions>,
+    /// TTF-format options.
     pub ttf: Option<TtfFormatOptions>,
+    /// WOFF1-format options. (WOFF2 has no format-specific options.)
     pub woff: Option<WoffFormatOptions>,
 }
 

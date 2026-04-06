@@ -3,7 +3,7 @@ import * as optionParser from './optionParser';
 import type { globSync as GlobSyncFn } from 'glob';
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vite-plus/test';
 import { NoIconsAvailableError, InvalidWriteFilesTypeError } from './errors';
-import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
+import type { FontType } from '@atlowchemi/webfont-generator';
 
 const globSyncMock = vi.hoisted(() => vi.fn<typeof GlobSyncFn>());
 vi.mock('glob', () => ({ globSync: globSyncMock }));
@@ -14,7 +14,7 @@ const cssContext = () => {
 describe('optionParser', () => {
     describe.concurrent('parseIconTypesOption', () => {
         it.concurrent('returns arrays as received', () => {
-            const types: GeneratedFontTypes[] = ['eot', 'svg', 'ttf'];
+            const types: FontType[] = ['eot', 'svg', 'ttf'];
             expect(optionParser.parseIconTypesOption({ types })).toBe(types);
         });
 
@@ -33,7 +33,7 @@ describe('optionParser', () => {
 
     describe.concurrent('parsePreloadFormatsOption', () => {
         it.concurrent('returns arrays as received', () => {
-            const preloadFormats: GeneratedFontTypes[] = ['woff2', 'ttf'];
+            const preloadFormats: FontType[] = ['woff2', 'ttf'];
             expect(optionParser.parsePreloadFormatsOption({ preloadFormats })).toBe(preloadFormats);
         });
 
@@ -267,7 +267,7 @@ describe('optionParser', () => {
         });
 
         it.concurrent('returns order identical to types', () => {
-            const types: GeneratedFontTypes[] = ['ttf', 'woff', 'svg'];
+            const types: FontType[] = ['ttf', 'woff', 'svg'];
             const res = optionParser.parseOptions({ context, types });
             expect(res.types).toEqual(types);
             expect(res.order).toEqual(types);
@@ -503,6 +503,15 @@ describe('optionParser', () => {
             expect(resExplicitTrue.fixedWidth).toEqual(true);
         });
 
+        it.concurrent('forwards optimizeOutput, defaulting to false', () => {
+            const resDefault = optionParser.parseOptions({ context });
+            expect(resDefault.optimizeOutput).toEqual(false);
+            const resExplicitTrue = optionParser.parseOptions({ context, optimizeOutput: true });
+            expect(resExplicitTrue.optimizeOutput).toEqual(true);
+            const resExplicitFalse = optionParser.parseOptions({ context, optimizeOutput: false });
+            expect(resExplicitFalse.optimizeOutput).toEqual(false);
+        });
+
         it.concurrent('sets centerHorizontally only if defined in options', () => {
             const resDefault = optionParser.parseOptions({ context });
             expect('centerHorizontally' in resDefault).toEqual(false);
@@ -532,20 +541,20 @@ describe('optionParser', () => {
         it.concurrent('preserves existing formatOptions.svg values when setting centerVertically', () => {
             const formatOptions = {
                 svg: {
-                    fontHeight: 2048,
+                    fontId: 'icons',
                 },
-                woff2: {
-                    custom: true,
+                woff: {
+                    metadata: '<metadata>woff</metadata>',
                 },
             };
             const res = optionParser.parseOptions({ context, centerVertically: true, formatOptions });
             expect(res.formatOptions).toEqual({
                 svg: {
-                    fontHeight: 2048,
+                    fontId: 'icons',
                     centerVertically: true,
                 },
-                woff2: {
-                    custom: true,
+                woff: {
+                    metadata: '<metadata>woff</metadata>',
                 },
             });
         });
