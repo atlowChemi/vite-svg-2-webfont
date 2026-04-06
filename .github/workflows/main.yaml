@@ -15,16 +15,121 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy, rustfmt
+            - uses: actions/cache@v5
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      packages/webfont-generator/target
+                  key: cargo-${{ runner.os }}-${{ hashFiles('packages/webfont-generator/Cargo.lock') }}
+                  restore-keys: cargo-${{ runner.os }}-
             - uses: voidzero-dev/setup-vp@v1
               with:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
             - run: vp check
+            - run: vp run @atlowchemi/webfont-generator#test
 
-    test:
-        name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
+    build:
+        name: Build cross-platform bindings
         needs: [ci]
+        uses: ./.github/workflows/build-native.yaml
+
+    test-host:
+        name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
+        needs: [build]
+        strategy:
+            fail-fast: false
+            matrix:
+                settings:
+                    - target: aarch64-unknown-linux-gnu
+                      host: ubuntu-24.04-arm
+                      architecture: arm64
+                    - target: x86_64-apple-darwin
+                      host: macos-latest
+                      architecture: x64
+                    - target: aarch64-apple-darwin
+                      host: macos-latest
+                      architecture: arm64
+                    - target: x86_64-pc-windows-msvc
+                      host: windows-latest
+                      architecture: x64
+                    - target: aarch64-pc-windows-msvc
+                      host: windows-11-arm
+                      architecture: arm64
+                node: ['20', '22', '24']
+        runs-on: ${{ matrix.settings.host }}
+        steps:
+            - uses: actions/checkout@v6
+            - uses: pnpm/action-setup@v5
+            - uses: actions/setup-node@v6
+              with:
+                  node-version: ${{ matrix.node }}
+                  cache: pnpm
+                  architecture: ${{ matrix.settings.architecture }}
+            - run: pnpm install --frozen-lockfile
+            - name: Download binding
+              uses: actions/download-artifact@v8
+              with:
+                  name: bindings-${{ matrix.settings.target }}
+                  path: packages/webfont-generator/
+            - name: Verify binding
+              shell: bash
+              run: ls packages/webfont-generator/*.node
+            - name: Build plugin
+              run: pnpm --filter vite-svg-2-webfont exec vp pack
+            - name: Run tests
+              run: pnpm exec vp test --run
+
+    test-docker:
+        name: test ${{ matrix.arch }}-linux-musl
+        needs: [build]
+        strategy:
+            fail-fast: false
+            matrix:
+                arch: [x86_64, aarch64]
+                include:
+                    - arch: aarch64
+                      args: '--platform linux/arm64'
+                      runner: ubuntu-24.04-arm
+                    - arch: x86_64
+                      args: ''
+                      runner: ubuntu-latest
+        runs-on: ${{ matrix.runner }}
+        steps:
+            - uses: actions/checkout@v6
+            - uses: pnpm/action-setup@v5
+            - uses: actions/setup-node@v6
+              with:
+                  node-version-file: .node-version
+                  cache: pnpm
+            - run: pnpm install --frozen-lockfile
+            - name: Download binding
+              uses: actions/download-artifact@v8
+              with:
+                  name: bindings-${{ matrix.arch }}-unknown-linux-musl
+                  path: packages/webfont-generator/
+            - name: Build plugin
+              run: pnpm --filter vite-svg-2-webfont exec vp pack
+            - name: Resolve pnpm version
+              id: pnpm-version
+              run: echo "version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).packageManager.split('@')[1].split('+')[0]")" >> "$GITHUB_OUTPUT"
+            - name: Run tests
+              uses: tj-actions/docker-run@v2
+              with:
+                  image: node:24-alpine
+                  name: test-${{ matrix.arch }}-linux-musl
+                  options: ${{ matrix.args }} -v ${{ github.workspace }}:/build -w /build -e CI=true
+                  args: |
+                      sh -c "set -e && npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && pnpm install --frozen-lockfile --ignore-scripts && pnpm exec vp test --run"
+
+    test-vite-compat:
+        name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
+        needs: [build]
         strategy:
             matrix:
                 include:
@@ -50,6 +155,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
+            - uses: dtolnay/rust-toolchain@stable
             - uses: voidzero-dev/setup-vp@v1
               with:
                   node-version: ${{ matrix.node_version }}
@@ -58,6 +164,15 @@ jobs:
             - name: Select vite major
               run: node ./scripts/ci/set-vite-major.js ${{ matrix.vite_major }}
             - run: vp install --no-frozen-lockfile
+            - name: Download binding
+              uses: actions/download-artifact@v8
+              with:
+                  name: bindings-x86_64-unknown-linux-gnu
+                  path: packages/webfont-generator/
+            - name: Verify binding
+              run: ls packages/webfont-generator/*.node
+            - name: Build plugin
+              run: vp run vite-svg-2-webfont#pack
             - name: Verify vite version
               run: |
                   VITE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('node_modules/vite/package.json', 'utf8')).version")
@@ -71,10 +186,10 @@ jobs:
                   esac
             - name: Run coverage
               if: ${{ matrix.primary }}
-              run: vp run coverage
-            - name: Run test
+              run: vp test --coverage
+            - name: Run tests
               if: ${{ !matrix.primary }}
-              run: vp run test
+              run: vp test
             - uses: actions/upload-artifact@v7
               if: ${{ matrix.primary }}
               with:

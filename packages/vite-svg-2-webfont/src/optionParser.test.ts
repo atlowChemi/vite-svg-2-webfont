@@ -3,7 +3,7 @@ import * as optionParser from './optionParser';
 import type { globSync as GlobSyncFn } from 'glob';
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vite-plus/test';
 import { NoIconsAvailableError, InvalidWriteFilesTypeError } from './errors';
-import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
+import type { FontType } from '@atlowchemi/webfont-generator';
 
 const globSyncMock = vi.hoisted(() => vi.fn<typeof GlobSyncFn>());
 vi.mock('glob', () => ({ globSync: globSyncMock }));
@@ -14,7 +14,7 @@ const cssContext = () => {
 describe('optionParser', () => {
     describe.concurrent('parseIconTypesOption', () => {
         it.concurrent('returns arrays as received', () => {
-            const types: GeneratedFontTypes[] = ['eot', 'svg', 'ttf'];
+            const types: FontType[] = ['eot', 'svg', 'ttf'];
             expect(optionParser.parseIconTypesOption({ types })).toBe(types);
         });
 
@@ -33,7 +33,7 @@ describe('optionParser', () => {
 
     describe.concurrent('parsePreloadFormatsOption', () => {
         it.concurrent('returns arrays as received', () => {
-            const preloadFormats: GeneratedFontTypes[] = ['woff2', 'ttf'];
+            const preloadFormats: FontType[] = ['woff2', 'ttf'];
             expect(optionParser.parsePreloadFormatsOption({ preloadFormats })).toBe(preloadFormats);
         });
 
@@ -96,21 +96,21 @@ describe('optionParser', () => {
         const fontName = 'fontname';
         const extension = 'css';
         it.concurrent("doesn't concatenate fileDest if not set", () => {
-            expect(optionParser.resolveFileDest(globalDest, undefined, fontName, extension)).toBe(resolve(`${globalDest}/${fontName}.${extension}`));
+            expect(optionParser.resolveFileDest(globalDest, undefined, fontName, extension)).toBe(resolve(globalDest, `${fontName}.${extension}`));
         });
 
         it.concurrent("doesn't concatenate fontName if fileDest has a file extension", () => {
-            expect(optionParser.resolveFileDest(globalDest, `file.${extension}`, fontName, extension)).toBe(resolve(`${globalDest}/file.${extension}`));
+            expect(optionParser.resolveFileDest(globalDest, `file.${extension}`, fontName, extension)).toBe(resolve(globalDest, `file.${extension}`));
         });
 
         it.concurrent("concatenates fontName if fileDest doesn't have a file extension", () => {
-            expect(optionParser.resolveFileDest(globalDest, 'file', fontName, extension)).toBe(resolve(`${globalDest}/file/${fontName}.${extension}`));
+            expect(optionParser.resolveFileDest(globalDest, 'file', fontName, extension)).toBe(resolve(globalDest, 'file', `${fontName}.${extension}`));
         });
 
         it.concurrent("doesn't concatenate globalDest if fileDest is absolute", () => {
             const absFile = resolve('/file');
             expect(optionParser.resolveFileDest(globalDest, '/file', fontName, extension)).toBe(resolve(absFile, `${fontName}.${extension}`));
-            expect(optionParser.resolveFileDest(globalDest, `/file.${extension}`, fontName, extension)).toBe(resolve(`${absFile}.${extension}`));
+            expect(optionParser.resolveFileDest(globalDest, `/file.${extension}`, fontName, extension)).toBe(`${absFile}.${extension}`);
         });
     });
 
@@ -267,7 +267,7 @@ describe('optionParser', () => {
         });
 
         it.concurrent('returns order identical to types', () => {
-            const types: GeneratedFontTypes[] = ['ttf', 'woff', 'svg'];
+            const types: FontType[] = ['ttf', 'woff', 'svg'];
             const res = optionParser.parseOptions({ context, types });
             expect(res.types).toEqual(types);
             expect(res.order).toEqual(types);
@@ -293,7 +293,7 @@ describe('optionParser', () => {
             const resDefault = optionParser.parseOptions({ context: `${parent}exIcons` });
             expect(resDefault.dest).toBe(`${resolve(parent, 'artifacts')}${sep}`);
             const resExplicit = optionParser.parseOptions({ context: `${parent}exIcons`, dest: parent });
-            expect(resExplicit.dest).toBe(`${resolve(parent)}${sep}`);
+            expect(resExplicit.dest).toBe(`/parent${sep}`);
         });
 
         it.concurrent('defaults font name to icon font', () => {
@@ -433,7 +433,7 @@ describe('optionParser', () => {
             expect('cssTemplate' in resDefault).toEqual(false);
             const cssTemplate = '/cssTemplate';
             const resExplicit = optionParser.parseOptions({ context, cssTemplate });
-            expect(resExplicit.cssTemplate).toBe(cssTemplate);
+            expect(resExplicit.cssTemplate).toBe(resolve(cssTemplate));
         });
 
         it.concurrent('sets cssContext only if defined in options', () => {

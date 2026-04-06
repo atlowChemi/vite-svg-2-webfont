@@ -22,7 +22,7 @@ const config: UserConfig = defineConfig({
         htmlWhitespaceSensitivity: 'css',
         vueIndentScriptAndStyle: false,
         sortPackageJson: false,
-        ignorePatterns: ['dist', 'dist-*', 'webfont', 'node_modules', 'coverage/*'],
+        ignorePatterns: ['dist', 'dist-*', 'webfont', 'node_modules', 'coverage/*', 'tests/fixtures/**', 'packages/webfont-generator/binding{.js,.d.ts}', 'target', '*.hbs'],
     },
     lint: {
         plugins: ['eslint', 'typescript', 'unicorn', 'vitest', 'oxc', 'promise'],
@@ -57,20 +57,33 @@ const config: UserConfig = defineConfig({
         env: {
             builtin: true,
         },
-        ignorePatterns: ['dist', 'node_modules', 'packages/vite-svg-2-webfont/src/fixtures', 'coverage', 'packages/example/src/webfont/icons.ts', 'packages/example/dist'],
+        ignorePatterns: [
+            'dist',
+            'node_modules',
+            'coverage',
+            'tests/fixtures/**',
+            'packages/example/dist',
+            'packages/vite-svg-2-webfont/src/fixtures',
+            'packages/webfont-generator/binding{.js,.d.ts}',
+        ],
     },
     staged: {
         '*': 'vp check --fix',
+        '*.rs': 'cargo fmt --manifest-path packages/webfont-generator/Cargo.toml --',
     },
     run: {
         tasks: {
             test: {
                 command: 'vp test',
-                dependsOn: ['vite-svg-2-webfont#pack'],
+                dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
+            },
+            'test:compat': {
+                command: 'vp test --project=compat',
+                dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
             },
             coverage: {
                 command: 'vp test --coverage',
-                dependsOn: ['vite-svg-2-webfont#pack'],
+                dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
             },
         },
     },
@@ -80,9 +93,18 @@ const config: UserConfig = defineConfig({
         },
         coverage: {
             provider: 'v8',
-            exclude: ['packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**'],
+            exclude: ['packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**', 'packages/webfont-generator/binding.*'],
         },
-        projects: ['packages/vite-svg-2-webfont/vite.config.ts'],
+        projects: [
+            'packages/!(example)/vite.config.ts',
+            {
+                test: {
+                    name: 'compat',
+                    include: ['tests/**/*.compat.test.ts'],
+                    benchmark: { include: ['tests/**/*.bench.ts'] },
+                },
+            },
+        ],
     },
 });
 export default config;

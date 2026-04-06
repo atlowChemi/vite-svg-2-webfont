@@ -18,6 +18,7 @@ const config: UserProjectConfigExport = defineProject({
     plugins: viteSvgToWebfont
         ? [
               viteSvgToWebfont({
+                  inline: false,
                   context: webfontFolder,
                   htmlDest: resolve(webfontFolder, 'icons.ts'),
                   htmlTemplate: resolve(webfontFolder, 'icons.ts.hbs'),

@@ -35,7 +35,7 @@ features:
 
 ## Why this plugin
 
-`vite-svg-2-webfont` uses [`@vusion/webfonts-generator`](https://github.com/vusion/webfonts-generator) under the hood to transform SVG icon sets into webfont files and matching CSS classes. It is designed for projects that want icon fonts integrated directly into the Vite pipeline.
+`vite-svg-2-webfont` uses [`@atlowchemi/webfont-generator`](https://github.com/atlowChemi/vite-svg-2-webfont/tree/main/packages/webfont-generator) (Which is a native Rust implementation of [`@vusion/webfonts-generator`](https://github.com/vusion/webfonts-generator)) to transform SVG icon sets into webfont files and matching CSS classes. It is designed for projects that want icon fonts integrated directly into the Vite pipeline.
 
 ## What you get
 
