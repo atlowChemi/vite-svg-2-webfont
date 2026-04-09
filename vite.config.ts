@@ -70,7 +70,26 @@ const config: UserConfig = defineConfig({
     staged: {
         '*': 'vp check --fix',
     },
+    run: {
+        tasks: {
+            test: {
+                command: 'vp test',
+                dependsOn: ['vite-svg-2-webfont#pack'],
+            },
+            coverage: {
+                command: 'vp test --coverage',
+                dependsOn: ['vite-svg-2-webfont#pack'],
+            },
+        },
+    },
     test: {
+        experimental: {
+            fsModuleCache: true,
+        },
+        coverage: {
+            provider: 'istanbul',
+            exclude: ['packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**'],
+        },
         projects: ['packages/vite-svg-2-webfont/vite.config.ts'],
     },
 });
