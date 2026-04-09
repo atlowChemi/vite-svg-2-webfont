@@ -1,7 +1,7 @@
 # vite-svg-2-webfont
 
 <p align="center">
-  <img src="./docs/public/logo.svg" alt="vite-svg-2-webfont logo" width="144" />
+  <img src="./packages/docs/public/logo.svg" alt="vite-svg-2-webfont logo" width="144" />
 </p>
 
 [![npm](https://img.shields.io/npm/v/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)

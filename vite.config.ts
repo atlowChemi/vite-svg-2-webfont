@@ -57,77 +57,21 @@ const config: UserConfig = defineConfig({
         env: {
             builtin: true,
         },
-        ignorePatterns: ['dist', 'node_modules', 'src/fixtures', 'coverage', 'example/src/webfont/icons.ts', 'example/dist', 'example/vite.config.ts'],
-    },
-    pack: {
-        format: ['esm', 'cjs'],
-        minify: true,
-        fixedExtension: false,
-        nodeProtocol: true,
-        deps: {
-            onlyBundle: false,
-            skipNodeModulesBundle: true,
-        },
-        outputOptions: {
-            exports: 'named',
-        },
+        ignorePatterns: [
+            'dist',
+            'node_modules',
+            'packages/vite-svg-2-webfont/src/fixtures',
+            'coverage',
+            'packages/example/src/webfont/icons.ts',
+            'packages/example/dist',
+            'packages/example/vite.config.ts',
+        ],
     },
     staged: {
         '*': 'vp check --fix',
     },
-    run: {
-        tasks: {
-            dev: {
-                command: 'vp pack --watch',
-            },
-            pack: {
-                command: 'vp pack',
-            },
-            'docs:dev': {
-                cache: false,
-                command: './node_modules/.bin/vitepress dev docs',
-                dependsOn: ['docs:social-card'],
-            },
-            'docs:optimize-svg': {
-                command: './node_modules/.bin/svgo -r -f docs/public',
-            },
-            'docs:social-card': {
-                command: 'node ./scripts/generate-social-card.ts',
-                dependsOn: ['docs:optimize-svg'],
-            },
-            'docs:build': {
-                command: './node_modules/.bin/vitepress build docs',
-                dependsOn: ['docs:social-card'],
-                env: ['GITHUB_ACTIONS'],
-            },
-            'docs:preview': {
-                cache: false,
-                command: './node_modules/.bin/vitepress preview docs',
-                dependsOn: ['docs:build'],
-            },
-            coverage: {
-                command: 'vp test --coverage',
-                dependsOn: ['pack'],
-            },
-            test: {
-                command: 'vp test',
-                dependsOn: ['pack'],
-            },
-            publish: {
-                cache: false,
-                command: 'pnpm publish --no-git-checks',
-                dependsOn: ['pack'],
-            },
-        },
-    },
     test: {
-        experimental: {
-            fsModuleCache: true,
-        },
-        coverage: {
-            provider: 'istanbul',
-            exclude: ['example/**', '.eslint*', 'src/fixtures/**'],
-        },
+        projects: ['packages/vite-svg-2-webfont/vite.config.ts'],
     },
 });
 export default config;

@@ -30,11 +30,11 @@ jobs:
                   run-install: true
                   cache: true
             - name: build docs
-              run: vp run docs:build
+              run: vp run @atlowchemi/vite-svg-webfont-docs#build
             - name: upload pages artifact
               uses: actions/upload-pages-artifact@v4
               with:
-                  path: docs/.vitepress/dist
+                  path: packages/docs/.vitepress/dist
 
     deploy:
         name: deploy docs

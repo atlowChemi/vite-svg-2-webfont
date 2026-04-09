@@ -3,7 +3,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { Resvg } from '@resvg/resvg-js';
 
 const fileName = 'social-card';
-const rootDir = resolve(import.meta.dirname, '..', 'docs', 'public');
+const rootDir = resolve(import.meta.dirname, '..', 'public');
 const inputPath = resolve(rootDir, `${fileName}.svg`);
 const outputPath = resolve(rootDir, `${fileName}.png`);
 

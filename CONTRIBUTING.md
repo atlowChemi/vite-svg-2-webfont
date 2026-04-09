@@ -11,7 +11,7 @@ This repository uses:
 - `pnpm` underneath the hood as the package manager, managed through `vp`
 - `oxlint` for linting, type-aware checks, and type checking through Vite+ and `tsgo`
 - `oxfmt` for formatting through Vite+
-- A workspace containing the library package and the `example` app
+- A monorepo workspace with packages under `packages/`
 
 Install dependencies from the repository root:
 
@@ -24,15 +24,15 @@ vp install
 Run these from the repository root:
 
 ```bash
-vp run pack
+vp run vite-svg-2-webfont#pack
 vp check
 vp lint
 vp fmt
-vp run test
-vp run coverage
-vp run docs:dev
-vp run docs:build
-vp run docs:preview
+vp run vite-svg-2-webfont#test
+vp run vite-svg-2-webfont#coverage
+vp run @atlowchemi/vite-svg-webfont-docs#dev
+vp run @atlowchemi/vite-svg-webfont-docs#build
+vp run @atlowchemi/vite-svg-webfont-docs#preview
 ```
 
 Run the example app:
@@ -56,8 +56,8 @@ vp run example#preview
 Build or preview the documentation site:
 
 ```bash
-vp run docs:build
-vp run docs:preview
+vp run @atlowchemi/vite-svg-webfont-docs#build
+vp run @atlowchemi/vite-svg-webfont-docs#preview
 ```
 
 ## Tools
@@ -70,20 +70,19 @@ vp run docs:preview
 
 ## Project Structure
 
-- `src/`: plugin source code and tests
-- `example/`: Vite app used for local development and manual verification
-- `docs/`: VitePress documentation site, published to GitHub Pages
-- `dist/`: generated build output
+- `packages/vite-svg-2-webfont/`: plugin source code and tests
+- `packages/example/`: Vite app used for local development and manual verification
+- `packages/docs/`: VitePress documentation site, published to GitHub Pages
 
 ## Pull Requests
 
 Before opening a pull request, please:
 
 1. Install dependencies with `vp install`.
-2. Run `vp pack`.
-3. Run `vp run test` or `vp run coverage` when your change affects behavior.
+2. Run `vp run vite-svg-2-webfont#pack`.
+3. Run `vp run vite-svg-2-webfont#test` or `vp run vite-svg-2-webfont#coverage` when your change affects behavior.
 4. Verify the example app with `vp run example#dev` or `vp run example#build` for user-facing changes.
-5. Verify the docs site with `vp run docs:build` when you change documentation or docs config.
+5. Verify the docs site with `vp run @atlowchemi/vite-svg-webfont-docs#build` when you change documentation or docs config.
 
 ## Before You Commit
 
@@ -99,4 +98,4 @@ In practice, assume formatting, linting, and unit tests are part of the validati
 - Keep lockfile changes in `pnpm-lock.yaml` when dependencies change.
 - Do not commit `package-lock.json` files to the workspace.
 - Use `vp` instead of calling `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly for normal repository workflows.
-- The docs site is driven by Vite+ run tasks, so prefer `vp run docs:dev`, `vp run docs:build`, and `vp run docs:preview` over direct `vitepress` commands.
+- The docs site is driven by Vite+ run tasks, so prefer `vp run @atlowchemi/vite-svg-webfont-docs#dev`, `vp run @atlowchemi/vite-svg-webfont-docs#build`, and `vp run @atlowchemi/vite-svg-webfont-docs#preview` over direct `vitepress` commands.
