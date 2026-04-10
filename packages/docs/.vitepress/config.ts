@@ -86,7 +86,7 @@ export default defineConfig({
             copyright: 'Copyright © Chemi Atlow',
         },
         editLink: {
-            pattern: `${repo}/edit/main/docs/:path`,
+            pattern: `${repo}/edit/main/packages/docs/:path`,
         },
     },
 });

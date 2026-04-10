@@ -1,11 +1,10 @@
 packages:
-    - '.'
-    - 'example'
+    - 'packages/*'
 catalog:
     typescript: ^5.9.3
-    vite: npm:@voidzero-dev/vite-plus-core@latest
-    vite-plus: latest
-    vitest: npm:@voidzero-dev/vite-plus-test@latest
+    vite: npm:@voidzero-dev/vite-plus-core@0.1.15
+    vite-plus: 0.1.15
+    vitest: npm:@voidzero-dev/vite-plus-test@0.1.15
 
 overrides:
     brace-expansion@>=1.0.0 <=1.1.11: '^1.1.12'

@@ -43,8 +43,8 @@ export async function setupWatcher(folderPath: string, signal: AbortSignal, hand
         for await (const event of watcher) {
             await handleWatchEvent(folderPath, event, handler);
         }
-    } catch (err) {
-        if (err.name === 'AbortError') {
+    } catch (err: unknown) {
+        if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
             return;
         }
         throw err;

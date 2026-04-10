@@ -1,5 +1,3 @@
-<!--VITE PLUS START-->
-
 # Using Vite+, the Unified Toolchain for the Web
 
 This project is using Vite+, a unified toolchain built on top of Vite, Rolldown, Vitest, tsdown, Oxlint, Oxfmt, and Vite Task. Vite+ wraps runtime management, package management, and frontend tooling in a single global CLI called `vp`. Vite+ is distinct from Vite, but it invokes Vite through `vp dev` and `vp build`.
@@ -14,7 +12,7 @@ This project is using Vite+, a unified toolchain built on top of Vite, Rolldown,
 - check - Run format, lint, and TypeScript type checks
 - lint - Lint code
 - fmt - Format code
-- test - Run tests
+- run test - Run tests
 
 ### Execute
 
@@ -48,14 +46,14 @@ Vite+ automatically detects and wraps the underlying package manager such as pnp
 
 - upgrade - Update `vp` itself to the latest version
 
-These commands map to their corresponding tools. For example, `vp dev --port 3000` runs Vite's dev server and works the same as Vite. `vp test` runs JavaScript tests through the bundled Vitest. The version of all tools can be checked using `vp --version`. This is useful when researching documentation, features, and bugs.
+These commands map to their corresponding tools. For example, `vp dev --port 3000` runs Vite's dev server and works the same as Vite. `vp run test` runs JavaScript tests through the bundled Vitest. The version of all tools can be checked using `vp --version`. This is useful when researching documentation, features, and bugs.
 
 ## Common Pitfalls
 
 - **Using the package manager directly:** Do not use pnpm, npm, or Yarn directly. Vite+ can handle all package manager operations.
-- **Always use Vite commands to run tools:** Don't attempt to run `vp vitest` or `vp oxlint`. They do not exist. Use `vp test` and `vp lint` instead.
+- **Always use Vite commands to run tools:** Don't attempt to run `vp vitest` or `vp oxlint`. They do not exist. Use `vp run test` and `vp lint` instead.
 - **Running scripts:** Vite+ commands take precedence over `package.json` scripts. If there is a `test` script defined in `scripts` that conflicts with the built-in `vp test` command, run it using `vp run test`.
-- **Docs workflow:** The VitePress docs site is managed through Vite+ run tasks. Use `vp run docs:dev`, `vp run docs:build`, and `vp run docs:preview` rather than calling `vitepress` directly.
+- **Docs workflow:** The VitePress docs site lives in `packages/docs/` and is managed through Vite+ run tasks. Use `vp run @atlowchemi/vite-svg-webfont-docs#dev`, `vp run @atlowchemi/vite-svg-webfont-docs#build`, and `vp run @atlowchemi/vite-svg-webfont-docs#preview` rather than calling `vitepress` directly.
 - **Do not install Vitest, Oxlint, Oxfmt, or tsdown directly:** Vite+ wraps these tools. They must not be installed directly. You cannot upgrade these tools by installing their latest versions. Always use Vite+ commands.
 - **Use Vite+ wrappers for one-off binaries:** Use `vp dlx` instead of package-manager-specific `dlx`/`npx` commands.
 - **Import JavaScript modules from `vite-plus`:** Instead of importing from `vite` or `vitest`, all modules should be imported from the project's `vite-plus` dependency. For example, `import { defineConfig } from 'vite-plus';` or `import { expect, test, vi } from 'vite-plus/test';`. You must not install `vitest` to import test utilities.
@@ -64,6 +62,5 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 ## Review Checklist for Agents
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.
-- [ ] Run `vp check` and `vp test` to validate changes.
-- [ ] Run `vp run docs:build` when changing the docs site, docs config, or docs deployment workflow.
-  <!--VITE PLUS END-->
+- [ ] Run `vp check` and `vp run test` to validate changes.
+- [ ] Run `vp run @atlowchemi/vite-svg-webfont-docs#build` when changing the docs site, docs config, or docs deployment workflow.
