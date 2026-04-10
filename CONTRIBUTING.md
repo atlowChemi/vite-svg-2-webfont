@@ -80,7 +80,7 @@ Before opening a pull request, please:
 
 1. Install dependencies with `vp install`.
 2. Run `vp run vite-svg-2-webfont#pack`.
-3. Run `vp run vite-svg-2-webfont#test` or `vp run vite-svg-2-webfont#coverage` when your change affects behavior.
+3. Run `vp run test` or `vp run coverage` when your change affects behavior.
 4. Verify the example app with `vp run example#dev` or `vp run example#build` for user-facing changes.
 5. Verify the docs site with `vp run @atlowchemi/vite-svg-webfont-docs#build` when you change documentation or docs config.
 
