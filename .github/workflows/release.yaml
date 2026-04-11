@@ -18,6 +18,7 @@ jobs:
         outputs:
             plugin-released: ${{ steps.release.outputs['packages/vite-svg-2-webfont--release_created'] }}
             plugin-tag: ${{ steps.release.outputs['packages/vite-svg-2-webfont--tag_name'] }}
+            any-released: ${{ steps.release.outputs.releases_created }}
         steps:
             - uses: googleapis/release-please-action@v4
               id: release
@@ -44,3 +45,13 @@ jobs:
               with:
                   tag_name: ${{ needs.release-please.outputs.plugin-tag }}
                   files: packages/vite-svg-2-webfont/*.tgz
+
+    deploy-docs:
+        name: Deploy docs
+        needs: [release-please]
+        if: needs.release-please.outputs.any-released == 'true'
+        uses: ./.github/workflows/docs.yaml
+        permissions:
+            contents: read
+            pages: write
+            id-token: write
