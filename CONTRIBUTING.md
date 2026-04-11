@@ -6,7 +6,7 @@ Thanks for contributing to `vite-svg-2-webfont`.
 
 This repository uses:
 
-- Node `24.14.0` from `.nvmrc`
+- Node `24.14.0` from `.node-version`
 - Vite+ through the `vp` CLI for installs, checks, tests, builds, and task execution. See the [Vite+ docs](https://viteplus.dev/guide/) for more information about the toolchain and workflow, and how to install it.
 - `pnpm` underneath the hood as the package manager, managed through `vp`
 - `oxlint` for linting, type-aware checks, and type checking through Vite+ and `tsgo`
