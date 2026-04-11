@@ -1,27 +1,46 @@
-name: automatic release
+name: Release
 
 on:
     push:
-        tags:
-            - v*
+        branches:
+            - main
 
 permissions:
-    contents: read
+    contents: write
     id-token: write
+    issues: write
+    pull-requests: write
 
 jobs:
-    release:
-        name: release
+    release-please:
+        name: Release Please
+        runs-on: ubuntu-latest
+        outputs:
+            plugin-released: ${{ steps.release.outputs['packages/vite-svg-2-webfont--release_created'] }}
+            plugin-tag: ${{ steps.release.outputs['packages/vite-svg-2-webfont--tag_name'] }}
+        steps:
+            - uses: googleapis/release-please-action@v4
+              id: release
+              with:
+                  config-file: release-please-config.json
+                  manifest-file: .release-please-manifest.json
+
+    publish-plugin:
+        name: Publish vite-svg-2-webfont
+        needs: [release-please]
+        if: needs.release-please.outputs.plugin-released == 'true'
         runs-on: ubuntu-latest
         steps:
-            - name: checkout
-              uses: actions/checkout@v6
-            - name: Install pnpm
-              uses: pnpm/action-setup@v5
+            - uses: actions/checkout@v6
             - uses: voidzero-dev/setup-vp@v1
               with:
-                  node-version-file: .nvmrc
+                  node-version-file: .node-version
                   run-install: true
                   cache: true
-            - name: publish
-              run: vp run publish
+            - name: Publish from tarball
+              run: vp run vite-svg-2-webfont#publish
+            - name: Upload release assets
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ needs.release-please.outputs.plugin-tag }}
+                  files: packages/vite-svg-2-webfont/*.tgz
