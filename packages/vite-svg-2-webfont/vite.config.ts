@@ -1,6 +1,6 @@
-import { defineConfig } from 'vite-plus';
+import { defineConfig, type UserConfigExport } from 'vite-plus';
 
-export default defineConfig({
+const config: UserConfigExport = defineConfig({
     pack: {
         format: ['esm', 'cjs'],
         minify: true,
@@ -22,6 +22,10 @@ export default defineConfig({
             pack: {
                 command: 'vp pack',
             },
+            'pack:tgz': {
+                command: 'pnpm pack',
+                dependsOn: ['pack'],
+            },
             test: {
                 command: 'vp test',
                 dependsOn: ['pack'],
@@ -31,8 +35,8 @@ export default defineConfig({
             },
             publish: {
                 cache: false,
-                command: 'pnpm publish --no-git-checks',
-                dependsOn: ['pack'],
+                command: 'vp exec -c "pnpm publish vite-svg-2-webfont-*.tgz --no-git-checks"',
+                dependsOn: ['pack:tgz'],
             },
         },
     },
@@ -46,3 +50,5 @@ export default defineConfig({
         },
     },
 });
+
+export default config;

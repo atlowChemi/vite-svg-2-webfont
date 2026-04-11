@@ -59,8 +59,13 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 - **Import JavaScript modules from `vite-plus`:** Instead of importing from `vite` or `vitest`, all modules should be imported from the project's `vite-plus` dependency. For example, `import { defineConfig } from 'vite-plus';` or `import { expect, test, vi } from 'vite-plus/test';`. You must not install `vitest` to import test utilities.
 - **Type-Aware Linting:** There is no need to install `oxlint-tsgolint`, `vp lint --type-aware` works out of the box.
 
+## Commit Conventions
+
+All commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope): description`. Common types are `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, and `perf`. This is enforced by a `commitlint` hook and is required for release-please changelog generation.
+
 ## Review Checklist for Agents
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check` and `vp run test` to validate changes.
 - [ ] Run `vp run @atlowchemi/vite-svg-webfont-docs#build` when changing the docs site, docs config, or docs deployment workflow.
+- [ ] Use conventional commit messages.

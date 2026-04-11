@@ -53,6 +53,7 @@ export default defineConfig({
     },
     vite: {
         plugins: [groupIconVitePlugin(), llmstxt()],
+        resolve: { preserveSymlinks: true },
     } as never,
     themeConfig: {
         logo: '/logo.svg',
@@ -61,7 +62,7 @@ export default defineConfig({
             { text: 'Guide', link: '/getting-started' },
             { text: 'Configuration', link: '/configuration' },
             { text: 'Public API', link: '/public-api' },
-            { text: 'Changelog', link: `${repo}/releases` },
+            { text: 'Changelog', link: '/changelog' },
         ],
         sidebar: [
             {

@@ -84,11 +84,44 @@ Before opening a pull request, please:
 4. Verify the example app with `vp run example#dev` or `vp run example#build` for user-facing changes.
 5. Verify the docs site with `vp run @atlowchemi/vite-svg-webfont-docs#build` when you change documentation or docs config.
 
+## Commit Conventions
+
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) format for all commit messages. This is required for automated changelog generation via release-please.
+
+The format is:
+
+```
+type(scope): description
+```
+
+Common types:
+
+- `feat` - A new feature
+- `fix` - A bug fix
+- `chore` - Maintenance tasks, dependency updates
+- `docs` - Documentation changes
+- `refactor` - Code restructuring without behavior changes
+- `test` - Adding or updating tests
+- `ci` - CI/CD configuration changes
+- `perf` - Performance improvements
+
+Examples:
+
+```
+feat: add support for custom font formats
+fix(options): handle empty SVG directory gracefully
+docs: update configuration reference
+chore: bump dependencies
+```
+
+Commit messages are validated automatically by a `commitlint` hook on `commit-msg`. Messages that do not follow the conventional format will be rejected.
+
 ## Before You Commit
 
 Commits should be created only after the code passes the repository checks.
 
 - Formatting, linting, and tests are handled automatically by the configured Vite+ hooks.
+- Commit messages are validated against the Conventional Commits format by the `commitlint` hook.
 - You can still run `vp check` and `vp test` manually if you want an earlier check before committing.
 
 In practice, assume formatting, linting, and unit tests are part of the validation flow for changes, with all three enforced during commit.
