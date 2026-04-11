@@ -1,5 +1,12 @@
 # Changelog
 
+## [6.1.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.0.0...vite-svg-2-webfont-v6.1.0) (2026-04-11)
+
+
+### Features
+
+* add release-please for automated releases and changelog ([#83](https://github.com/atlowChemi/vite-svg-2-webfont/issues/83)) ([4344f43](https://github.com/atlowChemi/vite-svg-2-webfont/commit/4344f43c0385bda3814a91e19c0244ec77583148))
+
 ## [6.0.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/v5.0.0...v6.0.0) (2026-03-19)
 
 ### ⚠ BREAKING CHANGES
