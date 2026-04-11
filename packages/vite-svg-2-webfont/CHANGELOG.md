@@ -1,11 +1,20 @@
 # Changelog
 
-## [6.1.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.0.0...vite-svg-2-webfont-v6.1.0) (2026-04-11)
-
+## [6.1.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.0.0...vite-svg-2-webfont-v6.1.0) (2026-04-12)
 
 ### Features
 
-* add release-please for automated releases and changelog ([#83](https://github.com/atlowChemi/vite-svg-2-webfont/issues/83)) ([4344f43](https://github.com/atlowChemi/vite-svg-2-webfont/commit/4344f43c0385bda3814a91e19c0244ec77583148))
+- add preloadFormats support to preload generated webfont assets ([#75](https://github.com/atlowChemi/vite-svg-2-webfont/pull/75))
+- add centerVertically alias support for SVG format options ([#79](https://github.com/atlowChemi/vite-svg-2-webfont/pull/79))
+- add release-please for automated releases and changelog ([#83](https://github.com/atlowChemi/vite-svg-2-webfont/issues/83))
+
+### Documentation
+
+- add VitePress docs site with GitHub Pages deployment ([#76](https://github.com/atlowChemi/vite-svg-2-webfont/pull/76))
+
+### Miscellaneous Chores
+
+- restructure as monorepo with packages dir ([#82](https://github.com/atlowChemi/vite-svg-2-webfont/pull/82))
 
 ## [6.0.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/v5.0.0...v6.0.0) (2026-03-19)
 
