@@ -27,6 +27,32 @@ jobs:
                   config-file: release-please-config.json
                   manifest-file: .release-please-manifest.json
 
+            - name: Checkout release PR branch
+              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
+              uses: actions/checkout@v6
+              with:
+                  ref: ${{ fromJSON(steps.release.outputs.prs)[0].headBranchName }}
+
+            - name: Setup Vite+
+              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
+              uses: voidzero-dev/setup-vp@v1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+
+            - name: Format changelog
+              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
+              run: |
+                  vp check --fix || true
+                  if ! git diff --quiet; then
+                    git config user.name "github-actions[bot]"
+                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                    git add -A
+                    git commit -m "chore: format changelog"
+                    git push
+                  fi
+
     publish-plugin:
         name: Publish vite-svg-2-webfont
         needs: [release-please]

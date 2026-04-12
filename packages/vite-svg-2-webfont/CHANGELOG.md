@@ -2,10 +2,9 @@
 
 ## [6.1.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.1.0...vite-svg-2-webfont-v6.1.1) (2026-04-12)
 
-
 ### Bug Fixes
 
-* use platform-independent path separators in option parsing ([#87](https://github.com/atlowChemi/vite-svg-2-webfont/issues/87)) ([f5f3f49](https://github.com/atlowChemi/vite-svg-2-webfont/commit/f5f3f49e61892068834a0ecc5df1265a0e149bb4))
+- use platform-independent path separators in option parsing ([#87](https://github.com/atlowChemi/vite-svg-2-webfont/issues/87)) ([f5f3f49](https://github.com/atlowChemi/vite-svg-2-webfont/commit/f5f3f49e61892068834a0ecc5df1265a0e149bb4))
 
 ## [6.1.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.0.0...vite-svg-2-webfont-v6.1.0) (2026-04-12)
 
