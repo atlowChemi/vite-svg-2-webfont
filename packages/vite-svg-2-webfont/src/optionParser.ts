@@ -1,4 +1,4 @@
-import { resolve } from 'node:path';
+import { join, resolve, sep } from 'node:path';
 import { globSync } from 'glob';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
@@ -190,7 +190,7 @@ export function parsePreloadFormatsOption<T extends GeneratedFontTypes = Generat
 
 export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>): string[] {
     files ||= ['*.svg'];
-    const resolvedFiles = globSync(files, { cwd: context })?.map(file => `${context}/${file}`) || [];
+    const resolvedFiles = globSync(files, { cwd: context })?.map(file => join(context, file)) || [];
     if (!resolvedFiles.length) {
         throw new NoIconsAvailableError('The specified file globs did not resolve any files in the context.');
     }
@@ -265,7 +265,7 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
                 },
             }),
         },
-        dest: options.dest.endsWith('/') ? options.dest : `${options.dest}/`,
+        dest: `${options.dest.replace(/[/\\]$/, '')}${sep}`,
         writeFiles: generateFilesOptions.fonts,
         cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css'),
         htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName, 'html'),

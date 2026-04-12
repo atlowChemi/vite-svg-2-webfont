@@ -57,15 +57,7 @@ const config: UserConfig = defineConfig({
         env: {
             builtin: true,
         },
-        ignorePatterns: [
-            'dist',
-            'node_modules',
-            'packages/vite-svg-2-webfont/src/fixtures',
-            'coverage',
-            'packages/example/src/webfont/icons.ts',
-            'packages/example/dist',
-            'packages/example/vite.config.ts',
-        ],
+        ignorePatterns: ['dist', 'node_modules', 'packages/vite-svg-2-webfont/src/fixtures', 'coverage', 'packages/example/src/webfont/icons.ts', 'packages/example/dist'],
     },
     staged: {
         '*': 'vp check --fix',
@@ -87,7 +79,7 @@ const config: UserConfig = defineConfig({
             fsModuleCache: true,
         },
         coverage: {
-            provider: 'istanbul',
+            provider: 'v8',
             exclude: ['packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**'],
         },
         projects: ['packages/vite-svg-2-webfont/vite.config.ts'],

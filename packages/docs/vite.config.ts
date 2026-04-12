@@ -1,10 +1,10 @@
-import { defineConfig } from 'vite-plus';
+import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 
-export default defineConfig({
+const config: UserProjectConfigExport = defineProject({
     run: {
         tasks: {
             'optimize-svg': {
-                command: './node_modules/.bin/svgo -r -f public',
+                command: 'svgo -r -f public',
             },
             'social-card': {
                 command: 'node ./scripts/generate-social-card.ts',
@@ -12,19 +12,21 @@ export default defineConfig({
             },
             dev: {
                 cache: false,
-                command: './node_modules/.bin/vitepress dev .',
+                command: 'vitepress dev .',
                 dependsOn: ['social-card'],
             },
             build: {
-                command: './node_modules/.bin/vitepress build .',
+                command: 'vitepress build .',
                 dependsOn: ['social-card'],
                 env: ['GITHUB_ACTIONS'],
             },
             preview: {
                 cache: false,
-                command: './node_modules/.bin/vitepress preview .',
+                command: 'vitepress preview .',
                 dependsOn: ['build'],
             },
         },
     },
 });
+
+export default config;
