@@ -2,10 +2,9 @@
 
 ## [6.1.2](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.1.1...vite-svg-2-webfont-v6.1.2) (2026-04-12)
 
-
 ### Bug Fixes
 
-* **ci:** auto-format release-please changelog on PR branch ([#89](https://github.com/atlowChemi/vite-svg-2-webfont/issues/89)) ([f94d10e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/f94d10eb25a27674ca162a94dd51c784b88498c8))
+- **ci:** auto-format release-please changelog on PR branch ([#89](https://github.com/atlowChemi/vite-svg-2-webfont/issues/89)) ([f94d10e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/f94d10eb25a27674ca162a94dd51c784b88498c8))
 
 ## [6.1.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.1.0...vite-svg-2-webfont-v6.1.1) (2026-04-12)
 
