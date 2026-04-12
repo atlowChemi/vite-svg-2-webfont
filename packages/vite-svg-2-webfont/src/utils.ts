@@ -4,10 +4,10 @@ import { constants, rm as fsRm, mkdtempSync } from 'node:fs';
 import { resolve, dirname, join as pathJoin } from 'node:path';
 import { watch, access, mkdir, writeFile } from 'node:fs/promises';
 import type { FileChangeInfo } from 'node:fs/promises';
-import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
+import type { FontType } from '@atlowchemi/webfont-generator';
 
 let watcher: ReturnType<typeof watch> | undefined;
-export const MIME_TYPES: Record<GeneratedFontTypes, string> = {
+export const MIME_TYPES: Record<FontType, string> = {
     eot: 'application/vnd.ms-fontobject',
     svg: 'image/svg+xml',
     ttf: 'application/x-font-ttf',

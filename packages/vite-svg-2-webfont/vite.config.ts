@@ -21,6 +21,7 @@ const config: UserProjectConfigExport = defineProject({
             },
             pack: {
                 command: 'vp pack',
+                dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             'pack:tgz': {
                 command: 'pnpm pack',

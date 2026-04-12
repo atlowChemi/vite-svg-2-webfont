@@ -2,13 +2,13 @@ import { join, resolve, sep } from 'node:path';
 import { globSync } from 'glob';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
-import type { WebfontsGeneratorOptions, GeneratedFontTypes, CSSTemplateContext } from '@vusion/webfonts-generator';
+import type { FontType, GenerateWebfontsInputOptions } from '@atlowchemi/webfont-generator';
 import type { IndexHtmlTransformContext } from 'vite';
 
 const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
 type FileType = (typeof FILE_TYPE_OPTIONS)[number];
 
-export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontTypes> {
+export interface IconPluginOptions<T extends FontType = FontType> {
     /** Context directory in which the SVG files will be read from */
     context: string;
     /**
@@ -72,7 +72,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     /**
      *
      */
-    cssContext?: (context: CSSTemplateContext, options: WebfontsGeneratorOptions<NoInfer<T>>, handlebars: typeof import('handlebars')) => void;
+    cssContext?: (context: Record<string, unknown>) => void;
     /**
      * Fonts path used in CSS file.
      * @default options.cssDest
@@ -166,7 +166,7 @@ export interface IconPluginOptions<T extends GeneratedFontTypes = GeneratedFontT
     allowWriteFilesInBuild?: boolean;
 }
 
-function parseGeneratedFontTypeOption<T extends GeneratedFontTypes = GeneratedFontTypes>(types?: T | T[]): T[] {
+function parseGeneratedFontTypeOption<T extends FontType = FontType>(types?: T | T[]): T[] {
     if (Array.isArray(types)) {
         return types;
     }
@@ -176,7 +176,7 @@ function parseGeneratedFontTypeOption<T extends GeneratedFontTypes = GeneratedFo
     return [];
 }
 
-export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
+export function parseIconTypesOption<T extends FontType = FontType>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
     const parsedTypes = parseGeneratedFontTypeOption(types);
     if (parsedTypes.length) {
         return parsedTypes;
@@ -184,7 +184,7 @@ export function parseIconTypesOption<T extends GeneratedFontTypes = GeneratedFon
     return ['eot', 'woff', 'woff2', 'ttf', 'svg'] as T[];
 }
 
-export function parsePreloadFormatsOption<T extends GeneratedFontTypes = GeneratedFontTypes>({ preloadFormats }: Pick<IconPluginOptions<T>, 'preloadFormats'>): T[] {
+export function parsePreloadFormatsOption<T extends FontType = FontType>({ preloadFormats }: Pick<IconPluginOptions<T>, 'preloadFormats'>): T[] {
     return parseGeneratedFontTypeOption(preloadFormats);
 }
 
@@ -230,15 +230,14 @@ export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'gener
     };
 }
 
-type RequiredKeys = 'fontHeight' | 'codepoints' | 'templateOptions' | 'html' | 'css' | 'ligature' | 'formatOptions' | 'writeFiles' | 'cssDest' | 'htmlDest';
-interface ParsedOptions<T extends GeneratedFontTypes = GeneratedFontTypes>
-    extends Omit<WebfontsGeneratorOptions<T>, RequiredKeys>, Pick<Required<WebfontsGeneratorOptions<GeneratedFontTypes>>, RequiredKeys> {}
+type RequiredKeys = 'fontHeight' | 'codepoints' | 'templateOptions' | 'html' | 'css' | 'ligature' | 'formatOptions' | 'writeFiles' | 'cssDest' | 'htmlDest' | 'types' | 'order';
+interface ParsedOptions<T extends FontType = FontType> extends Omit<GenerateWebfontsInputOptions<T>, RequiredKeys>, Required<Pick<GenerateWebfontsInputOptions<T>, RequiredKeys>> {}
 
-export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): ParsedOptions<T> {
+export function parseOptions<T extends FontType = FontType>(options: IconPluginOptions<T>): ParsedOptions<T> {
     const formats = parseIconTypesOption<T>(options);
     const files = parseFiles(options);
     const generateFilesOptions = parseGenerateFilesOption(options);
-    const formatOptions = options.formatOptions as NonNullable<WebfontsGeneratorOptions<T | 'svg'>['formatOptions']> | undefined;
+    const formatOptions = options.formatOptions as NonNullable<GenerateWebfontsInputOptions<T | 'svg'>['formatOptions']> | undefined;
     const svgFormatOptions = formatOptions?.svg;
     options.dest ||= resolve(options.context, '..', 'artifacts');
     options.fontName ||= 'iconfont';
@@ -278,5 +277,5 @@ export function parseOptions<T extends GeneratedFontTypes = GeneratedFontTypes>(
         ...(typeof options.normalize !== 'undefined' && { normalize: options.normalize }),
         ...(typeof options.round !== 'undefined' && { round: options.round }),
         ...(typeof options.descent !== 'undefined' && { descent: options.descent }),
-    } satisfies WebfontsGeneratorOptions<T>;
+    } satisfies GenerateWebfontsInputOptions<T>;
 }

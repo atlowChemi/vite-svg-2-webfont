@@ -1,6 +1,6 @@
-import type { GeneratedFontTypes } from '@vusion/webfonts-generator';
+import type { FontType } from '@atlowchemi/webfont-generator';
 
 export type GeneratedWebfont = {
-    type: GeneratedFontTypes;
+    type: FontType;
     href: string;
 };
