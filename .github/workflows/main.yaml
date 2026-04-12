@@ -11,11 +11,10 @@ permissions:
 
 jobs:
     ci:
-        name: run CI
+        name: lint and check
         runs-on: ubuntu-latest
         steps:
-            - name: checkout
-              uses: actions/checkout@v6
+            - uses: actions/checkout@v6
             - uses: voidzero-dev/setup-vp@v1
               with:
                   node-version-file: .node-version
@@ -50,18 +49,16 @@ jobs:
             fail-fast: false
         runs-on: ubuntu-latest
         steps:
-            - name: checkout
-              uses: actions/checkout@v6
+            - uses: actions/checkout@v6
             - uses: voidzero-dev/setup-vp@v1
               with:
                   node-version: ${{ matrix.node_version }}
                   run-install: false
                   cache: false
-            - name: select vite major
+            - name: Select vite major
               run: node ./scripts/ci/set-vite-major.js ${{ matrix.vite_major }}
-            - name: install dependencies
-              run: vp install --no-frozen-lockfile
-            - name: verify vite version
+            - run: vp install --no-frozen-lockfile
+            - name: Verify vite version
               run: |
                   VITE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('node_modules/vite/package.json', 'utf8')).version")
                   echo "Resolved vite version: ${VITE_VERSION}"
@@ -72,10 +69,10 @@ jobs:
                       exit 1
                       ;;
                   esac
-            - name: run coverage test
+            - name: Run coverage
               if: ${{ matrix.primary }}
               run: vp run coverage
-            - name: run test
+            - name: Run test
               if: ${{ !matrix.primary }}
               run: vp run test
             - uses: actions/upload-artifact@v7

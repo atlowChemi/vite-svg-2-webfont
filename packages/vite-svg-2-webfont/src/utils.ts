@@ -60,7 +60,7 @@ export function hasFileExtension(fileName?: string | null): boolean {
     return Boolean(fileExtensionRegex.exec(fileName || '')?.[1]);
 }
 
-export async function ensureDirExistsAndWriteFile(content: string | Buffer, dest: string): Promise<void> {
+export async function ensureDirExistsAndWriteFile(content: string | Uint8Array, dest: string): Promise<void> {
     const options = { mode: 0o777, recursive: true };
     await mkdir(dirname(dest), options);
     await writeFile(dest, content);

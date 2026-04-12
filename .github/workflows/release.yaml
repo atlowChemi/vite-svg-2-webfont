@@ -39,8 +39,10 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
+
             - name: Publish from tarball
               run: vp run vite-svg-2-webfont#publish
+
             - name: Upload release assets
               uses: softprops/action-gh-release@v2
               with:

@@ -1,3 +1,4 @@
+import { resolve, sep } from 'node:path';
 import * as optionParser from './optionParser';
 import type { globSync as GlobSyncFn } from 'glob';
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vite-plus/test';
@@ -72,7 +73,7 @@ describe('optionParser', () => {
             expect(globSyncMock).toHaveBeenCalledOnce();
             expect(globSyncMock).toHaveBeenCalledWith(['*.svg'], { cwd: context });
             expect(resp).toHaveLength(1);
-            expect(resp[0]).toBe(`${context}/${file}`);
+            expect(resp[0]).toBe(`${context}${sep}${file}`);
         });
 
         it('throws if no files found', () => {
@@ -91,24 +92,25 @@ describe('optionParser', () => {
     });
 
     describe.concurrent('resolveFileDest', () => {
-        const globalDest = '/global';
+        const globalDest = resolve('/global');
         const fontName = 'fontname';
         const extension = 'css';
         it.concurrent("doesn't concatenate fileDest if not set", () => {
-            expect(optionParser.resolveFileDest(globalDest, undefined, fontName, extension)).toBe(`${globalDest}/${fontName}.${extension}`);
+            expect(optionParser.resolveFileDest(globalDest, undefined, fontName, extension)).toBe(resolve(`${globalDest}/${fontName}.${extension}`));
         });
 
         it.concurrent("doesn't concatenate fontName if fileDest has a file extension", () => {
-            expect(optionParser.resolveFileDest(globalDest, `file.${extension}`, fontName, extension)).toBe(`${globalDest}/file.${extension}`);
+            expect(optionParser.resolveFileDest(globalDest, `file.${extension}`, fontName, extension)).toBe(resolve(`${globalDest}/file.${extension}`));
         });
 
         it.concurrent("concatenates fontName if fileDest doesn't have a file extension", () => {
-            expect(optionParser.resolveFileDest(globalDest, 'file', fontName, extension)).toBe(`${globalDest}/file/${fontName}.${extension}`);
+            expect(optionParser.resolveFileDest(globalDest, 'file', fontName, extension)).toBe(resolve(`${globalDest}/file/${fontName}.${extension}`));
         });
 
         it.concurrent("doesn't concatenate globalDest if fileDest is absolute", () => {
-            expect(optionParser.resolveFileDest(globalDest, '/file', fontName, extension)).toBe(`/file/${fontName}.${extension}`);
-            expect(optionParser.resolveFileDest(globalDest, `/file.${extension}`, fontName, extension)).toBe(`/file.${extension}`);
+            const absFile = resolve('/file');
+            expect(optionParser.resolveFileDest(globalDest, '/file', fontName, extension)).toBe(resolve(absFile, `${fontName}.${extension}`));
+            expect(optionParser.resolveFileDest(globalDest, `/file.${extension}`, fontName, extension)).toBe(resolve(`${absFile}.${extension}`));
         });
     });
 
@@ -276,17 +278,22 @@ describe('optionParser', () => {
             expect('preloadFormats' in res).toBe(false);
         });
 
-        it.concurrent('appends a / to dest', () => {
+        it.concurrent('appends a path separator to dest', () => {
             const res = optionParser.parseOptions({ context, dest: 'dest' });
-            expect(res.dest).toBe('dest/');
+            expect(res.dest).toBe(`dest${sep}`);
+        });
+
+        it.concurrent('normalizes trailing separator on dest to platform separator', () => {
+            expect(optionParser.parseOptions({ context, dest: 'dest/' }).dest).toBe(`dest${sep}`);
+            expect(optionParser.parseOptions({ context, dest: 'dest\\' }).dest).toBe(`dest${sep}`);
         });
 
         it.concurrent("defaults dest to context's parent artifacts' folder", () => {
             const parent = '/parent/';
             const resDefault = optionParser.parseOptions({ context: `${parent}exIcons` });
-            expect(resDefault.dest).toBe(`${parent}artifacts/`);
+            expect(resDefault.dest).toBe(`${resolve(parent, 'artifacts')}${sep}`);
             const resExplicit = optionParser.parseOptions({ context: `${parent}exIcons`, dest: parent });
-            expect(resExplicit.dest).toBe(parent);
+            expect(resExplicit.dest).toBe(`${resolve(parent)}${sep}`);
         });
 
         it.concurrent('defaults font name to icon font', () => {
@@ -392,33 +399,33 @@ describe('optionParser', () => {
         it.concurrent('sets cssDest with default', () => {
             const exampleContext = '/example';
             const resDefault = optionParser.parseOptions({ context: exampleContext });
-            expect(resDefault.cssDest).toBe('/artifacts/iconfont.css');
+            expect(resDefault.cssDest).toBe(resolve('/artifacts', 'iconfont.css'));
             const cssDest = '/cssDest';
             const resExplicit = optionParser.parseOptions({ context: exampleContext, cssDest });
-            expect(resExplicit.cssDest).toBe(`${cssDest}/iconfont.css`);
+            expect(resExplicit.cssDest).toBe(resolve(cssDest, 'iconfont.css'));
         });
 
         it.concurrent('sets htmlDest with default', () => {
             const exampleContext = '/example';
             const resDefault = optionParser.parseOptions({ context: exampleContext });
-            expect(resDefault.htmlDest).toBe('/artifacts/iconfont.html');
+            expect(resDefault.htmlDest).toBe(resolve('/artifacts', 'iconfont.html'));
             const htmlDest = '/htmlDest';
             const resExplicit = optionParser.parseOptions({ context: exampleContext, htmlDest });
-            expect(resExplicit.htmlDest).toBe(`${htmlDest}/iconfont.html`);
+            expect(resExplicit.htmlDest).toBe(resolve(htmlDest, 'iconfont.html'));
         });
 
         it.concurrent('concatenates dest to cssDest', () => {
             const dest = '/root';
             const cssDest = 'cssDest';
             const resExplicit = optionParser.parseOptions({ context, dest, cssDest });
-            expect(resExplicit.cssDest).toBe(`${dest}/${cssDest}/iconfont.css`);
+            expect(resExplicit.cssDest).toBe(resolve(dest, cssDest, 'iconfont.css'));
         });
 
         it.concurrent("doesn't concatenate fontName to cssDest, if cssDest is a fileName", () => {
             const dest = '/root';
             const cssDest = 'cssDest.css';
             const resExplicit = optionParser.parseOptions({ context, dest, cssDest });
-            expect(resExplicit.cssDest).toBe(`${dest}/${cssDest}`);
+            expect(resExplicit.cssDest).toBe(resolve(dest, cssDest));
         });
 
         it.concurrent('sets cssTemplate only if defined in options', () => {
@@ -440,7 +447,7 @@ describe('optionParser', () => {
             const dest = '/root';
             const cssTemplate = 'cssTemplate';
             const resExplicit = optionParser.parseOptions({ context, dest, cssTemplate });
-            expect(resExplicit.cssTemplate).toBe(`${dest}/${cssTemplate}`);
+            expect(resExplicit.cssTemplate).toBe(resolve(dest, cssTemplate));
         });
 
         it.concurrent('sets cssFontsUrl only if defined in options', () => {
@@ -448,14 +455,14 @@ describe('optionParser', () => {
             expect('cssFontsUrl' in resDefault).toEqual(false);
             const cssFontsUrl = '/cssFontsUrl';
             const resExplicit = optionParser.parseOptions({ context, cssFontsUrl });
-            expect(resExplicit.cssFontsUrl).toBe(cssFontsUrl);
+            expect(resExplicit.cssFontsUrl).toBe(resolve(cssFontsUrl));
         });
 
         it.concurrent('concatenates dest to cssFontsUrl', () => {
             const dest = '/root';
             const cssFontsUrl = 'cssFontsUrl';
             const resExplicit = optionParser.parseOptions({ context, dest, cssFontsUrl });
-            expect(resExplicit.cssFontsUrl).toBe(`${dest}/${cssFontsUrl}`);
+            expect(resExplicit.cssFontsUrl).toBe(resolve(dest, cssFontsUrl));
         });
 
         it.concurrent('sets htmlTemplate only if defined in options', () => {
@@ -463,28 +470,28 @@ describe('optionParser', () => {
             expect('htmlTemplate' in resDefault).toEqual(false);
             const htmlTemplate = '/htmlTemplate';
             const resExplicit = optionParser.parseOptions({ context, htmlTemplate });
-            expect(resExplicit.htmlTemplate).toBe(htmlTemplate);
+            expect(resExplicit.htmlTemplate).toBe(resolve(htmlTemplate));
         });
 
         it.concurrent('concatenates dest to htmlTemplate', () => {
             const dest = '/root';
             const htmlTemplate = 'htmlTemplate';
             const resExplicit = optionParser.parseOptions({ context, dest, htmlTemplate });
-            expect(resExplicit.htmlTemplate).toBe(`${dest}/${htmlTemplate}`);
+            expect(resExplicit.htmlTemplate).toBe(resolve(dest, htmlTemplate));
         });
 
         it.concurrent('concatenates dest to htmlDest', () => {
             const dest = '/root';
             const htmlDest = 'htmlDest';
             const resExplicit = optionParser.parseOptions({ context, dest, htmlDest });
-            expect(resExplicit.htmlDest).toBe(`${dest}/${htmlDest}/iconfont.html`);
+            expect(resExplicit.htmlDest).toBe(resolve(dest, htmlDest, 'iconfont.html'));
         });
 
         it.concurrent("doesn't concatenate fontName to htmlDest, if htmlDest is a fileName", () => {
             const dest = '/root';
             const htmlDest = 'htmlDest.ts';
             const resExplicit = optionParser.parseOptions({ context, dest, htmlDest });
-            expect(resExplicit.htmlDest).toBe(`${dest}/${htmlDest}`);
+            expect(resExplicit.htmlDest).toBe(resolve(dest, htmlDest));
         });
 
         it.concurrent('sets fixedWidth only if defined in options', () => {

@@ -1,6 +1,6 @@
-import { defineConfig, type UserConfigExport } from 'vite-plus';
+import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 
-const config: UserConfigExport = defineConfig({
+const config: UserProjectConfigExport = defineProject({
     pack: {
         format: ['esm', 'cjs'],
         minify: true,
@@ -44,10 +44,15 @@ const config: UserConfigExport = defineConfig({
         experimental: {
             fsModuleCache: true,
         },
-        coverage: {
-            provider: 'istanbul',
-            exclude: ['src/fixtures/**'],
-        },
+        projects: [
+            {
+                test: {
+                    name: 'vite-plugin',
+                    include: ['src/**/*.test.ts'],
+                    benchmark: { include: [] },
+                },
+            },
+        ],
     },
 });
 
