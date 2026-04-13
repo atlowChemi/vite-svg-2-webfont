@@ -15,12 +15,24 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@v6
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  components: clippy, rustfmt
+            - uses: actions/cache@v5
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      packages/webfont-generator/target
+                  key: cargo-${{ runner.os }}-${{ hashFiles('packages/webfont-generator/Cargo.lock') }}
+                  restore-keys: cargo-${{ runner.os }}-
             - uses: voidzero-dev/setup-vp@v1
               with:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
             - run: vp check
+            - run: vp run @atlowchemi/webfont-generator#test
 
     test:
         name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})

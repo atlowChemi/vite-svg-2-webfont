@@ -193,7 +193,7 @@ import { resolve as pathResolve } from 'node:path';
 viteSvgToWebfont({
     context: './src/icons',
     preloadFormats: ['woff2'], // [!code focus:2]
-    shouldProcessHtml: context => context.filename === pathResolve(__dirname, 'src', 'index.html'),
+    shouldProcessHtml: context => context.filename === pathResolve(import.meta.dirname, 'src', 'index.html'),
 });
 ```
 

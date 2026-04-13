@@ -18,7 +18,7 @@ The typical integration has three parts:
     export default defineConfig({
         plugins: [
             viteSvgToWebfont({
-                context: resolve(__dirname, 'icons'),
+                context: resolve(import.meta.dirname, 'icons'),
             }),
         ],
     });
