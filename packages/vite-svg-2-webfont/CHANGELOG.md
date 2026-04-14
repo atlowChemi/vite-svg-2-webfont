@@ -2,10 +2,9 @@
 
 ## [6.2.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.1.2...vite-svg-2-webfont-v6.2.0) (2026-04-14)
 
-
 ### Features
 
-* add @atlowchemi/webfont-generator native Rust NAPI package ([#92](https://github.com/atlowChemi/vite-svg-2-webfont/issues/92)) ([be8120c](https://github.com/atlowChemi/vite-svg-2-webfont/commit/be8120cd3c44820038c64dccf2ebbd10d8cdd816))
+- add @atlowchemi/webfont-generator native Rust NAPI package ([#92](https://github.com/atlowChemi/vite-svg-2-webfont/issues/92)) ([be8120c](https://github.com/atlowChemi/vite-svg-2-webfont/commit/be8120cd3c44820038c64dccf2ebbd10d8cdd816))
 
 ## [6.1.2](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.1.1...vite-svg-2-webfont-v6.1.2) (2026-04-12)
 
