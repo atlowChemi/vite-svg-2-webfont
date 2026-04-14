@@ -3,11 +3,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use super::{build_svg_font, prepare_svg_font, svg_options_from_options};
-use napi::sys::{napi_env, napi_ref, napi_status};
 
 use crate::{
-    finalize_generate_webfonts_options, resolve_generate_webfonts_options, FormatOptions,
-    GenerateWebfontsOptions, LoadedSvgFile, SvgFormatOptions,
+    FormatOptions, GenerateWebfontsOptions, LoadedSvgFile, SvgFormatOptions,
+    finalize_generate_webfonts_options, resolve_generate_webfonts_options,
 };
 
 #[derive(Clone, Copy)]
@@ -25,11 +24,16 @@ struct SvgParityCase {
     preserve_aspect_ratio: bool,
 }
 
+#[cfg(feature = "napi")]
+use napi::sys::{napi_env, napi_ref, napi_status};
+
+#[cfg(feature = "napi")]
 #[unsafe(no_mangle)]
 extern "C" fn napi_delete_reference(_: napi_env, _: napi_ref) -> napi_status {
     0
 }
 
+#[cfg(feature = "napi")]
 #[unsafe(no_mangle)]
 extern "C" fn napi_reference_unref(_: napi_env, _: napi_ref, result: *mut u32) -> napi_status {
     if !result.is_null() {
@@ -482,10 +486,12 @@ fn empty_svg_produces_glyph_with_empty_path_data() {
     let svg = generate_svg_font(GenerateWebfontsOptions {
         css: Some(false),
         dest: "artifacts".to_owned(),
-        files: vec![icons_root()
-            .join("emptyicons/empty.svg")
-            .to_string_lossy()
-            .into_owned()],
+        files: vec![
+            icons_root()
+                .join("emptyicons/empty.svg")
+                .to_string_lossy()
+                .into_owned(),
+        ],
         html: Some(false),
         font_name: Some("iconfont".to_owned()),
         ligature: Some(false),

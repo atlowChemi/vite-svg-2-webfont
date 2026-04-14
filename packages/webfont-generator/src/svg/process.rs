@@ -1,4 +1,4 @@
-use napi::{bindgen_prelude::Error, Status};
+use std::io::Error;
 use usvg::tiny_skia_path::Rect;
 
 use crate::svg::serialize::{append_path, optimize_path_data};
@@ -18,14 +18,10 @@ pub(crate) fn process_glyph(
     font_width: f64,
     descent: f64,
     optimize_output: bool,
-) -> napi::Result<ProcessedGlyph> {
+) -> Result<ProcessedGlyph, Error> {
     let ratio = if normalize {
         let base = glyph.width.max(glyph.height);
-        if base > 0.0 {
-            font_height / base
-        } else {
-            1.0
-        }
+        if base > 0.0 { font_height / base } else { 1.0 }
     } else if max_glyph_height > 0.0 {
         font_height / max_glyph_height
     } else {
@@ -45,12 +41,9 @@ pub(crate) fn process_glyph(
 
     let mut transformed_paths = Vec::with_capacity(glyph.paths.len());
     for path in glyph.paths {
-        let transformed = path.transform(glyph_path_transform).ok_or_else(|| {
-            Error::new(
-                Status::GenericFailure,
-                format!("Failed to transform glyph '{}'.", glyph.name),
-            )
-        })?;
+        let transformed = path
+            .transform(glyph_path_transform)
+            .ok_or_else(|| Error::other(format!("Failed to transform glyph '{}'.", glyph.name)))?;
         transformed_paths.push(transformed);
     }
     if fixed_width {
@@ -74,13 +67,10 @@ pub(crate) fn process_glyph(
                 .into_iter()
                 .map(|path| {
                     path.transform(translate).ok_or_else(|| {
-                        Error::new(
-                            Status::GenericFailure,
-                            format!("Failed to center glyph '{}'.", glyph.name),
-                        )
+                        Error::other(format!("Failed to center glyph '{}'.", glyph.name))
                     })
                 })
-                .collect::<napi::Result<Vec<_>>>()?;
+                .collect::<Result<Vec<_>, Error>>()?;
         }
     }
     let mut path_data = String::new();

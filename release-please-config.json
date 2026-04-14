@@ -7,7 +7,14 @@
         },
         "packages/webfont-generator": {
             "release-type": "node",
-            "component": "webfont-generator"
+            "component": "webfont-generator",
+            "extra-files": [
+                {
+                    "type": "toml",
+                    "path": "Cargo.toml",
+                    "jsonpath": "$.package.version"
+                }
+            ]
         }
     }
 }

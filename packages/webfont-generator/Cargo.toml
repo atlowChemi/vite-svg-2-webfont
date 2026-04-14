@@ -1,19 +1,35 @@
 [package]
 name = "webfont-generator"
 version = "0.1.0"
-edition = "2021"
-publish = false
+edition = "2024"
+license = "MIT"
+description = "Generate webfonts (SVG, TTF, EOT, WOFF, WOFF2) from SVG icons"
+repository = "https://github.com/atlowChemi/vite-svg-2-webfont"
+documentation = "https://docs.rs/webfont-generator"
+readme = "README.md"
+keywords = ["webfont", "svg", "icon-font", "woff", "opentype"]
+categories = ["command-line-utilities", "graphics", "web-programming"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[[bin]]
+name = "webfont-generator"
+required-features = ["cli"]
+
+[features]
+default = []
+napi = ["dep:napi", "dep:napi-derive"]
+cli = ["dep:clap"]
+
 [dependencies]
+clap = { version = "4", features = ["derive"], optional = true }
 flate2 = "1.1.5"
 handlebars = "6.3.2"
 kurbo = "0.13.0"
 md5 = "0.8.0"
-napi = { version = "3.8.4", default-features = false, features = ["napi4", "async", "serde-json-ordered"] }
-napi-derive = "3.5.3"
+napi = { version = "3.8.4", default-features = false, features = ["napi4", "async", "serde-json-ordered"], optional = true }
+napi-derive = { version = "3.5.3", optional = true }
 rayon = "1.11.0"
 roxmltree = "0.21.1"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -23,6 +39,9 @@ tokio = { version = "1", features = ["fs", "macros", "rt", "rt-multi-thread"] }
 woff = { version = "0.6.3" }
 usvg = "0.47.0"
 write-fonts = { version = "0.46.0", features = ["read"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [build-dependencies]
 napi-build = "2.3.1"

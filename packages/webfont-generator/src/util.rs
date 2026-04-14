@@ -4,12 +4,13 @@ use std::path::{Component, Path, PathBuf};
 
 use serde_json::Value;
 
-use napi::threadsafe_function::ThreadsafeFunction;
+#[cfg(feature = "napi")]
 use napi::{Error as NapiError, Status};
 
 use crate::types::LoadedSvgFile;
 
 /// Convert any displayable error into a NAPI GenericFailure error.
+#[cfg(feature = "napi")]
 #[inline]
 pub(crate) fn to_napi_err(error: impl std::fmt::Display) -> NapiError {
     NapiError::new(Status::GenericFailure, error.to_string())
@@ -93,7 +94,7 @@ pub(crate) fn path_to_slashes(path: PathBuf) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
-fn default_glyph_name_from_path(path: &str) -> Result<String, Error> {
+pub(crate) fn default_glyph_name_from_path(path: &str) -> Result<String, Error> {
     Path::new(path)
         .file_stem()
         .and_then(|stem| stem.to_str())
@@ -106,15 +107,14 @@ fn default_glyph_name_from_path(path: &str) -> Result<String, Error> {
         })
 }
 
-pub(crate) async fn glyph_name_from_path(
+/// Resolve a glyph name from a file path, optionally applying a rename function.
+pub(crate) fn glyph_name_from_path(
     path: &str,
-    rename: Option<&ThreadsafeFunction<String, String, String, Status, false>>,
-) -> napi::Result<String> {
-    if let Some(rename) = rename {
-        rename.call_async(path.to_owned()).await
-    } else {
-        default_glyph_name_from_path(path)
-            .map_err(|error| NapiError::new(Status::InvalidArg, error.to_string()))
+    rename: Option<&(dyn Fn(&str) -> String + Send + Sync)>,
+) -> Result<String, Error> {
+    match rename {
+        Some(rename) => Ok(rename(path)),
+        None => default_glyph_name_from_path(path),
     }
 }
 
@@ -151,9 +151,8 @@ mod tests {
     use std::collections::BTreeMap;
     use std::path::Path;
 
-    use super::{glyph_name_from_path, resolve_codepoints};
+    use super::{default_glyph_name_from_path, glyph_name_from_path, resolve_codepoints};
     use crate::types::LoadedSvgFile;
-    use napi::Status;
 
     fn loaded_svg_file(path: &str) -> LoadedSvgFile {
         LoadedSvgFile {
@@ -169,25 +168,21 @@ mod tests {
 
     #[test]
     fn derives_glyph_name_from_path() {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let glyph_name = runtime
-            .block_on(glyph_name_from_path("/tmp/icons/arrow-left.svg", None))
-            .unwrap();
+        let glyph_name = glyph_name_from_path("/tmp/icons/arrow-left.svg", None).unwrap();
 
         assert_eq!(glyph_name, "arrow-left");
     }
 
     #[test]
     fn errors_when_glyph_name_cannot_be_derived() {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        let error = runtime
-            .block_on(glyph_name_from_path("/tmp/icons/..", None))
-            .unwrap_err();
+        let error = default_glyph_name_from_path("/tmp/icons/..").unwrap_err();
 
-        assert_eq!(error.status, Status::InvalidArg);
-        assert!(error
-            .to_string()
-            .contains("Unable to derive glyph name from '/tmp/icons/..'."));
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(
+            error
+                .to_string()
+                .contains("Unable to derive glyph name from '/tmp/icons/..'.")
+        );
     }
 
     #[test]

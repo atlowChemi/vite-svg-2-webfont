@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::types::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
-use crate::{resolve_generate_webfonts_options, GenerateWebfontsOptions};
+use crate::{GenerateWebfontsOptions, resolve_generate_webfonts_options};
 
 pub fn resolve_options(options: GenerateWebfontsOptions) -> ResolvedGenerateWebfontsOptions {
     resolve_generate_webfonts_options(options)

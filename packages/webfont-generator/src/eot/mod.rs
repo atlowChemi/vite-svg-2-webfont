@@ -241,8 +241,8 @@ fn write_u32_le(data: &mut [u8], offset: usize, value: u32) -> Result<(), Error>
 
 #[cfg(test)]
 mod tests {
-    use super::{ttf_to_eot, EOT_VERSION};
-    use crate::{ttf::generate_ttf_font_bytes, GenerateWebfontsOptions};
+    use super::{EOT_VERSION, ttf_to_eot};
+    use crate::{GenerateWebfontsOptions, ttf::generate_ttf_font_bytes};
 
     #[test]
     fn generates_an_eot_buffer_with_expected_header() {
