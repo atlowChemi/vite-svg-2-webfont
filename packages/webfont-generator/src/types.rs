@@ -713,4 +713,91 @@ mod tests {
         assert!(result_a.contains("/a.svg"));
         assert!(result_b.contains("/b.svg"));
     }
+
+    /// Build a result with multiple font types (svg + woff2) for testing partial URL overrides.
+    fn build_multi_type_result() -> GenerateWebfontsResult {
+        let fixture = crate::test_helpers::webfont_fixture("add.svg");
+        let options = GenerateWebfontsOptions {
+            css: Some(true),
+            codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
+            dest: "artifacts".to_owned(),
+            files: vec![fixture],
+            html: Some(true),
+            font_name: Some("iconfont".to_owned()),
+            ligature: Some(false),
+            order: Some(vec![FontType::Woff2, FontType::Svg]),
+            start_codepoint: Some(0xE001),
+            types: Some(vec![FontType::Svg, FontType::Woff2]),
+            ..Default::default()
+        };
+
+        let mut resolved = resolve_generate_webfonts_options(options).unwrap();
+        let source_files: Vec<LoadedSvgFile> = resolved
+            .files
+            .iter()
+            .map(|path| LoadedSvgFile {
+                contents: std::fs::read_to_string(path).unwrap(),
+                glyph_name: std::path::Path::new(path)
+                    .file_stem()
+                    .unwrap()
+                    .to_str()
+                    .unwrap()
+                    .to_owned(),
+                path: path.clone(),
+            })
+            .collect();
+        finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+
+        GenerateWebfontsResult {
+            cached: std::sync::OnceLock::new(),
+            css_context: None,
+            eot_font: None,
+            html_context: None,
+            options: resolved,
+            source_files,
+            svg_font: None,
+            ttf_font: None,
+            woff2_font: None,
+            woff_font: None,
+        }
+    }
+
+    #[test]
+    fn generate_css_partial_urls_uses_empty_string_for_missing_types() {
+        let result = build_multi_type_result();
+        // Override only woff2, leave svg un-provided — matches upstream behavior
+        let urls = HashMap::from([("woff2".to_owned(), "/cdn/font.woff2".to_owned())]);
+
+        let css = result.generate_css(Some(urls)).unwrap();
+
+        assert!(
+            css.contains("/cdn/font.woff2"),
+            "overridden URL should appear"
+        );
+        assert!(
+            !css.contains("iconfont.svg?"),
+            "non-overridden type should not have default hash-based URL"
+        );
+        assert!(
+            css.contains("url(\"#iconfont\")"),
+            "non-overridden SVG type should produce empty base URL (upstream compat)"
+        );
+    }
+
+    #[test]
+    fn generate_html_partial_urls_uses_empty_string_for_missing_types() {
+        let result = build_multi_type_result();
+        let urls = HashMap::from([("woff2".to_owned(), "/cdn/font.woff2".to_owned())]);
+
+        let html = result.generate_html(Some(urls)).unwrap();
+
+        assert!(
+            html.contains("/cdn/font.woff2"),
+            "overridden URL should appear in HTML"
+        );
+        assert!(
+            !html.contains("iconfont.svg?"),
+            "non-overridden type should not have default hash-based URL in HTML"
+        );
+    }
 }

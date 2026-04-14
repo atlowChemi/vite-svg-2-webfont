@@ -247,6 +247,30 @@ fn render_default_css_inner(ctx: &Map<String, Value>, font_name: &str, src: &str
     result
 }
 
+/// Check whether a Handlebars template source contains `{{name}}` or `{{{name}}}` as an
+/// exact variable reference (with optional whitespace). Does not match block helpers,
+/// conditionals, or sub-expressions — only bare mustache names.
+fn template_contains_exact_mustache_name(source: &str, name: &str) -> bool {
+    let mut s = source;
+    loop {
+        let Some(open) = s.find("{{") else {
+            return false;
+        };
+        s = &s[open + 2..];
+        let (inner_start, close_pat) = match s.strip_prefix('{') {
+            Some(rest) => (rest, "}}}"),
+            None => (s, "}}"),
+        };
+        let Some(close) = inner_start.find(close_pat) else {
+            return false;
+        };
+        if inner_start[..close].trim() == name {
+            return true;
+        }
+        s = &inner_start[close + close_pat.len()..];
+    }
+}
+
 /// Pre-computed values shared between CSS and HTML context building.
 /// Avoids recomputing the hash, codepoints map, template options, and reading
 /// the CSS template file multiple times. The CSS template source is read eagerly
@@ -272,10 +296,12 @@ impl SharedTemplateData {
             Some(path) => Some(fs::read_to_string(path)?),
             None => None,
         };
-        // Default template always uses src. Custom templates: check for `{{src}}` or `{{{src}}}`.
+        // Default template always uses src. Custom templates: scan for any
+        // Handlebars expression referencing `src` (handles whitespace variants
+        // like `{{ src }}`, `{{{ src }}}`, etc.).
         let css_template_uses_src = match &css_template_source {
             None => true,
-            Some(source) => source.contains("{{src}}") || source.contains("{{{src}}}"),
+            Some(source) => template_contains_exact_mustache_name(source, "src"),
         };
         let (codepoints_hex, codepoints_num) = make_codepoints(options);
         Ok(Self {
@@ -546,7 +572,7 @@ impl<'a> From<&'a crate::types::WoffFormatOptions> for HashableWoffFormatOptions
 mod tests {
     use super::{
         build_css_context, calc_hash, make_ctx, make_src, make_urls, render_css_with_context,
-        SharedTemplateData,
+        template_contains_exact_mustache_name, SharedTemplateData,
     };
     use crate::{
         FontType, FormatOptions, GenerateWebfontsOptions, LoadedSvgFile,
@@ -1245,5 +1271,99 @@ mod tests {
             shared.is_ok(),
             "init should succeed even with invalid template content"
         );
+    }
+
+    // --- template_contains_exact_mustache_name ---
+
+    #[test]
+    fn mustache_match_double_no_whitespace() {
+        assert!(template_contains_exact_mustache_name("{{src}}", "src"));
+    }
+
+    #[test]
+    fn mustache_match_triple_no_whitespace() {
+        assert!(template_contains_exact_mustache_name("{{{src}}}", "src"));
+    }
+
+    #[test]
+    fn mustache_match_double_leading_space() {
+        assert!(template_contains_exact_mustache_name("{{ src}}", "src"));
+    }
+
+    #[test]
+    fn mustache_match_double_trailing_space() {
+        assert!(template_contains_exact_mustache_name("{{src }}", "src"));
+    }
+
+    #[test]
+    fn mustache_match_double_both_spaces() {
+        assert!(template_contains_exact_mustache_name("{{ src }}", "src"));
+    }
+
+    #[test]
+    fn mustache_match_triple_leading_space() {
+        assert!(template_contains_exact_mustache_name("{{{ src}}}", "src"));
+    }
+
+    #[test]
+    fn mustache_match_triple_trailing_space() {
+        assert!(template_contains_exact_mustache_name("{{{src }}}", "src"));
+    }
+
+    #[test]
+    fn mustache_match_triple_both_spaces() {
+        assert!(template_contains_exact_mustache_name("{{{ src }}}", "src"));
+    }
+
+    #[test]
+    fn mustache_match_with_surrounding_text() {
+        assert!(template_contains_exact_mustache_name(
+            "@font-face { src: {{ src }}; }",
+            "src"
+        ));
+    }
+
+    #[test]
+    fn mustache_match_with_tabs() {
+        assert!(template_contains_exact_mustache_name("{{\tsrc\t}}", "src"));
+    }
+
+    #[test]
+    fn mustache_no_match_different_name() {
+        assert!(!template_contains_exact_mustache_name(
+            "{{fontName}}",
+            "src"
+        ));
+    }
+
+    #[test]
+    fn mustache_no_match_prefix() {
+        assert!(!template_contains_exact_mustache_name("{{srcUrl}}", "src"));
+    }
+
+    #[test]
+    fn mustache_no_match_block_helper() {
+        assert!(!template_contains_exact_mustache_name("{{#if src}}", "src"));
+    }
+
+    #[test]
+    fn mustache_no_match_empty_source() {
+        assert!(!template_contains_exact_mustache_name("", "src"));
+    }
+
+    #[test]
+    fn mustache_no_match_no_braces() {
+        assert!(!template_contains_exact_mustache_name(
+            "plain text src",
+            "src"
+        ));
+    }
+
+    #[test]
+    fn mustache_match_multiple_expressions_second_matches() {
+        assert!(template_contains_exact_mustache_name(
+            "{{fontName}} {{ src }}",
+            "src"
+        ));
     }
 }
