@@ -68,4 +68,5 @@ All commit messages must follow the [Conventional Commits](https://www.conventio
 - [ ] Run `vp install` after pulling remote changes and before getting started.
 - [ ] Run `vp check` and `vp run test` to validate changes.
 - [ ] Run `vp run @atlowchemi/vite-svg-webfont-docs#build` when changing the docs site, docs config, or docs deployment workflow.
+- [ ] After adding/removing/modifying SVG icons in `packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`, run `vp run vite-svg-2-webfont#test:fixtures:refresh` to regenerate expected font fixtures.
 - [ ] Use conventional commit messages.

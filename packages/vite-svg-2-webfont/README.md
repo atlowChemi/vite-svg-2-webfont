@@ -40,7 +40,7 @@ import viteSvgToWebfont from 'vite-svg-2-webfont';
 export default defineConfig({
     plugins: [
         viteSvgToWebfont({
-            context: resolve(__dirname, 'icons'),
+            context: resolve(import.meta.dirname, 'icons'),
         }),
     ],
 });

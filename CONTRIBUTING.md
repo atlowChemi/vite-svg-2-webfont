@@ -24,40 +24,22 @@ vp install
 Run these from the repository root:
 
 ```bash
-vp run vite-svg-2-webfont#pack
-vp check
-vp lint
-vp fmt
-vp run vite-svg-2-webfont#test
-vp run vite-svg-2-webfont#coverage
-vp run @atlowchemi/vite-svg-webfont-docs#dev
-vp run @atlowchemi/vite-svg-webfont-docs#build
-vp run @atlowchemi/vite-svg-webfont-docs#preview
+vp check                                         # format, lint, TypeScript checks
+vp run test                                      # run all tests
+vp run coverage                                  # run tests with coverage
+vp run vite-svg-2-webfont#pack                   # build the Vite plugin
+vp run @atlowchemi/webfont-generator#build       # build the native addon
+vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
+vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
+vp run example#dev                               # run example app
 ```
 
-Run the example app:
+### Regenerating test fixtures
+
+After adding, removing, or modifying SVG icons in the plugin's fixture directory (`packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`), regenerate the expected font fixtures:
 
 ```bash
-vp run example#dev
-```
-
-Build the example app:
-
-```bash
-vp run example#build
-```
-
-Preview the example production build:
-
-```bash
-vp run example#preview
-```
-
-Build or preview the documentation site:
-
-```bash
-vp run @atlowchemi/vite-svg-webfont-docs#build
-vp run @atlowchemi/vite-svg-webfont-docs#preview
+vp run vite-svg-2-webfont#test:fixtures:refresh
 ```
 
 ## Tools
@@ -70,7 +52,10 @@ vp run @atlowchemi/vite-svg-webfont-docs#preview
 
 ## Project Structure
 
-- `packages/vite-svg-2-webfont/`: plugin source code and tests
+This is a monorepo with the following packages under `packages/`:
+
+- `packages/vite-svg-2-webfont/`: the Vite plugin — source code, tests, and build config
+- `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — Rust NAPI native addon
 - `packages/example/`: Vite app used for local development and manual verification
 - `packages/docs/`: VitePress documentation site, published to GitHub Pages
 
