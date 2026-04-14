@@ -116,4 +116,4 @@ In practice, assume formatting, linting, and unit tests are part of the validati
 - Keep lockfile changes in `pnpm-lock.yaml` when dependencies change.
 - Do not commit `package-lock.json` files to the workspace.
 - Use `vp` instead of calling `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly for normal repository workflows.
-- The docs site is driven by Vite+ run tasks, so prefer `vp run @atlowchemi/vite-svg-webfont-docs#dev`, `vp run @atlowchemi/vite-svg-webfont-docs#build`, and `vp run @atlowchemi/vite-svg-webfont-docs#preview` over direct `vitepress` commands.
+- The docs site is driven by Vite+ run tasks in `packages/docs/`, so prefer `vp run @atlowchemi/vite-svg-webfont-docs#dev` over direct `vitepress` commands.

@@ -19,6 +19,8 @@ jobs:
         outputs:
             plugin-released: ${{ steps.release.outputs['packages/vite-svg-2-webfont--release_created'] }}
             plugin-tag: ${{ steps.release.outputs['packages/vite-svg-2-webfont--tag_name'] }}
+            native-released: ${{ steps.release.outputs['packages/webfont-generator--release_created'] }}
+            native-tag: ${{ steps.release.outputs['packages/webfont-generator--tag_name'] }}
             any-released: ${{ steps.release.outputs.releases_created }}
         steps:
             - uses: googleapis/release-please-action@v4
@@ -53,9 +55,52 @@ jobs:
                     git push
                   fi
 
+    build-native:
+        name: Build native binaries
+        needs: [release-please]
+        if: needs.release-please.outputs.any-released == 'true'
+        uses: ./.github/workflows/build-native.yaml
+
+    publish-native:
+        name: Publish @atlowchemi/webfont-generator
+        needs: [release-please, build-native]
+        if: needs.release-please.outputs.native-released == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: voidzero-dev/setup-vp@v1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+
+            - name: Download all binding artifacts
+              uses: actions/download-artifact@v8
+              with:
+                  path: packages/webfont-generator/artifacts
+                  pattern: bindings-*
+
+            - name: Create npm dirs
+              run: vp exec napi create-npm-dirs --cwd packages/webfont-generator
+            - name: Move artifacts
+              run: vp exec napi artifacts --cwd packages/webfont-generator
+            - name: List packages
+              run: ls -R ./packages/webfont-generator/npm
+              shell: bash
+
+            - name: Publish
+              run: pnpm publish --filter @atlowchemi/webfont-generator --access public --provenance
+
+            - name: Upload to native release
+              if: needs.release-please.outputs.native-released == 'true'
+              uses: softprops/action-gh-release@v2
+              with:
+                  tag_name: ${{ needs.release-please.outputs.native-tag }}
+                  files: packages/webfont-generator/**/*.node
+
     publish-plugin:
         name: Publish vite-svg-2-webfont
-        needs: [release-please]
+        needs: [release-please, build-native]
         if: needs.release-please.outputs.plugin-released == 'true'
         runs-on: ubuntu-latest
         steps:
