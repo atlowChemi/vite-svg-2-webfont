@@ -1,0 +1,137 @@
+name: Build Native Binaries
+
+on:
+    workflow_call:
+    workflow_dispatch:
+
+env:
+    DEBUG: 'napi:*'
+    MACOSX_DEPLOYMENT_TARGET: '10.13'
+    FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+    contents: read
+
+jobs:
+    build:
+        name: Build ${{ matrix.target }}
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                target:
+                    - x86_64-unknown-linux-gnu
+                    - aarch64-unknown-linux-gnu
+                    - x86_64-unknown-linux-musl
+                    - aarch64-unknown-linux-musl
+                    - armv7-unknown-linux-gnueabihf
+                    - x86_64-apple-darwin
+                    - aarch64-apple-darwin
+                    - x86_64-pc-windows-msvc
+                    - aarch64-pc-windows-msvc
+        steps:
+            - uses: actions/checkout@v6
+
+            - name: Cache cargo registry
+              uses: actions/cache@v5
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                  key: cargo-${{ runner.os }}-${{ hashFiles('packages/webfont-generator/Cargo.lock') }}
+                  restore-keys: cargo-${{ runner.os }}-
+            - name: Cache build artifacts
+              uses: actions/cache@v5
+              with:
+                  path: |
+                      ./packages/webfont-generator/target
+                      ~/.napi-rs
+                  key: cargo-build-${{ matrix.target }}-${{ hashFiles('packages/webfont-generator/Cargo.lock') }}
+                  restore-keys: cargo-build-${{ matrix.target }}-
+
+            - name: Restore xwin SDK/CRT cache
+              id: xwin-cache-restore
+              if: contains(matrix.target, 'windows-msvc')
+              uses: actions/cache/restore@v5
+              with:
+                  path: ${{ github.workspace }}/.xwin
+                  key: xwin-${{ runner.os }}-windows-msvc-v1
+                  restore-keys: |
+                      xwin-${{ runner.os }}-windows-msvc-
+                      xwin-${{ runner.os }}-
+
+            - uses: dtolnay/rust-toolchain@stable
+              with:
+                  targets: ${{ matrix.target }}
+
+            - uses: voidzero-dev/setup-vp@v1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+
+            - name: Install ziglang
+              if: matrix.target != 'x86_64-unknown-linux-gnu' && !contains(matrix.target, 'windows-msvc')
+              uses: mlugg/setup-zig@v2
+              with:
+                  version: 0.14.1
+
+            - name: Install cargo-zigbuild
+              if: matrix.target != 'x86_64-unknown-linux-gnu' && !contains(matrix.target, 'windows-msvc')
+              uses: taiki-e/install-action@v2
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              with:
+                  tool: cargo-zigbuild
+
+            - name: Install LLVM 20 tools (MSVC targets)
+              if: contains(matrix.target, 'windows-msvc')
+              run: |
+                  wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+                  echo "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs)-20 main" | sudo tee /etc/apt/sources.list.d/llvm-20.list
+                  sudo apt-get update && sudo apt-get install -y llvm-20 clang-20 lld-20
+                  sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-20 100
+                  sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-20 100
+                  sudo update-alternatives --install /usr/bin/clang-cl clang-cl /usr/bin/clang-cl-20 100
+                  sudo update-alternatives --install /usr/bin/llvm-lib llvm-lib /usr/bin/llvm-lib-20 100
+                  sudo update-alternatives --install /usr/bin/lld-link lld-link /usr/bin/lld-link-20 100
+
+            - name: Install cargo-xwin
+              if: contains(matrix.target, 'windows-msvc')
+              uses: taiki-e/install-action@v2
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              with:
+                  tool: cargo-xwin
+
+            - name: Pre-download xwin artifacts
+              if: contains(matrix.target, 'windows-msvc')
+              run: cargo xwin cache xwin
+              env:
+                  XWIN_CACHE_DIR: ${{ github.workspace }}/.xwin
+
+            - name: Save xwin SDK/CRT cache
+              if: contains(matrix.target, 'windows-msvc') && success() && steps.xwin-cache-restore.outputs.cache-hit != 'true'
+              uses: actions/cache/save@v5
+              with:
+                  path: ${{ github.workspace }}/.xwin
+                  key: xwin-${{ runner.os }}-windows-msvc-v1
+
+            - name: Build native module
+              working-directory: packages/webfont-generator
+              run: >
+                  npx napi build --release --platform --esm --js binding.js --dts binding.d.ts
+                  ${{ matrix.target != 'x86_64-unknown-linux-gnu' && format('--target {0} -x', matrix.target) || '' }}
+                  -- --locked
+              env:
+                  XWIN_CACHE_DIR: ${{ github.workspace }}/.xwin
+                  CFLAGS_x86_64_apple_darwin: -mmacosx-version-min=10.13
+                  CXXFLAGS_x86_64_apple_darwin: -mmacosx-version-min=10.13
+                  CFLAGS_aarch64_apple_darwin: -mmacosx-version-min=11.0
+                  CXXFLAGS_aarch64_apple_darwin: -mmacosx-version-min=11.0
+
+            - uses: actions/upload-artifact@v7
+              with:
+                  name: bindings-${{ matrix.target }}
+                  path: packages/webfont-generator/*.node
+                  if-no-files-found: error
