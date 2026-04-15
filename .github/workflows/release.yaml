@@ -94,7 +94,7 @@ jobs:
               shell: bash
 
             - name: Publish
-              run: vp pm publish --filter @atlowchemi/webfont-generator --access public --provenance
+              run: vp pm publish --filter @atlowchemi/webfont-generator
 
             - name: Upload to native release
               if: needs.release-please.outputs.native-released == 'true'
