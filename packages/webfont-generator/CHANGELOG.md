@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.0...webfont-generator-v0.2.1) (2026-04-15)
+
+### Bug Fixes
+
+- **ci:** sync Cargo.lock on release PR ([#100](https://github.com/atlowChemi/vite-svg-2-webfont/issues/100)) ([17af687](https://github.com/atlowChemi/vite-svg-2-webfont/commit/17af687ee37743a0610580ddebf0dd4940e26033))
+
 ## [0.2.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.1.0...webfont-generator-v0.2.0) (2026-04-15)
 
 ### Features
