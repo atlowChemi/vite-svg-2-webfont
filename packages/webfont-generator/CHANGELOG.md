@@ -2,10 +2,9 @@
 
 ## [0.2.2](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.1...webfont-generator-v0.2.2) (2026-04-15)
 
-
 ### Bug Fixes
 
-* **webfont-generator:** fix npm release ([#101](https://github.com/atlowChemi/vite-svg-2-webfont/issues/101)) ([01684c1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/01684c18c0b23c1a5bafa17ec743f792d96b6552))
+- **webfont-generator:** fix npm release ([#101](https://github.com/atlowChemi/vite-svg-2-webfont/issues/101)) ([01684c1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/01684c18c0b23c1a5bafa17ec743f792d96b6552))
 
 ## [0.2.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.0...webfont-generator-v0.2.1) (2026-04-15)
 
