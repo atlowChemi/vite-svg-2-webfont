@@ -57,13 +57,17 @@ pub(crate) fn build_svg_font(options: &SvgOptions, prepared: &PreparedSvgFont) -
                 _ = write!(
                     svg_font,
                     "    <glyph glyph-name=\"{}\"\n      unicode=\"{unicode}\"\n      horiz-adv-x=\"{}\" d=\"{}\" />\n",
-                    escape_xml(&glyph.name), glyph.width, escape_xml(&glyph.path_data),
+                    escape_xml(&glyph.name),
+                    glyph.width,
+                    escape_xml(&glyph.path_data),
                 );
             } else {
                 _ = write!(
                     svg_font,
                     "    <glyph glyph-name=\"{}-{index}\"\n      unicode=\"{unicode}\"\n      horiz-adv-x=\"{}\" d=\"{}\" />\n",
-                    escape_xml(&glyph.name), glyph.width, escape_xml(&glyph.path_data),
+                    escape_xml(&glyph.name),
+                    glyph.width,
+                    escape_xml(&glyph.path_data),
                 );
             }
         }
@@ -136,7 +140,7 @@ fn round_to_string(value: f64, round: f64) -> String {
 }
 
 pub(crate) fn optimize_path_data(path_data: &str) -> String {
-    use oxvg_path::{convert::run as optimize_path, parser::Parse as _, Path};
+    use oxvg_path::{Path, convert::run as optimize_path, parser::Parse as _};
 
     let mut path = match Path::parse_string(path_data) {
         Ok(p) => p,

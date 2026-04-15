@@ -98,6 +98,20 @@ jobs:
                   tag_name: ${{ needs.release-please.outputs.native-tag }}
                   files: packages/webfont-generator/**/*.node
 
+    publish-crate:
+        name: Publish to crates.io
+        needs: [release-please]
+        if: needs.release-please.outputs.native-released == 'true'
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v6
+            - uses: dtolnay/rust-toolchain@stable
+            - name: Publish to crates.io
+              working-directory: packages/webfont-generator
+              run: cargo publish
+              env:
+                  CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
     publish-plugin:
         name: Publish vite-svg-2-webfont
         needs: [release-please, build-native]

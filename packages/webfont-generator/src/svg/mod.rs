@@ -88,7 +88,7 @@ pub(crate) fn prepare_svg_font(
     let mut glyphs = work_items
         .par_iter()
         .map(|item| parse_svg_glyph(item, preserve_aspect_ratio))
-        .collect::<napi::Result<Vec<_>>>()
+        .collect::<Result<Vec<_>, Error>>()
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
     glyphs.sort_by_key(|glyph| glyph.index);
 
@@ -143,7 +143,7 @@ pub(crate) fn prepare_svg_font(
                 optimize_output,
             )
         })
-        .collect::<napi::Result<Vec<_>>>()
+        .collect::<Result<Vec<_>, Error>>()
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
     processed_glyphs.sort_by_key(|glyph| glyph.index);
 

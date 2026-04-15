@@ -4,7 +4,7 @@ use std::io::Error;
 use std::path::Path;
 
 use crate::templates::css::{
-    build_css_context_with_fonts_url, render_css_with_context, SharedTemplateData,
+    SharedTemplateData, build_css_context_with_fonts_url, render_css_with_context,
 };
 use crate::types::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
 use crate::util::to_io_err;
@@ -101,7 +101,10 @@ fn render_default_html_inner(ctx: &Map<String, Value>, styles: &str) -> String {
     let name_count = names.map_or(0, |n| n.len());
     let mut result = String::with_capacity(512 + name_count * 120);
 
-    _ = write!(result, "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n\t<meta charset=\"UTF-8\">\n\t<title>{font_name}</title>\n\t<style>\n");
+    _ = write!(
+        result,
+        "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n\t<meta charset=\"UTF-8\">\n\t<title>{font_name}</title>\n\t<style>\n"
+    );
     result.push_str("\t\tbody {\n\t\t\tfont-family: sans-serif;\n\t\t\tmargin: 0;\n\t\t\tpadding: 10px 20px;\n\t\t}\n\n");
     result.push_str("\t\t.preview {\n\t\t\tline-height: 2em;\n\t\t}\n\n");
     result.push_str("\t\t.preview__icon {\n\t\t\tdisplay: inline-block;\n\t\t\twidth: 32px;\n\t\t\ttext-align: center;\n\t\t}\n\n");
@@ -116,7 +119,10 @@ fn render_default_html_inner(ctx: &Map<String, Value>, styles: &str) -> String {
     if let Some(names) = names {
         for name_value in names {
             let name = name_value.as_str().unwrap_or("");
-            _ = write!(result, "\t<div class=\"preview\">\n\t\t<span class=\"preview__icon\">\n\t\t\t<span class=\"{base_class} {class_prefix}{name}\"></span>\n\t\t</span>\n\t\t<span>{name}</span>\n\t</div>\n");
+            _ = write!(
+                result,
+                "\t<div class=\"preview\">\n\t\t<span class=\"preview__icon\">\n\t\t\t<span class=\"{base_class} {class_prefix}{name}\"></span>\n\t\t</span>\n\t\t<span>{name}</span>\n\t</div>\n"
+            );
         }
     }
 

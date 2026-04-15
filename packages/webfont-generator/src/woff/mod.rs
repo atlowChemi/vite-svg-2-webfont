@@ -1,7 +1,7 @@
 use std::io::{Error, ErrorKind, Write};
 
-use flate2::write::ZlibEncoder;
 use flate2::Compression;
+use flate2::write::ZlibEncoder;
 
 const WOFF_HEADER_SIZE: usize = 44;
 const META_OFFSET_POS: usize = 24;

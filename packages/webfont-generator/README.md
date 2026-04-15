@@ -12,7 +12,7 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
 
-## Installation
+## Node.js (npm)
 
 ```bash
 npm install @atlowchemi/webfont-generator
@@ -27,8 +27,6 @@ Pre-built binaries are published for the following targets:
 | Linux (musl)   | x64, arm64        |
 | Windows (MSVC) | x64, arm64        |
 
-## Usage
-
 ```js
 import { generateWebfonts } from '@atlowchemi/webfont-generator';
 
@@ -41,6 +39,87 @@ const result = await generateWebfonts({
 
 const css = result.generateCss();
 const html = result.generateHtml();
+```
+
+## Rust library (crates.io)
+
+```bash
+cargo add webfont-generator
+```
+
+```rust
+use webfont_generator::{GenerateWebfontsOptions, FontType};
+
+let result = webfont_generator::generate_sync(
+    GenerateWebfontsOptions {
+        dest: "dist/fonts".to_owned(),
+        files: vec!["icons/home.svg".to_owned(), "icons/search.svg".to_owned()],
+        font_name: Some("my-icons".to_owned()),
+        types: Some(vec![FontType::Woff2, FontType::Woff]),
+        ..Default::default()
+    },
+    None,
+).unwrap();
+
+let css = result.generate_css_pure(None).unwrap();
+```
+
+An async API (`webfont_generator::generate`) is also available for use with tokio.
+
+## CLI
+
+The CLI is available as an opt-in feature (to avoid pulling in `clap` for library users):
+
+```bash
+cargo install webfont-generator --features cli
+```
+
+### Usage
+
+```
+webfont-generator [OPTIONS] --dest <DEST> <FILES>...
+```
+
+### Examples
+
+```bash
+# Generate default formats (eot, woff, woff2) from a directory of SVGs
+webfont-generator --dest ./dist/fonts ./icons/
+
+# Generate specific formats with a custom font name
+webfont-generator --dest ./dist/fonts --types woff2,woff --font-name my-icons ./icons/
+
+# Generate fonts with an HTML preview page
+webfont-generator --dest ./dist/fonts --html ./icons/*.svg
+```
+
+### Options
+
+```
+Arguments:
+  <FILES>...  SVG files or directories containing SVG files
+
+Options:
+  -d, --dest <DEST>                        Output directory
+  -n, --font-name <FONT_NAME>              Font name [default: iconfont]
+  -t, --types <TYPES>                      Font types to generate [possible values: svg, ttf, eot, woff, woff2]
+      --css                                Generate CSS (default)
+      --no-css                             Skip CSS generation
+      --html                               Generate HTML preview
+      --no-html                            Skip HTML generation (default)
+      --css-template <CSS_TEMPLATE>        Custom CSS template path
+      --html-template <HTML_TEMPLATE>      Custom HTML template path
+      --css-fonts-url <CSS_FONTS_URL>      CSS fonts URL prefix
+      --write                               Write output files to disk (default)
+      --no-write                           Do not write output files (dry run)
+      --ligature                           Enable ligatures (default)
+      --no-ligature                        Disable ligatures
+      --font-height <FONT_HEIGHT>          Font height
+      --ascent <ASCENT>                    Ascent value
+      --descent <DESCENT>                  Descent value
+      --start-codepoint <START_CODEPOINT>  Start codepoint (hex, e.g. 0xF101)
+  -h, --help                               Print help
+  -V, --version                            Print version
 ```
 
 ## Templates

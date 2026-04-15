@@ -1,3 +1,64 @@
+//! # webfont-generator
+//!
+//! Generate webfonts (SVG, TTF, EOT, WOFF, WOFF2) from SVG icon files.
+//!
+//! ## Library usage
+//!
+//! ```rust,no_run
+//! use webfont_generator::{GenerateWebfontsOptions, FontType};
+//!
+//! // Async API (requires a tokio runtime)
+//! # async fn example() -> std::io::Result<()> {
+//! let options = GenerateWebfontsOptions {
+//!     dest: "output".to_owned(),
+//!     files: vec!["icons/add.svg".to_owned(), "icons/remove.svg".to_owned()],
+//!     font_name: Some("my-icons".to_owned()),
+//!     types: Some(vec![FontType::Woff2, FontType::Woff]),
+//!     ..Default::default()
+//! };
+//!
+//! let result = webfont_generator::generate(options, None).await?;
+//! if let Some(woff2) = result.woff2_bytes() {
+//!     println!("Generated WOFF2: {} bytes", woff2.len());
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ```rust,no_run
+//! use webfont_generator::{GenerateWebfontsOptions, FontType};
+//!
+//! // Synchronous API
+//! let options = GenerateWebfontsOptions {
+//!     dest: "output".to_owned(),
+//!     files: vec!["icons/add.svg".to_owned()],
+//!     write_files: Some(false),
+//!     ..Default::default()
+//! };
+//!
+//! let result = webfont_generator::generate_sync(options, None).unwrap();
+//! ```
+//!
+//! ## CLI
+//!
+//! Install the CLI binary with:
+//!
+//! ```sh
+//! cargo install webfont-generator --features cli
+//! ```
+//!
+//! Then run:
+//!
+//! ```sh
+//! webfont-generator --dest ./dist/fonts ./icons/
+//! ```
+//!
+//! ## Feature flags
+//!
+//! - **`cli`**: Builds the `webfont-generator` CLI binary (adds `clap` dependency).
+//!   Not enabled by default — use `cargo install webfont-generator --features cli`.
+//! - **`napi`**: Enables Node.js NAPI bindings for use as a native addon.
+
 mod eot;
 mod svg;
 mod templates;
@@ -8,31 +69,40 @@ mod types;
 mod util;
 mod woff;
 
+#[cfg(feature = "napi")]
 use napi::threadsafe_function::ThreadsafeFunction;
-use napi::{Error, Status};
+#[cfg(feature = "napi")]
+use napi::{Error as NapiError, Status};
+#[cfg(feature = "napi")]
 use napi_derive::napi;
 use rayon::join;
 use std::collections::HashSet;
+use std::io::ErrorKind;
 use std::path::Path;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+#[cfg(feature = "napi")]
+use std::sync::Mutex;
 use tokio::task::JoinSet;
 
 use svg::{build_svg_font, prepare_svg_font, svg_options_from_options};
+#[cfg(feature = "napi")]
 use templates::{
-    apply_context_function, build_css_context, build_html_context, build_html_registry,
-    render_css_with_hbs_context, render_html_with_hbs_context, SharedTemplateData,
+    SharedTemplateData, apply_context_function, build_css_context, build_html_context,
+    build_html_registry,
 };
-use util::{glyph_name_from_path, resolve_codepoints, to_napi_err};
+use templates::{render_css_with_hbs_context, render_html_with_hbs_context};
+#[cfg(feature = "napi")]
+use util::to_napi_err;
 
 use types::{
-    resolved_font_types, LoadedSvgFile, ResolvedGenerateWebfontsOptions, DEFAULT_FONT_ORDER,
+    DEFAULT_FONT_ORDER, LoadedSvgFile, ResolvedGenerateWebfontsOptions, resolved_font_types,
 };
 pub use types::{
     FontType, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult, SvgFormatOptions,
     TtfFormatOptions, WoffFormatOptions,
 };
 
-#[cfg(test)]
+#[cfg(all(test, feature = "napi"))]
 #[unsafe(no_mangle)]
 extern "C" fn napi_call_threadsafe_function(
     _: napi::sys::napi_threadsafe_function,
@@ -42,6 +112,7 @@ extern "C" fn napi_call_threadsafe_function(
     0
 }
 
+#[cfg(feature = "napi")]
 #[napi]
 #[allow(clippy::type_complexity)] // NAPI proc macro requires the verbose ThreadsafeFunction type
 pub async fn generate_webfonts(
@@ -67,7 +138,7 @@ pub async fn generate_webfonts(
     >,
 ) -> napi::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
-    let source_files = load_svg_files(&options.files, rename.as_ref()).await?;
+    let source_files = load_svg_files_napi(&options.files, rename.as_ref()).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
 
@@ -75,7 +146,7 @@ pub async fn generate_webfonts(
         tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
             .await
             .map_err(|error| {
-                Error::new(
+                NapiError::new(
                     Status::GenericFailure,
                     format!("Native webfont generation task failed: {error}"),
                 )
@@ -109,7 +180,7 @@ pub async fn generate_webfonts(
             result.html_context = Some(html_ctx.clone());
         }
 
-        // Seed the OnceLock — avoids re-creating SharedTemplateData in get_cached()
+        // Seed the OnceLock -- avoids re-creating SharedTemplateData in get_cached()
         let html_registry = build_html_registry(&result.options).map_err(to_napi_err)?;
         let css_hbs_context = handlebars::Context::wraps(&css_ctx).map_err(to_napi_err)?;
         let html_hbs_context = handlebars::Context::wraps(&html_ctx).map_err(to_napi_err)?;
@@ -131,41 +202,74 @@ pub async fn generate_webfonts(
     Ok(result)
 }
 
-fn validate_generate_webfonts_options(options: &GenerateWebfontsOptions) -> napi::Result<()> {
+/// A glyph rename function that maps file stems to custom glyph names.
+pub type RenameFn = Box<dyn Fn(&str) -> String + Send + Sync>;
+
+/// Generate webfonts from SVG files.
+///
+/// This is the pure Rust async entry point. Requires a tokio runtime.
+pub async fn generate(
+    options: GenerateWebfontsOptions,
+    rename: Option<RenameFn>,
+) -> std::io::Result<GenerateWebfontsResult> {
+    validate_generate_webfonts_options(&options)?;
+    let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
+    let mut resolved_options = resolve_generate_webfonts_options(options)?;
+    finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
+
+    let result =
+        tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
+            .await
+            .map_err(std::io::Error::other)??;
+
+    if result.options.write_files {
+        write_generate_webfonts_result(&result).await?;
+    }
+
+    Ok(result)
+}
+
+/// Synchronous version of [`generate`]. Spawns a tokio runtime internally.
+pub fn generate_sync(
+    options: GenerateWebfontsOptions,
+    rename: Option<RenameFn>,
+) -> std::io::Result<GenerateWebfontsResult> {
+    tokio::runtime::Runtime::new()?.block_on(generate(options, rename))
+}
+
+fn validate_generate_webfonts_options(options: &GenerateWebfontsOptions) -> std::io::Result<()> {
     if options.dest.is_empty() {
-        return Err(Error::new(
-            Status::InvalidArg,
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
             "\"options.dest\" is empty.".to_owned(),
         ));
     }
 
     if options.files.is_empty() {
-        return Err(Error::new(
-            Status::InvalidArg,
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
             "\"options.files\" is empty.".to_owned(),
         ));
     }
 
-    if options.css.unwrap_or(true) {
-        if let Some(ref path) = options.css_template {
-            if !Path::new(path).exists() {
-                return Err(Error::new(
-                    Status::InvalidArg,
-                    format!("\"options.cssTemplate\" file not found: {path}"),
-                ));
-            }
-        }
+    if options.css.unwrap_or(true)
+        && let Some(ref path) = options.css_template
+        && !Path::new(path).exists()
+    {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("\"options.cssTemplate\" file not found: {path}"),
+        ));
     }
 
-    if options.html.unwrap_or(false) {
-        if let Some(ref path) = options.html_template {
-            if !Path::new(path).exists() {
-                return Err(Error::new(
-                    Status::InvalidArg,
-                    format!("\"options.htmlTemplate\" file not found: {path}"),
-                ));
-            }
-        }
+    if options.html.unwrap_or(false)
+        && let Some(ref path) = options.html_template
+        && !Path::new(path).exists()
+    {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!("\"options.htmlTemplate\" file not found: {path}"),
+        ));
     }
 
     Ok(())
@@ -173,7 +277,7 @@ fn validate_generate_webfonts_options(options: &GenerateWebfontsOptions) -> napi
 
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
-) -> napi::Result<ResolvedGenerateWebfontsOptions> {
+) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
     let types = resolved_font_types(&options);
     validate_font_type_order(&options, &types)?;
     let order = resolve_font_type_order(&options, &types);
@@ -210,10 +314,10 @@ pub(crate) fn resolve_generate_webfonts_options(
         css_dest,
         css_template: match options.css_template {
             Some(ref t) if t.is_empty() => {
-                return Err(Error::new(
-                    Status::InvalidArg,
+                return Err(std::io::Error::new(
+                    ErrorKind::InvalidInput,
                     "\"options.cssTemplate\" must not be empty.".to_owned(),
-                ))
+                ));
             }
             other => other,
         },
@@ -228,10 +332,10 @@ pub(crate) fn resolve_generate_webfonts_options(
         html_dest,
         html_template: match options.html_template {
             Some(ref t) if t.is_empty() => {
-                return Err(Error::new(
-                    Status::InvalidArg,
+                return Err(std::io::Error::new(
+                    ErrorKind::InvalidInput,
                     "\"options.htmlTemplate\" must not be empty.".to_owned(),
-                ))
+                ));
             }
             other => other,
         },
@@ -255,10 +359,9 @@ pub(crate) fn resolve_generate_webfonts_options(
 pub(crate) fn finalize_generate_webfonts_options(
     options: &mut ResolvedGenerateWebfontsOptions,
     source_files: &[LoadedSvgFile],
-) -> napi::Result<()> {
+) -> std::io::Result<()> {
     options.codepoints =
-        resolve_codepoints(source_files, &options.codepoints, options.start_codepoint)
-            .map_err(|error| Error::new(Status::InvalidArg, error.to_string()))?;
+        resolve_codepoints(source_files, &options.codepoints, options.start_codepoint)?;
 
     Ok(())
 }
@@ -284,7 +387,7 @@ fn default_output_dest(dest: &str, font_name: &str, extension: &str) -> String {
 fn generate_webfonts_sync(
     options: ResolvedGenerateWebfontsOptions,
     source_files: Vec<LoadedSvgFile>,
-) -> napi::Result<GenerateWebfontsResult> {
+) -> std::io::Result<GenerateWebfontsResult> {
     let wants_svg = options.types.contains(&FontType::Svg);
     let wants_ttf = options.types.contains(&FontType::Ttf);
     let wants_woff = options.types.contains(&FontType::Woff);
@@ -292,22 +395,21 @@ fn generate_webfonts_sync(
     let wants_eot = options.types.contains(&FontType::Eot);
 
     let svg_options = svg_options_from_options(&options);
-    let prepared = prepare_svg_font(&svg_options, &source_files).map_err(to_napi_err)?;
+    let prepared = prepare_svg_font(&svg_options, &source_files)?;
 
     let (svg_font, raw_ttf) = join(
-        || -> napi::Result<Option<String>> {
+        || -> std::io::Result<Option<String>> {
             if wants_svg {
                 Ok(Some(build_svg_font(&svg_options, &prepared)))
             } else {
                 Ok(None)
             }
         },
-        || -> napi::Result<Option<Vec<u8>>> {
+        || -> std::io::Result<Option<Vec<u8>>> {
             if wants_ttf || wants_woff || wants_woff2 || wants_eot {
                 let ttf_options = ttf::ttf_options_from_options(&options);
                 ttf::generate_ttf_font_bytes_from_glyphs(ttf_options, &prepared.processed_glyphs)
                     .map(Some)
-                    .map_err(to_napi_err)
             } else {
                 Ok(None)
             }
@@ -327,27 +429,25 @@ fn generate_webfonts_sync(
             .and_then(|value| value.metadata.as_deref());
 
         let (woff_font, (woff2_font, eot_font)) = join(
-            || -> napi::Result<Option<Vec<u8>>> {
+            || -> std::io::Result<Option<Vec<u8>>> {
                 if wants_woff {
-                    woff::ttf_to_woff1(&raw_ttf, woff_metadata)
-                        .map(Some)
-                        .map_err(to_napi_err)
+                    woff::ttf_to_woff1(&raw_ttf, woff_metadata).map(Some)
                 } else {
                     Ok(None)
                 }
             },
             || {
                 join(
-                    || -> napi::Result<Option<Vec<u8>>> {
+                    || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_woff2 {
-                            woff::ttf_to_woff2(&raw_ttf).map(Some).map_err(to_napi_err)
+                            woff::ttf_to_woff2(&raw_ttf).map(Some)
                         } else {
                             Ok(None)
                         }
                     },
-                    || -> napi::Result<Option<Vec<u8>>> {
+                    || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_eot {
-                            eot::ttf_to_eot(&raw_ttf).map(Some).map_err(to_napi_err)
+                            eot::ttf_to_eot(&raw_ttf).map(Some)
                         } else {
                             Ok(None)
                         }
@@ -380,7 +480,7 @@ fn generate_webfonts_sync(
     })
 }
 
-async fn write_generate_webfonts_result(result: &GenerateWebfontsResult) -> napi::Result<()> {
+async fn write_generate_webfonts_result(result: &GenerateWebfontsResult) -> std::io::Result<()> {
     let mut tasks = JoinSet::new();
     let font_name = result.options.font_name.clone();
     let dest = result.options.dest.clone();
@@ -417,12 +517,11 @@ async fn write_generate_webfonts_result(result: &GenerateWebfontsResult) -> napi
 
     // Only render CSS/HTML templates when those files need to be written.
     if result.options.css || result.options.html {
-        let cached = result.get_cached()?;
+        let cached = result.get_cached_io()?;
 
         if result.options.css {
             let ctx = cached.css_hbs_context.lock().unwrap();
-            let css = render_css_with_hbs_context(&cached.shared, &ctx, &cached.css_context)
-                .map_err(to_napi_err)?;
+            let css = render_css_with_hbs_context(&cached.shared, &ctx, &cached.css_context)?;
             drop(ctx);
             let css_dest = result.options.css_dest.clone();
             let css = Arc::new(css);
@@ -435,22 +534,16 @@ async fn write_generate_webfonts_result(result: &GenerateWebfontsResult) -> napi
                 cached.html_registry.as_ref(),
                 &ctx,
                 &cached.html_context,
-            )
-            .map_err(to_napi_err)?;
+            )?;
             let html_dest = result.options.html_dest.clone();
             tasks.spawn(async move { write_output_file(html_dest, html.into_bytes()).await });
         }
     }
 
     while let Some(result) = tasks.join_next().await {
-        result
-            .map_err(|error| {
-                Error::new(
-                    Status::GenericFailure,
-                    format!("Native write task failed: {error}"),
-                )
-            })?
-            .map_err(to_napi_err)?;
+        result.map_err(|error| {
+            std::io::Error::other(format!("Native write task failed: {error}"))
+        })??;
     }
 
     Ok(())
@@ -467,32 +560,27 @@ async fn write_output_file(path: String, contents: impl AsRef<[u8]>) -> std::io:
 fn validate_font_type_order(
     options: &GenerateWebfontsOptions,
     requested_types: &[FontType],
-) -> napi::Result<()> {
-    if let Some(order) = &options.order {
-        if let Some(invalid_type) = order
+) -> std::io::Result<()> {
+    if let Some(order) = &options.order
+        && let Some(invalid_type) = order
             .iter()
             .copied()
             .find(|font_type| !requested_types.contains(font_type))
-        {
-            return Err(Error::new(
-                Status::InvalidArg,
-                format!(
-                    "Invalid font type order: '{}' is not present in 'types'.",
-                    invalid_type.as_extension()
-                ),
-            ));
-        }
+    {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!(
+                "Invalid font type order: '{}' is not present in 'types'.",
+                invalid_type.as_extension()
+            ),
+        ));
     }
 
     Ok(())
 }
 
-async fn load_svg_files(
-    paths: &[String],
-    rename: Option<
-        &napi::threadsafe_function::ThreadsafeFunction<String, String, String, Status, false>,
-    >,
-) -> napi::Result<Vec<LoadedSvgFile>> {
+/// Load SVG file contents in parallel, preserving the original order.
+async fn load_svg_contents(paths: &[String]) -> std::io::Result<Vec<(String, String)>> {
     let mut tasks = JoinSet::new();
 
     for (index, path) in paths.iter().cloned().enumerate() {
@@ -503,52 +591,77 @@ async fn load_svg_files(
         });
     }
 
-    let mut source_files = Vec::with_capacity(paths.len());
-
+    let mut results = Vec::with_capacity(paths.len());
     while let Some(result) = tasks.join_next().await {
-        let (index, (path, contents)) = result
+        let (index, pair) = result
+            .map_err(|error| std::io::Error::other(format!("SVG loading task failed: {error}")))?
             .map_err(|error| {
-                Error::new(
-                    Status::GenericFailure,
-                    format!("Native SVG loading task failed: {error}"),
-                )
-            })?
-            .map_err(|error| {
-                Error::new(
-                    Status::GenericFailure,
-                    format!("Failed to read source SVG file: {error}"),
-                )
+                std::io::Error::other(format!("Failed to read source SVG file: {error}"))
             })?;
-        let glyph_name = glyph_name_from_path(&path, rename).await?;
-        source_files.push((
-            index,
-            LoadedSvgFile {
+        results.push((index, pair));
+    }
+
+    results.sort_by_key(|(index, _)| *index);
+    Ok(results.into_iter().map(|(_, pair)| pair).collect())
+}
+
+/// Load SVG files and resolve glyph names using an optional sync rename function.
+async fn load_svg_files(
+    paths: &[String],
+    rename: Option<&(dyn Fn(&str) -> String + Send + Sync)>,
+) -> std::io::Result<Vec<LoadedSvgFile>> {
+    let raw = load_svg_contents(paths).await?;
+    let source_files: Vec<LoadedSvgFile> = raw
+        .into_iter()
+        .map(|(path, contents)| {
+            let glyph_name = util::glyph_name_from_path(&path, rename)?;
+            Ok(LoadedSvgFile {
                 contents,
                 glyph_name,
                 path,
-            },
-        ));
-    }
-
-    source_files.sort_by_key(|(index, _)| *index);
-
-    let source_files = source_files
-        .into_iter()
-        .map(|(_, source_file)| source_file)
-        .collect::<Vec<_>>();
+            })
+        })
+        .collect::<std::io::Result<_>>()?;
 
     validate_glyph_names(&source_files)?;
-
     Ok(source_files)
 }
 
-fn validate_glyph_names(source_files: &[LoadedSvgFile]) -> napi::Result<()> {
+/// NAPI version: resolve glyph names via async ThreadsafeFunction callback.
+#[cfg(feature = "napi")]
+async fn load_svg_files_napi(
+    paths: &[String],
+    rename: Option<
+        &napi::threadsafe_function::ThreadsafeFunction<String, String, String, Status, false>,
+    >,
+) -> napi::Result<Vec<LoadedSvgFile>> {
+    let raw = load_svg_contents(paths).await.map_err(to_napi_err)?;
+    let mut source_files = Vec::with_capacity(raw.len());
+
+    for (path, contents) in raw {
+        let glyph_name = if let Some(rename) = rename {
+            rename.call_async(path.clone()).await?
+        } else {
+            util::default_glyph_name_from_path(&path).map_err(to_napi_err)?
+        };
+        source_files.push(LoadedSvgFile {
+            contents,
+            glyph_name,
+            path,
+        });
+    }
+
+    validate_glyph_names(&source_files).map_err(to_napi_err)?;
+    Ok(source_files)
+}
+
+fn validate_glyph_names(source_files: &[LoadedSvgFile]) -> std::io::Result<()> {
     let mut seen_names = HashSet::with_capacity(source_files.len());
 
     for source_file in source_files {
         if !seen_names.insert(source_file.glyph_name.clone()) {
-            return Err(Error::new(
-                Status::InvalidArg,
+            return Err(std::io::Error::new(
+                ErrorKind::InvalidInput,
                 format!(
                     "The glyph name \"{}\" must be unique.",
                     source_file.glyph_name
@@ -560,15 +673,16 @@ fn validate_glyph_names(source_files: &[LoadedSvgFile]) -> napi::Result<()> {
     Ok(())
 }
 
+// Re-export resolve_codepoints for use in finalize_generate_webfonts_options
+use util::resolve_codepoints;
+
 #[cfg(test)]
 mod tests {
-    use napi::Status;
-
     use super::{
         resolve_generate_webfonts_options, resolved_font_types, validate_font_type_order,
         validate_generate_webfonts_options, woff,
     };
-    use crate::{ttf::generate_ttf_font_bytes, FontType, GenerateWebfontsOptions};
+    use crate::{FontType, GenerateWebfontsOptions, ttf::generate_ttf_font_bytes};
 
     #[test]
     fn generates_woff2_font_with_expected_header() {
@@ -605,10 +719,11 @@ mod tests {
 
         let error = validate_font_type_order(&options, &resolved_font_types(&options)).unwrap_err();
 
-        assert_eq!(error.status, Status::InvalidArg);
-        assert_eq!(
-            error.reason.as_str(),
-            "Invalid font type order: 'woff' is not present in 'types'."
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(
+            error
+                .to_string()
+                .contains("Invalid font type order: 'woff' is not present in 'types'.")
         );
     }
 
@@ -625,8 +740,8 @@ mod tests {
 
         let error = validate_generate_webfonts_options(&options).unwrap_err();
 
-        assert_eq!(error.status, Status::InvalidArg);
-        assert_eq!(error.reason.as_str(), "\"options.dest\" is empty.");
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("\"options.dest\" is empty."));
     }
 
     #[test]
@@ -642,8 +757,8 @@ mod tests {
 
         let error = validate_generate_webfonts_options(&options).unwrap_err();
 
-        assert_eq!(error.status, Status::InvalidArg);
-        assert_eq!(error.reason.as_str(), "\"options.files\" is empty.");
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("\"options.files\" is empty."));
     }
 
     #[test]
@@ -664,10 +779,11 @@ mod tests {
             .err()
             .expect("expected empty css template to fail");
 
-        assert_eq!(error.status, Status::InvalidArg);
-        assert_eq!(
-            error.reason.as_str(),
-            "\"options.cssTemplate\" must not be empty."
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(
+            error
+                .to_string()
+                .contains("\"options.cssTemplate\" must not be empty.")
         );
     }
 
@@ -689,10 +805,11 @@ mod tests {
             .err()
             .expect("expected empty html template to fail");
 
-        assert_eq!(error.status, Status::InvalidArg);
-        assert_eq!(
-            error.reason.as_str(),
-            "\"options.htmlTemplate\" must not be empty."
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(
+            error
+                .to_string()
+                .contains("\"options.htmlTemplate\" must not be empty.")
         );
     }
 
@@ -729,8 +846,8 @@ mod tests {
         })
         .unwrap_err();
 
-        assert_eq!(error.status, Status::InvalidArg);
-        assert!(error.reason.contains("cssTemplate"));
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("cssTemplate"));
     }
 
     #[test]
@@ -758,8 +875,8 @@ mod tests {
         })
         .unwrap_err();
 
-        assert_eq!(error.status, Status::InvalidArg);
-        assert!(error.reason.contains("htmlTemplate"));
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("htmlTemplate"));
     }
 
     #[test]

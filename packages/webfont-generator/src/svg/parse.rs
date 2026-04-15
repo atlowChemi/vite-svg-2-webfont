@@ -1,6 +1,6 @@
-use napi::{bindgen_prelude::Error, Status};
-use usvg::tiny_skia_path::Path as TinyPath;
+use std::io::{Error, ErrorKind};
 use usvg::Transform;
+use usvg::tiny_skia_path::Path as TinyPath;
 
 use crate::svg::types::{GlyphWorkItem, ParsedGlyph};
 
@@ -17,13 +17,13 @@ struct RootSvgMetrics {
 pub(crate) fn parse_svg_glyph(
     item: &GlyphWorkItem,
     preserve_aspect_ratio: bool,
-) -> napi::Result<ParsedGlyph> {
+) -> Result<ParsedGlyph, Error> {
     let svg = item.source_file.contents.as_bytes();
     let root_metrics = parse_root_svg_metrics(svg)?;
     let options = usvg::Options::default();
     let tree = usvg::Tree::from_data(svg, &options).map_err(|error| {
         Error::new(
-            Status::InvalidArg,
+            ErrorKind::InvalidInput,
             format!(
                 "Failed to parse SVG fixture '{}': {error}",
                 item.source_file.path
@@ -53,7 +53,7 @@ fn collect_paths(
     group: &usvg::Group,
     root_correction: Option<Transform>,
     paths: &mut Vec<TinyPath>,
-) -> napi::Result<()> {
+) -> Result<(), Error> {
     for node in group.children() {
         match node {
             usvg::Node::Group(child_group) => collect_paths(child_group, root_correction, paths)?,
@@ -93,17 +93,11 @@ fn collect_paths(
                 };
 
                 let transformed = path_data.transform(path.abs_transform()).ok_or_else(|| {
-                    Error::new(
-                        Status::GenericFailure,
-                        "Failed to apply an absolute transform to a glyph path.",
-                    )
+                    Error::other("Failed to apply an absolute transform to a glyph path.")
                 })?;
                 let transformed = if let Some(root_correction) = root_correction {
                     transformed.transform(root_correction).ok_or_else(|| {
-                        Error::new(
-                            Status::GenericFailure,
-                            "Failed to apply a root viewBox correction to a glyph path.",
-                        )
+                        Error::other("Failed to apply a root viewBox correction to a glyph path.")
                     })?
                 } else {
                     transformed
@@ -117,10 +111,10 @@ fn collect_paths(
     Ok(())
 }
 
-fn parse_root_svg_metrics(svg: &[u8]) -> napi::Result<Option<RootSvgMetrics>> {
+fn parse_root_svg_metrics(svg: &[u8]) -> Result<Option<RootSvgMetrics>, Error> {
     let svg_text = std::str::from_utf8(svg).map_err(|error| {
         Error::new(
-            Status::InvalidArg,
+            ErrorKind::InvalidInput,
             format!("Failed to decode SVG fixture as UTF-8: {error}"),
         )
     })?;
@@ -133,7 +127,7 @@ fn parse_root_svg_metrics(svg: &[u8]) -> napi::Result<Option<RootSvgMetrics>> {
     )
     .map_err(|error| {
         Error::new(
-            Status::InvalidArg,
+            ErrorKind::InvalidInput,
             format!("Failed to inspect SVG root element: {error}"),
         )
     })?;
@@ -147,7 +141,7 @@ fn parse_root_svg_metrics(svg: &[u8]) -> napi::Result<Option<RootSvgMetrics>> {
     };
     let values = parse_view_box(view_box).ok_or_else(|| {
         Error::new(
-            Status::InvalidArg,
+            ErrorKind::InvalidInput,
             "Failed to parse the SVG viewBox for native generation.",
         )
     })?;
@@ -178,7 +172,7 @@ fn parse_root_svg_metrics(svg: &[u8]) -> napi::Result<Option<RootSvgMetrics>> {
 fn build_root_viewbox_correction(
     metrics: &RootSvgMetrics,
     preserve_aspect_ratio: bool,
-) -> napi::Result<Option<Transform>> {
+) -> Result<Option<Transform>, Error> {
     let current = root_viewbox_transform(metrics, metrics.current_preserve_aspect_ratio);
     let desired = root_viewbox_transform(metrics, preserve_aspect_ratio);
 
@@ -186,12 +180,9 @@ fn build_root_viewbox_correction(
         return Ok(None);
     }
 
-    let inverse_current = current.invert().ok_or_else(|| {
-        Error::new(
-            Status::GenericFailure,
-            "Failed to invert the current root viewBox transform.",
-        )
-    })?;
+    let inverse_current = current
+        .invert()
+        .ok_or_else(|| Error::other("Failed to invert the current root viewBox transform."))?;
 
     Ok(Some(concat_transforms(desired, inverse_current)))
 }

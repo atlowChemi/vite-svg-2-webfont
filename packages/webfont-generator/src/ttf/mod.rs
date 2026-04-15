@@ -4,10 +4,11 @@ use std::io::{Error, ErrorKind};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use kurbo::{BezPath, CubicBez, PathEl};
+use write_fonts::FontBuilder;
 use write_fonts::tables::cmap::Cmap;
 use write_fonts::tables::glyf::{GlyfLocaBuilder, Glyph, SimpleGlyph};
 use write_fonts::tables::gsub::{
-    builders::LigatureSubBuilder, Gsub, SubstitutionLookup, SubstitutionLookupList,
+    Gsub, SubstitutionLookup, SubstitutionLookupList, builders::LigatureSubBuilder,
 };
 use write_fonts::tables::head::Head;
 use write_fonts::tables::hhea::Hhea;
@@ -22,16 +23,15 @@ use write_fonts::tables::os2::Os2;
 use write_fonts::tables::post::Post;
 use write_fonts::tables::variations::ivs_builder::VariationStoreBuilder;
 use write_fonts::types::{FWord, Fixed, GlyphId, GlyphId16, LongDateTime, NameId, Tag, UfWord};
-use write_fonts::FontBuilder;
 
+#[cfg(test)]
+use crate::GenerateWebfontsOptions;
 use crate::svg::types::ProcessedGlyph;
 #[cfg(test)]
 use crate::svg::{prepare_svg_font, svg_options_from_options};
 #[cfg(test)]
 use crate::types::LoadedSvgFile;
 use crate::types::ResolvedGenerateWebfontsOptions;
-#[cfg(test)]
-use crate::GenerateWebfontsOptions;
 #[cfg(test)]
 use crate::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
 

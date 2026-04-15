@@ -5,7 +5,6 @@ use std::io::Error;
 
 use handlebars::Handlebars;
 use md5::Context;
-use napi::threadsafe_function::ThreadsafeFunction;
 use serde::Serialize;
 use serde_json::{Map, Value};
 
@@ -130,7 +129,8 @@ fn make_ctx(
     ctx
 }
 
-pub(crate) type ContextFunction = ThreadsafeFunction<
+#[cfg(feature = "napi")]
+pub(crate) type ContextFunction = napi::threadsafe_function::ThreadsafeFunction<
     Map<String, Value>,
     Map<String, Value>,
     Map<String, Value>,
@@ -138,6 +138,7 @@ pub(crate) type ContextFunction = ThreadsafeFunction<
     false,
 >;
 
+#[cfg(feature = "napi")]
 pub(crate) async fn apply_context_function(
     ctx: Map<String, Value>,
     context_fn: Option<&ContextFunction>,
@@ -230,9 +231,15 @@ fn render_default_css_inner(ctx: &Map<String, Value>, font_name: &str, src: &str
     let codepoint_count = codepoints.map_or(0, |c| c.len());
     let mut result = String::with_capacity(256 + codepoint_count * 60);
 
-    _ = write!(result, "@font-face {{\n\tfont-family: \"{font_name}\";\n\tfont-display: block;\n\tsrc: {src};\n}}\n\n");
+    _ = write!(
+        result,
+        "@font-face {{\n\tfont-family: \"{font_name}\";\n\tfont-display: block;\n\tsrc: {src};\n}}\n\n"
+    );
     _ = write!(result, "{base_selector} {{\n\tline-height: 1;\n}}\n\n");
-    _ = write!(result, "{base_selector}:before {{\n\tfont-family: {font_name} !important;\n\tfont-style: normal;\n\tfont-weight: normal !important;\n\tvertical-align: top;\n}}\n\n");
+    _ = write!(
+        result,
+        "{base_selector}:before {{\n\tfont-family: {font_name} !important;\n\tfont-style: normal;\n\tfont-weight: normal !important;\n\tvertical-align: top;\n}}\n\n"
+    );
 
     if let Some(codepoints) = codepoints {
         for (name, value) in codepoints {
@@ -571,8 +578,8 @@ impl<'a> From<&'a crate::types::WoffFormatOptions> for HashableWoffFormatOptions
 #[cfg(test)]
 mod tests {
     use super::{
-        build_css_context, calc_hash, make_ctx, make_src, make_urls, render_css_with_context,
-        template_contains_exact_mustache_name, SharedTemplateData,
+        SharedTemplateData, build_css_context, calc_hash, make_ctx, make_src, make_urls,
+        render_css_with_context, template_contains_exact_mustache_name,
     };
     use crate::{
         FontType, FormatOptions, GenerateWebfontsOptions, LoadedSvgFile,
@@ -1085,7 +1092,10 @@ mod tests {
 
     #[test]
     fn render_css_with_hbs_context_matches_direct_render_for_custom_template() {
-        let template_path = write_temp_template("native-css-hbs-ctx", "@font-face { src: {{{src}}}; } {{#each codepoints}}.{{@key}}:before { content: \"\\\\{{this}}\"; }{{/each}}");
+        let template_path = write_temp_template(
+            "native-css-hbs-ctx",
+            "@font-face { src: {{{src}}}; } {{#each codepoints}}.{{@key}}:before { content: \"\\\\{{this}}\"; }{{/each}}",
+        );
         let options = resolve_options(GenerateWebfontsOptions {
             css: Some(true),
             css_template: Some(template_path),
