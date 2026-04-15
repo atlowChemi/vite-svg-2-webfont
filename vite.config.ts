@@ -78,6 +78,10 @@ const config: UserConfig = defineConfig({
                 command: 'vp test',
                 dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
             },
+            'test:compat': {
+                command: 'vp test --project=compat',
+                dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
+            },
             coverage: {
                 command: 'vp test --coverage',
                 dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
@@ -92,7 +96,16 @@ const config: UserConfig = defineConfig({
             provider: 'v8',
             exclude: ['packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**', 'packages/webfont-generator/binding.*'],
         },
-        projects: ['packages/!(example)/vite.config.ts'],
+        projects: [
+            'packages/!(example)/vite.config.ts',
+            {
+                test: {
+                    name: 'compat',
+                    include: ['tests/**/*.compat.test.ts'],
+                    benchmark: { include: ['tests/**/*.bench.ts'] },
+                },
+            },
+        ],
     },
 });
 export default config;
