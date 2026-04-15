@@ -43,15 +43,20 @@ jobs:
                   run-install: true
                   cache: true
 
-            - name: Format changelog
+            - name: Setup Rust toolchain
+              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
+              uses: dtolnay/rust-toolchain@stable
+
+            - name: Format changelog and sync Cargo.lock
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
               run: |
                   vp check --fix || true
+                  cargo update -p webfont-generator --manifest-path packages/webfont-generator/Cargo.toml
                   if ! git diff --quiet; then
                     git config user.name "github-actions[bot]"
                     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
                     git add -A
-                    git commit --no-verify -m "chore: format changelog"
+                    git commit --no-verify -m "chore: format changelog and sync Cargo.lock"
                     git push
                   fi
 
@@ -89,7 +94,7 @@ jobs:
               shell: bash
 
             - name: Publish
-              run: pnpm publish --filter @atlowchemi/webfont-generator --access public --provenance
+              run: vp pm publish --filter @atlowchemi/webfont-generator --access public --provenance
 
             - name: Upload to native release
               if: needs.release-please.outputs.native-released == 'true'
