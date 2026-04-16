@@ -2,10 +2,9 @@
 
 ## [0.2.4](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.3...webfont-generator-v0.2.4) (2026-04-16)
 
-
 ### Bug Fixes
 
-* **ci:** disable GitHub release creation in napi pre-publish ([#108](https://github.com/atlowChemi/vite-svg-2-webfont/issues/108)) ([b30362a](https://github.com/atlowChemi/vite-svg-2-webfont/commit/b30362a814b57a82af317fca5aa02426905b70aa))
+- **ci:** disable GitHub release creation in napi pre-publish ([#108](https://github.com/atlowChemi/vite-svg-2-webfont/issues/108)) ([b30362a](https://github.com/atlowChemi/vite-svg-2-webfont/commit/b30362a814b57a82af317fca5aa02426905b70aa))
 
 ## [0.2.3](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.2...webfont-generator-v0.2.3) (2026-04-16)
 
