@@ -2,12 +2,11 @@
 
 ## [0.2.3](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.2...webfont-generator-v0.2.3) (2026-04-16)
 
-
 ### Bug Fixes
 
-* **ci:** correct binding versions ([24048ee](https://github.com/atlowChemi/vite-svg-2-webfont/commit/24048eeb862ff3e92e7b85a75a5c771ecc7b66dc))
-* **ci:** use heredoc for binding.js version sync, add README badges ([#107](https://github.com/atlowChemi/vite-svg-2-webfont/issues/107)) ([b802b9d](https://github.com/atlowChemi/vite-svg-2-webfont/commit/b802b9d08dfa3cff0995fffd1973a934dd51bb1d))
-* **webfont-generator:** add repository field and sync binding.js version on release ([#105](https://github.com/atlowChemi/vite-svg-2-webfont/issues/105)) ([e70cef6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/e70cef651653fb3d574565b642e1a8cef5d0a95b))
+- **ci:** correct binding versions ([24048ee](https://github.com/atlowChemi/vite-svg-2-webfont/commit/24048eeb862ff3e92e7b85a75a5c771ecc7b66dc))
+- **ci:** use heredoc for binding.js version sync, add README badges ([#107](https://github.com/atlowChemi/vite-svg-2-webfont/issues/107)) ([b802b9d](https://github.com/atlowChemi/vite-svg-2-webfont/commit/b802b9d08dfa3cff0995fffd1973a934dd51bb1d))
+- **webfont-generator:** add repository field and sync binding.js version on release ([#105](https://github.com/atlowChemi/vite-svg-2-webfont/issues/105)) ([e70cef6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/e70cef651653fb3d574565b642e1a8cef5d0a95b))
 
 ## [0.2.2](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.1...webfont-generator-v0.2.2) (2026-04-15)
 
