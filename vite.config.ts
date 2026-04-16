@@ -53,6 +53,7 @@ const config: UserConfig = defineConfig({
         },
         rules: {
             'typescript/no-unsafe-type-assertion': 'off',
+            'vitest/require-mock-type-parameters': 'off',
         },
         env: {
             builtin: true,
