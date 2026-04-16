@@ -58,7 +58,7 @@ jobs:
                     const file = 'packages/webfont-generator/binding.js';
                     const updated = fs.readFileSync(file, 'utf8')
                       .replaceAll(/bindingPackageVersion !== '[^']+'/g, \`bindingPackageVersion !== '\${version}'\`)
-                      .replaceAll(/expected [^ ]+ but got \${bindingPackageVersion}/g, \`expected \${version} but got \${bindingPackageVersion}\`);
+                      .replaceAll(/expected [^ ]+ but got \${bindingPackageVersion}/g, \`expected \${version} but got \\\${bindingPackageVersion}\`);
                     fs.writeFileSync(file, updated);
                   "
                   if ! git diff --quiet; then
