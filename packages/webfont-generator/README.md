@@ -1,6 +1,10 @@
 # @atlowchemi/webfont-generator
 
 <p align="center">
+  <img src="../docs/public/webfont-generator-logo.png" alt="webfont-generator logo" width="200" />
+</p>
+
+<p align="center">
   <a href="https://www.npmjs.com/package/@atlowchemi/webfont-generator"><img src="https://img.shields.io/npm/v/@atlowchemi/webfont-generator.svg?style=flat-square" alt="npm" /></a>
   <a href="https://crates.io/crates/webfont-generator"><img src="https://img.shields.io/crates/v/webfont-generator.svg?style=flat-square" alt="crates.io" /></a>
   <a href="https://docs.rs/webfont-generator"><img src="https://img.shields.io/docsrs/webfont-generator?style=flat-square" alt="docs.rs" /></a>

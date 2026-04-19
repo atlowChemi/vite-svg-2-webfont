@@ -63,6 +63,16 @@ These commands map to their corresponding tools. For example, `vp dev --port 300
 
 All commit messages must follow the [Conventional Commits](https://www.conventionalcommits.org/) format: `type(scope): description`. Common types are `feat`, `fix`, `chore`, `docs`, `refactor`, `test`, `ci`, and `perf`. This is enforced by a `commitlint` hook and is required for release-please changelog generation.
 
+## Documentation Sync
+
+The `@atlowchemi/webfont-generator` API is documented in three places that must stay in sync:
+
+1. **Rust doc comments** (`//!` and `///`) in `packages/webfont-generator/src/lib.rs`, `types.rs`, and other source files — these generate docs.rs content.
+2. **VitePress docs** in `packages/docs/webfont-generator/` — the Node.js, Rust, and CLI pages are the primary user-facing reference.
+3. **README** at `packages/webfont-generator/README.md` — shown on npm and crates.io.
+
+When changing the public API (adding/removing/renaming options, functions, types, or CLI flags), update all three locations. The webfont-generator changelog page (`packages/docs/webfont-generator/changelog.md`) includes content from `packages/webfont-generator/CHANGELOG.md` via VitePress `@include` — do not duplicate the changelog manually.
+
 ## Review Checklist for Agents
 
 - [ ] Run `vp install` after pulling remote changes and before getting started.

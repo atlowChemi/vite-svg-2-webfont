@@ -60,24 +60,47 @@ export default defineConfig({
         siteTitle: repoName,
         nav: [
             { text: 'Guide', link: '/getting-started' },
-            { text: 'Configuration', link: '/configuration' },
-            { text: 'Public API', link: '/public-api' },
-            { text: 'Changelog', link: '/changelog' },
-        ],
-        sidebar: [
             {
+                text: 'Webfont Generator',
                 items: [
-                    { text: 'Getting Started', link: '/getting-started' },
-                    { text: 'Usage', link: '/usage' },
-                    { text: 'Configuration', link: '/configuration' },
-                    { text: 'Public API', link: '/public-api' },
+                    { text: 'Overview', link: '/webfont-generator/' },
+                    { text: 'Node.js', link: '/webfont-generator/node' },
+                    { text: 'Rust', link: '/webfont-generator/rust' },
+                    { text: 'CLI', link: '/webfont-generator/cli' },
+                    { text: 'Changelog', link: '/webfont-generator/changelog' },
                 ],
             },
+            { text: 'Changelog', link: '/changelog' },
         ],
+        sidebar: {
+            '/': [
+                {
+                    items: [
+                        { text: 'Getting Started', link: '/getting-started' },
+                        { text: 'Usage', link: '/usage' },
+                        { text: 'Configuration', link: '/configuration' },
+                        { text: 'Public API', link: '/public-api' },
+                    ],
+                },
+            ],
+            '/webfont-generator/': [
+                {
+                    text: 'Webfont Generator',
+                    items: [
+                        { text: 'Overview', link: '/webfont-generator/' },
+                        { text: 'Node.js', link: '/webfont-generator/node' },
+                        { text: 'Rust', link: '/webfont-generator/rust' },
+                        { text: 'CLI', link: '/webfont-generator/cli' },
+                        { text: 'Changelog', link: '/webfont-generator/changelog' },
+                    ],
+                },
+            ],
+        },
         search: {
             provider: 'local',
         },
         socialLinks: [
+            { icon: 'rust', link: `https://crates.io/crates/webfont-generator` },
             { icon: 'npm', link: `https://www.npmjs.com/package/${repoName}` },
             { icon: 'github', link: repo },
         ],
