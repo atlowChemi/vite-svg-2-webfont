@@ -82,12 +82,12 @@ export default defineConfig({
         resolve: {
             preserveSymlinks: true,
             alias: {
-                "mermaid": "mermaid/dist/mermaid.esm.mjs",
+                mermaid: 'mermaid/dist/mermaid.esm.mjs',
                 // "dayjs/plugin/advancedFormat.js": "dayjs/esm/plugin/advancedFormat",
                 // "dayjs/plugin/customParseFormat.js": "dayjs/esm/plugin/customParseFormat",
                 // "dayjs/plugin/isoWeek.js": "dayjs/esm/plugin/isoWeek",
                 // "cytoscape/dist/cytoscape.umd.js": "cytoscape/dist/cytoscape.esm.js",
-            }
+            },
         },
         optimizeDeps: {
             include: [
@@ -96,8 +96,8 @@ export default defineConfig({
                 // 'debug',
                 // 'cytoscape-cose-bilkent',
                 // 'cytoscape',
-            ] 
-        }
+            ],
+        },
     } as never,
     themeConfig: {
         logo: '/logo.svg',
