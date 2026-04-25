@@ -28,23 +28,19 @@ The generation pipeline works as follows:
 4. **Parallel format conversion** -- From the TTF binary, produce WOFF, WOFF2, and EOT in parallel
 5. **Template rendering** -- Render CSS and HTML preview files via Handlebars templates
 
-```
-SVG files
-  |
-  v
-Parse & normalize (usvg + oxvg_path)
-  |
-  v
-SVG font
-  |
-  +---> SVG output (if requested)
-  |
-  v
-TTF (via write-fonts)
-  |
-  +---+---+---> WOFF   (parallel)
-      |   +---> WOFF2  (parallel)
-      +-------> EOT    (parallel)
+```mermaid
+flowchart TD
+    A[SVG files] --> B[Parse &amp; normalize<br/>usvg + oxvg_path]
+    B --> C[SVG font]
+    C -.->|if requested| D[SVG output]
+    C --> E[TTF<br/>via write-fonts]
+    E --> P
+    subgraph P[Parallel conversion]
+        direction TD
+        F[WOFF]
+        G[WOFF2]
+        H[EOT]
+    end
 ```
 
 ## Performance
