@@ -23,6 +23,10 @@ features:
       icon:
           src: /native-workflow.svg
       details: Add one plugin to your Vite config, import the virtual stylesheet, and let the plugin generate font assets for your icons.
+    - title: Native Rust engine
+      icon:
+          src: /webfont-generator-logo.png
+      details: Powered by a ground-up Rust rewrite of the webfont generation pipeline. Parallel font conversion and native path normalization for fast builds.
     - title: Flexible output
       icon:
           src: /flexible-output.svg
@@ -35,7 +39,7 @@ features:
 
 ## Why this plugin
 
-`vite-svg-2-webfont` uses [`@vusion/webfonts-generator`](https://github.com/vusion/webfonts-generator) under the hood to transform SVG icon sets into webfont files and matching CSS classes. It is designed for projects that want icon fonts integrated directly into the Vite pipeline.
+`vite-svg-2-webfont` uses [`@atlowchemi/webfont-generator`](/webfont-generator/), a native Rust NAPI addon, to transform SVG icon sets into webfont files and matching CSS classes. It is designed for projects that want icon fonts integrated directly into the Vite pipeline.
 
 ## What you get
 
