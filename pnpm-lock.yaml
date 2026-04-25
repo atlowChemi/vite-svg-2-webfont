@@ -12,6 +12,9 @@ catalogs:
     typescript:
       specifier: ^5.9.3
       version: 5.9.3
+    vite:
+      specifier: npm:@voidzero-dev/vite-plus-core@0.1.18
+      version: 0.1.18
     vite-plus:
       specifier: 0.1.18
       version: 0.1.18
@@ -3381,10 +3384,6 @@ packages:
     resolution: {integrity: sha512-pMMHxBOZKFU6HgAZ4eyGnwXF/EvPGGqUr0MnZ5+99485wwW41kW91A4LOGxSHhgugZmSChL5AlElNdwlNgcnLQ==}
     engines: {node: ^10 || ^12 || >=14}
 
-  postcss@8.5.8:
-    resolution: {integrity: sha512-OW/rX8O/jXnm82Ey1k44pObPtdblfiuWnrd8X7GJ7emImCOstunGbXUpp7HdBrFQX6rJzn3sPT397Wp5aCwCHg==}
-    engines: {node: ^10 || ^12 || >=14}
-
   pretty-bytes@7.1.0:
     resolution: {integrity: sha512-nODzvTiYVRGRqAOvE84Vk5JDPyyxsVk0/fbA/bq7RqlnhksGpset09XTxbpvLTIjoaF7K8Z8DG8yHtKGTPSYRw==}
     engines: {node: '>=20'}
@@ -3770,8 +3769,8 @@ packages:
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
-  vite@7.3.1:
-    resolution: {integrity: sha512-w+N7Hifpc3gRjZ63vYBXA56dvvRlNWRczTdmCBBa+CotUzAPf5b7YMdMR/8CQoeYE5LX3W4wj6RYTgonm1b9DA==}
+  vite@7.3.2:
+    resolution: {integrity: sha512-Bby3NOsna2jsjfLVOHKes8sGwgl4TT0E6vvpYgnAYDIF/tie7MRaFthmKuHx1NSXjiTueXH3do80FMQgvEktRg==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
     peerDependencies:
@@ -5244,10 +5243,10 @@ snapshots:
       d3-selection: 3.0.0
       d3-transition: 3.0.1(d3-selection@3.0.0)
 
-  '@vitejs/plugin-vue@6.0.5(vite@7.3.1(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0))(vue@3.5.33(typescript@5.9.3))':
+  '@vitejs/plugin-vue@6.0.5(vite@7.3.2(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0))(vue@3.5.33(typescript@5.9.3))':
     dependencies:
       '@rolldown/pluginutils': 1.0.0-rc.2
-      vite: 7.3.1(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0)
+      vite: 7.3.2(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0)
       vue: 3.5.33(typescript@5.9.3)
 
   '@vitest/coverage-v8@4.1.4(@voidzero-dev/vite-plus-test@0.1.18)':
@@ -5279,7 +5278,7 @@ snapshots:
       '@oxc-project/runtime': 0.124.0
       '@oxc-project/types': 0.124.0
       lightningcss: 1.32.0
-      postcss: 8.5.8
+      postcss: 8.5.10
     optionalDependencies:
       '@types/node': 24.0.7
       esbuild: 0.27.4
@@ -6929,12 +6928,6 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
-  postcss@8.5.8:
-    dependencies:
-      nanoid: 3.3.11
-      picocolors: 1.1.1
-      source-map-js: 1.2.1
-
   pretty-bytes@7.1.0: {}
 
   promise-retry@2.0.1:
@@ -7405,12 +7398,12 @@ snapshots:
       - vite
       - yaml
 
-  vite@7.3.1(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0):
+  vite@7.3.2(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0):
     dependencies:
       esbuild: 0.27.4
       fdir: 6.5.0(picomatch@4.0.3)
       picomatch: 4.0.3
-      postcss: 8.5.8
+      postcss: 8.5.10
       rollup: 4.60.0
       tinyglobby: 0.2.15
     optionalDependencies:
@@ -7457,7 +7450,7 @@ snapshots:
       '@shikijs/transformers': 3.23.0
       '@shikijs/types': 3.23.0
       '@types/markdown-it': 14.1.2
-      '@vitejs/plugin-vue': 6.0.5(vite@7.3.1(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0))(vue@3.5.33(typescript@5.9.3))
+      '@vitejs/plugin-vue': 6.0.5(vite@7.3.2(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0))(vue@3.5.33(typescript@5.9.3))
       '@vue/devtools-api': 8.1.0
       '@vue/shared': 3.5.30
       '@vueuse/core': 14.2.1(vue@3.5.33(typescript@5.9.3))
@@ -7466,7 +7459,7 @@ snapshots:
       mark.js: 8.11.1
       minisearch: 7.2.0
       shiki: 3.23.0
-      vite: 7.3.1(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0)
+      vite: 7.3.2(@types/node@24.0.7)(jiti@2.6.1)(lightningcss@1.32.0)(sass@1.99.0)
       vue: 3.5.33(typescript@5.9.3)
     optionalDependencies:
       postcss: 8.5.10
