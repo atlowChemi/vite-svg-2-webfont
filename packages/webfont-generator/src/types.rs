@@ -86,6 +86,45 @@ pub struct FormatOptions {
     pub woff: Option<WoffFormatOptions>,
 }
 
+/// Guaranteed fields supplied to a `cssContext` callback. Additional keys from
+/// user-supplied `templateOptions` are merged into the same object at runtime,
+/// so the JS-side type widens this with an open-ended index signature.
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Clone)]
+pub struct CssContext {
+    /// Name of the generated font, mirroring the `fontName` option.
+    pub font_name: String,
+    /// Pre-rendered value for the CSS `@font-face` `src:` descriptor — a
+    /// comma-separated list of `url(...) format(...)` entries derived from the
+    /// configured `types`, `order`, and `cssFontsUrl`.
+    pub src: String,
+    /// Map from glyph name to its assigned codepoint as a hex-encoded string
+    /// (e.g. `"add" -> "f101"`), suitable for use inside CSS `content`
+    /// declarations like `content: "\f101"`.
+    pub codepoints: HashMap<String, String>,
+}
+
+/// Guaranteed fields supplied to an `htmlContext` callback. Additional keys
+/// from user-supplied `templateOptions` are merged into the same object at
+/// runtime, so the JS-side type widens this with an open-ended index signature.
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Clone)]
+pub struct HtmlContext {
+    /// Name of the generated font, mirroring the `fontName` option.
+    pub font_name: String,
+    /// Glyph names in declaration order, after any `rename` callback has been
+    /// applied. Useful for iterating over icons in a preview template.
+    pub names: Vec<String>,
+    /// Pre-rendered CSS (the same string the engine writes to the `.css`
+    /// output) so HTML templates can embed it inline for self-contained
+    /// previews without an external stylesheet reference.
+    pub styles: String,
+    /// Map from glyph name to its assigned codepoint as a numeric value
+    /// (e.g. `"add" -> 0xF101`). Use the CSS context's hex form if you need a
+    /// string for embedding into CSS `content` declarations.
+    pub codepoints: HashMap<String, u32>,
+}
+
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
 pub struct GenerateWebfontsOptions {

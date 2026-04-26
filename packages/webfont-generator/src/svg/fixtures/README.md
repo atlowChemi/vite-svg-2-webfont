@@ -29,7 +29,7 @@ How to regenerate `expected/`:
     ```
 3. Rebuild the native NAPI addon and run the full JS test suite:
     ```sh
-    vp run native:build
+    vp run @atlowchemi/webfont-generator#build
     vp run test
     ```
 
