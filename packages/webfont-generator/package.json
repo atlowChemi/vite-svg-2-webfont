@@ -9,12 +9,12 @@
         ".": {
             "types": "./index.d.ts",
             "import": "./index.js",
-            "require": "./index.js"
+            "require": "./index.cjs"
         },
         "./templates": {
             "types": "./templates.d.ts",
             "import": "./templates.js",
-            "require": "./templates.js"
+            "require": "./templates.cjs"
         }
     },
     "repository": {
@@ -32,8 +32,10 @@
         "binding.js",
         "binding.d.ts",
         "index.js",
+        "index.cjs",
         "index.d.ts",
         "templates.js",
+        "templates.cjs",
         "templates.d.ts",
         "templates"
     ],
