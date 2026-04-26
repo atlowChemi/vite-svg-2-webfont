@@ -58,6 +58,7 @@ This is a monorepo with the following packages under `packages/`:
 - `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — Rust NAPI native addon
 - `packages/example/`: Vite app used for local development and manual verification
 - `packages/docs/`: VitePress documentation site, published to GitHub Pages
+- `tests/`: cross-package compatibility tests and benchmarks (at root level)
 
 ## Pull Requests
 
