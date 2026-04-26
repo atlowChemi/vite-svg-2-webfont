@@ -23,7 +23,7 @@ jobs:
             native-tag: ${{ steps.release.outputs['packages/webfont-generator--tag_name'] }}
             any-released: ${{ steps.release.outputs.releases_created }}
         steps:
-            - uses: googleapis/release-please-action@v4
+            - uses: googleapis/release-please-action@v5
               id: release
               with:
                   config-file: release-please-config.json
