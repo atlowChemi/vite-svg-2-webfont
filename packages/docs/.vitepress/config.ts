@@ -124,6 +124,7 @@ export default defineConfig({
                         { text: 'Usage', link: '/usage' },
                         { text: 'Configuration', link: '/configuration' },
                         { text: 'Public API', link: '/public-api' },
+                        { text: 'Migration', link: '/migration' },
                     ],
                 },
             ],

@@ -18,6 +18,8 @@ This is a ground-up rewrite of [`@vusion/webfonts-generator`](https://github.com
 The API is largely compatible with `@vusion/webfonts-generator`, with a few differences:
 
 - The `cssContext` and `htmlContext` callbacks receive only the context object. The original also passed `options` and the `handlebars` instance as additional arguments — those are no longer available.
+- `formatOptions` is now strictly typed as `{ svg?: SvgFormatOptions; ttf?: TtfFormatOptions; woff?: WoffFormatOptions }`. The original accepted arbitrary `{ [format]: unknown }`; `woff2` and `eot` keys are no longer accepted (`woff2` has no format-specific options and `eot` is derived from the TTF output).
+- A new `optimizeOutput` option runs an SVG path optimizer over each glyph before assembling the font. Defaults to `false`; opt in for smaller output bytes at a small build-time cost. Also available as `formatOptions.svg.optimizeOutput`.
 - Generated font binaries (TTF, WOFF, etc.) may differ at the byte level because a different encoder is used, but the fonts are equally valid.
 - CSS, HTML, and template output is identical.
 

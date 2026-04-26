@@ -1,10 +1,9 @@
-import { promisify } from 'node:util';
 import { join as pathJoin } from 'node:path';
 import type { ModuleGraph, ModuleNode, Plugin } from 'vite';
-import _webfontGenerator from '@vusion/webfonts-generator';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, parseFiles, parsePreloadFormatsOption } from './optionParser';
-import type { GeneratedFontTypes, WebfontsGeneratorResult } from '@vusion/webfonts-generator';
+import * as templatesImport from '@atlowchemi/webfont-generator/templates';
+import type { FontType, GenerateWebfontsResult } from '@atlowchemi/webfont-generator';
 import type { IconPluginOptions } from './optionParser';
 import type { GeneratedWebfont } from './types/generatedWebfont';
 import type { PublicApi } from './types/publicApi';
@@ -13,7 +12,6 @@ type GenerateBundle = Extract<NonNullable<Plugin['generateBundle']>, Function>;
 type OutputBundle = Parameters<GenerateBundle>[1];
 
 const ac = new AbortController();
-const webfontGenerator = promisify(_webfontGenerator);
 const DEFAULT_MODULE_ID = 'vite-svg-2-webfont.css';
 const TMP_DIR = getTmpDir();
 
@@ -25,20 +23,26 @@ function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${
     return `\0${virtualModuleId}`;
 }
 
+/** Ensure vp doesn't crash locally and in CI if the native binding doesn't exist yet.  */
+let _generateWebfonts: (typeof import('@atlowchemi/webfont-generator'))['generateWebfonts'] | undefined;
+async function getGenerateWebfonts() {
+    return (_generateWebfonts ??= (await import('@atlowchemi/webfont-generator')).generateWebfonts);
+}
+
 /**
  * A Vite plugin that generates a webfont from your SVG icons.
  *
- * The plugin uses {@link https://github.com/vusion/webfonts-generator/ webfonts-generator} package to create fonts in any format.
+ * The plugin uses the {@link https://www.npmjs.com/package/@atlowchemi/webfont-generator @atlowchemi/webfont-generator} native engine to create fonts in any format.
  * It also generates CSS files that allow using the icons directly in your HTML output, using CSS classes per-icon.
  */
-export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTypes>(options: IconPluginOptions<T>): Plugin<PublicApi> {
+export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPluginOptions<T>): Plugin<PublicApi> {
     const processedOptions = parseOptions(options);
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type));
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph;
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
-    let generatedFonts: undefined | Pick<WebfontsGeneratorResult<T>, 'generateCss' | 'generateHtml' | T>;
+    let generatedFonts: GenerateWebfontsResult<T> | undefined;
     const generatedWebfonts: GeneratedWebfont[] = [];
     const moduleId = options.moduleId ?? DEFAULT_MODULE_ID;
     const virtualModuleId = getVirtualModuleId(moduleId);
@@ -86,7 +90,8 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
         if (isBuild && !options.allowWriteFilesInBuild) {
             processedOptions.writeFiles = false;
         }
-        generatedFonts = await webfontGenerator(processedOptions);
+        const generateWebfonts = await getGenerateWebfonts();
+        generatedFonts = await generateWebfonts(processedOptions);
         const hasFilesToSave = !processedOptions.writeFiles && (processedOptions.css || processedOptions.html);
         if (!isBuild && hasFilesToSave) {
             await Promise.all([
@@ -202,7 +207,7 @@ export function viteSvgToWebfont<T extends GeneratedFontTypes = GeneratedFontTyp
                     }
                     const font = generatedFonts[fontType];
                     res.setHeader('content-type', MIME_TYPES[fontType]);
-                    res.setHeader('content-length', font.length);
+                    res.setHeader('content-length', font!.length);
                     res.statusCode = 200;
                     return res.end(font);
                 });
@@ -220,4 +225,4 @@ export { type GeneratedWebfont, type PublicApi };
 /**
  * Paths of default templates available for use.
  */
-export const templates: _webfontGenerator.Templates = _webfontGenerator.templates;
+export const templates: typeof templatesImport = templatesImport;

@@ -123,9 +123,9 @@ importers:
 
   packages/vite-svg-2-webfont:
     dependencies:
-      '@vusion/webfonts-generator':
-        specifier: ^0.8.0
-        version: 0.8.0
+      '@atlowchemi/webfont-generator':
+        specifier: workspace:*
+        version: link:../webfont-generator
       glob:
         specifier: ^13.0.6
         version: 13.0.6

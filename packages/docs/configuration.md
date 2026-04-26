@@ -29,14 +29,14 @@ The plugin API consists of one required option and multiple optional options for
 - Type: `string`
 - Description: Directory for generated font files
 - Default: `path.resolve(context, '..', 'artifacts')`
-- Reference: [`webfonts-generator#dest`](https://github.com/vusion/webfonts-generator#dest)
+- Reference: [`@atlowchemi/webfont-generator#dest`](/webfont-generator/node#dest)
 
 ## `cssDest`
 
 - Type: `string`
 - Description: Output path for generated CSS
 - Default: `path.join(dest, fontName + '.css')`
-- Reference: [`webfonts-generator#cssdest`](https://github.com/vusion/webfonts-generator#cssdest)
+- Reference: [`@atlowchemi/webfont-generator#cssDest`](/webfont-generator/node#cssdest)
 
 ## `cssTemplate`
 
@@ -46,14 +46,13 @@ The plugin API consists of one required option and multiple optional options for
     - `fontName`
     - `src`
     - `codepoints`
-- References:
-    - [`webfontsGenerator.templates.css`](https://github.com/vusion/webfonts-generator/blob/98cdca62a7266323d0c89d68b3787b531a46fe61/templates/css.hbs)
-    - [`webfontsGenerator.templates.scss`](https://github.com/vusion/webfonts-generator/blob/98cdca62a7266323d0c89d68b3787b531a46fe61/templates/scss.hbs)
-    - [`webfonts-generator#cssTemplate`](https://github.com/vusion/webfonts-generator#csstemplate)
+- Reference: [`@atlowchemi/webfont-generator#cssTemplate`](/webfont-generator/node#csstemplate) and [`templates`](/webfont-generator/node#templates)
 
 ## `cssContext`
 
-- Reference: [`webfonts-generator#cssContext`](https://github.com/vusion/webfonts-generator#cssContext)
+- Type: `(context: CssContext) => void`
+- Description: Hook for mutating the rendering context passed to the CSS template before the CSS file is generated. The `context` argument carries the named fields documented on [`CssContext`](/webfont-generator/node#csscontext) (`fontName`, `src`, `codepoints`) plus the [`baseSelector`](#baseselector) and [`classPrefix`](#classprefix) keys the plugin forwards to the underlying generator.
+- Reference: [`@atlowchemi/webfont-generator#cssContext`](/webfont-generator/node#csscontext)
 
 ## `cssFontsUrl`
 
@@ -66,7 +65,7 @@ The plugin API consists of one required option and multiple optional options for
 - Type: `string`
 - Description: Output path for generated HTML preview
 - Default: `path.join(dest, fontName + '.html')`
-- Reference: [`webfonts-generator#htmlDest`](https://github.com/vusion/webfonts-generator#htmldest)
+- Reference: [`@atlowchemi/webfont-generator#htmlDest`](/webfont-generator/node#htmldest)
 
 ## `htmlTemplate`
 
@@ -76,55 +75,55 @@ The plugin API consists of one required option and multiple optional options for
     - `fontName`
     - `styles`
     - `names`
-- Reference: [`webfonts-generator#htmlTemplate`](https://github.com/vusion/webfonts-generator#htmltemplate)
+- Reference: [`@atlowchemi/webfont-generator#htmlTemplate`](/webfont-generator/node#htmltemplate)
 
 ## `ligature`
 
 - Type: `boolean`
 - Description: Enable or disable ligatures
 - Default: `true`
-- Reference: [`webfonts-generator#ligature`](https://github.com/vusion/webfonts-generator#ligature)
+- Reference: [`@atlowchemi/webfont-generator#ligature`](/webfont-generator/node#ligature)
 
 ## `normalize`
 
 - Type: `boolean`
 - Description: Scale icons to the height of the tallest icon
 - Default: `false`
-- Reference: [`svgicons2svgfont#normalize`](https://github.com/nfroidure/svgicons2svgfont#optionsnormalize)
+- Reference: [`@atlowchemi/webfont-generator#normalize`](/webfont-generator/node#normalize)
 
 ## `round`
 
 - Type: `number`
 - Description: SVG path rounding precision
 - Default: `10e12`
-- Reference: [`svgicons2svgfont#round`](https://github.com/nfroidure/svgicons2svgfont#optionsround)
+- Reference: [`@atlowchemi/webfont-generator#round`](/webfont-generator/node#round)
 
 ## `descent`
 
 - Type: `number`
 - Description: Font descent, useful when you want to tune baseline alignment manually
 - Default: `0`
-- Reference: [`svgicons2svgfont#descent`](https://github.com/nfroidure/svgicons2svgfont#optionsdescent)
+- Reference: [`@atlowchemi/webfont-generator#descent`](/webfont-generator/node#descent)
 
 ## `fixedWidth`
 
 - Type: `boolean`
 - Description: Create a monospace font based on the widest icon
 - Default: `false`
-- Reference: [`svgicons2svgfont#fixedWidth`](https://github.com/nfroidure/svgicons2svgfont#optionsfixedwidth)
+- Reference: [`@atlowchemi/webfont-generator#fixedWidth`](/webfont-generator/node#fixedwidth)
 
 ## `fontHeight`
 
 - Type: `number`
 - Description: Explicit output font height
-- Reference: [`svgicons2svgfont#fontHeight`](https://github.com/nfroidure/svgicons2svgfont#optionsfontheight)
+- Reference: [`@atlowchemi/webfont-generator#fontHeight`](/webfont-generator/node#fontheight)
 
 ## `centerHorizontally`
 
 - Type: `boolean`
 - Description: Center glyphs horizontally based on their bounds
 - Default: `false`
-- Reference: [`svgicons2svgfont#centerHorizontally`](https://github.com/nfroidure/svgicons2svgfont#optionscenterhorizontally)
+- Reference: [`@atlowchemi/webfont-generator#centerHorizontally`](/webfont-generator/node#centerhorizontally)
 
 ## `centerVertically`
 
@@ -135,7 +134,16 @@ The plugin API consists of one required option and multiple optional options for
     - This option is a convenience alias for `formatOptions.svg.centerVertically`
     - If both `centerVertically` and `formatOptions.svg.centerVertically` are defined, `formatOptions.svg.centerVertically` takes precedence
     - Any other properties inside `formatOptions.svg` are preserved
-- Reference: [`svgicons2svgfont#centerVertically`](https://github.com/nfroidure/svgicons2svgfont#optionscentervertically)
+- Reference: [`@atlowchemi/webfont-generator#centerVertically`](/webfont-generator/node#centervertically)
+
+## `optimizeOutput`
+
+- Type: `boolean`
+- Description: Run an SVG path optimizer over each glyph before assembling the font, trading a small amount of build time for smaller output bytes
+- Default: `false`
+- Notes:
+    - Available since v7 — exposes the underlying [`@atlowchemi/webfont-generator#optimizeOutput`](/webfont-generator/node#optimizeoutput) option through the plugin
+    - Convenience alias for `formatOptions.svg.optimizeOutput`; the format-level option takes precedence when both are set
 
 ## `generateFiles`
 
@@ -160,7 +168,7 @@ The plugin API consists of one required option and multiple optional options for
     - `woff2`
     - `eot`
 - Default: `['eot', 'woff', 'woff2', 'ttf', 'svg']`
-- Reference: [`webfonts-generator#types`](https://github.com/vusion/webfonts-generator#types)
+- Reference: [`@atlowchemi/webfont-generator#types`](/webfont-generator/node#types)
 
 ## `preloadFormats`
 
@@ -201,33 +209,27 @@ viteSvgToWebfont({
 
 - Type: `{ [key: string]: number }`
 - Description: Explicit codepoints for selected icons. Icons without assigned codepoints continue from the generator start codepoint while avoiding duplicates.
-- Reference: [`webfonts-generator#codepoints`](https://github.com/vusion/webfonts-generator#codepoints)
+- Reference: [`@atlowchemi/webfont-generator#codepoints`](/webfont-generator/node#codepoints)
 
 ## `classPrefix`
 
 - Type: `string`
 - Description: Class prefix for generated icon classes
 - Default: `'icon-'`
-- Reference: [`webfonts-generator#templateOptions`](https://github.com/vusion/webfonts-generator#templateoptions)
+- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/webfont-generator/node#templateoptions)
 
 ## `baseSelector`
 
 - Type: `string`
 - Description: Base selector to which the font styles are applied
 - Default: `'.icon'`
-- Reference: [`webfonts-generator#templateOptions`](https://github.com/vusion/webfonts-generator#templateoptions)
+- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/webfont-generator/node#templateoptions)
 
 ## `formatOptions`
 
-- Type: `{ [format in 'svg' | 'ttf' | 'woff2' | 'woff' | 'eot']?: unknown }`
-- Description: Per-format options passed to the corresponding generator
-- Format mapping:
-    - `svg`: `svgicons2svgfont`
-    - `ttf`: `svg2ttf`
-    - `woff2`: `ttf2woff2`
-    - `woff`: `ttf2woff`
-    - `eot`: `ttf2eot`
-- Reference: [`webfonts-generator#formatOptions`](https://github.com/vusion/webfonts-generator#formatoptions)
+- Type: `FormatOptions`
+- Description: Per-format options forwarded to the underlying [`@atlowchemi/webfont-generator`](/webfont-generator/). The shape is `{ svg?: SvgFormatOptions; ttf?: TtfFormatOptions; woff?: WoffFormatOptions }` — see the engine docs for the fields available on each.
+- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/webfont-generator/node#formatoptions)
 
 ## `moduleId`
 

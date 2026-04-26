@@ -1,4 +1,13 @@
-import type { CssContext as RawCssContext, GenerateWebfontsOptions, GenerateWebfontsResult as RawGenerateWebfontsResult, HtmlContext as RawHtmlContext } from './binding';
+import type {
+    CssContext as RawCssContext,
+    FormatOptions,
+    GenerateWebfontsOptions,
+    GenerateWebfontsResult as RawGenerateWebfontsResult,
+    HtmlContext as RawHtmlContext,
+    SvgFormatOptions,
+    TtfFormatOptions,
+    WoffFormatOptions,
+} from './binding';
 import * as templates from './templates.js';
 
 export type FontType = 'svg' | 'ttf' | 'eot' | 'woff' | 'woff2';
@@ -41,10 +50,14 @@ export declare namespace generateWebfonts {
 }
 
 export {
+    FormatOptions,
     GenerateWebfontsOptions,
     RawGenerateWebfontsResult,
+    SvgFormatOptions,
     /**
      * Paths of default templates available for use.
      */
     templates,
+    TtfFormatOptions,
+    WoffFormatOptions,
 };
