@@ -15,14 +15,24 @@ use crate::templates::{
 };
 use crate::util::to_io_err;
 
+/// Font output format. Used in the `types` and `order` options to control which
+/// formats are generated and the order they appear in the CSS `@font-face`
+/// `src:` descriptor.
 #[cfg_attr(feature = "napi", napi(string_enum = "lowercase"))]
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum FontType {
+    /// SVG font (`.svg`). Legacy format; intermediate representation that all
+    /// other formats are derived from.
     Svg,
+    /// TrueType font (`.ttf`).
     Ttf,
+    /// Embedded OpenType (`.eot`). Legacy format for older Internet Explorer.
     Eot,
+    /// Web Open Font Format 1.0 (`.woff`).
     Woff,
+    /// Web Open Font Format 2.0 (`.woff2`). Best compression; preferred for
+    /// modern browsers.
     Woff2,
 }
 
@@ -155,38 +165,93 @@ pub struct HtmlContext {
     pub codepoints: HashMap<String, u32>,
 }
 
+/// Top-level options controlling webfont generation. Only `dest` and `files`
+/// are required; every other field has a sensible default. See the per-field
+/// docs for defaults and units.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
 pub struct GenerateWebfontsOptions {
+    /// Font ascent in font units. Overrides the value computed from the source
+    /// glyphs.
     pub ascent: Option<f64>,
+    /// When `true`, centers each glyph horizontally inside the em-square based
+    /// on its bounding box.
     pub center_horizontally: Option<bool>,
+    /// When `true`, centers each glyph vertically inside the em-square based
+    /// on its bounding box. Convenience alias for
+    /// `formatOptions.svg.centerVertically`.
     pub center_vertically: Option<bool>,
+    /// Whether to generate a CSS file. Defaults to `true`.
     pub css: Option<bool>,
+    /// Output path for the generated CSS file. Defaults to
+    /// `path.join(dest, fontName + '.css')`.
     pub css_dest: Option<String>,
+    /// Path to a custom Handlebars template for CSS generation. The template
+    /// receives the `cssContext` shape plus any `templateOptions` keys.
     pub css_template: Option<String>,
+    /// Explicit Unicode codepoints for specific glyphs, keyed by glyph name.
+    /// Glyphs not listed here are auto-assigned starting at `startCodepoint`.
     pub codepoints: Option<HashMap<String, u32>>,
+    /// URL prefix for font files in the generated CSS. Defaults to the
+    /// relative path from `cssDest` to `dest`.
     pub css_fonts_url: Option<String>,
+    /// Font descent in font units. Overrides the value computed from the
+    /// source glyphs.
     pub descent: Option<f64>,
+    /// Output directory for generated font files. Required.
     pub dest: String,
+    /// Paths to the SVG files to include in the font. Required.
     pub files: Vec<String>,
+    /// When `true`, produces a monospace font sized to the widest glyph.
     pub fixed_width: Option<bool>,
+    /// Per-format option overrides. See `FormatOptions`.
     pub format_options: Option<FormatOptions>,
+    /// Whether to generate an HTML preview file. Defaults to `false`.
     pub html: Option<bool>,
+    /// Output path for the generated HTML preview file. Defaults to
+    /// `path.join(dest, fontName + '.html')`.
     pub html_dest: Option<String>,
+    /// Path to a custom Handlebars template for HTML preview generation.
     pub html_template: Option<String>,
+    /// Explicit output font height in units per em. Overrides the height
+    /// computed from the source glyphs.
     pub font_height: Option<f64>,
+    /// Name of the generated font family; also used as the base name for
+    /// output files. Defaults to `'iconfont'`.
     pub font_name: Option<String>,
+    /// CSS `font-style` value for the generated `@font-face` rule.
     pub font_style: Option<String>,
+    /// CSS `font-weight` value for the generated `@font-face` rule.
     pub font_weight: Option<String>,
+    /// Enable ligature support so each glyph can be referenced by its name as
+    /// a text ligature. Defaults to `true`.
     pub ligature: Option<bool>,
+    /// Scale icons to the height of the tallest icon. Defaults to `true`.
     pub normalize: Option<bool>,
+    /// Order of `@font-face` `src:` entries in the generated CSS. Every entry
+    /// must also appear in `types`. Defaults to
+    /// `['eot', 'woff2', 'woff', 'ttf', 'svg']` filtered to the requested
+    /// `types`.
     pub order: Option<Vec<FontType>>,
+    /// Run an SVG path optimizer over each glyph, trading a small amount of
+    /// build time for smaller output bytes. Convenience alias for
+    /// `formatOptions.svg.optimizeOutput`.
     pub optimize_output: Option<bool>,
+    /// Preserve the source viewBox aspect ratio when scaling glyphs into the
+    /// em-square. Convenience alias for `formatOptions.svg.preserveAspectRatio`.
     pub preserve_aspect_ratio: Option<bool>,
+    /// SVG path coordinate rounding precision.
     pub round: Option<f64>,
+    /// Starting codepoint for auto-assigned glyphs. Defaults to `0xF101`.
     pub start_codepoint: Option<u32>,
+    /// Additional key-value pairs merged into the Handlebars template
+    /// context for both CSS and HTML rendering. Typical home for
+    /// `classPrefix` and `baseSelector`.
     pub template_options: Option<Map<String, Value>>,
+    /// Font formats to generate. Defaults to `['eot', 'woff', 'woff2']`.
     pub types: Option<Vec<FontType>>,
+    /// Whether to write generated files to disk. Set to `false` for
+    /// in-memory usage. Defaults to `true`.
     pub write_files: Option<bool>,
 }
 
@@ -272,6 +337,9 @@ pub(crate) struct CachedTemplateData {
     pub(crate) render_cache: Mutex<RenderCache>,
 }
 
+/// Result of a successful `generateWebfonts` call. Exposes the generated
+/// font bytes (or `null` for formats that were not requested) and methods to
+/// render the CSS and HTML preview.
 #[cfg_attr(feature = "napi", napi)]
 pub struct GenerateWebfontsResult {
     pub(crate) css_context: Option<Map<String, Value>>,
@@ -475,6 +543,7 @@ impl GenerateWebfontsResult {
 #[cfg(feature = "napi")]
 #[napi]
 impl GenerateWebfontsResult {
+    /// EOT font bytes, or `null` if EOT was not in `types`.
     #[napi(getter)]
     pub fn eot(&self) -> Option<Uint8Array> {
         self.eot_font
@@ -482,11 +551,13 @@ impl GenerateWebfontsResult {
             .map(|v| Uint8Array::from(v.as_ref().clone()))
     }
 
+    /// SVG font XML string, or `null` if SVG was not in `types`.
     #[napi(getter)]
     pub fn svg(&self) -> Option<String> {
         self.svg_font.as_ref().map(|v| v.as_ref().clone())
     }
 
+    /// TTF font bytes, or `null` if TTF was not in `types`.
     #[napi(getter)]
     pub fn ttf(&self) -> Option<Uint8Array> {
         self.ttf_font
@@ -494,6 +565,7 @@ impl GenerateWebfontsResult {
             .map(|v| Uint8Array::from(v.as_ref().clone()))
     }
 
+    /// WOFF2 font bytes, or `null` if WOFF2 was not in `types`.
     #[napi(getter)]
     pub fn woff2(&self) -> Option<Uint8Array> {
         self.woff2_font
@@ -501,6 +573,7 @@ impl GenerateWebfontsResult {
             .map(|v| Uint8Array::from(v.as_ref().clone()))
     }
 
+    /// WOFF font bytes, or `null` if WOFF was not in `types`.
     #[napi(getter)]
     pub fn woff(&self) -> Option<Uint8Array> {
         self.woff_font
@@ -508,6 +581,10 @@ impl GenerateWebfontsResult {
             .map(|v| Uint8Array::from(v.as_ref().clone()))
     }
 
+    /// Render the CSS string for this result. Pass `urls` to override the
+    /// default font URLs in the `@font-face src:` descriptor (only the keys
+    /// you supply are overridden). The result is cached per `urls` value, so
+    /// repeated calls with the same input are cheap.
     #[napi(ts_args_type = "urls?: Partial<Record<FontType, string>>")]
     pub fn generate_css(&self, urls: Option<HashMap<String, String>>) -> napi::Result<String> {
         let urls = urls.map(parse_native_urls).transpose()?;
@@ -515,6 +592,9 @@ impl GenerateWebfontsResult {
             .map_err(crate::util::to_napi_err)
     }
 
+    /// Render the HTML preview string for this result. Pass `urls` to
+    /// override font URLs in the embedded stylesheet (only the keys you
+    /// supply are overridden). The result is cached per `urls` value.
     #[napi(ts_args_type = "urls?: Partial<Record<FontType, string>>")]
     pub fn generate_html(&self, urls: Option<HashMap<String, String>>) -> napi::Result<String> {
         let urls = urls.map(parse_native_urls).transpose()?;

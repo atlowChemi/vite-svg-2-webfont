@@ -112,6 +112,18 @@ extern "C" fn napi_call_threadsafe_function(
     0
 }
 
+/// Generate a webfont from a set of SVG files.
+///
+/// Loads the SVGs listed in `options.files`, builds the configured
+/// `options.types` formats, optionally writes them (along with the CSS and
+/// HTML preview) to `options.dest`, and returns a `GenerateWebfontsResult`
+/// holding the font bytes and template-rendering methods.
+///
+/// Optional callbacks:
+/// - `rename(path)` — derive a custom glyph name from each SVG file path.
+/// - `cssContext(ctx)` — mutate the Handlebars context before CSS rendering;
+///   return the (possibly mutated) context.
+/// - `htmlContext(ctx)` — same, but for the HTML preview.
 #[cfg(feature = "napi")]
 #[napi]
 #[allow(clippy::type_complexity)] // NAPI proc macro requires the verbose ThreadsafeFunction type
