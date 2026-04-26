@@ -104,7 +104,7 @@ describe('optionParser', () => {
         });
 
         it.concurrent("concatenates fontName if fileDest doesn't have a file extension", () => {
-            expect(optionParser.resolveFileDest(globalDest, 'file', fontName, extension)).toBe(resolve(globalDest, `file/${fontName}.${extension}`));
+            expect(optionParser.resolveFileDest(globalDest, 'file', fontName, extension)).toBe(resolve(globalDest, 'file', `${fontName}.${extension}`));
         });
 
         it.concurrent("doesn't concatenate globalDest if fileDest is absolute", () => {
