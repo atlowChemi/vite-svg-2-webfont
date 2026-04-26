@@ -1,11 +1,25 @@
-import type { GenerateWebfontsOptions, GenerateWebfontsResult as RawGenerateWebfontsResult } from './binding';
+import type { CssContext as RawCssContext, GenerateWebfontsOptions, GenerateWebfontsResult as RawGenerateWebfontsResult, HtmlContext as RawHtmlContext } from './binding';
 import * as templates from './templates.js';
 
 export type FontType = 'svg' | 'ttf' | 'eot' | 'woff' | 'woff2';
 
+/**
+ * Context object passed to the `cssContext` callback. The named fields are
+ * always supplied by the native engine; the index signature accommodates
+ * arbitrary keys merged in from user-supplied `templateOptions`.
+ */
+export type CssContext = RawCssContext & { [key: string]: unknown };
+
+/**
+ * Context object passed to the `htmlContext` callback. The named fields are
+ * always supplied by the native engine; the index signature accommodates
+ * arbitrary keys merged in from user-supplied `templateOptions`.
+ */
+export type HtmlContext = RawHtmlContext & { [key: string]: unknown };
+
 export interface GenerateWebfontsInputOptions<T extends FontType = FontType> extends Omit<GenerateWebfontsOptions, 'types' | 'order'> {
-    cssContext?: (context: Record<string, any>) => void;
-    htmlContext?: (context: Record<string, any>) => void;
+    cssContext?: (context: CssContext) => void;
+    htmlContext?: (context: HtmlContext) => void;
     order?: NoInfer<T>[];
     rename?: (name: string) => string;
     types?: T[];

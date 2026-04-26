@@ -94,12 +94,12 @@ use templates::{render_css_with_hbs_context, render_html_with_hbs_context};
 #[cfg(feature = "napi")]
 use util::to_napi_err;
 
+pub use types::{
+    CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult,
+    HtmlContext, SvgFormatOptions, TtfFormatOptions, WoffFormatOptions,
+};
 use types::{
     DEFAULT_FONT_ORDER, LoadedSvgFile, ResolvedGenerateWebfontsOptions, resolved_font_types,
-};
-pub use types::{
-    FontType, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult, SvgFormatOptions,
-    TtfFormatOptions, WoffFormatOptions,
 };
 
 #[cfg(all(test, feature = "napi"))]

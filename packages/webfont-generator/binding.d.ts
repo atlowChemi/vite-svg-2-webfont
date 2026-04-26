@@ -10,6 +10,28 @@ export declare class GenerateWebfontsResult {
   generateHtml(urls?: Partial<Record<FontType, string>>): string
 }
 
+/**
+ * Guaranteed fields supplied to a `cssContext` callback. Additional keys from
+ * user-supplied `templateOptions` are merged into the same object at runtime,
+ * so the JS-side type widens this with an open-ended index signature.
+ */
+export interface CssContext {
+  /** Name of the generated font, mirroring the `fontName` option. */
+  fontName: string
+  /**
+   * Pre-rendered value for the CSS `@font-face` `src:` descriptor — a
+   * comma-separated list of `url(...) format(...)` entries derived from the
+   * configured `types`, `order`, and `cssFontsUrl`.
+   */
+  src: string
+  /**
+   * Map from glyph name to its assigned codepoint as a hex-encoded string
+   * (e.g. `"add" -> "f101"`), suitable for use inside CSS `content`
+   * declarations like `content: "\f101"`.
+   */
+  codepoints: Record<string, string>
+}
+
 export declare const enum FontType {
   Svg = 'svg',
   Ttf = 'ttf',
@@ -57,6 +79,33 @@ export interface GenerateWebfontsOptions {
   templateOptions?: Record<string, any>
   types?: Array<FontType>
   writeFiles?: boolean
+}
+
+/**
+ * Guaranteed fields supplied to an `htmlContext` callback. Additional keys
+ * from user-supplied `templateOptions` are merged into the same object at
+ * runtime, so the JS-side type widens this with an open-ended index signature.
+ */
+export interface HtmlContext {
+  /** Name of the generated font, mirroring the `fontName` option. */
+  fontName: string
+  /**
+   * Glyph names in declaration order, after any `rename` callback has been
+   * applied. Useful for iterating over icons in a preview template.
+   */
+  names: Array<string>
+  /**
+   * Pre-rendered CSS (the same string the engine writes to the `.css`
+   * output) so HTML templates can embed it inline for self-contained
+   * previews without an external stylesheet reference.
+   */
+  styles: string
+  /**
+   * Map from glyph name to its assigned codepoint as a numeric value
+   * (e.g. `"add" -> 0xF101`). Use the CSS context's hex form if you need a
+   * string for embedding into CSS `content` declarations.
+   */
+  codepoints: Record<string, number>
 }
 
 export interface SvgFormatOptions {
