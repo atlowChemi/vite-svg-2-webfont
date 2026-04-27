@@ -2,19 +2,17 @@
 
 ## [7.0.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.1.2...vite-svg-2-webfont-v7.0.0) (2026-04-27)
 
-
 ### ⚠ BREAKING CHANGES
 
-* cssContext callback now receives a single argument; the second `options` and third `handlebars` parameters are removed. generated font binaries differ at the byte level from v6.
+- cssContext callback now receives a single argument; the second `options` and third `handlebars` parameters are removed. generated font binaries differ at the byte level from v6.
 
 ### Features
 
-* replace @vusion/webfonts-generator with native Rust core and restructure as monorepo ([#80](https://github.com/atlowChemi/vite-svg-2-webfont/issues/80)) ([d9126fa](https://github.com/atlowChemi/vite-svg-2-webfont/commit/d9126fa29e887a32bd2d3ffb10366166203a3cfd))
-
+- replace @vusion/webfonts-generator with native Rust core and restructure as monorepo ([#80](https://github.com/atlowChemi/vite-svg-2-webfont/issues/80)) ([d9126fa](https://github.com/atlowChemi/vite-svg-2-webfont/commit/d9126fa29e887a32bd2d3ffb10366166203a3cfd))
 
 ### Bug Fixes
 
-* **vite-svg-2-webfont:** widen @atlowchemi/webfont-generator dependency range ([#119](https://github.com/atlowChemi/vite-svg-2-webfont/issues/119)) ([285c6b1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/285c6b1ae8673eb46dbb1732cef95832b421e810))
+- **vite-svg-2-webfont:** widen @atlowchemi/webfont-generator dependency range ([#119](https://github.com/atlowChemi/vite-svg-2-webfont/issues/119)) ([285c6b1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/285c6b1ae8673eb46dbb1732cef95832b421e810))
 
 ## [6.1.2](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.1.1...vite-svg-2-webfont-v6.1.2) (2026-04-12)
 
