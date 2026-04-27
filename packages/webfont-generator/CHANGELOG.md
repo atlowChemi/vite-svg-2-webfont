@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.3.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.4...webfont-generator-v0.3.0) (2026-04-27)
+
+### Features
+
+- **webfont-generator:** type cssContext and htmlContext callback context ([#113](https://github.com/atlowChemi/vite-svg-2-webfont/issues/113)) ([1be93fc](https://github.com/atlowChemi/vite-svg-2-webfont/commit/1be93fcab0accb96fe98a771efe031bd91331934))
+
+### Bug Fixes
+
+- **webfont-generator:** ship CJS entrypoints for require() consumers ([#116](https://github.com/atlowChemi/vite-svg-2-webfont/issues/116)) ([0d217bd](https://github.com/atlowChemi/vite-svg-2-webfont/commit/0d217bd61ce8a32b6f0324866e8d7275fb7bd61e))
+
 ## [0.2.4](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.3...webfont-generator-v0.2.4) (2026-04-16)
 
 ### Bug Fixes
