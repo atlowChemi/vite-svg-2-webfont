@@ -1,0 +1,31 @@
+name: PR Title
+
+on:
+    pull_request:
+        types:
+            - opened
+            - edited
+            - reopened
+            - synchronize
+
+permissions:
+    pull-requests: read
+
+jobs:
+    conventional-commit:
+        name: Validate conventional commit title
+        runs-on: ubuntu-latest
+        steps:
+            - uses: amannn/action-semantic-pull-request@v6
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              with:
+                  scopes: |
+                      webfont-generator
+                      vite-svg-2-webfont
+                      ci
+                      docs
+                      example
+                      tests
+                      main
+                      deps
