@@ -1383,6 +1383,34 @@ describe('compat:webfonts-generator:side-by-side', () => {
         });
     });
 
+    describe.each([
+        { cssFontsUrl: '/', label: 'root' },
+        { cssFontsUrl: '///', label: 'multi-slash root' },
+        { cssFontsUrl: '/assets/fonts', label: 'absolute path' },
+        { cssFontsUrl: '/assets/fonts/', label: 'absolute path with trailing slash' },
+        { cssFontsUrl: 'fonts/nested', label: 'relative path' },
+        { cssFontsUrl: 'fonts/nested/', label: 'relative path with trailing slash' },
+        { cssFontsUrl: 'https://cdn.example.com/fonts', label: 'absolute URL' },
+        { cssFontsUrl: 'https://cdn.example.com/fonts/', label: 'absolute URL with trailing slash' },
+    ] as const)('cssFontsUrl parity: $label', ({ cssFontsUrl }) => {
+        // Regression coverage for https://github.com/atlowChemi/vite-svg-2-webfont/issues/121:
+        // the generated CSS urls for any cssFontsUrl value must match upstream
+        // @vusion/webfonts-generator (which delegates to the url-join npm package).
+        it('matches generated CSS side-by-side', async () => {
+            const dest = await createTempDir('__webfonts-compat-side-by-side-css-fonts-url-');
+            const options = baseOptions(dest, {
+                css: false,
+                cssFontsUrl,
+                html: false,
+                order: ['eot', 'woff2', 'woff', 'ttf', 'svg'],
+                types: ['eot', 'woff2', 'woff', 'ttf', 'svg'],
+            });
+            const { newCore, upstream } = await runSideBySide(options);
+
+            expect(sanitizeTemplateOutput(newCore.generateCss())).toBe(sanitizeTemplateOutput(upstream.generateCss()));
+        });
+    });
+
     it('matches default scss template output', async () => {
         const destUpstream = await createTempDir(`__webfonts-compat-side-by-side-default-scss-template-upstream-`);
         const destNewCore = await createTempDir(`__webfonts-compat-side-by-side-default-scss-template-new-core-`);
