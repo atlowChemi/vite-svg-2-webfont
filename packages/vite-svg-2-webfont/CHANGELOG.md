@@ -1,5 +1,12 @@
 # Changelog
 
+## [7.0.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v7.0.0...vite-svg-2-webfont-v7.0.1) (2026-05-25)
+
+
+### Bug Fixes
+
+* **vite-svg-2-webfont:** pass absolute cssFontsUrl values through on Windows ([fff77ab](https://github.com/atlowChemi/vite-svg-2-webfont/commit/fff77ab859fbea0fea40baf3166bf21cc8c17da7))
+
 ## [7.0.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v6.1.2...vite-svg-2-webfont-v7.0.0) (2026-04-27)
 
 ### ⚠ BREAKING CHANGES
