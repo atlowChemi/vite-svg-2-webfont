@@ -374,3 +374,36 @@ describe('build allowWriteFilesInBuild', () => {
         await expect(access(filePath, constants.F_OK)).resolves.not.toThrow();
     });
 });
+
+describe('build cssFontsUrl root', () => {
+    // Regression test for https://github.com/atlowChemi/vite-svg-2-webfont/issues/121:
+    // cssFontsUrl: '/' must produce absolute-from-root URLs like '/iconfont.woff2',
+    // not a bare filename. Captures the rendered src via cssContext to inspect the
+    // plugin output directly, before Vite's asset pipeline rewrites the URLs.
+    const webfontFolder = fileURLToPath(new URL('webfont-test/svg', root));
+    let capturedSrc: string | undefined;
+
+    beforeAll(async () => {
+        await build({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            build: { assetsInlineLimit: 0, write: false },
+            plugins: [
+                viteSvgToWebfont({
+                    context: webfontFolder,
+                    types: ['woff2', 'ttf'],
+                    cssFontsUrl: '/',
+                    cssContext: context => {
+                        capturedSrc = context.src;
+                    },
+                }),
+            ],
+        });
+    });
+
+    it.each(['woff2', 'ttf'] as const)('emits leading-slash url for type %s', type => {
+        expect(capturedSrc).toMatch(new RegExp(`url\\("/iconfont\\.${type}\\?[^"]+"\\)`));
+        expect(capturedSrc).not.toMatch(new RegExp(`url\\("iconfont\\.${type}\\?`));
+    });
+});
