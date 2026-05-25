@@ -453,16 +453,23 @@ describe('optionParser', () => {
         it.concurrent('sets cssFontsUrl only if defined in options', () => {
             const resDefault = optionParser.parseOptions({ context });
             expect('cssFontsUrl' in resDefault).toEqual(false);
-            const cssFontsUrl = '/cssFontsUrl';
-            const resExplicit = optionParser.parseOptions({ context, cssFontsUrl });
-            expect(resExplicit.cssFontsUrl).toBe(resolve(cssFontsUrl));
         });
 
-        it.concurrent('concatenates dest to cssFontsUrl', () => {
+        it.concurrent('concatenates dest to relative cssFontsUrl', () => {
             const dest = '/root';
             const cssFontsUrl = 'cssFontsUrl';
             const resExplicit = optionParser.parseOptions({ context, dest, cssFontsUrl });
             expect(resExplicit.cssFontsUrl).toBe(resolve(dest, cssFontsUrl));
+        });
+
+        it.concurrent.each([
+            { cssFontsUrl: '/', label: 'root' },
+            { cssFontsUrl: '/assets/fonts', label: 'absolute path' },
+            { cssFontsUrl: '//cdn.example.com/fonts', label: 'protocol-relative URL' },
+            { cssFontsUrl: 'https://cdn.example.com/fonts', label: 'absolute URL' },
+        ])('passes absolute cssFontsUrl ($label) through unchanged', ({ cssFontsUrl }) => {
+            const resExplicit = optionParser.parseOptions({ context, dest: '/root', cssFontsUrl });
+            expect(resExplicit.cssFontsUrl).toBe(cssFontsUrl);
         });
 
         it.concurrent('sets htmlTemplate only if defined in options', () => {

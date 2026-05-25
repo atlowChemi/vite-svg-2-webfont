@@ -190,6 +190,21 @@ export function parsePreloadFormatsOption<T extends FontType = FontType>({ prelo
     return parseGeneratedFontTypeOption(preloadFormats);
 }
 
+const CSS_FONTS_URL_ABSOLUTE_RE = /^(?:\/|[a-z][a-z0-9+.-]*:\/\/)/i;
+
+function resolveCssFontsUrl(dest: string, cssFontsUrl: string): string {
+    // Absolute URL paths ('/...', '//cdn/...') and full URLs ('https://...') are
+    // URL values, not filesystem paths — passing them through `path.resolve` on
+    // Windows mangles them (e.g. `resolve(dest, '/')` returns `'C:/'`). Match
+    // upstream @vusion/webfonts-generator, which never resolves cssFontsUrl
+    // against dest, while keeping the existing dest-concat behavior for
+    // relative values consumers may already rely on.
+    if (CSS_FONTS_URL_ABSOLUTE_RE.test(cssFontsUrl)) {
+        return cssFontsUrl;
+    }
+    return resolve(dest, cssFontsUrl);
+}
+
 export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>): string[] {
     files ||= ['*.svg'];
     const resolvedFiles = globSync(files, { cwd: context })?.map(file => join(context, file)) || [];
@@ -273,7 +288,7 @@ export function parseOptions<T extends FontType = FontType>(options: IconPluginO
         htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName, 'html'),
         ...(options.cssTemplate && { cssTemplate: resolve(options.dest, options.cssTemplate) }),
         ...(options.cssContext && { cssContext: options.cssContext }),
-        ...(options.cssFontsUrl && { cssFontsUrl: resolve(options.dest, options.cssFontsUrl) }),
+        ...(options.cssFontsUrl && { cssFontsUrl: resolveCssFontsUrl(options.dest, options.cssFontsUrl) }),
         ...(options.htmlTemplate && { htmlTemplate: resolve(options.dest, options.htmlTemplate) }),
         ...(typeof options.fixedWidth !== 'undefined' && { fixedWidth: options.fixedWidth }),
         ...(typeof options.centerHorizontally !== 'undefined' && { centerHorizontally: options.centerHorizontally }),
