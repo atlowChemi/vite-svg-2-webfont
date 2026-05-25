@@ -729,7 +729,7 @@ mod tests {
     }
 
     #[test]
-    fn make_urls_treats_an_empty_trimmed_css_fonts_url_as_no_base_url() {
+    fn make_urls_preserves_leading_slash_when_css_fonts_url_is_only_slashes() {
         let options = GenerateWebfontsOptions {
             css: Some(false),
             css_fonts_url: Some("///".to_owned()),
@@ -757,7 +757,7 @@ mod tests {
 
         assert_eq!(
             urls.get(&FontType::Svg),
-            Some(&format!("iconfont.svg?{hash}"))
+            Some(&format!("/iconfont.svg?{hash}"))
         );
     }
 

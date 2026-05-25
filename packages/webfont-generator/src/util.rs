@@ -53,11 +53,19 @@ where
 }
 
 /// Join a base URL with a file name, normalizing slashes.
+///
+/// When `base_url` consists only of slashes (e.g. `"/"`), the leading slash
+/// is preserved so absolute-from-root references like `cssFontsUrl: "/"`
+/// produce URLs such as `"/iconfont.woff2"` rather than collapsing to a
+/// relative path.
 pub(crate) fn join_url(base_url: &str, file_name: &str) -> String {
+    if base_url.is_empty() {
+        return file_name.trim_start_matches('/').to_owned();
+    }
     let trimmed_base = base_url.trim_end_matches('/');
     let trimmed_file = file_name.trim_start_matches('/');
     if trimmed_base.is_empty() {
-        trimmed_file.to_owned()
+        format!("/{trimmed_file}")
     } else {
         format!("{trimmed_base}/{trimmed_file}")
     }
@@ -151,7 +159,7 @@ mod tests {
     use std::collections::BTreeMap;
     use std::path::Path;
 
-    use super::{default_glyph_name_from_path, glyph_name_from_path, resolve_codepoints};
+    use super::{default_glyph_name_from_path, glyph_name_from_path, join_url, resolve_codepoints};
     use crate::types::LoadedSvgFile;
 
     fn loaded_svg_file(path: &str) -> LoadedSvgFile {
@@ -217,6 +225,44 @@ mod tests {
         assert_eq!(resolved_codepoints.get("arrow-left"), Some(&0xF105));
         assert_eq!(resolved_codepoints.get("check"), Some(&0xF101));
         assert_eq!(resolved_codepoints.get("arrow-right"), Some(&0xF102));
+    }
+
+    #[test]
+    fn join_url_returns_file_name_when_base_is_empty() {
+        assert_eq!(join_url("", "iconfont.woff2"), "iconfont.woff2");
+        assert_eq!(join_url("", "/iconfont.woff2"), "iconfont.woff2");
+    }
+
+    #[test]
+    fn join_url_preserves_leading_slash_when_base_is_root() {
+        assert_eq!(join_url("/", "iconfont.woff2"), "/iconfont.woff2");
+        assert_eq!(join_url("/", "/iconfont.woff2"), "/iconfont.woff2");
+        assert_eq!(join_url("//", "iconfont.woff2"), "/iconfont.woff2");
+    }
+
+    #[test]
+    fn join_url_joins_relative_and_absolute_paths() {
+        assert_eq!(join_url("/foo", "iconfont.woff2"), "/foo/iconfont.woff2");
+        assert_eq!(join_url("/foo/", "iconfont.woff2"), "/foo/iconfont.woff2");
+        assert_eq!(join_url("foo", "iconfont.woff2"), "foo/iconfont.woff2");
+        assert_eq!(join_url("foo/", "iconfont.woff2"), "foo/iconfont.woff2");
+        assert_eq!(join_url("/foo", "/iconfont.woff2"), "/foo/iconfont.woff2");
+    }
+
+    #[test]
+    fn join_url_preserves_absolute_url_origins() {
+        assert_eq!(
+            join_url("https://cdn.example.com", "iconfont.woff2"),
+            "https://cdn.example.com/iconfont.woff2"
+        );
+        assert_eq!(
+            join_url("https://cdn.example.com/", "iconfont.woff2"),
+            "https://cdn.example.com/iconfont.woff2"
+        );
+        assert_eq!(
+            join_url("https://cdn.example.com/assets", "iconfont.woff2"),
+            "https://cdn.example.com/assets/iconfont.woff2"
+        );
     }
 
     #[test]
