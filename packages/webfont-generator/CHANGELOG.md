@@ -2,10 +2,9 @@
 
 ## [0.3.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.3.0...webfont-generator-v0.3.1) (2026-05-25)
 
-
 ### Bug Fixes
 
-* **webfont-generator:** preserve leading slash when cssFontsUrl trims to root ([a82674b](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a82674b692d4e5bd1fea875629a33352d1ede78b))
+- **webfont-generator:** preserve leading slash when cssFontsUrl trims to root ([a82674b](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a82674b692d4e5bd1fea875629a33352d1ede78b))
 
 ## [0.3.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.2.4...webfont-generator-v0.3.0) (2026-04-27)
 
