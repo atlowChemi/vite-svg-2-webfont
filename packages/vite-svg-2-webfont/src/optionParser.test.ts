@@ -1,12 +1,15 @@
 import { resolve, sep } from 'node:path';
 import * as optionParser from './optionParser';
-import type { globSync as GlobSyncFn } from 'glob';
+import type { globSync as GlobSyncFn } from 'node:fs';
 import { describe, it, expect, vi, afterEach, beforeAll } from 'vite-plus/test';
 import { NoIconsAvailableError, InvalidWriteFilesTypeError } from './errors';
 import type { FontType } from '@atlowchemi/webfont-generator';
 
 const globSyncMock = vi.hoisted(() => vi.fn<typeof GlobSyncFn>());
-vi.mock('glob', () => ({ globSync: globSyncMock }));
+vi.mock('node:fs', async importActual => {
+    const actual = await importActual<typeof import('node:fs')>();
+    return { ...actual, globSync: globSyncMock };
+});
 const cssContext = () => {
     throw new Error("Shouldn't be called!");
 };

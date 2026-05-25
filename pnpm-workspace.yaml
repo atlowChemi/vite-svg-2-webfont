@@ -1,11 +1,18 @@
 packages:
     - 'packages/*'
+allowBuilds:
+    '@parcel/watcher': false
+    esbuild: false
+    ttf2woff2: false
 catalog:
     typescript: ^5.9.3
-    vite: npm:@voidzero-dev/vite-plus-core@0.1.19
-    vite-plus: 0.1.19
-    vitest: npm:@voidzero-dev/vite-plus-test@0.1.19
-    '@vitest/coverage-v8': 4.1.4
+    vite: npm:@voidzero-dev/vite-plus-core@0.1.22
+    vite-plus: 0.1.22
+    vitest: npm:@voidzero-dev/vite-plus-test@0.1.22
+    '@vitest/coverage-v8': 4.1.6
+
+configDependencies:
+    '@pnpm/pacquet': 0.2.12
 
 overrides:
     brace-expansion@>=1.0.0 <=1.1.11: '^1.1.12'

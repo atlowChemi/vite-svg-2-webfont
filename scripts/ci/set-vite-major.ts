@@ -1,22 +1,27 @@
 import { readFileSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { styleText } from 'node:util';
+
+function fail(message: string): never {
+    console.error(styleText('red', message));
+    process.exit(1);
+}
 
 const args = process.argv.slice(2);
 const isDryRun = args.includes('--dry-run');
 const viteMajorArg = args.find(arg => !arg.startsWith('--'));
 
 if (!viteMajorArg) {
-    console.error('Usage: node ./scripts/ci/set-vite-major.js <vite-major> [--dry-run]');
-    process.exit(1);
+    fail('Usage: node ./scripts/ci/set-vite-major.ts <vite-major> [--dry-run]');
 }
 
 const viteMajor = Number.parseInt(viteMajorArg, 10);
 if (!Number.isInteger(viteMajor) || viteMajor < 1) {
-    console.error(`Invalid Vite major "${viteMajorArg}"`);
-    process.exit(1);
+    fail(`Invalid Vite major "${viteMajorArg}"`);
 }
 
 const viteSpecifier = `^${viteMajor}.0.0`;
-const workspaceFile = new URL('../../pnpm-workspace.yaml', import.meta.url);
+const workspaceFile = join(import.meta.dirname, '..', '..', 'pnpm-workspace.yaml');
 const workspaceYaml = readFileSync(workspaceFile, 'utf8');
 const lines = workspaceYaml.split('\n');
 let currentSection = '';
@@ -30,9 +35,7 @@ for (const [index, line] of lines.entries()) {
         continue;
     }
 
-    const viteKeyMatch = /^\s+vite:\s*/.exec(line);
-
-    if (!viteKeyMatch) {
+    if (!/^\s+vite:\s*/.test(line)) {
         continue;
     }
 
@@ -46,22 +49,18 @@ for (const [index, line] of lines.entries()) {
 }
 
 if (catalogViteIndex === -1) {
-    console.error('Could not find catalog.vite in pnpm-workspace.yaml');
-    process.exit(1);
+    fail('Could not find catalog.vite in pnpm-workspace.yaml');
 }
 
 if (overridesViteIndex === -1) {
-    console.error('Could not find overrides.vite in pnpm-workspace.yaml');
-    process.exit(1);
+    fail('Could not find overrides.vite in pnpm-workspace.yaml');
 }
 
 lines[catalogViteIndex] = `    vite: ${viteSpecifier}`;
 lines[overridesViteIndex] = `    vite: 'catalog:'`;
 
-const nextWorkspaceYaml = lines.join('\n');
-
 if (!isDryRun) {
-    writeFileSync(workspaceFile, nextWorkspaceYaml);
+    writeFileSync(workspaceFile, lines.join('\n'));
 }
 
-console.log(`Configured workspace Vite dependency to ${viteSpecifier}`);
+console.log(styleText('green', `Configured workspace Vite dependency to ${viteSpecifier}`));
