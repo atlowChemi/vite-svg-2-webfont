@@ -1,5 +1,16 @@
 # Changelog
 
+## [8.0.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v7.0.1...vite-svg-2-webfont-v8.0.0) (2026-05-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* **vite-svg-2-webfont:** require Node 22+/24+/26+ and use native node:fs.globSync ([#122](https://github.com/atlowChemi/vite-svg-2-webfont/issues/122))
+
+### Features
+
+* **vite-svg-2-webfont:** require Node 22+/24+/26+ and use native node:fs.globSync ([#122](https://github.com/atlowChemi/vite-svg-2-webfont/issues/122)) ([fe7df82](https://github.com/atlowChemi/vite-svg-2-webfont/commit/fe7df82b56ddecdd146b6df4e8bf7bb47ee18b4b))
+
 ## [7.0.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v7.0.0...vite-svg-2-webfont-v7.0.1) (2026-05-25)
 
 ### Bug Fixes
