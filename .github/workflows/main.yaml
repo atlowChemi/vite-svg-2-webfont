@@ -200,3 +200,23 @@ jobs:
               with:
                   name: coverage-node-${{ matrix.node_version }}-vite-${{ matrix.vite_major }}
                   path: coverage
+
+    # Single fan-in job for branch protection: matrix job names are dynamic
+    # (one per OS × node × vite combination) and would need re-listing in the
+    # repo settings every time the matrix changes. Requiring this one job
+    # instead covers every dependent without that maintenance burden.
+    required-checks:
+        name: Required checks
+        if: always()
+        needs: [ci, build, test-host, test-docker, test-vite-compat]
+        runs-on: ubuntu-latest
+        steps:
+            - name: Verify all dependent jobs succeeded
+              run: |
+                  if [[ "${{ contains(needs.*.result, 'failure') }}" == "true" \
+                     || "${{ contains(needs.*.result, 'cancelled') }}" == "true" \
+                     || "${{ contains(needs.*.result, 'skipped') }}" == "true" ]]; then
+                      echo "::error::One or more required jobs failed, were cancelled, or were skipped."
+                      exit 1
+                  fi
+                  echo "All required jobs succeeded."
