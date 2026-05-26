@@ -61,7 +61,7 @@ jobs:
                     - target: aarch64-pc-windows-msvc
                       host: windows-11-arm
                       architecture: arm64
-                node: ['20', '22', '24']
+                node: ['22', '24', '26']
         runs-on: ${{ matrix.settings.host }}
         steps:
             - uses: actions/checkout@v6
@@ -121,11 +121,19 @@ jobs:
             - name: Run tests
               uses: tj-actions/docker-run@v2
               with:
-                  image: node:24-alpine
+                  image: node:26-alpine
                   name: test-${{ matrix.arch }}-linux-musl
                   options: ${{ matrix.args }} -v ${{ github.workspace }}:/build -w /build -e CI=true
+                  # Pacquet 0.2.x ships glibc-only binaries via @pacquet/linux-*;
+                  # spawning them on Alpine fails with ENOENT because the glibc
+                  # loader isn't present. Strip the configDependencies block so
+                  # this matrix entry falls back to pnpm's JS installer.
                   args: |
-                      sh -c "set -e && npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && pnpm install --frozen-lockfile --ignore-scripts && pnpm exec vp test --run"
+                      sh -c "set -e && \
+                        npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && \
+                        sed -i '/^configDependencies:/,/^$/d' pnpm-workspace.yaml && \
+                        pnpm install --frozen-lockfile --ignore-scripts && \
+                        pnpm exec vp test --run"
 
     test-vite-compat:
         name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
@@ -133,22 +141,19 @@ jobs:
         strategy:
             matrix:
                 include:
-                    - node_version: 20.x
-                      vite_major: 8
-                      primary: false
                     - node_version: 22.x
                       vite_major: 8
                       primary: false
                     - node_version: 24.x
                       vite_major: 8
-                      primary: true
-                    - node_version: 25.x
-                      vite_major: 8
                       primary: false
-                    - node_version: 24.x
+                    - node_version: 26.x
+                      vite_major: 8
+                      primary: true
+                    - node_version: 26.x
                       vite_major: 6
                       primary: false
-                    - node_version: 24.x
+                    - node_version: 26.x
                       vite_major: 7
                       primary: false
             fail-fast: false
@@ -162,7 +167,7 @@ jobs:
                   run-install: false
                   cache: false
             - name: Select vite major
-              run: node ./scripts/ci/set-vite-major.js ${{ matrix.vite_major }}
+              run: node ./scripts/ci/set-vite-major.ts ${{ matrix.vite_major }}
             - run: vp install --no-frozen-lockfile
             - name: Download binding
               uses: actions/download-artifact@v8

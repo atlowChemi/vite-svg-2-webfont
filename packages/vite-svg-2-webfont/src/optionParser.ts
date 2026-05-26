@@ -1,5 +1,5 @@
 import { join, resolve, sep } from 'node:path';
-import { globSync } from 'glob';
+import { globSync } from 'node:fs';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
 import type { CssContext, FontType, FormatOptions, GenerateWebfontsInputOptions } from '@atlowchemi/webfont-generator';
