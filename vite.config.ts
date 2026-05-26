@@ -54,6 +54,7 @@ const config: UserConfig = defineConfig({
         rules: {
             'typescript/no-unsafe-type-assertion': 'off',
             'vitest/require-mock-type-parameters': 'off',
+            'eslint/no-underscore-dangle': 'off',
         },
         env: {
             builtin: true,
