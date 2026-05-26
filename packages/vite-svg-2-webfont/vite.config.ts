@@ -36,7 +36,7 @@ const config: UserProjectConfigExport = defineProject({
             },
             publish: {
                 cache: false,
-                command: 'vp exec -c "pnpm publish vite-svg-2-webfont-*.tgz --no-git-checks"',
+                command: 'vp exec -c "pnpm stage publish vite-svg-2-webfont-*.tgz --no-git-checks"',
                 dependsOn: ['pack:tgz'],
             },
         },

@@ -98,12 +98,58 @@ jobs:
               run: vp exec napi create-npm-dirs --cwd packages/webfont-generator
             - name: Move artifacts
               run: vp exec napi artifacts --cwd packages/webfont-generator
-            - name: List packages
-              run: ls -R ./packages/webfont-generator/npm
-              shell: bash
 
-            - name: Publish
-              run: vp pm publish --filter @atlowchemi/webfont-generator
+            # Prepare per-platform package.jsons (version bump, addon copy,
+            # main package's optionalDependencies entries) before staging,
+            # so the per-platform dirs are publish-ready. `prepublishOnly`
+            # would normally do this when the main package is published —
+            # we skip it via `--ignore-scripts` on the main stage step
+            # below so this work isn't duplicated.
+            - name: Prepare per-platform packages
+              run: vp exec napi pre-publish -t npm --no-gh-release --skip-optional-publish --cwd packages/webfont-generator
+
+            - name: List packages
+              id: list-packages
+              shell: bash
+              run: |
+                  ls -R ./packages/webfont-generator/npm
+                  {
+                      echo "dirs<<EOF"
+                      find packages/webfont-generator/npm -mindepth 1 -maxdepth 1 -type d
+                      echo "EOF"
+                  } >> "$GITHUB_OUTPUT"
+
+            # Per-platform packages stage *first* so the main package's
+            # optionalDependencies entries are already in the staging area
+            # by the time the main package is approved and promoted. Stage
+            # ids land in the workflow run summary for the maintainer to
+            # approve from a 2FA-enrolled machine.
+            - name: Stage publish per-platform binary packages
+              shell: bash
+              env:
+                  DIRS: ${{ steps.list-packages.outputs.dirs }}
+              run: |
+                  echo '## Staged: per-platform binary packages' >> "$GITHUB_STEP_SUMMARY"
+                  echo '' >> "$GITHUB_STEP_SUMMARY"
+                  echo '```' >> "$GITHUB_STEP_SUMMARY"
+                  while IFS= read -r dir; do
+                      [ -z "$dir" ] && continue
+                      pkg=$(basename "$dir")
+                      echo "--- $pkg ---" | tee -a "$GITHUB_STEP_SUMMARY"
+                      vp exec -c "pnpm stage publish '$dir' --no-git-checks" | tee -a "$GITHUB_STEP_SUMMARY"
+                  done <<< "$DIRS"
+                  echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+            - name: Stage publish main package
+              run: |
+                  echo '' >> "$GITHUB_STEP_SUMMARY"
+                  echo '## Staged: @atlowchemi/webfont-generator' >> "$GITHUB_STEP_SUMMARY"
+                  echo '' >> "$GITHUB_STEP_SUMMARY"
+                  echo 'Approve every entry above + this one with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
+                  echo '' >> "$GITHUB_STEP_SUMMARY"
+                  echo '```' >> "$GITHUB_STEP_SUMMARY"
+                  vp exec -c "pnpm stage publish --filter @atlowchemi/webfont-generator --no-git-checks --ignore-scripts" | tee -a "$GITHUB_STEP_SUMMARY"
+                  echo '```' >> "$GITHUB_STEP_SUMMARY"
 
             - name: Upload to native release
               if: needs.release-please.outputs.native-released == 'true'
@@ -139,8 +185,15 @@ jobs:
                   run-install: true
                   cache: true
 
-            - name: Publish from tarball
-              run: vp run vite-svg-2-webfont#publish
+            - name: Stage publish from tarball
+              run: |
+                  echo '## Staged: vite-svg-2-webfont' >> "$GITHUB_STEP_SUMMARY"
+                  echo '' >> "$GITHUB_STEP_SUMMARY"
+                  echo 'Approve with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
+                  echo '' >> "$GITHUB_STEP_SUMMARY"
+                  echo '```' >> "$GITHUB_STEP_SUMMARY"
+                  vp run vite-svg-2-webfont#publish | tee -a "$GITHUB_STEP_SUMMARY"
+                  echo '```' >> "$GITHUB_STEP_SUMMARY"
 
             - name: Upload release assets
               uses: softprops/action-gh-release@b4309332981a82ec1c5618f44dd2e27cc8bfbfda # v3.0.0
