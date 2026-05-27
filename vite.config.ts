@@ -77,15 +77,15 @@ const config: UserConfig = defineConfig({
         tasks: {
             test: {
                 command: 'vp test',
-                dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
+                dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             'test:compat': {
                 command: 'vp test --project=compat',
-                dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
+                dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             coverage: {
                 command: 'vp test --coverage',
-                dependsOn: ['@atlowchemi/webfont-generator#build', 'vite-svg-2-webfont#pack'],
+                dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
         },
     },

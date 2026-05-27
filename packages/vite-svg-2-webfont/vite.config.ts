@@ -29,7 +29,7 @@ const config: UserProjectConfigExport = defineProject({
             },
             test: {
                 command: 'vp test',
-                dependsOn: ['pack'],
+                dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             'test:fixtures:refresh': {
                 command: 'node ./scripts/refresh-font-fixtures.ts',

@@ -19,18 +19,70 @@ const types = ['svg', 'eot', 'woff', 'woff2', 'ttf'] as const;
 const normalizeLineBreak = (input: string) => input.replaceAll('\r\n', '\n');
 const fileURLToNormalizedPath = (url: URL) => normalizePath(fileURLToPath(url));
 
+const webfontFolder = fileURLToNormalizedPath(new URL('webfont-test/svg', root));
+const outputFolder = fileURLToNormalizedPath(new URL('webfont-test/artifacts', root));
+
 const enum ConfigType {
-    Basic = './vite.basic.config.ts',
-    NoInline = './vite.no-inline.config.ts',
-    AllowWriteFilesInBuild = './vite.allowWriteFilesInBuild.config.ts',
-    Preload = './vite.preload.config.ts',
-    PreloadInline = './vite.preload-inline.config.ts',
+    Basic,
+    NoInline,
+    AllowWriteFilesInBuild,
+    Preload,
+    PreloadInline,
 }
-const getConfig = (configType: ConfigType): InlineConfig => ({
-    logLevel: 'silent',
-    root: fileURLToNormalizedPath(root),
-    configFile: fileURLToNormalizedPath(new URL(configType, root)),
-});
+
+const getConfig = (configType: ConfigType): InlineConfig => {
+    const base: InlineConfig = {
+        logLevel: 'silent',
+        root: fileURLToNormalizedPath(root),
+        configFile: false,
+    };
+    switch (configType) {
+        case ConfigType.Basic:
+            return { ...base, plugins: [viteSvgToWebfont({ context: webfontFolder })] };
+        case ConfigType.NoInline:
+            return {
+                ...base,
+                build: { assetsInlineLimit: 0 },
+                plugins: [viteSvgToWebfont({ context: webfontFolder })],
+            };
+        case ConfigType.AllowWriteFilesInBuild:
+            return {
+                ...base,
+                build: { assetsInlineLimit: 0 },
+                plugins: [
+                    viteSvgToWebfont({
+                        dest: outputFolder,
+                        generateFiles: true,
+                        context: webfontFolder,
+                        allowWriteFilesInBuild: true,
+                        fontName: 'allowWriteFilesInBuild-test',
+                    }),
+                ],
+            };
+        case ConfigType.Preload:
+            return {
+                ...base,
+                build: { assetsInlineLimit: 0 },
+                plugins: [
+                    viteSvgToWebfont({
+                        context: webfontFolder,
+                        types: ['woff2', 'ttf'],
+                        // @ts-ignore -- 'woff' is intentionally not in `types` — exercises the runtime filter that drops mismatched preload formats.
+                        preloadFormats: ['woff2', 'woff'],
+                    }),
+                ],
+            };
+        case ConfigType.PreloadInline:
+            return {
+                ...base,
+                build: { assetsInlineLimit: 0 },
+                plugins: [viteSvgToWebfont({ context: webfontFolder, inline: true, preloadFormats: ['woff2'], types: ['woff2'] })],
+            };
+        default:
+            configType satisfies never;
+            throw new Error('Invalid config type');
+    }
+};
 
 const getServerPort = (server: ViteDevServer | PreviewServer) => {
     const address = server.httpServer?.address();
@@ -380,7 +432,6 @@ describe('build cssFontsUrl root', () => {
     // cssFontsUrl: '/' must produce absolute-from-root URLs like '/iconfont.woff2',
     // not a bare filename. Captures the rendered src via cssContext to inspect the
     // plugin output directly, before Vite's asset pipeline rewrites the URLs.
-    const webfontFolder = fileURLToPath(new URL('webfont-test/svg', root));
     let capturedSrc: string | undefined;
 
     beforeAll(async () => {
