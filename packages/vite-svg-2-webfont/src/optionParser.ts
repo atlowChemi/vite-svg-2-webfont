@@ -247,7 +247,20 @@ export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'gener
     };
 }
 
-type RequiredKeys = 'fontHeight' | 'codepoints' | 'templateOptions' | 'html' | 'css' | 'ligature' | 'formatOptions' | 'writeFiles' | 'cssDest' | 'htmlDest' | 'types' | 'order';
+type RequiredKeys =
+    | 'fontHeight'
+    | 'codepoints'
+    | 'templateOptions'
+    | 'html'
+    | 'css'
+    | 'ligature'
+    | 'formatOptions'
+    | 'writeFiles'
+    | 'cssDest'
+    | 'htmlDest'
+    | 'types'
+    | 'order'
+    | 'fontName';
 interface ParsedOptions<T extends FontType = FontType> extends Omit<GenerateWebfontsInputOptions<T>, RequiredKeys>, Required<Pick<GenerateWebfontsInputOptions<T>, RequiredKeys>> {}
 
 export function parseOptions<T extends FontType = FontType>(options: IconPluginOptions<T>): ParsedOptions<T> {

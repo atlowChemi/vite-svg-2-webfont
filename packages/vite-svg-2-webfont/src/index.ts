@@ -11,9 +11,7 @@ import type { PublicApi } from './types/publicApi';
 type GenerateBundle = Extract<NonNullable<Plugin['generateBundle']>, Function>;
 type OutputBundle = Parameters<GenerateBundle>[1];
 
-const ac = new AbortController();
 const DEFAULT_MODULE_ID = 'vite-svg-2-webfont.css';
-const TMP_DIR = getTmpDir();
 
 function getVirtualModuleId<T extends string>(moduleId: T): `virtual:${T}` {
     return `virtual:${moduleId}`;
@@ -36,6 +34,8 @@ async function getGenerateWebfonts() {
  * It also generates CSS files that allow using the icons directly in your HTML output, using CSS classes per-icon.
  */
 export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPluginOptions<T>): Plugin<PublicApi> {
+    const ac = new AbortController();
+    const tmpDir = getTmpDir();
     const processedOptions = parseOptions(options);
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type));
     let isBuild: boolean;
@@ -47,7 +47,6 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const moduleId = options.moduleId ?? DEFAULT_MODULE_ID;
     const virtualModuleId = getVirtualModuleId(moduleId);
     const resolvedVirtualModuleId = getResolvedVirtualModuleId(virtualModuleId);
-    const fontName = processedOptions.fontName || 'iconfont';
 
     const resolveGeneratedWebfonts = (bundle: OutputBundle) => {
         const resolvedWebfonts = new Map<T, string>();
@@ -58,11 +57,12 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
             const lastSlashIndex = chunk.fileName.lastIndexOf('/');
             const fileName = chunk.fileName.slice(lastSlashIndex + 1);
-            if (!fileName.startsWith(fontName)) {
+            if (!fileName.startsWith(processedOptions.fontName)) {
                 continue;
             }
 
             const fontType = processedOptions.types.find(type => fileName.endsWith(`.${type}`));
+            /* v8 ignore next 3 -- guard against malformed bundle chunks; never reached by Vite in practice */
             if (!fontType || resolvedWebfonts.has(fontType)) {
                 continue;
             }
@@ -78,7 +78,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             return css;
         }
         return css?.replace(/url\(".*?\.([^?]+)\?[^"]+"\)/g, (_, type: T) => {
-            const font = Buffer.from(generatedFonts?.[type] || []);
+            const value = generatedFonts![type]!;
+            const font = Buffer.from(value);
             return `url("data:${MIME_TYPES[type]};charset=utf-8;base64,${font.toString('base64')}")`;
         }) as U;
     };
@@ -160,7 +161,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             if (id !== resolvedVirtualModuleId) {
                 return undefined;
             }
-            return inline(generatedFonts?.generateCss?.(fileRefs)) || '';
+            return inline(generatedFonts!.generateCss(fileRefs));
         },
         load(id) {
             if (id !== resolvedVirtualModuleId) {
@@ -181,7 +182,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
 
                     const fileContents = Buffer.from(generatedFonts[type]);
                     const hash = getBufferHash(fileContents);
-                    const filePath = pathJoin(TMP_DIR, `${processedOptions.fontName}-${hash}.${type}`);
+                    const filePath = pathJoin(tmpDir, `${processedOptions.fontName}-${hash}.${type}`);
                     ensureDirExistsAndWriteFile(fileContents, filePath).catch(() => null); // write font file to a temporary dir
 
                     return [type, filePath];
@@ -201,6 +202,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                 middlewares.use(`/${fileName}`, (_req, res) => {
                     _moduleGraph = moduleGraph;
                     _reloadModule = server.reloadModule.bind(server);
+                    /* v8 ignore next 4 -- buildStart awaits generate() before the server listens, so generatedFonts is always set by the time middleware fires */
                     if (!generatedFonts) {
                         res.statusCode = 404;
                         return res.end();
@@ -215,7 +217,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         buildEnd() {
             ac.abort();
-            rmDir(TMP_DIR);
+            rmDir(tmpDir);
         },
     };
 }
