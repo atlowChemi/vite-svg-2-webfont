@@ -62,6 +62,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
 
             const fontType = processedOptions.types.find(type => fileName.endsWith(`.${type}`));
+            /* v8 ignore next 3 -- guard against malformed bundle chunks; never reached by Vite in practice */
             if (!fontType || resolvedWebfonts.has(fontType)) {
                 continue;
             }
@@ -201,6 +202,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                 middlewares.use(`/${fileName}`, (_req, res) => {
                     _moduleGraph = moduleGraph;
                     _reloadModule = server.reloadModule.bind(server);
+                    /* v8 ignore next 4 -- buildStart awaits generate() before the server listens, so generatedFonts is always set by the time middleware fires */
                     if (!generatedFonts) {
                         res.statusCode = 404;
                         return res.end();

@@ -1,11 +1,25 @@
 import { constants } from 'node:fs';
-import { access, readFile, rm } from 'node:fs/promises';
+import { access, readFile, rm, writeFile } from 'node:fs/promises';
+import { setInterval } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite';
 import { build, createServer, normalizePath, preview } from 'vite';
-import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { viteSvgToWebfont } from './index';
 import { base64ToArrayBuffer } from './utils';
+
+const { generateWebfontsMock } = vi.hoisted(() => ({
+    generateWebfontsMock: vi.fn<typeof import('@atlowchemi/webfont-generator').generateWebfonts>(),
+}));
+
+vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
+    const actual = await importOriginal<typeof import('@atlowchemi/webfont-generator')>();
+    generateWebfontsMock.mockImplementation(actual.generateWebfonts);
+    return {
+        ...actual,
+        generateWebfonts: generateWebfontsMock,
+    };
+});
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;
 type RolldownOutput = Extract<ViteBuildResult, { output: unknown }>;
@@ -456,5 +470,219 @@ describe('build cssFontsUrl root', () => {
     it.each(['woff2', 'ttf'] as const)('emits leading-slash url for type %s', type => {
         expect(capturedSrc).toMatch(new RegExp(`url\\("/iconfont\\.${type}\\?[^"]+"\\)`));
         expect(capturedSrc).not.toMatch(new RegExp(`url\\("iconfont\\.${type}\\?`));
+    });
+});
+
+describe('build api.getGeneratedWebfonts', () => {
+    let plugin: ReturnType<typeof viteSvgToWebfont>;
+
+    beforeAll(async () => {
+        plugin = viteSvgToWebfont({ context: webfontFolder, types: ['woff2', 'ttf'] });
+        await build({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            build: { assetsInlineLimit: 0, write: false },
+            plugins: [plugin],
+        });
+    });
+
+    it('exposes generated webfonts after build via the public api', () => {
+        const fonts = plugin.api!.getGeneratedWebfonts();
+        expect(fonts).toHaveLength(2);
+        expect(fonts.map(({ type }) => type).toSorted()).toEqual(['ttf', 'woff2']);
+        expect(fonts.map(({ href }) => href)).toEqual(
+            expect.arrayContaining([expect.stringMatching(/^\/assets\/iconfont-[^/]+\.(ttf)$/), expect.stringMatching(/^\/assets\/iconfont-[^/]+\.(woff2)$/)]),
+        );
+    });
+});
+
+describe('serve - inline mode skips font middleware', () => {
+    let server: ViteDevServer;
+
+    beforeAll(async () => {
+        const createdServer = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, inline: true, types: ['woff2'] })],
+        });
+        server = await createdServer.listen();
+    });
+
+    afterAll(async () => {
+        await server.close();
+    });
+
+    it('does not register a font-serving middleware when inline is enabled', async () => {
+        const res = await fetchFromServer(server, '/iconfont.woff2');
+        const contentType = res.headers.get('content-type') ?? '';
+        expect(contentType.startsWith('font/')).toBe(false);
+        expect(contentType.startsWith('application/font-')).toBe(false);
+        expect(contentType).not.toBe('application/vnd.ms-fontobject');
+        expect(contentType).toBe('text/html');
+    });
+});
+
+describe('serve - generateFiles writes css and html to disk in dev', () => {
+    const artifactsUrl = new URL('webfont-test/serve-artifacts/', root);
+    const cssUrl = new URL('serve-test.css', artifactsUrl);
+    const htmlUrl = new URL('serve-test.html', artifactsUrl);
+    let server: ViteDevServer;
+
+    beforeAll(async () => {
+        const createdServer = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [
+                viteSvgToWebfont({
+                    context: webfontFolder,
+                    dest: fileURLToNormalizedPath(artifactsUrl),
+                    fontName: 'serve-test',
+                    generateFiles: ['css', 'html'],
+                }),
+            ],
+        });
+        server = await createdServer.listen();
+    });
+
+    afterAll(async () => {
+        await Promise.all([server.close(), rm(artifactsUrl, { recursive: true, force: true })]);
+    });
+
+    it.each([
+        ['css', () => cssUrl],
+        ['html', () => htmlUrl],
+    ] as const)('writes the generated %s file to disk', async (_kind, urlOf) => {
+        await expect(access(urlOf(), constants.F_OK)).resolves.not.toThrow();
+    });
+});
+
+describe('build:preloadFormats inlined-asset short-circuit', () => {
+    // With default assetsInlineLimit (4kb), small fonts get base64-inlined into
+    // CSS and don't appear as separate bundle chunks. preloadFormats stays
+    // non-empty after the types filter, but resolveGeneratedWebfonts produces
+    // an empty list, so no preload tags are injected.
+    let server: PreviewServer;
+    let htmlContent: string | undefined;
+
+    beforeAll(async () => {
+        const buildConfig: InlineConfig = {
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [
+                viteSvgToWebfont({
+                    context: webfontFolder,
+                    types: ['woff2'],
+                    preloadFormats: ['woff2'],
+                }),
+            ],
+        };
+        await build(buildConfig);
+        server = await preview(buildConfig);
+        server.printUrls();
+        htmlContent = await fetchTextContent(server, '/');
+    });
+
+    afterAll(() => {
+        server.httpServer.close();
+    });
+
+    it('omits preload tags when all preloadable fonts were inlined into CSS', () => {
+        expect(htmlContent).not.toContain('<link rel="preload"');
+    });
+});
+
+describe('serve - regenerates css when a new svg is added', () => {
+    const watcherSvgUrl = new URL('webfont-test/svg/__watcher-test__.svg', root);
+    const reloadedIds: string[] = [];
+    let server: ViteDevServer;
+
+    beforeAll(async () => {
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder })],
+        });
+        const originalReload = created.reloadModule.bind(created);
+        created.reloadModule = async mod => {
+            reloadedIds.push(mod.id ?? '');
+            return originalReload(mod);
+        };
+        server = await created.listen();
+        // Hit the font middleware so the plugin captures moduleGraph + reloadModule…
+        await fetchBufferContent(server, '/iconfont.woff2');
+        // …and load the virtual module so getModuleById finds it after the watch event fires.
+        await fetchTextContent(server, '/@id/__x00__virtual:vite-svg-2-webfont.css');
+    });
+
+    afterAll(async () => {
+        await Promise.all([server.close(), rm(watcherSvgUrl, { force: true })]);
+    });
+
+    it('reloads the virtual css module after a new svg appears', async () => {
+        await writeFile(watcherSvgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path d="M0 0h1024v1024H0z"/></svg>');
+        const isReloaded = () => reloadedIds.some(id => id.includes('vite-svg-2-webfont.css'));
+        for await (const startTime of setInterval(50, Date.now())) {
+            if (isReloaded() || Date.now() > startTime + 5000) break;
+        }
+        expect(isReloaded()).toBe(true);
+    });
+});
+
+describe('serve - swallows reloadModule rejection from the watcher', () => {
+    const watcherSvgUrl = new URL('webfont-test/svg/__reload-reject-test__.svg', root);
+    const rejectingReload = vi.fn(async () => {
+        throw new Error('intentional reload failure');
+    });
+    let server: ViteDevServer;
+
+    beforeAll(async () => {
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder })],
+        });
+        created.reloadModule = rejectingReload;
+        server = await created.listen();
+        await fetchBufferContent(server, '/iconfont.woff2');
+        await fetchTextContent(server, '/@id/__x00__virtual:vite-svg-2-webfont.css');
+    });
+
+    afterAll(async () => {
+        await Promise.all([server.close(), rm(watcherSvgUrl, { force: true })]);
+    });
+
+    it('does not crash the watcher when reloadModule rejects', async () => {
+        await writeFile(watcherSvgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path d="M0 0h512v512H0z"/></svg>');
+        for await (const startTime of setInterval(50, Date.now())) {
+            if (rejectingReload.mock.calls.length > 0 || Date.now() > startTime + 5000) break;
+        }
+        expect(rejectingReload).toHaveBeenCalledOnce();
+    });
+});
+
+describe('build - throws when generator omits a requested font type', () => {
+    it('surfaces the missing-type error from buildStart', async () => {
+        const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            const real = await realGen(options);
+            const { woff2: _omitted, ...rest } = real;
+            return rest as typeof real;
+        });
+
+        await expect(
+            build({
+                logLevel: 'silent',
+                root: fileURLToNormalizedPath(root),
+                configFile: false,
+                build: { write: false },
+                plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2', 'ttf'] })],
+            }),
+        ).rejects.toThrow(/Failed to generate font of type woff2/);
     });
 });
