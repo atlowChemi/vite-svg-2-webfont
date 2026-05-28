@@ -1,5 +1,15 @@
 # Changelog
 
+## [8.0.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v7.0.1...vite-svg-2-webfont-v8.0.0) (2026-05-28)
+
+### ⚠ BREAKING CHANGES
+
+- **vite-svg-2-webfont:** Node 20 and Node 25 are no longer supported — the plugin now requires Node `^22 || ^24 || >=26`. Glyph codepoints may also shift because input file order is now deterministic alphabetical instead of filesystem-dependent; consumers reading codepoints directly will see new values, while consumers using the documented `icon-<name>` CSS classes are unaffected.
+
+### Features
+
+- **vite-svg-2-webfont:** require Node 22+/24+/26+ and use native node:fs.globSync ([fe7df82](https://github.com/atlowChemi/vite-svg-2-webfont/commit/fe7df82b56ddecdd146b6df4e8bf7bb47ee18b4b))
+
 ## [7.0.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v7.0.0...vite-svg-2-webfont-v7.0.1) (2026-05-25)
 
 ### Bug Fixes
