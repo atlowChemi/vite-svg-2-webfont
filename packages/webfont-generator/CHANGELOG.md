@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.3.1...webfont-generator-v0.4.0) (2026-05-28)
+
+
+### ⚠ BREAKING CHANGES
+
+* **webfont-generator:** direct CJS consumers using `require('@atlowchemi/webfont-generator')` need to switch to `await import(...)` or rely on `require(esm)` (stable in Node 22.12+).
+
+### Features
+
+* **webfont-generator:** drop CJS entry points and ship ESM-only ([#131](https://github.com/atlowChemi/vite-svg-2-webfont/issues/131)) ([702486e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/702486ed58301fec9c23f23163518465e5148980))
+
+
+### Bug Fixes
+
+* **webfont-generator:** set repository.directory so npm resolves README images ([#133](https://github.com/atlowChemi/vite-svg-2-webfont/issues/133)) ([6f9b8c6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/6f9b8c64c85f78f06b3915b011bb2684fc43e6c1))
+
 ## [0.3.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.3.0...webfont-generator-v0.3.1) (2026-05-25)
 
 ### Bug Fixes
