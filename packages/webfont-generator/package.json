@@ -8,13 +8,11 @@
     "exports": {
         ".": {
             "types": "./index.d.ts",
-            "import": "./index.js",
-            "require": "./index.cjs"
+            "default": "./index.js"
         },
         "./templates": {
             "types": "./templates.d.ts",
-            "import": "./templates.js",
-            "require": "./templates.cjs"
+            "default": "./templates.js"
         }
     },
     "repository": {
@@ -32,10 +30,8 @@
         "binding.js",
         "binding.d.ts",
         "index.js",
-        "index.cjs",
         "index.d.ts",
         "templates.js",
-        "templates.cjs",
         "templates.d.ts",
         "templates"
     ],
