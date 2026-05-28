@@ -47,6 +47,10 @@ export default defineConfig({
         ['meta', { name: 'twitter:image', content: socialImage }],
     ],
     markdown: {
+        theme: {
+            light: 'catppuccin-latte',
+            dark: 'catppuccin-frappe',
+        },
         config(md) {
             md.use(groupIconMdPlugin);
             const defaultRenderer = md.renderer.rules.fence;
@@ -62,7 +66,7 @@ export default defineConfig({
                 if (language.startsWith('mermaid')) {
                     const key = index;
                     return `
-                        <Suspense> 
+                        <Suspense>
                         <template #default>
                         <Mermaid id="mermaid-${key}" graph="${encodeURIComponent(token.content)}"></Mermaid>
                         </template>
@@ -83,20 +87,7 @@ export default defineConfig({
             preserveSymlinks: true,
             alias: {
                 mermaid: 'mermaid/dist/mermaid.esm.mjs',
-                // "dayjs/plugin/advancedFormat.js": "dayjs/esm/plugin/advancedFormat",
-                // "dayjs/plugin/customParseFormat.js": "dayjs/esm/plugin/customParseFormat",
-                // "dayjs/plugin/isoWeek.js": "dayjs/esm/plugin/isoWeek",
-                // "cytoscape/dist/cytoscape.umd.js": "cytoscape/dist/cytoscape.esm.js",
             },
-        },
-        optimizeDeps: {
-            include: [
-                // '@braintree/sanitize-url',
-                // 'dayjs',
-                // 'debug',
-                // 'cytoscape-cose-bilkent',
-                // 'cytoscape',
-            ],
         },
     } as never,
     themeConfig: {
