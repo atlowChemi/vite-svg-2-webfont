@@ -37,7 +37,7 @@ jobs:
 
             - name: Setup Vite+
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              uses: voidzero-dev/setup-vp@ca1c46663915d6c1042ae23bd39ab85718bfb0fa # v1.10.0
+              uses: voidzero-dev/setup-vp@329490fff19dd4ecd8ff2a74d7c45bee0448f3a6 # v1.11.0
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -82,7 +82,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-            - uses: voidzero-dev/setup-vp@ca1c46663915d6c1042ae23bd39ab85718bfb0fa # v1.10.0
+            - uses: voidzero-dev/setup-vp@329490fff19dd4ecd8ff2a74d7c45bee0448f3a6 # v1.11.0
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -179,7 +179,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-            - uses: voidzero-dev/setup-vp@ca1c46663915d6c1042ae23bd39ab85718bfb0fa # v1.10.0
+            - uses: voidzero-dev/setup-vp@329490fff19dd4ecd8ff2a74d7c45bee0448f3a6 # v1.11.0
               with:
                   node-version-file: .node-version
                   run-install: true
