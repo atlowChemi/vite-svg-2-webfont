@@ -25,23 +25,23 @@ cli = ["dep:clap"]
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }
 flate2 = "1.1.5"
-handlebars = "6.3.2"
-kurbo = "0.13.0"
+handlebars = "6.4.1"
+kurbo = "0.13.1"
 md5 = "0.8.0"
-napi = { version = "3.8.4", default-features = false, features = ["napi4", "async", "serde-json-ordered"], optional = true }
-napi-derive = { version = "3.5.3", optional = true }
-rayon = "1.11.0"
+napi = { version = "3.8.6", default-features = false, features = ["napi4", "async", "serde-json-ordered"], optional = true }
+napi-derive = { version = "3.5.6", optional = true }
+rayon = "1.12.0"
 roxmltree = "0.21.1"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 oxvg_path = { version = "0.0.5", default-features = false, features = ["parse", "format", "optimise"] }
 tokio = { version = "1", features = ["fs", "macros", "rt", "rt-multi-thread"] }
 woff = { version = "0.6.3" }
 usvg = "0.47.0"
-write-fonts = { version = "0.46.0", features = ["read"] }
+write-fonts = { version = "0.48.1", features = ["read"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
 
 [build-dependencies]
-napi-build = "2.3.1"
+napi-build = "2.3.2"
