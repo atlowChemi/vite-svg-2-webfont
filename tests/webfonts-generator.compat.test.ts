@@ -272,20 +272,24 @@ function summarizeEot(buffer: Buffer) {
     };
 }
 
+// vusion wraps its WOFF return value with `new Buffer(font.buffer)` which exposes the entire
+// underlying Node Buffer pool, not just the WOFF bytes. The pool can carry residual WOFFs from
+// earlier tests in the same worker, so a forward `indexOf('wOFF')` finds the oldest one. Walk
+// backwards from the end and return the first WOFF whose declared size still fits — that is the
+// one this call just wrote into the pool.
 function normalizeWoffBuffer(buffer: Buffer) {
     const magic = Buffer.from('wOFF');
-    const offset = buffer.subarray(0, 4).equals(magic) ? 0 : buffer.indexOf(magic);
-
-    if (offset < 0 || offset + 12 > buffer.length) {
-        return buffer;
+    let searchEnd = buffer.length;
+    while (searchEnd >= magic.length) {
+        const offset = buffer.lastIndexOf(magic, searchEnd - 1);
+        if (offset < 0 || offset + 12 > buffer.length) break;
+        const declaredSize = buffer.readUInt32BE(offset + 8);
+        if (declaredSize > 0 && offset + declaredSize <= buffer.length) {
+            return buffer.subarray(offset, offset + declaredSize);
+        }
+        searchEnd = offset;
     }
-
-    const declaredSize = buffer.readUInt32BE(offset + 8);
-    if (declaredSize > 0 && offset + declaredSize <= buffer.length) {
-        return buffer.subarray(offset, offset + declaredSize);
-    }
-
-    return buffer.subarray(offset);
+    return buffer;
 }
 
 function summarizeWoff(buffer: Buffer) {
