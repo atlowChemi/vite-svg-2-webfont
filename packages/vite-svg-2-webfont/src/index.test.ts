@@ -1,6 +1,5 @@
 import { constants } from 'node:fs';
 import { access, readFile, rm, writeFile } from 'node:fs/promises';
-import { setInterval } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite';
 import { build, createServer, normalizePath, preview } from 'vite';
@@ -11,6 +10,9 @@ import { base64ToArrayBuffer } from './utils';
 const { generateWebfontsMock } = vi.hoisted(() => ({
     generateWebfontsMock: vi.fn<typeof import('@atlowchemi/webfont-generator').generateWebfonts>(),
 }));
+const { setupWatcherMock } = vi.hoisted(() => ({
+    setupWatcherMock: vi.fn<typeof import('./utils').setupWatcher>(),
+}));
 
 vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
     const actual = await importOriginal<typeof import('@atlowchemi/webfont-generator')>();
@@ -19,6 +21,12 @@ vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
         ...actual,
         generateWebfonts: generateWebfontsMock,
     };
+});
+
+vi.mock('./utils', async importOriginal => {
+    const actual = await importOriginal<typeof import('./utils')>();
+    setupWatcherMock.mockImplementation(actual.setupWatcher);
+    return { ...actual, setupWatcher: setupWatcherMock };
 });
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;
@@ -596,11 +604,17 @@ describe('build:preloadFormats inlined-asset short-circuit', () => {
 });
 
 describe('serve - regenerates css when a new svg is added', () => {
-    const watcherSvgUrl = new URL('webfont-test/svg/__watcher-test__.svg', root);
+    const filename = '__watcher-test__.svg';
+    const watcherSvgUrl = new URL(`webfont-test/svg/${filename}`, root);
     const reloadedIds: string[] = [];
+    const { promise: waitForCssReload, resolve: markCssReloaded } = Promise.withResolvers<void>();
+    let watcherHandler: Parameters<typeof setupWatcherMock>[2];
     let server: ViteDevServer;
 
     beforeAll(async () => {
+        setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
+            watcherHandler = handler;
+        });
         const created = await createServer({
             logLevel: 'silent',
             root: fileURLToNormalizedPath(root),
@@ -610,12 +624,13 @@ describe('serve - regenerates css when a new svg is added', () => {
         const originalReload = created.reloadModule.bind(created);
         created.reloadModule = async mod => {
             reloadedIds.push(mod.id ?? '');
+            if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
             return originalReload(mod);
         };
         server = await created.listen();
         // Hit the font middleware so the plugin captures moduleGraph + reloadModule…
         await fetchBufferContent(server, '/iconfont.woff2');
-        // …and load the virtual module so getModuleById finds it after the watch event fires.
+        // …and load the virtual module so getModuleById finds it after the watch handler fires.
         await fetchTextContent(server, '/@id/__x00__virtual:vite-svg-2-webfont.css');
     });
 
@@ -625,22 +640,27 @@ describe('serve - regenerates css when a new svg is added', () => {
 
     it('reloads the virtual css module after a new svg appears', async () => {
         await writeFile(watcherSvgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path d="M0 0h1024v1024H0z"/></svg>');
-        const isReloaded = () => reloadedIds.some(id => id.includes('vite-svg-2-webfont.css'));
-        for await (const startTime of setInterval(50, Date.now())) {
-            if (isReloaded() || Date.now() > startTime + 5000) break;
-        }
-        expect(isReloaded()).toBe(true);
+        await watcherHandler({ eventType: 'rename', filename });
+        await waitForCssReload;
+        expect(reloadedIds.some(id => id.includes('vite-svg-2-webfont.css'))).toBe(true);
     });
 });
 
 describe('serve - swallows reloadModule rejection from the watcher', () => {
-    const watcherSvgUrl = new URL('webfont-test/svg/__reload-reject-test__.svg', root);
+    const filename = '__reload-reject-test__.svg';
+    const watcherSvgUrl = new URL(`webfont-test/svg/${filename}`, root);
+    const { promise: waitForReloadCalled, resolve: markReloadCalled } = Promise.withResolvers<void>();
     const rejectingReload = vi.fn(async () => {
+        markReloadCalled();
         throw new Error('intentional reload failure');
     });
+    let watcherHandler: Parameters<typeof setupWatcherMock>[2];
     let server: ViteDevServer;
 
     beforeAll(async () => {
+        setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
+            watcherHandler = handler;
+        });
         const created = await createServer({
             logLevel: 'silent',
             root: fileURLToNormalizedPath(root),
@@ -659,9 +679,8 @@ describe('serve - swallows reloadModule rejection from the watcher', () => {
 
     it('does not crash the watcher when reloadModule rejects', async () => {
         await writeFile(watcherSvgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path d="M0 0h512v512H0z"/></svg>');
-        for await (const startTime of setInterval(50, Date.now())) {
-            if (rejectingReload.mock.calls.length > 0 || Date.now() > startTime + 5000) break;
-        }
+        await watcherHandler({ eventType: 'rename', filename });
+        await waitForReloadCalled;
         expect(rejectingReload).toHaveBeenCalledOnce();
     });
 });
