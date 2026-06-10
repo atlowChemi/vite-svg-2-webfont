@@ -444,10 +444,11 @@ function isMuslLinux(): boolean {
 }
 
 describe('output size (deterministic)', () => {
-    // Build one font from the first 300 real icons of @iconify-json/simple-icons.
-    // Output bytes are a pure function of the inputs + options, so these are exact
-    // regression guards.
+    // Build one font from the first 300 real icons of @iconify-json/simple-icons and generate
+    // every variant once. Output bytes are a pure function of the inputs + options, so these are
+    // exact regression guards.
     const ICON_COUNT = 300;
+    const woff2ByQuality = {} as Record<`q${9 | 10 | 11}`, number>;
     const perFormat = {} as Record<FontType, number>;
 
     beforeAll(async () => {
@@ -469,10 +470,39 @@ describe('output size (deterministic)', () => {
         );
 
         // `fontHeight` is pinned so the em square (and thus byte sizes) is stable.
-        const base: GenerateWebfontsInputOptions = { files, dest: `${dir}/`, fontName: 'size', fontHeight: 24, css: false, writeFiles: false, optimizeOutput: true };
+        const base: GenerateWebfontsInputOptions = {
+            files,
+            dest: `${dir}/`,
+            fontName: 'size',
+            fontHeight: 24,
+            css: false,
+            writeFiles: false,
+            optimizeOutput: true,
+            types: ['woff2'],
+        };
 
-        const all = await generateWebfonts({ ...base, types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] });
+        const [nine, ten, eleven, all] = await Promise.all([
+            generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 9 } } }),
+            generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 10 } } }),
+            generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 11 } } }),
+            generateWebfonts({ ...base, types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] }),
+        ]);
+        Object.assign(woff2ByQuality, { q9: nine.woff2.length, q10: ten.woff2.length, q11: eleven.woff2.length });
         Object.assign(perFormat, { svg: all.svg.length, ttf: all.ttf.length, eot: all.eot.length, woff: all.woff.length, woff2: all.woff2.length });
+    });
+
+    it('woff2 compression quality defaults to 11', () => {
+        expect(perFormat.woff2).toBe(woff2ByQuality.q11);
+    });
+
+    it('woff2 size by brotli compression quality', { skip: isMuslLinux() }, () => {
+        expect(woff2ByQuality).toMatchInlineSnapshot(`
+          {
+            "q10": 22876,
+            "q11": 22312,
+            "q9": 24964,
+          }
+        `);
     });
 
     it('per-format output sizes', { skip: isMuslLinux() }, () => {

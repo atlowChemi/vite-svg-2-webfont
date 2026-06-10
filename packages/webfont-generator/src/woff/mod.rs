@@ -18,8 +18,10 @@ pub(crate) fn ttf_to_woff1(ttf: &[u8], metadata: Option<&str>) -> Result<Vec<u8>
     Ok(woff_buf)
 }
 
-pub(crate) fn ttf_to_woff2(ttf: &[u8]) -> Result<Vec<u8>, Error> {
-    ::woff::version2::compress(ttf, "", 11, true)
+/// Encodes `ttf` as WOFF2. `quality` is the Brotli compression quality (0–11); callers
+/// are expected to have validated the range (see `validate_generate_webfonts_options`).
+pub(crate) fn ttf_to_woff2(ttf: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
+    ::woff::version2::compress(ttf, "", quality.min(11) as usize, true)
         .ok_or_else(|| Error::new(ErrorKind::InvalidData, "WOFF2 compression failed"))
 }
 
