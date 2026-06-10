@@ -1024,4 +1024,69 @@ mod tests {
             "different glyphs should have different glyph IDs"
         );
     }
+
+    use super::{SIMPLIFY_TOLERANCE, point_line_distance, quadratic_path_from_svg_path_data};
+    use kurbo::{PathEl, Point};
+
+    #[test]
+    fn point_line_distance_measures_perpendicular_offset() {
+        let a = Point::new(0.0, 0.0);
+        let b = Point::new(4.0, 0.0);
+        // 3 units above the line y = 0.
+        assert!((point_line_distance(Point::new(2.0, 3.0), a, b) - 3.0).abs() < 1e-9);
+        // Directly on the line.
+        assert!(point_line_distance(Point::new(2.0, 0.0), a, b) < 1e-9);
+    }
+
+    #[test]
+    fn point_line_distance_falls_back_to_endpoint_distance_when_segment_is_degenerate() {
+        let a = Point::new(1.0, 1.0);
+        // a ≈ b, so there is no line — distance collapses to |p - a| = sqrt(3² + 4²) = 5.
+        assert!((point_line_distance(Point::new(4.0, 5.0), a, a) - 5.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn merges_runs_of_collinear_lines_into_a_single_segment() {
+        // Three collinear horizontal segments followed by a turn.
+        let path = quadratic_path_from_svg_path_data("M0,0 L10,0 L20,0 L30,0 L30,10").unwrap();
+        let lines = path
+            .elements()
+            .iter()
+            .filter(|el| matches!(el, PathEl::LineTo(_)))
+            .count();
+        assert_eq!(
+            lines, 2,
+            "the collinear run collapses to one line; the turn stays"
+        );
+        assert!(
+            matches!(path.elements().last(), Some(PathEl::LineTo(p)) if (p.x - 30.0).abs() < 1e-9 && (p.y - 10.0).abs() < 1e-9),
+            "the final endpoint must be preserved exactly",
+        );
+    }
+
+    #[test]
+    fn collapses_a_near_straight_quadratic_to_a_line() {
+        // Control point sits ~0.1 units off the chord — within tolerance.
+        assert!(SIMPLIFY_TOLERANCE > 0.1);
+        let path = quadratic_path_from_svg_path_data("M0,0 Q5,0.1 10,0").unwrap();
+        assert!(
+            !path
+                .elements()
+                .iter()
+                .any(|el| matches!(el, PathEl::QuadTo(..))),
+            "a near-straight quadratic should be emitted as a line, not a curve",
+        );
+    }
+
+    #[test]
+    fn preserves_a_genuinely_curved_quadratic() {
+        // Control point sits 50 units off the chord — a real curve.
+        let path = quadratic_path_from_svg_path_data("M0,0 Q5,50 10,0").unwrap();
+        assert!(
+            path.elements()
+                .iter()
+                .any(|el| matches!(el, PathEl::QuadTo(..))),
+            "a genuinely curved quadratic must be kept",
+        );
+    }
 }
