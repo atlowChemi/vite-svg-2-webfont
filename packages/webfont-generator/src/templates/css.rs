@@ -629,6 +629,7 @@ mod tests {
                 woff: Some(WoffFormatOptions {
                     metadata: Some("woff-meta".to_owned()),
                 }),
+                woff2: None,
             }),
             html: Some(false),
             font_height: Some(1000.0),

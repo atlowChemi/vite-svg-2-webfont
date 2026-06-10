@@ -223,7 +223,7 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 ### `formatOptions`
 
 - Type: `FormatOptions`
-- Description: Per-format configuration object with keys `svg`, `ttf`, and `woff`.
+- Description: Per-format configuration object with keys `svg`, `ttf`, `woff`, and `woff2`.
 
 ::: details FormatOptions type definition
 
@@ -232,6 +232,7 @@ interface FormatOptions {
     svg?: SvgFormatOptions;
     ttf?: TtfFormatOptions;
     woff?: WoffFormatOptions;
+    woff2?: Woff2FormatOptions;
 }
 
 interface SvgFormatOptions {
@@ -252,6 +253,14 @@ interface TtfFormatOptions {
 
 interface WoffFormatOptions {
     metadata?: string; // WOFF metadata XML string
+}
+
+interface Woff2FormatOptions {
+    // Brotli compression quality, 0 (fastest, largest) to 11 (slowest, smallest).
+    // Tunes compression effort only — never changes glyph fidelity. Defaults to 11
+    // (smallest output); lower it (e.g. to 10) for faster encoding at a marginal size
+    // cost. Must be between 0 and 11; other values are rejected.
+    compressionQuality?: number;
 }
 ```
 

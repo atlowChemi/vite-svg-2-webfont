@@ -6,6 +6,7 @@ import type {
     HtmlContext as RawHtmlContext,
     SvgFormatOptions,
     TtfFormatOptions,
+    Woff2FormatOptions,
     WoffFormatOptions,
 } from './binding';
 import * as templates from './templates.js';
@@ -108,5 +109,6 @@ export {
      */
     templates,
     TtfFormatOptions,
+    Woff2FormatOptions,
     WoffFormatOptions,
 };

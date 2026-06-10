@@ -228,7 +228,7 @@ viteSvgToWebfont({
 ## `formatOptions`
 
 - Type: `FormatOptions`
-- Description: Per-format options forwarded to the underlying [`@atlowchemi/webfont-generator`](/webfont-generator/). The shape is `{ svg?: SvgFormatOptions; ttf?: TtfFormatOptions; woff?: WoffFormatOptions }` — see the engine docs for the fields available on each.
+- Description: Per-format options forwarded to the underlying [`@atlowchemi/webfont-generator`](/webfont-generator/). The shape is `{ svg?: SvgFormatOptions; ttf?: TtfFormatOptions; woff?: WoffFormatOptions; woff2?: Woff2FormatOptions }` — see the engine docs for the fields available on each.
 - Reference: [`@atlowchemi/webfont-generator#formatOptions`](/webfont-generator/node#formatoptions)
 
 ## `moduleId`

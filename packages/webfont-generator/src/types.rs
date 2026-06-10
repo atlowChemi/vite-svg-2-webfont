@@ -113,6 +113,19 @@ pub struct WoffFormatOptions {
     pub metadata: Option<String>,
 }
 
+/// WOFF2-format–specific options. Affects only WOFF2 output.
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Clone)]
+pub struct Woff2FormatOptions {
+    /// Brotli compression quality used when encoding WOFF2, from `0` (fastest,
+    /// largest output) to `11` (slowest, smallest output). This tunes compression
+    /// effort only and never changes glyph fidelity — the decompressed font is
+    /// identical at every level. Defaults to `11` for the smallest output; lower it
+    /// (e.g. to `10`) for faster encoding at a marginal size cost. Must be between
+    /// `0` and `11`; other values are rejected.
+    pub compression_quality: Option<u8>,
+}
+
 /// Per-format configuration object. Each field carries options that only apply
 /// to the corresponding output format.
 #[cfg_attr(feature = "napi", napi(object))]
@@ -122,8 +135,10 @@ pub struct FormatOptions {
     pub svg: Option<SvgFormatOptions>,
     /// TTF-format options.
     pub ttf: Option<TtfFormatOptions>,
-    /// WOFF1-format options. (WOFF2 has no format-specific options.)
+    /// WOFF1-format options.
     pub woff: Option<WoffFormatOptions>,
+    /// WOFF2-format options.
+    pub woff2: Option<Woff2FormatOptions>,
 }
 
 /// Guaranteed fields supplied to a `cssContext` callback. Additional keys from

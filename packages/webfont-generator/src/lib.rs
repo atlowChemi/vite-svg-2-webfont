@@ -96,7 +96,7 @@ use util::to_napi_err;
 
 pub use types::{
     CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult,
-    HtmlContext, SvgFormatOptions, TtfFormatOptions, WoffFormatOptions,
+    HtmlContext, SvgFormatOptions, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
 use types::{
     DEFAULT_FONT_ORDER, LoadedSvgFile, ResolvedGenerateWebfontsOptions, resolved_font_types,
@@ -284,6 +284,21 @@ fn validate_generate_webfonts_options(options: &GenerateWebfontsOptions) -> std:
         ));
     }
 
+    if let Some(quality) = options
+        .format_options
+        .as_ref()
+        .and_then(|value| value.woff2.as_ref())
+        .and_then(|value| value.compression_quality)
+        && quality > 11
+    {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            format!(
+                "\"options.formatOptions.woff2.compressionQuality\" must be between 0 and 11, got {quality}."
+            ),
+        ));
+    }
+
     Ok(())
 }
 
@@ -439,6 +454,12 @@ fn generate_webfonts_sync(
             .as_ref()
             .and_then(|value| value.woff.as_ref())
             .and_then(|value| value.metadata.as_deref());
+        let woff2_quality = options
+            .format_options
+            .as_ref()
+            .and_then(|value| value.woff2.as_ref())
+            .and_then(|value| value.compression_quality)
+            .unwrap_or(11);
 
         let (woff_font, (woff2_font, eot_font)) = join(
             || -> std::io::Result<Option<Vec<u8>>> {
@@ -452,7 +473,7 @@ fn generate_webfonts_sync(
                 join(
                     || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_woff2 {
-                            woff::ttf_to_woff2(&raw_ttf).map(Some)
+                            woff::ttf_to_woff2(&raw_ttf, woff2_quality).map(Some)
                         } else {
                             Ok(None)
                         }
@@ -694,7 +715,10 @@ mod tests {
         resolve_generate_webfonts_options, resolved_font_types, validate_font_type_order,
         validate_generate_webfonts_options, woff,
     };
-    use crate::{FontType, GenerateWebfontsOptions, ttf::generate_ttf_font_bytes};
+    use crate::{
+        FontType, FormatOptions, GenerateWebfontsOptions, Woff2FormatOptions,
+        ttf::generate_ttf_font_bytes,
+    };
 
     #[test]
     fn generates_woff2_font_with_expected_header() {
@@ -712,7 +736,7 @@ mod tests {
         })
         .expect("expected ttf generation to succeed");
 
-        let result = woff::ttf_to_woff2(&ttf_result).expect("woff2 generation should succeed");
+        let result = woff::ttf_to_woff2(&ttf_result, 10).expect("woff2 generation should succeed");
 
         assert_eq!(&result[..4], b"wOF2");
     }
@@ -771,6 +795,42 @@ mod tests {
 
         assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
         assert!(error.to_string().contains("\"options.files\" is empty."));
+    }
+
+    fn options_with_woff2_quality(quality: u8) -> GenerateWebfontsOptions {
+        GenerateWebfontsOptions {
+            css: Some(false),
+            dest: "artifacts".to_owned(),
+            files: vec!["icon.svg".to_owned()],
+            font_name: Some("iconfont".to_owned()),
+            format_options: Some(FormatOptions {
+                woff2: Some(Woff2FormatOptions {
+                    compression_quality: Some(quality),
+                }),
+                ..Default::default()
+            }),
+            html: Some(false),
+            ligature: Some(false),
+            types: Some(vec![FontType::Woff2]),
+            ..Default::default()
+        }
+    }
+
+    #[test]
+    fn rejects_woff2_compression_quality_above_11() {
+        let error =
+            validate_generate_webfonts_options(&options_with_woff2_quality(12)).unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains(
+            "\"options.formatOptions.woff2.compressionQuality\" must be between 0 and 11, got 12."
+        ));
+    }
+
+    #[test]
+    fn accepts_woff2_compression_quality_of_11() {
+        validate_generate_webfonts_options(&options_with_woff2_quality(11))
+            .expect("compression quality 11 is the upper bound and must be accepted");
     }
 
     #[test]

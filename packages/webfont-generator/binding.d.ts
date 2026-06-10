@@ -86,8 +86,10 @@ export interface FormatOptions {
   svg?: SvgFormatOptions
   /** TTF-format options. */
   ttf?: TtfFormatOptions
-  /** WOFF1-format options. (WOFF2 has no format-specific options.) */
+  /** WOFF1-format options. */
   woff?: WoffFormatOptions
+  /** WOFF2-format options. */
+  woff2?: Woff2FormatOptions
 }
 
 /**
@@ -308,6 +310,19 @@ export interface TtfFormatOptions {
   url?: string
   /** Version string written to the TTF `name` table (record id 5). */
   version?: string
+}
+
+/** WOFF2-format–specific options. Affects only WOFF2 output. */
+export interface Woff2FormatOptions {
+  /**
+   * Brotli compression quality used when encoding WOFF2, from `0` (fastest,
+   * largest output) to `11` (slowest, smallest output). This tunes compression
+   * effort only and never changes glyph fidelity — the decompressed font is
+   * identical at every level. Defaults to `11` for the smallest output; lower it
+   * (e.g. to `10`) for faster encoding at a marginal size cost. Must be between
+   * `0` and `11`; other values are rejected.
+   */
+  compressionQuality?: number
 }
 
 /** WOFF-format–specific options. Affects only WOFF1 output; WOFF2 ignores these. */
