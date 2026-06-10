@@ -32,7 +32,7 @@ const config: UserProjectConfigExport = defineProject({
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             'test:fixtures:refresh': {
-                command: 'node --experimental-transform-types ./scripts/refresh-font-fixtures.ts',
+                command: 'node ./scripts/refresh-font-fixtures.ts',
                 dependsOn: ['pack'],
             },
             publish: {
