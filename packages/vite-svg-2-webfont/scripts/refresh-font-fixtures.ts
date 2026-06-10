@@ -1,6 +1,7 @@
 import { extname, resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { build } from 'vite';
+// @ts-ignore - this dev script depends on the built output, which doesn't exist when linting in CI
 import { viteSvgToWebfont } from '../dist/index.js';
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;
