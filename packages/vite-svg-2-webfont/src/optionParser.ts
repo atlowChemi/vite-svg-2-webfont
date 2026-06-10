@@ -57,6 +57,17 @@ export interface IconPluginOptions<T extends FontType = FontType> {
      */
     optimizeOutput?: boolean;
     /**
+     * Brotli compression quality (`0`–`11`) for WOFF2 output. Convenience alias for
+     * {@link FormatOptions} `woff2.compressionQuality`; the format-level option takes
+     * precedence when both are set.
+     *
+     * When left unset, the plugin uses a faster quality (`10`) during development
+     * (`serve`) so font rebuilds on icon changes are quicker, while production builds
+     * use the engine default (`11`) for the smallest output. Set this to pin a single
+     * quality across both modes.
+     */
+    woff2CompressionQuality?: number;
+    /**
      * Path for generated CSS file.
      * - Relative to the {@link dest} property, unless set to an absolute path.
      * - Postfixed with {@link fontName} unless set to a file name with a file extension.
@@ -110,8 +121,8 @@ export interface IconPluginOptions<T extends FontType = FontType> {
     generateFiles?: boolean | FileType | FileType[];
     /**
      * Per-format options forwarded to the underlying webfont generator. See
-     * {@link FormatOptions} — its `svg`, `ttf`, and `woff` fields each carry
-     * their own typed and documented per-format options.
+     * {@link FormatOptions} — its `svg`, `ttf`, `woff`, and `woff2` fields each
+     * carry their own typed and documented per-format options.
      */
     formatOptions?: FormatOptions;
     /**
@@ -269,6 +280,7 @@ export function parseOptions<T extends FontType = FontType>(options: IconPluginO
     const generateFilesOptions = parseGenerateFilesOption(options);
     const formatOptions = options.formatOptions;
     const svgFormatOptions = formatOptions?.svg;
+    const woff2FormatOptions = formatOptions?.woff2;
     options.dest ||= resolve(options.context, '..', 'artifacts');
     options.fontName ||= 'iconfont';
     return {
@@ -292,6 +304,12 @@ export function parseOptions<T extends FontType = FontType>(options: IconPluginO
                 svg: {
                     centerVertically: options.centerVertically,
                     ...(typeof svgFormatOptions === 'object' && svgFormatOptions),
+                },
+            }),
+            ...(typeof options.woff2CompressionQuality !== 'undefined' && {
+                woff2: {
+                    compressionQuality: options.woff2CompressionQuality,
+                    ...(typeof woff2FormatOptions === 'object' && woff2FormatOptions),
                 },
             }),
         },

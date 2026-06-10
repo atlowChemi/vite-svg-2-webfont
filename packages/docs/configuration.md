@@ -145,6 +145,17 @@ The plugin API consists of one required option and multiple optional options for
     - Available since v7 — exposes the underlying [`@atlowchemi/webfont-generator#optimizeOutput`](/webfont-generator/node#optimizeoutput) option through the plugin
     - Convenience alias for `formatOptions.svg.optimizeOutput`; the format-level option takes precedence when both are set
 
+## `woff2CompressionQuality`
+
+- Type: `number` (`0`–`11`)
+- Description: Brotli compression quality for WOFF2 output. Higher is smaller but slower to encode; every level decodes to an identical font.
+- Default: `undefined`
+- Notes:
+    - Convenience alias for `formatOptions.woff2.compressionQuality`; the format-level option takes precedence when both are set
+    - When left unset, the plugin uses a faster quality (`10`) during development (`serve`) so font rebuilds on icon changes are quicker, while production builds use the engine default (`11`) for the smallest output. The dev-served font renders identically to production — only its bytes differ.
+    - Set this to pin a single quality across both dev and build (e.g. `11` to make dev byte-for-byte match production)
+- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/webfont-generator/node#formatoptions)
+
 ## `generateFiles`
 
 - Type: `boolean | string | string[]`

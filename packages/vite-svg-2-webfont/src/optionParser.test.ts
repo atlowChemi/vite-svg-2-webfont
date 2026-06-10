@@ -586,6 +586,43 @@ describe('optionParser', () => {
             });
         });
 
+        it.concurrent('adds woff2CompressionQuality to formatOptions.woff2 only if defined in options', () => {
+            const resDefault = optionParser.parseOptions({ context });
+            expect(resDefault.formatOptions).not.toHaveProperty('woff2.compressionQuality');
+            const res = optionParser.parseOptions({ context, woff2CompressionQuality: 9 });
+            expect(res.formatOptions).toEqual({
+                woff2: {
+                    compressionQuality: 9,
+                },
+            });
+        });
+
+        it.concurrent('preserves existing formatOptions values when setting woff2CompressionQuality', () => {
+            const formatOptions = {
+                svg: { fontId: 'icons' },
+                woff: { metadata: '<metadata>woff</metadata>' },
+            };
+            const res = optionParser.parseOptions({ context, woff2CompressionQuality: 9, formatOptions });
+            expect(res.formatOptions).toEqual({
+                svg: { fontId: 'icons' },
+                woff: { metadata: '<metadata>woff</metadata>' },
+                woff2: { compressionQuality: 9 },
+            });
+        });
+
+        it.concurrent('does not override formatOptions.woff2.compressionQuality when both are defined', () => {
+            const res = optionParser.parseOptions({
+                context,
+                woff2CompressionQuality: 9,
+                formatOptions: {
+                    woff2: { compressionQuality: 11 },
+                },
+            });
+            expect(res.formatOptions).toEqual({
+                woff2: { compressionQuality: 11 },
+            });
+        });
+
         it.concurrent('sets normalize only if defined in options', () => {
             const resDefault = optionParser.parseOptions({ context });
             expect('normalize' in resDefault).toEqual(false);

@@ -117,6 +117,12 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         configResolved(_config) {
             isBuild = _config.command === 'build';
+            // In dev, default WOFF2 to a faster Brotli quality unless the user pinned one.
+            // Rebuilds run on every icon change and the dev-served font is never shipped, so the
+            // marginally larger output is irrelevant while the ~2x faster encode speeds up rebuilds.
+            if (!isBuild && processedOptions.formatOptions.woff2?.compressionQuality === undefined) {
+                processedOptions.formatOptions.woff2 = { ...processedOptions.formatOptions.woff2, compressionQuality: 10 };
+            }
         },
         resolveId(id) {
             if (id !== virtualModuleId) {
