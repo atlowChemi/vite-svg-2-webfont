@@ -21,12 +21,13 @@ jobs:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
                   scopes: |
-                      webfont-generator
-                      vite-svg-2-webfont
+                      benchmarks
                       ci
-                      docs
-                      example
-                      tests
-                      main
                       deps
                       deps-dev
+                      docs
+                      example
+                      main
+                      tests
+                      vite-svg-2-webfont
+                      webfont-generator

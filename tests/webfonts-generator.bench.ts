@@ -14,18 +14,35 @@ const upstreamCallback = require('@vusion/webfonts-generator') as (options: Gene
 const upstreamDirect = promisify(upstreamCallback) as unknown as (options: GenerateWebfontsInputOptions) => Promise<unknown>;
 
 // --- Fixture setup ---
-// Generate 600 SVG icons for stress tests
+// Materialize 600 real icons from an Iconify set, instead of synthetic circles, so the
+// per-icon parse/optimize cost (the work an incremental cache would save) is realistic.
+// Pick the set via BENCH_ICON_SET: 'simple-icons' (default — single-path monochrome, like
+// typical webfont icons) or 'logos' (heavy multi-path/multi-color, a stress upper-bound).
+const ICON_SET = process.env.BENCH_ICON_SET || 'simple-icons';
+const iconSet = require(`@iconify-json/${ICON_SET}/icons.json`) as {
+    width?: number;
+    height?: number;
+    icons: Record<string, { body: string; width?: number; height?: number }>;
+};
 const bulkFixtureDir = await mkdtemp(join(tmpdir(), '__bench-bulk-svgs-'));
 const bulkFiles: string[] = [];
 const fileWritePromises: Promise<void>[] = [];
-for (let i = 0; i < 600; i++) {
-    const cx = 20 + (i % 60);
-    const cy = 20 + Math.floor(i / 60) * 5;
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="${cx}" cy="${cy}" r="10"/></svg>`;
+const iconNames = Object.keys(iconSet.icons).slice(0, 600);
+iconNames.forEach((name, i) => {
+    const icon = iconSet.icons[name]!;
+    const w = icon.width ?? iconSet.width ?? 24;
+    const h = icon.height ?? iconSet.height ?? 24;
+    // Vary the em box per icon (deterministically) so glyph dimensions and aspect ratios differ
+    // across the set instead of being uniform. The body stays in its original coordinate space —
+    // the icons won't render "correctly", but that's irrelevant to the bench; the point is to give
+    // the pipeline a non-uniform set so the normalize/global-metric recomputation is realistic.
+    const vbW = w + (i % 5) * Math.round(w / 2); // cycles e.g. 24, 36, 48, 60, 72
+    const vbH = h + ((i * 3) % 7) * Math.round(h / 3); // independent spread → mixed aspect ratios
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}">${icon.body}</svg>`;
     const path = join(bulkFixtureDir, `icon-${String(i).padStart(3, '0')}.svg`);
     fileWritePromises.push(writeFile(path, svg));
     bulkFiles.push(path);
-}
+});
 await Promise.all(fileWritePromises);
 
 process.on('exit', () => {
@@ -124,7 +141,15 @@ describe('with custom CSS template', () => {
 
 describe.each([15, 100, 300, 600])('%i glyphs', numGlyphs => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = numGlyphs >= 100 ? { time: 2000 } : {};
+    // Longer sampling windows + warmup to keep rme low (warmup discards cold-start/GC outliers).
+    // Scaled by glyph count so total runtime stays bounded: bigger fonts run fewer ops/sec, so a
+    // fixed time window already yields plenty of samples at small N.
+    const benchOpts: BenchOptions =
+        numGlyphs >= 300
+            ? { time: 10_000, warmupTime: 1_000, warmupIterations: 10 }
+            : numGlyphs >= 100
+              ? { time: 8_000, warmupTime: 500, warmupIterations: 20 }
+              : { time: 3_000, warmupTime: 300, warmupIterations: 50 };
 
     describe.each([true, false])('optimize SVG: %s', optimizeOutput => {
         describe('all formats', () => {
