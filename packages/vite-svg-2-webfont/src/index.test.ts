@@ -1,5 +1,6 @@
 import { constants } from 'node:fs';
 import { access, readFile, rm, writeFile } from 'node:fs/promises';
+import { setTimeout } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite';
 import { build, createServer, normalizePath, preview } from 'vite';
@@ -11,8 +12,9 @@ import type { IconPluginOptions } from './optionParser';
 const { generateWebfontsMock } = vi.hoisted(() => ({
     generateWebfontsMock: vi.fn<typeof import('@atlowchemi/webfont-generator').generateWebfonts>(),
 }));
-const { setupWatcherMock } = vi.hoisted(() => ({
+const { ensureDirExistsAndWriteFileMock, setupWatcherMock } = vi.hoisted(() => ({
     setupWatcherMock: vi.fn<typeof import('./utils').setupWatcher>(),
+    ensureDirExistsAndWriteFileMock: vi.fn<typeof import('./utils').ensureDirExistsAndWriteFile>(),
 }));
 
 vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
@@ -27,7 +29,8 @@ vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
 vi.mock('./utils', async importOriginal => {
     const actual = await importOriginal<typeof import('./utils')>();
     setupWatcherMock.mockImplementation(actual.setupWatcher);
-    return { ...actual, setupWatcher: setupWatcherMock };
+    ensureDirExistsAndWriteFileMock.mockImplementation(actual.ensureDirExistsAndWriteFile);
+    return { ...actual, setupWatcher: setupWatcherMock, ensureDirExistsAndWriteFile: ensureDirExistsAndWriteFileMock };
 });
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;
@@ -505,6 +508,48 @@ describe('build api.getGeneratedWebfonts', () => {
         expect(fonts.map(({ href }) => href)).toEqual(
             expect.arrayContaining([expect.stringMatching(/^\/assets\/iconfont-[^/]+\.(ttf)$/), expect.stringMatching(/^\/assets\/iconfont-[^/]+\.(woff2)$/)]),
         );
+    });
+});
+
+describe('build font write ordering', () => {
+    // Regression test: in build mode the plugin writes each generated font to a temp dir and
+    // references those paths from the virtual module's CSS. Vite reads the files when it resolves
+    // the url() references into bundle assets, so the writes must be awaited before buildStart
+    // resolves — otherwise a lagging write loses the race and that font's asset is silently
+    // dropped from the bundle (and from getGeneratedWebfonts).
+    it('awaits font temp-file writes before completing the build', { timeout: 15_000 }, async () => {
+        const writeGate = Promise.withResolvers<void>();
+        const realUtils = await vi.importActual<typeof import('./utils')>('./utils');
+        // Perform the real write (so the build still succeeds once unblocked) but hold the
+        // returned promise open: if buildStart awaits it, the build cannot finish until the
+        // gate is released. A fire-and-forget write would let the build settle immediately.
+        ensureDirExistsAndWriteFileMock.mockImplementationOnce(async (content, dest) => {
+            await writeGate.promise;
+            await realUtils.ensureDirExistsAndWriteFile(content, dest);
+        });
+
+        const plugin = viteSvgToWebfont({ context: webfontFolder, types: ['woff2', 'ttf'] });
+        const buildPromise = build({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            build: { assetsInlineLimit: 0, write: false },
+            plugins: [plugin],
+        });
+
+        const isSettledBeforeGate = await Promise.race([buildPromise.then(() => true), setTimeout(250, false)]);
+        expect(isSettledBeforeGate).toBe(false);
+        expect(plugin.api!.getGeneratedWebfonts()).toHaveLength(0);
+
+        writeGate.resolve();
+        await buildPromise;
+
+        expect(
+            plugin
+                .api!.getGeneratedWebfonts()
+                .map(({ type }) => type)
+                .toSorted(),
+        ).toEqual(['ttf', 'woff2']);
     });
 });
 

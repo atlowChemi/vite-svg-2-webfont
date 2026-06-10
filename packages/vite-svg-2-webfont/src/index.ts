@@ -181,18 +181,23 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
             await generate();
             if (isBuild && !options.inline) {
-                const emitted = processedOptions.types.map<[T, string]>(type => {
-                    if (!generatedFonts?.[type]) {
-                        throw new Error(`Failed to generate font of type ${type}`);
-                    }
+                const emitted = await Promise.all(
+                    processedOptions.types.map(async (type): Promise<[T, string]> => {
+                        if (!generatedFonts?.[type]) {
+                            throw new Error(`Failed to generate font of type ${type}`);
+                        }
 
-                    const fileContents = Buffer.from(generatedFonts[type]);
-                    const hash = getBufferHash(fileContents);
-                    const filePath = pathJoin(tmpDir, `${processedOptions.fontName}-${hash}.${type}`);
-                    ensureDirExistsAndWriteFile(fileContents, filePath).catch(() => null); // write font file to a temporary dir
+                        const fileContents = Buffer.from(generatedFonts[type]);
+                        const hash = getBufferHash(fileContents);
+                        const filePath = pathJoin(tmpDir, `${processedOptions.fontName}-${hash}.${type}`);
+                        // Await the write: Vite reads these temp files when it resolves the
+                        // url() references in the virtual module's CSS. If the write has not
+                        // flushed by then the asset is silently dropped from the bundle.
+                        await ensureDirExistsAndWriteFile(fileContents, filePath);
 
-                    return [type, filePath];
-                });
+                        return [type, filePath];
+                    }),
+                );
                 fileRefs = Object.fromEntries(emitted) as {
                     [Ref in T]: string;
                 };
