@@ -426,6 +426,23 @@ describe('generateWebfonts', () => {
     });
 });
 
+// musl's libm diverges from glibc/macOS/Windows at the ULP level, so the float geometry in
+// TTF generation (kurbo's cubic->quadratic conversion) rounds a few coordinates differently
+// and the exact byte sizes shift by a handful of bytes (smaller TTF, slightly larger woff2).
+// The output is reproducible within a libc family but not across musl, so the exact-byte
+// snapshots below can't run there. Detected via the glibc marker in process.report, which is
+// present on glibc Node and absent on musl (Alpine); falls back to running the test if the
+// report is unavailable rather than skipping silently.
+function isMuslLinux(): boolean {
+    if (process.platform !== 'linux') return false;
+    try {
+        const report = process.report?.getReport?.() as { header?: { glibcVersionRuntime?: string } } | undefined;
+        return report?.header !== undefined && report.header.glibcVersionRuntime === undefined;
+    } catch {
+        return false;
+    }
+}
+
 describe('output size (deterministic)', () => {
     // Build one font from the first 300 real icons of @iconify-json/simple-icons.
     // Output bytes are a pure function of the inputs + options, so these are exact
@@ -458,7 +475,7 @@ describe('output size (deterministic)', () => {
         Object.assign(perFormat, { svg: all.svg.length, ttf: all.ttf.length, eot: all.eot.length, woff: all.woff.length, woff2: all.woff2.length });
     });
 
-    it('per-format output sizes', () => {
+    it('per-format output sizes', { skip: isMuslLinux() }, () => {
         expect(perFormat).toMatchInlineSnapshot(`
           {
             "eot": 61132,
