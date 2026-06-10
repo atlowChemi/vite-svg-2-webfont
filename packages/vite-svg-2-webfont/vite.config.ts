@@ -33,6 +33,7 @@ const config: UserProjectConfigExport = defineProject({
             },
             'test:fixtures:refresh': {
                 command: 'node ./scripts/refresh-font-fixtures.ts',
+                dependsOn: ['pack'],
             },
             publish: {
                 cache: false,

@@ -1,15 +1,17 @@
 import { extname, resolve } from 'node:path';
 import { mkdir, writeFile } from 'node:fs/promises';
-import { build, normalizePath } from 'vite';
+import { build } from 'vite';
+// @ts-ignore - this dev script depends on the built output, which doesn't exist when linting in CI
+import { viteSvgToWebfont } from '../dist/index.js';
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;
 type RolldownOutput = Extract<ViteBuildResult, { output: unknown }>;
 type OutputAsset = Extract<RolldownOutput['output'][1], { type: 'asset' }>;
 
 const rootDir = process.cwd();
-const fixturesRoot = resolve(rootDir, 'src/fixtures');
+const fixturesRoot = resolve(rootDir, 'src', 'fixtures');
+const webfontFolder = resolve(fixturesRoot, 'webfont-test', 'svg');
 const fontsDir = resolve(fixturesRoot, 'fonts');
-const configFile = normalizePath(resolve(fixturesRoot, 'vite.no-inline.config.ts'));
 const expectedTypes = ['svg', 'eot', 'woff', 'woff2', 'ttf'];
 
 function getBuildOutput(result: ViteBuildResult) {
@@ -27,9 +29,12 @@ function getAssetSource(asset: OutputAsset) {
 }
 
 const buildResult = await build({
-    configFile,
     logLevel: 'silent',
     root: fixturesRoot,
+    build: {
+        assetsInlineLimit: 0,
+    },
+    plugins: [viteSvgToWebfont({ context: webfontFolder })],
 });
 
 const output = getBuildOutput(buildResult);
