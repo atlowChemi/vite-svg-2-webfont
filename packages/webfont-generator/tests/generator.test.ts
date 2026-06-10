@@ -1,8 +1,9 @@
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
-import { afterEach, describe, expect, it } from 'vite-plus/test';
-import { generateWebfonts } from '../index.js';
+import { createRequire } from 'node:module';
+import { afterEach, beforeAll, describe, expect, it } from 'vite-plus/test';
+import { type FontType, generateWebfonts, type GenerateWebfontsInputOptions } from '../index.js';
 
 const fixturesRoot = join(import.meta.dirname, '..', 'src', 'svg', 'fixtures');
 const webfontFixtures = join(import.meta.dirname, '..', '..', 'vite-svg-2-webfont', 'src', 'fixtures', 'webfont-test', 'svg');
@@ -422,5 +423,50 @@ describe('generateWebfonts', () => {
                 types: ['svg'],
             } as never),
         ).rejects.toThrow(expect.objectContaining({ message: expect.stringContaining('Failed to read source SVG file') }));
+    });
+});
+
+describe('output size (deterministic)', () => {
+    // Build one font from the first 300 real icons of @iconify-json/simple-icons.
+    // Output bytes are a pure function of the inputs + options, so these are exact
+    // regression guards.
+    const ICON_COUNT = 300;
+    const perFormat = {} as Record<FontType, number>;
+
+    beforeAll(async () => {
+        const iconSet = createRequire(import.meta.url)('@iconify-json/simple-icons/icons.json') as {
+            width?: number;
+            height?: number;
+            icons: Record<string, { body: string; width?: number; height?: number }>;
+        };
+        const dir = await createTempDir('vite-size-');
+        const slugs = Object.keys(iconSet.icons).slice(0, ICON_COUNT);
+        const files = slugs.map((_, i) => join(dir, `i${String(i).padStart(3, '0')}.svg`));
+        await Promise.all(
+            slugs.map((slug, i) => {
+                const icon = iconSet.icons[slug];
+                const w = icon.width ?? iconSet.width ?? 24;
+                const h = icon.height ?? iconSet.height ?? 24;
+                return writeFile(files[i], `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">${icon.body}</svg>`);
+            }),
+        );
+
+        // `fontHeight` is pinned so the em square (and thus byte sizes) is stable.
+        const base: GenerateWebfontsInputOptions = { files, dest: `${dir}/`, fontName: 'size', fontHeight: 24, css: false, writeFiles: false, optimizeOutput: true };
+
+        const all = await generateWebfonts({ ...base, types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] });
+        Object.assign(perFormat, { svg: all.svg.length, ttf: all.ttf.length, eot: all.eot.length, woff: all.woff.length, woff2: all.woff2.length });
+    });
+
+    it('per-format output sizes', () => {
+        expect(perFormat).toMatchInlineSnapshot(`
+          {
+            "eot": 61132,
+            "svg": 818854,
+            "ttf": 60980,
+            "woff": 30068,
+            "woff2": 22312,
+          }
+        `);
     });
 });
