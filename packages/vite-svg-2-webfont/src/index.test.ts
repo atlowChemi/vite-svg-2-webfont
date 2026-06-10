@@ -6,6 +6,7 @@ import { build, createServer, normalizePath, preview } from 'vite';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { viteSvgToWebfont } from './index';
 import { base64ToArrayBuffer } from './utils';
+import type { IconPluginOptions } from './optionParser';
 
 const { generateWebfontsMock } = vi.hoisted(() => ({
     generateWebfontsMock: vi.fn<typeof import('@atlowchemi/webfont-generator').generateWebfonts>(),
@@ -52,7 +53,7 @@ const enum ConfigType {
     PreloadInline,
 }
 
-const getConfig = (configType: ConfigType): InlineConfig => {
+const getConfig = (configType: ConfigType, overrides?: Partial<IconPluginOptions>): InlineConfig => {
     const base: InlineConfig = {
         logLevel: 'silent',
         root: fileURLToNormalizedPath(root),
@@ -60,12 +61,12 @@ const getConfig = (configType: ConfigType): InlineConfig => {
     };
     switch (configType) {
         case ConfigType.Basic:
-            return { ...base, plugins: [viteSvgToWebfont({ context: webfontFolder })] };
+            return { ...base, plugins: [viteSvgToWebfont({ context: webfontFolder, ...overrides })] };
         case ConfigType.NoInline:
             return {
                 ...base,
                 build: { assetsInlineLimit: 0 },
-                plugins: [viteSvgToWebfont({ context: webfontFolder })],
+                plugins: [viteSvgToWebfont({ context: webfontFolder, ...overrides })],
             };
         case ConfigType.AllowWriteFilesInBuild:
             return {
@@ -78,6 +79,7 @@ const getConfig = (configType: ConfigType): InlineConfig => {
                         context: webfontFolder,
                         allowWriteFilesInBuild: true,
                         fontName: 'allowWriteFilesInBuild-test',
+                        ...overrides,
                     }),
                 ],
             };
@@ -91,6 +93,7 @@ const getConfig = (configType: ConfigType): InlineConfig => {
                         types: ['woff2', 'ttf'],
                         // @ts-ignore -- 'woff' is intentionally not in `types` — exercises the runtime filter that drops mismatched preload formats.
                         preloadFormats: ['woff2', 'woff'],
+                        ...overrides,
                     }),
                 ],
             };
@@ -98,7 +101,7 @@ const getConfig = (configType: ConfigType): InlineConfig => {
             return {
                 ...base,
                 build: { assetsInlineLimit: 0 },
-                plugins: [viteSvgToWebfont({ context: webfontFolder, inline: true, preloadFormats: ['woff2'], types: ['woff2'] })],
+                plugins: [viteSvgToWebfont({ context: webfontFolder, inline: true, preloadFormats: ['woff2'], types: ['woff2'], ...overrides })],
             };
         default:
             configType satisfies never;
@@ -153,7 +156,7 @@ const loadFileContent = async (path: string, encoding: BufferEncoding | 'buffer'
 // #endregion
 
 describe('serve - handles virtual import and has all font types available', () => {
-    const buildConfig = getConfig(ConfigType.Basic);
+    const buildConfig = getConfig(ConfigType.Basic, { formatOptions: { woff2: { compressionQuality: 11 } } });
 
     let server: ViteDevServer;
 
@@ -703,5 +706,85 @@ describe('build - throws when generator omits a requested font type', () => {
                 plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2', 'ttf'] })],
             }),
         ).rejects.toThrow(/Failed to generate font of type woff2/);
+    });
+});
+
+describe('WOFF2 compression quality by mode', () => {
+    let realGen: typeof import('@atlowchemi/webfont-generator').generateWebfonts;
+
+    beforeAll(async () => {
+        ({ generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator'));
+    });
+
+    // Capture the options the plugin forwards to the generator on the next call, while still
+    // running the real generator so the dev server / build behaves normally.
+    const captureNextGenerateOptions = () => {
+        const captured: { options?: Parameters<typeof generateWebfontsMock>[0] } = {};
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            captured.options = options;
+            return realGen(options);
+        });
+        return captured;
+    };
+
+    it('serve mode forwards the faster compressionQuality (10) to the generator', async () => {
+        const captured = captureNextGenerateOptions();
+        const createdServer = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+        const server = await createdServer.listen();
+        await server.close();
+
+        expect(captured.options?.formatOptions?.woff2?.compressionQuality).toBe(10);
+    });
+
+    it('serve mode does not override user-specified compressionQuality', async () => {
+        const captured = captureNextGenerateOptions();
+        const createdServer = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'], formatOptions: { woff2: { compressionQuality: 5 } } })],
+        });
+        const server = await createdServer.listen();
+        await server.close();
+
+        expect(captured.options?.formatOptions?.woff2?.compressionQuality).toBe(5);
+    });
+
+    it('the top-level woff2CompressionQuality option overrides the dev default', async () => {
+        const captured = captureNextGenerateOptions();
+        const createdServer = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [
+                viteSvgToWebfont({
+                    context: webfontFolder,
+                    types: ['woff2'],
+                    woff2CompressionQuality: 7,
+                }),
+            ],
+        });
+        const server = await createdServer.listen();
+        await server.close();
+
+        expect(captured.options?.formatOptions?.woff2?.compressionQuality).toBe(7);
+    });
+
+    it('build mode leaves compressionQuality unset, so the engine default (11) applies', async () => {
+        const captured = captureNextGenerateOptions();
+        await build({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            build: { write: false },
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+
+        expect(captured.options?.formatOptions?.woff2?.compressionQuality).toBeUndefined();
     });
 });
