@@ -272,19 +272,46 @@ function summarizeEot(buffer: Buffer) {
     };
 }
 
+const WOFF_HEADER_SIZE = 44;
+const WOFF_DIR_ENTRY_SIZE = 20;
+
+// A `wOFF` byte sequence with a plausible-looking length at offset+8 is not enough to be a real
+// WOFF: the surrounding residue (see `normalizeWoffBuffer`) can spuriously contain one. Validate
+// the fixed-layout fields the spec guarantees — `reserved` must be 0, there must be at least one
+// table whose directory fits, and the metadata block must lie inside the declared size — so a
+// random match in the residue is rejected instead of fed to `inflateSync`.
+function isWoffHeaderAt(buffer: Buffer, offset: number) {
+    if (offset + WOFF_HEADER_SIZE > buffer.length) return false;
+
+    const declaredSize = buffer.readUInt32BE(offset + 8);
+    if (declaredSize < WOFF_HEADER_SIZE || offset + declaredSize > buffer.length) return false;
+
+    const numTables = buffer.readUInt16BE(offset + 12);
+    const reserved = buffer.readUInt16BE(offset + 14);
+    if (numTables === 0 || reserved !== 0) return false;
+    if (WOFF_HEADER_SIZE + numTables * WOFF_DIR_ENTRY_SIZE > declaredSize) return false;
+
+    const metaOffset = buffer.readUInt32BE(offset + 24);
+    const metaLength = buffer.readUInt32BE(offset + 28);
+    if (metaLength > 0 && (metaOffset < WOFF_HEADER_SIZE || metaOffset + metaLength > declaredSize)) return false;
+
+    return true;
+}
+
 // vusion wraps its WOFF return value with `new Buffer(font.buffer)` which exposes the entire
-// underlying Node Buffer pool, not just the WOFF bytes. The pool can carry residual WOFFs from
-// earlier tests in the same worker, so a forward `indexOf('wOFF')` finds the oldest one. Walk
-// backwards from the end and return the first WOFF whose declared size still fits — that is the
-// one this call just wrote into the pool.
+// underlying Node Buffer pool, not just the WOFF bytes. The pool can carry residual bytes — both
+// older WOFFs and unrelated data — around the WOFF this call wrote. Walk backwards from the end
+// and return the first *structurally valid* WOFF whose declared size still fits: that is the one
+// this call just wrote, and the validation rejects spurious `wOFF` sequences in the residue that
+// a size-only check would otherwise hand to `inflateSync`.
 function normalizeWoffBuffer(buffer: Buffer) {
     const magic = Buffer.from('wOFF');
     let searchEnd = buffer.length;
     while (searchEnd >= magic.length) {
         const offset = buffer.lastIndexOf(magic, searchEnd - 1);
-        if (offset < 0 || offset + 12 > buffer.length) break;
-        const declaredSize = buffer.readUInt32BE(offset + 8);
-        if (declaredSize > 0 && offset + declaredSize <= buffer.length) {
+        if (offset < 0) break;
+        if (isWoffHeaderAt(buffer, offset)) {
+            const declaredSize = buffer.readUInt32BE(offset + 8);
             return buffer.subarray(offset, offset + declaredSize);
         }
         searchEnd = offset;
