@@ -352,48 +352,59 @@ pub(crate) struct CachedTemplateData {
     pub(crate) render_cache: Mutex<RenderCache>,
 }
 
+/// Rendered bytes for each requested output format. Held by [`GenerateWebfontsResult`] and
+/// produced by the generator's format pipeline; grouping them lets an incremental regenerate
+/// refresh every format in a single assignment.
+#[derive(Default)]
+pub(crate) struct FontOutputs {
+    pub(crate) svg_font: Option<Arc<String>>,
+    pub(crate) ttf_font: Option<Arc<Vec<u8>>>,
+    pub(crate) woff_font: Option<Arc<Vec<u8>>>,
+    pub(crate) woff2_font: Option<Arc<Vec<u8>>>,
+    pub(crate) eot_font: Option<Arc<Vec<u8>>>,
+}
+
 /// Result of a successful `generateWebfonts` call. Exposes the generated
 /// font bytes (or `null` for formats that were not requested) and methods to
 /// render the CSS and HTML preview.
 #[cfg_attr(feature = "napi", napi)]
 pub struct GenerateWebfontsResult {
+    pub(crate) cached: OnceLock<Result<CachedTemplateData, String>>,
     pub(crate) css_context: Option<Map<String, Value>>,
-    pub(crate) eot_font: Option<Arc<Vec<u8>>>,
+    pub(crate) fonts: FontOutputs,
     pub(crate) html_context: Option<Map<String, Value>>,
     pub(crate) options: ResolvedGenerateWebfontsOptions,
     pub(crate) source_files: Vec<LoadedSvgFile>,
-    pub(crate) svg_font: Option<Arc<String>>,
-    pub(crate) ttf_font: Option<Arc<Vec<u8>>>,
-    pub(crate) woff2_font: Option<Arc<Vec<u8>>>,
-    pub(crate) woff_font: Option<Arc<Vec<u8>>>,
-    pub(crate) cached: OnceLock<Result<CachedTemplateData, String>>,
 }
 
 // Pure Rust getters (always available)
 impl GenerateWebfontsResult {
     /// Returns the EOT font bytes, if generated.
     pub fn eot_bytes(&self) -> Option<&[u8]> {
-        self.eot_font.as_ref().map(|v| v.as_ref().as_slice())
+        self.fonts.eot_font.as_ref().map(|v| v.as_ref().as_slice())
     }
 
     /// Returns the SVG font string, if generated.
     pub fn svg_string(&self) -> Option<&str> {
-        self.svg_font.as_ref().map(|v| v.as_ref().as_str())
+        self.fonts.svg_font.as_ref().map(|v| v.as_ref().as_str())
     }
 
     /// Returns the TTF font bytes, if generated.
     pub fn ttf_bytes(&self) -> Option<&[u8]> {
-        self.ttf_font.as_ref().map(|v| v.as_ref().as_slice())
+        self.fonts.ttf_font.as_ref().map(|v| v.as_ref().as_slice())
     }
 
     /// Returns the WOFF font bytes, if generated.
     pub fn woff_bytes(&self) -> Option<&[u8]> {
-        self.woff_font.as_ref().map(|v| v.as_ref().as_slice())
+        self.fonts.woff_font.as_ref().map(|v| v.as_ref().as_slice())
     }
 
     /// Returns the WOFF2 font bytes, if generated.
     pub fn woff2_bytes(&self) -> Option<&[u8]> {
-        self.woff2_font.as_ref().map(|v| v.as_ref().as_slice())
+        self.fonts
+            .woff2_font
+            .as_ref()
+            .map(|v| v.as_ref().as_slice())
     }
 
     pub(crate) fn get_cached_io(&self) -> std::io::Result<&CachedTemplateData> {
@@ -561,7 +572,8 @@ impl GenerateWebfontsResult {
     /// EOT font bytes, or `null` if EOT was not in `types`.
     #[napi(getter)]
     pub fn eot(&self) -> Option<Uint8Array> {
-        self.eot_font
+        self.fonts
+            .eot_font
             .as_ref()
             .map(|v| Uint8Array::from(v.as_ref().clone()))
     }
@@ -569,13 +581,14 @@ impl GenerateWebfontsResult {
     /// SVG font XML string, or `null` if SVG was not in `types`.
     #[napi(getter)]
     pub fn svg(&self) -> Option<String> {
-        self.svg_font.as_ref().map(|v| v.as_ref().clone())
+        self.fonts.svg_font.as_ref().map(|v| v.as_ref().clone())
     }
 
     /// TTF font bytes, or `null` if TTF was not in `types`.
     #[napi(getter)]
     pub fn ttf(&self) -> Option<Uint8Array> {
-        self.ttf_font
+        self.fonts
+            .ttf_font
             .as_ref()
             .map(|v| Uint8Array::from(v.as_ref().clone()))
     }
@@ -583,7 +596,8 @@ impl GenerateWebfontsResult {
     /// WOFF2 font bytes, or `null` if WOFF2 was not in `types`.
     #[napi(getter)]
     pub fn woff2(&self) -> Option<Uint8Array> {
-        self.woff2_font
+        self.fonts
+            .woff2_font
             .as_ref()
             .map(|v| Uint8Array::from(v.as_ref().clone()))
     }
@@ -591,7 +605,8 @@ impl GenerateWebfontsResult {
     /// WOFF font bytes, or `null` if WOFF was not in `types`.
     #[napi(getter)]
     pub fn woff(&self) -> Option<Uint8Array> {
-        self.woff_font
+        self.fonts
+            .woff_font
             .as_ref()
             .map(|v| Uint8Array::from(v.as_ref().clone()))
     }
@@ -698,14 +713,10 @@ mod tests {
         let result = GenerateWebfontsResult {
             cached: std::sync::OnceLock::new(),
             css_context: None,
-            eot_font: None,
+            fonts: FontOutputs::default(),
             html_context: None,
             options: resolved,
             source_files,
-            svg_font: None,
-            ttf_font: None,
-            woff2_font: None,
-            woff_font: None,
         };
 
         if let Some(dir) = cleanup_dir {
@@ -971,14 +982,10 @@ mod tests {
         GenerateWebfontsResult {
             cached: std::sync::OnceLock::new(),
             css_context: None,
-            eot_font: None,
+            fonts: FontOutputs::default(),
             html_context: None,
             options: resolved,
             source_files,
-            svg_font: None,
-            ttf_font: None,
-            woff2_font: None,
-            woff_font: None,
         }
     }
 

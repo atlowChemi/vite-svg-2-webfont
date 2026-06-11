@@ -84,6 +84,7 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::task::JoinSet;
 
+use svg::types::{PreparedSvgFont, SvgOptions};
 use svg::{build_svg_font, prepare_svg_font, svg_options_from_options};
 #[cfg(feature = "napi")]
 use templates::{
@@ -99,7 +100,8 @@ pub use types::{
     HtmlContext, SvgFormatOptions, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
 use types::{
-    DEFAULT_FONT_ORDER, LoadedSvgFile, ResolvedGenerateWebfontsOptions, resolved_font_types,
+    DEFAULT_FONT_ORDER, FontOutputs, LoadedSvgFile, ResolvedGenerateWebfontsOptions,
+    resolved_font_types,
 };
 
 #[cfg(all(test, feature = "napi"))]
@@ -415,26 +417,43 @@ fn generate_webfonts_sync(
     options: ResolvedGenerateWebfontsOptions,
     source_files: Vec<LoadedSvgFile>,
 ) -> std::io::Result<GenerateWebfontsResult> {
+    let svg_options = svg_options_from_options(&options);
+    let prepared = prepare_svg_font(&svg_options, &source_files)?;
+    let fonts = build_font_outputs(&options, &svg_options, &prepared)?;
+
+    Ok(GenerateWebfontsResult {
+        cached: std::sync::OnceLock::new(),
+        css_context: None,
+        fonts,
+        html_context: None,
+        options,
+        source_files,
+    })
+}
+
+/// Build every requested output format from an already-prepared glyph set.
+fn build_font_outputs(
+    options: &ResolvedGenerateWebfontsOptions,
+    svg_options: &SvgOptions<'_>,
+    prepared: &PreparedSvgFont,
+) -> std::io::Result<FontOutputs> {
     let wants_svg = options.types.contains(&FontType::Svg);
     let wants_ttf = options.types.contains(&FontType::Ttf);
     let wants_woff = options.types.contains(&FontType::Woff);
     let wants_woff2 = options.types.contains(&FontType::Woff2);
     let wants_eot = options.types.contains(&FontType::Eot);
 
-    let svg_options = svg_options_from_options(&options);
-    let prepared = prepare_svg_font(&svg_options, &source_files)?;
-
     let (svg_font, raw_ttf) = join(
         || -> std::io::Result<Option<String>> {
             if wants_svg {
-                Ok(Some(build_svg_font(&svg_options, &prepared)))
+                Ok(Some(build_svg_font(svg_options, prepared)))
             } else {
                 Ok(None)
             }
         },
         || -> std::io::Result<Option<Vec<u8>>> {
             if wants_ttf || wants_woff || wants_woff2 || wants_eot {
-                let ttf_options = ttf::ttf_options_from_options(&options);
+                let ttf_options = ttf::ttf_options_from_options(options);
                 ttf::generate_ttf_font_bytes_from_glyphs(ttf_options, &prepared.processed_glyphs)
                     .map(Some)
             } else {
@@ -499,17 +518,12 @@ fn generate_webfonts_sync(
         (None, None, None, None)
     };
 
-    Ok(GenerateWebfontsResult {
-        cached: std::sync::OnceLock::new(),
-        css_context: None,
-        eot_font,
-        html_context: None,
-        options,
-        source_files,
+    Ok(FontOutputs {
         svg_font,
         ttf_font,
-        woff2_font,
         woff_font,
+        woff2_font,
+        eot_font,
     })
 }
 
@@ -518,31 +532,31 @@ async fn write_generate_webfonts_result(result: &GenerateWebfontsResult) -> std:
     let font_name = result.options.font_name.clone();
     let dest = result.options.dest.clone();
 
-    if let Some(svg_font) = &result.svg_font {
+    if let Some(svg_font) = &result.fonts.svg_font {
         let path = default_output_dest(&dest, &font_name, "svg");
         let contents = Arc::clone(svg_font);
         tasks.spawn(async move { write_output_file(path, contents.as_bytes()).await });
     }
 
-    if let Some(ttf_font) = &result.ttf_font {
+    if let Some(ttf_font) = &result.fonts.ttf_font {
         let path = default_output_dest(&dest, &font_name, "ttf");
         let contents = Arc::clone(ttf_font);
         tasks.spawn(async move { write_output_file(path, &*contents).await });
     }
 
-    if let Some(woff_font) = &result.woff_font {
+    if let Some(woff_font) = &result.fonts.woff_font {
         let path = default_output_dest(&dest, &font_name, "woff");
         let contents = Arc::clone(woff_font);
         tasks.spawn(async move { write_output_file(path, &*contents).await });
     }
 
-    if let Some(woff2_font) = &result.woff2_font {
+    if let Some(woff2_font) = &result.fonts.woff2_font {
         let path = default_output_dest(&dest, &font_name, "woff2");
         let contents = Arc::clone(woff2_font);
         tasks.spawn(async move { write_output_file(path, &*contents).await });
     }
 
-    if let Some(eot_font) = &result.eot_font {
+    if let Some(eot_font) = &result.fonts.eot_font {
         let path = default_output_dest(&dest, &font_name, "eot");
         let contents = Arc::clone(eot_font);
         tasks.spawn(async move { write_output_file(path, &*contents).await });
