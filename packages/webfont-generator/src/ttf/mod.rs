@@ -1067,7 +1067,7 @@ mod tests {
     #[test]
     fn collapses_a_near_straight_quadratic_to_a_line() {
         // Control point sits ~0.1 units off the chord — within tolerance.
-        assert!(SIMPLIFY_TOLERANCE > 0.1);
+        const { assert!(SIMPLIFY_TOLERANCE > 0.1) };
         let path = quadratic_path_from_svg_path_data("M0,0 Q5,0.1 10,0").unwrap();
         assert!(
             !path

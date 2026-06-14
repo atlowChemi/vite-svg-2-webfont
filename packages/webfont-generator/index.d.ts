@@ -3,6 +3,7 @@ import type {
     FormatOptions,
     GenerateWebfontsOptions,
     GenerateWebfontsResult as RawGenerateWebfontsResult,
+    GlyphChangeEntry,
     HtmlContext as RawHtmlContext,
     SvgFormatOptions,
     TtfFormatOptions,
@@ -80,7 +81,7 @@ type FontValue<F extends FontType> = F extends 'svg' ? string : Uint8Array;
  */
 export type GenerateWebfontsResult<T extends FontType = FontType> = {
     [F in FontType]: F extends T ? FontValue<F> : null;
-} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml'>;
+} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml' | 'regenerate'>;
 
 /**
  * Generate a webfont from a set of SVG files.
@@ -102,6 +103,7 @@ export declare namespace generateWebfonts {
 export {
     FormatOptions,
     GenerateWebfontsOptions,
+    GlyphChangeEntry,
     RawGenerateWebfontsResult,
     SvgFormatOptions,
     /**

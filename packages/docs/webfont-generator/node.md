@@ -174,6 +174,12 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 - Default: `true`
 - Description: Scale icons to the height of the tallest icon.
 
+### `incremental`
+
+- Type: `boolean`
+- Default: `false`
+- Description: Retain parsed glyph data on the result so [`regenerate()`](#regenerate-changes) can rebuild after file changes without re-parsing the glyphs that didn't change. Enable for watch/dev; leave it off for one-shot builds so the parsed geometry isn't held in memory.
+
 ### `fixedWidth`
 
 - Type: `boolean`
@@ -311,6 +317,32 @@ Each font format is available as a property on the result. Formats that were not
 
 - Type: `(urls?: Partial<Record<FontType, string>>) => string`
 - Description: Returns the rendered HTML preview string. Pass `urls` to override font URLs in the embedded stylesheet.
+
+### `regenerate(files, changes)`
+
+- Type: `(files: string[], changes: GlyphChangeEntry[]) => void`
+- Requires: the result was produced with [`incremental: true`](#incremental) (throws otherwise).
+- Description: Rebuilds every requested font format after a batch of file changes, reusing cached geometry for the glyphs that didn't change (and reusing the rendered CSS/HTML when the glyph names and codepoints are unchanged). `files` is the complete file set after the change, in the order a fresh build would use (e.g. your glob result); the rebuilt glyphs are ordered to match it, so the result is byte-identical to a fresh `generateWebfonts()` of that set — additions included. Any file omitted from `files` is dropped; added/changed files named in `changes` are read from disk and re-parsed. Outputs are refreshed in memory, and — when the result was created with [`writeFiles: true`](#writefiles) — refreshed fonts are written to disk too, while unchanged CSS/HTML companion files are skipped. Results generated with `cssContext` or `htmlContext` callbacks cannot be regenerated because those JavaScript callbacks cannot be re-run by the synchronous method. Intended for dev/watch rebuilds.
+
+```ts
+let files = ['/icons/add.svg', '/icons/search.svg'];
+const result = await generateWebfonts({ files, dest, incremental: true });
+// ...on a watch event:
+result.regenerate(files, [{ path: '/icons/add.svg', changeType: 'changed' }]);
+result.woff2; // refreshed bytes
+```
+
+Each entry is a `GlyphChangeEntry`:
+
+```ts
+interface GlyphChangeEntry {
+    path: string;
+    changeType: 'added' | 'changed' | 'removed';
+    // Resolved glyph name if you apply a custom rename. Added files default to
+    // the file stem; changed files default to the current name; removed files ignore it.
+    name?: string;
+}
+```
 
 ## Templates
 

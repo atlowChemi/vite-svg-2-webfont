@@ -8,12 +8,39 @@ use napi::bindgen_prelude::Uint8Array;
 use napi_derive::napi;
 use serde_json::{Map, Value};
 
+use crate::svg::types::GlyphCache;
 use crate::templates::{
     SharedTemplateData, build_css_context, build_html_context, build_html_registry, make_src,
     render_css_with_hbs_context, render_css_with_src_mutate, render_default_html_with_styles,
     render_html_with_hbs_context,
 };
 use crate::util::to_io_err;
+
+/// What happened to a file, for [`GenerateWebfontsResult::regenerate`]. `name` is the
+/// caller-resolved glyph name (the `rename` callback, if any, is applied by the caller).
+pub enum GlyphChange {
+    /// A new file. `name` overrides the file-stem glyph name when `Some`.
+    Added { name: Option<String> },
+    /// An existing file's contents changed. `name` overrides the glyph name when `Some`.
+    Changed { name: Option<String> },
+    /// The file was deleted.
+    Removed,
+}
+
+/// One entry in the `changes` array passed to the Node binding's `regenerate`. The complete
+/// ordered file list passed alongside it controls final glyph order; this only describes which
+/// files need re-reading, renaming, or removal.
+#[cfg_attr(feature = "napi", napi(object))]
+pub struct GlyphChangeEntry {
+    /// Path of the changed file.
+    pub path: String,
+    /// What happened to the file.
+    #[cfg_attr(feature = "napi", napi(ts_type = "'added' | 'changed' | 'removed'"))]
+    pub change_type: String,
+    /// Resolved glyph name (with the caller's `rename` already applied). Optional for `'added'`
+    /// and `'changed'` (defaults to the file stem/current name); ignored for `'removed'`.
+    pub name: Option<String>,
+}
 
 /// Font output format. Used in the `types` and `order` options to control which
 /// formats are generated and the order they appear in the CSS `@font-face`
@@ -228,6 +255,10 @@ pub struct GenerateWebfontsOptions {
     pub html_dest: Option<String>,
     /// Path to a custom Handlebars template for HTML preview generation.
     pub html_template: Option<String>,
+    /// Retain parsed glyph data on the result so `regenerate` can rebuild after file changes
+    /// without re-parsing unchanged glyphs. Defaults to `false`; enable for watch/dev. One-shot
+    /// builds (CLI, production) should leave it off to avoid holding the parsed geometry in memory.
+    pub incremental: Option<bool>,
     /// Explicit output font height in units per em. Overrides the height
     /// computed from the source glyphs.
     pub font_height: Option<f64>,
@@ -288,6 +319,7 @@ pub(crate) fn resolved_font_types(options: &GenerateWebfontsOptions) -> Vec<Font
     }
 }
 
+#[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
@@ -295,7 +327,12 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub css: bool,
     pub css_dest: String,
     pub css_template: Option<String>,
+    /// Fully-resolved codepoints for the current glyph set (explicit + auto-assigned). Rebuilt
+    /// by `finalize_generate_webfonts_options` from `explicit_codepoints` whenever the set changes.
     pub codepoints: BTreeMap<String, u32>,
+    /// The user-supplied codepoints, kept as the stable base so re-resolving after an
+    /// incremental add/remove assigns the same codepoints a fresh build would.
+    pub explicit_codepoints: BTreeMap<String, u32>,
     pub css_fonts_url: Option<String>,
     pub descent: Option<f64>,
     pub dest: String,
@@ -303,6 +340,7 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub fixed_width: Option<bool>,
     pub format_options: Option<FormatOptions>,
     pub html: bool,
+    pub incremental: bool,
     pub html_dest: String,
     pub html_template: Option<String>,
     pub font_height: Option<f64>,
@@ -321,14 +359,17 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub write_files: bool,
 }
 
+#[derive(Clone)]
 pub(crate) struct LoadedSvgFile {
     pub contents: String,
     pub glyph_name: String,
     pub path: String,
 }
 
-/// Caches the last rendered CSS/HTML result for repeated calls with the same urls.
-#[derive(Default)]
+/// Caches the last rendered CSS/HTML result for repeated calls with the same urls. Cloneable so
+/// an incremental `regenerate` can carry the still-valid entries (provided-URL renders, which
+/// don't depend on the font hash) forward into the rebuilt template data.
+#[derive(Clone, Default)]
 pub(crate) struct RenderCache {
     /// Result of generateCss() with no urls (computed once).
     css_no_urls: Option<String>,
@@ -370,11 +411,22 @@ pub(crate) struct FontOutputs {
 #[cfg_attr(feature = "napi", napi)]
 pub struct GenerateWebfontsResult {
     pub(crate) cached: OnceLock<Result<CachedTemplateData, String>>,
+    /// Render-cache entries carried across an incremental `regenerate` (set by
+    /// [`reset_render_cache`]) to seed the rebuilt [`CachedTemplateData`], so CSS/HTML that
+    /// doesn't depend on what changed isn't re-rendered. `None` for a normal build.
+    pub(crate) carried_render: Option<RenderCache>,
     pub(crate) css_context: Option<Map<String, Value>>,
     pub(crate) fonts: FontOutputs,
+    /// Parsed-glyph cache for incremental `regenerate`; `Some` only when `incremental` is set.
+    pub(crate) glyph_cache: Option<GlyphCache>,
     pub(crate) html_context: Option<Map<String, Value>>,
     pub(crate) options: ResolvedGenerateWebfontsOptions,
     pub(crate) source_files: Vec<LoadedSvgFile>,
+    /// Hash per CSS/HTML output path of what was last written to disk. Seeded by the initial write
+    /// when `write_files` is enabled, then updated by incremental `regenerate` writes so unchanged
+    /// rendered companion files are not rewritten. Font outputs are written directly after real
+    /// rebuilds because they almost always change and hashing them is slower than writing them.
+    pub(crate) written_outputs: HashMap<String, [u8; 16]>,
 }
 
 // Pure Rust getters (always available)
@@ -434,11 +486,42 @@ impl GenerateWebfontsResult {
                     html_context,
                     html_hbs_context: Mutex::new(html_hbs_context),
                     html_registry,
-                    render_cache: Mutex::new(RenderCache::default()),
+                    // Seed with any entries carried across a regenerate (see reset_render_cache);
+                    // these are renders that don't depend on what changed, so reusing them is safe.
+                    render_cache: Mutex::new(self.carried_render.clone().unwrap_or_default()),
                 })
             })
             .as_ref()
             .map_err(to_io_err)
+    }
+
+    /// Reset the lazily-built template/render cache after an incremental `regenerate`. The
+    /// template data (font hash, `src`, contexts) is always rebuilt fresh so default/no-URL
+    /// renders pick up the new font. When `reuse_renders` is true (the glyph names and codepoints
+    /// the templates read are unchanged), the still-valid rendered strings are carried forward to
+    /// seed the rebuilt cache: provided-URL renders always (they don't embed the font hash), and
+    /// no-URL renders only when the CSS template doesn't reference `src` (so it can't embed the
+    /// hash either). Everything else is dropped and re-rendered on next use.
+    pub(crate) fn reset_render_cache(&mut self, reuse_renders: bool) {
+        let carried = reuse_renders
+            .then(|| self.cached.get().and_then(|cached| cached.as_ref().ok()))
+            .flatten()
+            .map(|cached| {
+                let rc = cached.render_cache.lock().unwrap();
+                let keep_no_urls = !cached.shared.css_template_uses_src;
+                RenderCache {
+                    css_no_urls: keep_no_urls.then(|| rc.css_no_urls.clone()).flatten(),
+                    html_no_urls: keep_no_urls.then(|| rc.html_no_urls.clone()).flatten(),
+                    css_last_urls: rc.css_last_urls.clone(),
+                    css_last_result: rc.css_last_result.clone(),
+                    html_last_urls: rc.html_last_urls.clone(),
+                    html_last_result: rc.html_last_result.clone(),
+                }
+            });
+        self.cached = OnceLock::new();
+        self.css_context = None;
+        self.html_context = None;
+        self.carried_render = carried;
     }
 
     /// Generate a CSS string for this webfont result.
@@ -631,6 +714,42 @@ impl GenerateWebfontsResult {
         self.generate_html_pure(urls)
             .map_err(crate::util::to_napi_err)
     }
+
+    /// Rebuild the font after a batch of file changes, reusing cached glyph geometry for files
+    /// whose contents are unchanged. Requires the font to have been generated with
+    /// `incremental: true`. `files` is the complete file set after the changes, in the order a
+    /// fresh build would use (e.g. the glob result) — the rebuilt glyphs are ordered to match it,
+    /// so the output bytes are identical to a fresh `generateWebfonts` of that set. `changes`
+    /// describes the affected files: added/changed files are re-read from disk; any file absent
+    /// from `files` is dropped. Every requested format is refreshed in memory, and — like
+    /// `generateWebfonts` — when the result was built with `writeFiles` enabled the refreshed
+    /// fonts are written to disk too, while CSS/HTML companion files are skipped if their rendered
+    /// bytes are unchanged since the last write.
+    #[napi(js_name = "regenerate")]
+    pub fn regenerate_from_js(
+        &mut self,
+        files: Vec<String>,
+        changes: Vec<GlyphChangeEntry>,
+    ) -> napi::Result<()> {
+        let changes = changes
+            .into_iter()
+            .map(|entry| {
+                let change = match entry.change_type.as_str() {
+                    "added" => GlyphChange::Added { name: entry.name },
+                    "changed" => GlyphChange::Changed { name: entry.name },
+                    "removed" => GlyphChange::Removed,
+                    other => {
+                        return Err(napi::Error::from_reason(format!(
+                            "Unknown changeType '{other}'; expected 'added', 'changed', or 'removed'."
+                        )));
+                    }
+                };
+                Ok((entry.path, change))
+            })
+            .collect::<napi::Result<Vec<_>>>()?;
+        self.regenerate(&files, &changes)
+            .map_err(crate::util::to_napi_err)
+    }
 }
 
 #[cfg(feature = "napi")]
@@ -712,11 +831,14 @@ mod tests {
 
         let result = GenerateWebfontsResult {
             cached: std::sync::OnceLock::new(),
+            carried_render: None,
             css_context: None,
             fonts: FontOutputs::default(),
+            glyph_cache: None,
             html_context: None,
             options: resolved,
             source_files,
+            written_outputs: Default::default(),
         };
 
         if let Some(dir) = cleanup_dir {
@@ -981,11 +1103,14 @@ mod tests {
 
         GenerateWebfontsResult {
             cached: std::sync::OnceLock::new(),
+            carried_render: None,
             css_context: None,
             fonts: FontOutputs::default(),
+            glyph_cache: None,
             html_context: None,
             options: resolved,
             source_files,
+            written_outputs: Default::default(),
         }
     }
 

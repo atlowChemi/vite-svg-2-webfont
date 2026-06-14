@@ -60,6 +60,7 @@
 //! - **`napi`**: Enables Node.js NAPI bindings for use as a native addon.
 
 mod eot;
+mod incremental;
 mod svg;
 mod templates;
 #[cfg(test)]
@@ -68,6 +69,7 @@ mod ttf;
 mod types;
 mod util;
 mod woff;
+mod write;
 
 #[cfg(feature = "napi")]
 use napi::threadsafe_function::ThreadsafeFunction;
@@ -84,20 +86,23 @@ use std::sync::Arc;
 use std::sync::Mutex;
 use tokio::task::JoinSet;
 
-use svg::types::{PreparedSvgFont, SvgOptions};
-use svg::{build_svg_font, prepare_svg_font, svg_options_from_options};
+use svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
+use svg::{
+    build_svg_font, prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options,
+};
 #[cfg(feature = "napi")]
 use templates::{
     SharedTemplateData, apply_context_function, build_css_context, build_html_context,
     build_html_registry,
 };
-use templates::{render_css_with_hbs_context, render_html_with_hbs_context};
 #[cfg(feature = "napi")]
 use util::to_napi_err;
+use write::write_generate_webfonts_result;
 
 pub use types::{
     CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult,
-    HtmlContext, SvgFormatOptions, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
+    GlyphChange, GlyphChangeEntry, HtmlContext, SvgFormatOptions, TtfFormatOptions,
+    Woff2FormatOptions, WoffFormatOptions,
 };
 use types::{
     DEFAULT_FONT_ORDER, FontOutputs, LoadedSvgFile, ResolvedGenerateWebfontsOptions,
@@ -209,8 +214,11 @@ pub async fn generate_webfonts(
         }));
     }
 
-    if result.options.write_files {
-        write_generate_webfonts_result(&result).await?;
+    if result.options.write_files
+        && let Some(written) = write_generate_webfonts_result(&result).await?
+    {
+        // Only incremental results can call `regenerate`, so only they need write-skip state.
+        result.written_outputs = written;
     }
 
     Ok(result)
@@ -231,13 +239,16 @@ pub async fn generate(
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
 
-    let result =
+    let mut result =
         tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
             .await
             .map_err(std::io::Error::other)??;
 
-    if result.options.write_files {
-        write_generate_webfonts_result(&result).await?;
+    if result.options.write_files
+        && let Some(written) = write_generate_webfonts_result(&result).await?
+    {
+        // Only incremental results can call `regenerate`, so only they need write-skip state.
+        result.written_outputs = written;
     }
 
     Ok(result)
@@ -320,6 +331,8 @@ pub(crate) fn resolve_generate_webfonts_options(
         .html_dest
         .unwrap_or_else(|| default_output_dest(&options.dest, &font_name, "html"));
     let write_files = options.write_files.unwrap_or(true);
+    let explicit_codepoints: std::collections::BTreeMap<String, u32> =
+        options.codepoints.unwrap_or_default().into_iter().collect();
 
     let svg_format = options
         .format_options
@@ -350,7 +363,8 @@ pub(crate) fn resolve_generate_webfonts_options(
             }
             other => other,
         },
-        codepoints: options.codepoints.unwrap_or_default().into_iter().collect(),
+        codepoints: explicit_codepoints.clone(),
+        explicit_codepoints,
         css_fonts_url: options.css_fonts_url,
         descent: options.descent,
         dest: options.dest,
@@ -368,6 +382,7 @@ pub(crate) fn resolve_generate_webfonts_options(
             }
             other => other,
         },
+        incremental: options.incremental.unwrap_or(false),
         font_height: options.font_height,
         font_name,
         font_style: options.font_style,
@@ -389,8 +404,11 @@ pub(crate) fn finalize_generate_webfonts_options(
     options: &mut ResolvedGenerateWebfontsOptions,
     source_files: &[LoadedSvgFile],
 ) -> std::io::Result<()> {
-    options.codepoints =
-        resolve_codepoints(source_files, &options.codepoints, options.start_codepoint)?;
+    options.codepoints = resolve_codepoints(
+        source_files,
+        &options.explicit_codepoints,
+        options.start_codepoint,
+    )?;
 
     Ok(())
 }
@@ -418,16 +436,28 @@ fn generate_webfonts_sync(
     source_files: Vec<LoadedSvgFile>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     let svg_options = svg_options_from_options(&options);
-    let prepared = prepare_svg_font(&svg_options, &source_files)?;
+    // When incremental, retain the parsed-glyph cache so a later `regenerate` can reuse the
+    // glyphs whose source didn't change. Otherwise the geometry is dropped as soon as the font
+    // is built, so one-shot builds carry no extra memory.
+    let (prepared, glyph_cache) = if options.incremental {
+        let mut cache = GlyphCache::default();
+        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
+        (prepared, Some(cache))
+    } else {
+        (prepare_svg_font(&svg_options, &source_files)?, None)
+    };
     let fonts = build_font_outputs(&options, &svg_options, &prepared)?;
 
     Ok(GenerateWebfontsResult {
         cached: std::sync::OnceLock::new(),
+        carried_render: None,
         css_context: None,
         fonts,
+        glyph_cache,
         html_context: None,
         options,
         source_files,
+        written_outputs: std::collections::HashMap::new(),
     })
 }
 
@@ -525,83 +555,6 @@ fn build_font_outputs(
         woff2_font,
         eot_font,
     })
-}
-
-async fn write_generate_webfonts_result(result: &GenerateWebfontsResult) -> std::io::Result<()> {
-    let mut tasks = JoinSet::new();
-    let font_name = result.options.font_name.clone();
-    let dest = result.options.dest.clone();
-
-    if let Some(svg_font) = &result.fonts.svg_font {
-        let path = default_output_dest(&dest, &font_name, "svg");
-        let contents = Arc::clone(svg_font);
-        tasks.spawn(async move { write_output_file(path, contents.as_bytes()).await });
-    }
-
-    if let Some(ttf_font) = &result.fonts.ttf_font {
-        let path = default_output_dest(&dest, &font_name, "ttf");
-        let contents = Arc::clone(ttf_font);
-        tasks.spawn(async move { write_output_file(path, &*contents).await });
-    }
-
-    if let Some(woff_font) = &result.fonts.woff_font {
-        let path = default_output_dest(&dest, &font_name, "woff");
-        let contents = Arc::clone(woff_font);
-        tasks.spawn(async move { write_output_file(path, &*contents).await });
-    }
-
-    if let Some(woff2_font) = &result.fonts.woff2_font {
-        let path = default_output_dest(&dest, &font_name, "woff2");
-        let contents = Arc::clone(woff2_font);
-        tasks.spawn(async move { write_output_file(path, &*contents).await });
-    }
-
-    if let Some(eot_font) = &result.fonts.eot_font {
-        let path = default_output_dest(&dest, &font_name, "eot");
-        let contents = Arc::clone(eot_font);
-        tasks.spawn(async move { write_output_file(path, &*contents).await });
-    }
-
-    // Only render CSS/HTML templates when those files need to be written.
-    if result.options.css || result.options.html {
-        let cached = result.get_cached_io()?;
-
-        if result.options.css {
-            let ctx = cached.css_hbs_context.lock().unwrap();
-            let css = render_css_with_hbs_context(&cached.shared, &ctx, &cached.css_context)?;
-            drop(ctx);
-            let css_dest = result.options.css_dest.clone();
-            let css = Arc::new(css);
-            tasks.spawn(async move { write_output_file(css_dest, css.as_bytes()).await });
-        }
-
-        if result.options.html {
-            let ctx = cached.html_hbs_context.lock().unwrap();
-            let html = render_html_with_hbs_context(
-                cached.html_registry.as_ref(),
-                &ctx,
-                &cached.html_context,
-            )?;
-            let html_dest = result.options.html_dest.clone();
-            tasks.spawn(async move { write_output_file(html_dest, html.into_bytes()).await });
-        }
-    }
-
-    while let Some(result) = tasks.join_next().await {
-        result.map_err(|error| {
-            std::io::Error::other(format!("Native write task failed: {error}"))
-        })??;
-    }
-
-    Ok(())
-}
-
-async fn write_output_file(path: String, contents: impl AsRef<[u8]>) -> std::io::Result<()> {
-    if let Some(parent) = Path::new(&path).parent() {
-        tokio::fs::create_dir_all(parent).await?;
-    }
-
-    tokio::fs::write(path, contents).await
 }
 
 fn validate_font_type_order(
@@ -702,7 +655,7 @@ async fn load_svg_files_napi(
     Ok(source_files)
 }
 
-fn validate_glyph_names(source_files: &[LoadedSvgFile]) -> std::io::Result<()> {
+pub(crate) fn validate_glyph_names(source_files: &[LoadedSvgFile]) -> std::io::Result<()> {
     let mut seen_names = HashSet::with_capacity(source_files.len());
 
     for source_file in source_files {

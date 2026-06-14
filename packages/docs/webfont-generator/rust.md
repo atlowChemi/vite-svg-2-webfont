@@ -113,38 +113,39 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 
 All fields except `dest` and `files` are optional and implement `Default`.
 
-| Field                   | Type                           | Default                | Description                          |
-| ----------------------- | ------------------------------ | ---------------------- | ------------------------------------ |
-| `dest`                  | `String`                       | --                     | Output directory (required)          |
-| `files`                 | `Vec<String>`                  | --                     | SVG file paths (required)            |
-| `font_name`             | `Option<String>`               | `"iconfont"`           | Font family name                     |
-| `types`                 | `Option<Vec<FontType>>`        | `[Eot, Woff, Woff2]`   | Font formats to generate             |
-| `order`                 | `Option<Vec<FontType>>`        | Filtered default order | `@font-face` src order               |
-| `css`                   | `Option<bool>`                 | `true`                 | Generate CSS file                    |
-| `html`                  | `Option<bool>`                 | `false`                | Generate HTML preview                |
-| `write_files`           | `Option<bool>`                 | `true`                 | Write output to disk                 |
-| `css_template`          | `Option<String>`               | Built-in template      | Custom Handlebars CSS template path  |
-| `html_template`         | `Option<String>`               | Built-in template      | Custom Handlebars HTML template path |
-| `css_fonts_url`         | `Option<String>`               | Relative path          | URL prefix for fonts in CSS          |
-| `css_dest`              | `Option<String>`               | `dest/fontName.css`    | CSS output path                      |
-| `html_dest`             | `Option<String>`               | `dest/fontName.html`   | HTML output path                     |
-| `codepoints`            | `Option<HashMap<String, u32>>` | Empty                  | Explicit glyph codepoints            |
-| `start_codepoint`       | `Option<u32>`                  | `0xF101`               | Starting auto-codepoint              |
-| `font_height`           | `Option<f64>`                  | --                     | Explicit font height                 |
-| `ascent`                | `Option<f64>`                  | --                     | Font ascent                          |
-| `descent`               | `Option<f64>`                  | --                     | Font descent                         |
-| `normalize`             | `Option<bool>`                 | `true`                 | Normalize glyph heights              |
-| `fixed_width`           | `Option<bool>`                 | --                     | Monospace font                       |
-| `center_horizontally`   | `Option<bool>`                 | --                     | Center glyphs horizontally           |
-| `center_vertically`     | `Option<bool>`                 | --                     | Center glyphs vertically             |
-| `ligature`              | `Option<bool>`                 | `true`                 | Enable ligatures                     |
-| `round`                 | `Option<f64>`                  | --                     | Path rounding precision              |
-| `preserve_aspect_ratio` | `Option<bool>`                 | --                     | Preserve SVG aspect ratio            |
-| `optimize_output`       | `Option<bool>`                 | --                     | Optimize SVG output                  |
-| `font_style`            | `Option<String>`               | --                     | CSS `font-style` value               |
-| `font_weight`           | `Option<String>`               | --                     | CSS `font-weight` value              |
-| `format_options`        | `Option<FormatOptions>`        | --                     | Per-format options                   |
-| `template_options`      | `Option<Map<String, Value>>`   | --                     | Extra template context               |
+| Field                   | Type                           | Default                | Description                           |
+| ----------------------- | ------------------------------ | ---------------------- | ------------------------------------- |
+| `dest`                  | `String`                       | --                     | Output directory (required)           |
+| `files`                 | `Vec<String>`                  | --                     | SVG file paths (required)             |
+| `font_name`             | `Option<String>`               | `"iconfont"`           | Font family name                      |
+| `types`                 | `Option<Vec<FontType>>`        | `[Eot, Woff, Woff2]`   | Font formats to generate              |
+| `order`                 | `Option<Vec<FontType>>`        | Filtered default order | `@font-face` src order                |
+| `css`                   | `Option<bool>`                 | `true`                 | Generate CSS file                     |
+| `html`                  | `Option<bool>`                 | `false`                | Generate HTML preview                 |
+| `write_files`           | `Option<bool>`                 | `true`                 | Write output to disk                  |
+| `css_template`          | `Option<String>`               | Built-in template      | Custom Handlebars CSS template path   |
+| `html_template`         | `Option<String>`               | Built-in template      | Custom Handlebars HTML template path  |
+| `css_fonts_url`         | `Option<String>`               | Relative path          | URL prefix for fonts in CSS           |
+| `css_dest`              | `Option<String>`               | `dest/fontName.css`    | CSS output path                       |
+| `html_dest`             | `Option<String>`               | `dest/fontName.html`   | HTML output path                      |
+| `codepoints`            | `Option<HashMap<String, u32>>` | Empty                  | Explicit glyph codepoints             |
+| `start_codepoint`       | `Option<u32>`                  | `0xF101`               | Starting auto-codepoint               |
+| `font_height`           | `Option<f64>`                  | --                     | Explicit font height                  |
+| `ascent`                | `Option<f64>`                  | --                     | Font ascent                           |
+| `descent`               | `Option<f64>`                  | --                     | Font descent                          |
+| `normalize`             | `Option<bool>`                 | `true`                 | Normalize glyph heights               |
+| `incremental`           | `Option<bool>`                 | `false`                | Retain parsed glyphs for `regenerate` |
+| `fixed_width`           | `Option<bool>`                 | --                     | Monospace font                        |
+| `center_horizontally`   | `Option<bool>`                 | --                     | Center glyphs horizontally            |
+| `center_vertically`     | `Option<bool>`                 | --                     | Center glyphs vertically              |
+| `ligature`              | `Option<bool>`                 | `true`                 | Enable ligatures                      |
+| `round`                 | `Option<f64>`                  | --                     | Path rounding precision               |
+| `preserve_aspect_ratio` | `Option<bool>`                 | --                     | Preserve SVG aspect ratio             |
+| `optimize_output`       | `Option<bool>`                 | --                     | Optimize SVG output                   |
+| `font_style`            | `Option<String>`               | --                     | CSS `font-style` value                |
+| `font_weight`           | `Option<String>`               | --                     | CSS `font-weight` value               |
+| `format_options`        | `Option<FormatOptions>`        | --                     | Per-format options                    |
+| `template_options`      | `Option<Map<String, Value>>`   | --                     | Extra template context                |
 
 ## `FontType`
 
@@ -183,6 +184,37 @@ Methods:
 | `generate_html_pure(urls?)` | `io::Result<String>` | Render HTML preview with optional URL overrides |
 
 Both methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter. Results are cached internally for repeated calls with the same arguments.
+
+### Incremental rebuild
+
+| Method                               | Return type      | Description                                          |
+| ------------------------------------ | ---------------- | ---------------------------------------------------- |
+| `regenerate(ordered_paths, changes)` | `io::Result<()>` | Rebuild after file changes, reusing unchanged glyphs |
+
+Requires the result to have been generated with `incremental: Some(true)` (errors otherwise).
+`ordered_paths: &[String]` is the complete file set after the changes, in the order a fresh build
+would use (e.g. the glob result); the rebuilt glyphs are ordered to match it, so the result is
+byte-identical to a fresh build of that set — additions included, even when they sort before
+existing glyphs. Any path absent from `ordered_paths` is dropped. `changes: &[(String, GlyphChange)]`
+names the affected files: added/changed files are re-read from disk. Every format is refreshed in
+memory, and — when the result was built with `write_files` — refreshed fonts are written to disk
+too, while unchanged CSS/HTML companion files are skipped. Rendered
+CSS/HTML is reused when glyph names and codepoints are unchanged.
+
+For Node.js results, `regenerate()` errors if the initial build used `cssContext` or `htmlContext`
+callbacks because the synchronous method cannot re-run JavaScript callbacks during the rebuild.
+
+```rust
+pub enum GlyphChange {
+    Added { name: String },           // new file; `name` is the resolved glyph name
+    Changed { name: Option<String> }, // content changed; `name` overrides the glyph name
+    Removed,                          // file deleted
+}
+
+// result built with `incremental: Some(true)`
+let files = vec!["icons/add.svg".to_owned(), "icons/remove.svg".to_owned()];
+result.regenerate(&files, &[("icons/add.svg".to_owned(), GlyphChange::Changed { name: None })])?;
+```
 
 ## Full API reference
 

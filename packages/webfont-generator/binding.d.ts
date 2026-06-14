@@ -29,6 +29,19 @@ export declare class GenerateWebfontsResult {
    * supply are overridden). The result is cached per `urls` value.
    */
   generateHtml(urls?: Partial<Record<FontType, string>>): string
+  /**
+   * Rebuild the font after a batch of file changes, reusing cached glyph geometry for files
+   * whose contents are unchanged. Requires the font to have been generated with
+   * `incremental: true`. `files` is the complete file set after the changes, in the order a
+   * fresh build would use (e.g. the glob result) — the rebuilt glyphs are ordered to match it,
+   * so the output bytes are identical to a fresh `generateWebfonts` of that set. `changes`
+   * describes the affected files: added/changed files are re-read from disk; any file absent
+   * from `files` is dropped. Every requested format is refreshed in memory, and — like
+   * `generateWebfonts` — when the result was built with `writeFiles` enabled the refreshed
+   * fonts are written to disk too, while CSS/HTML companion files are skipped if their rendered
+   * bytes are unchanged since the last write.
+   */
+  regenerate(files: Array<string>, changes: Array<GlyphChangeEntry>): void
 }
 
 /**
@@ -175,6 +188,12 @@ export interface GenerateWebfontsOptions {
   /** Path to a custom Handlebars template for HTML preview generation. */
   htmlTemplate?: string
   /**
+   * Retain parsed glyph data on the result so `regenerate` can rebuild after file changes
+   * without re-parsing unchanged glyphs. Defaults to `false`; enable for watch/dev. One-shot
+   * builds (CLI, production) should leave it off to avoid holding the parsed geometry in memory.
+   */
+  incremental?: boolean
+  /**
    * Explicit output font height in units per em. Overrides the height
    * computed from the source glyphs.
    */
@@ -230,6 +249,23 @@ export interface GenerateWebfontsOptions {
    * in-memory usage. Defaults to `true`.
    */
   writeFiles?: boolean
+}
+
+/**
+ * One entry in the `changes` array passed to the Node binding's `regenerate`. The complete
+ * ordered file list passed alongside it controls final glyph order; this only describes which
+ * files need re-reading, renaming, or removal.
+ */
+export interface GlyphChangeEntry {
+  /** Path of the changed file. */
+  path: string
+  /** What happened to the file. */
+  changeType: 'added' | 'changed' | 'removed'
+  /**
+   * Resolved glyph name (with the caller's `rename` already applied). Optional for `'added'`
+   * and `'changed'` (defaults to the file stem/current name); ignored for `'removed'`.
+   */
+  name?: string
 }
 
 /**

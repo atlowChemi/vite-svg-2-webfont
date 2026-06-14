@@ -2,7 +2,11 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use super::{build_svg_font, prepare_svg_font, svg_options_from_options};
+use super::types::GlyphCache;
+use super::{
+    build_svg_font, prepare_svg_font, prepare_svg_font_incremental, source_content_hash,
+    svg_options_from_options,
+};
 
 use crate::{
     FormatOptions, GenerateWebfontsOptions, LoadedSvgFile, SvgFormatOptions,
@@ -575,5 +579,86 @@ fn svg_font_does_not_deduplicate_identical_glyphs() {
         glyph_names,
         vec!["plus", "plus-copy"],
         "SVG font should not deduplicate — each glyph gets its own <glyph> element"
+    );
+}
+
+#[test]
+fn incremental_prepare_matches_full_prepare_and_reuses_cache() {
+    let dir = icons_root().join("cleanicons");
+    let make_options = || GenerateWebfontsOptions {
+        css: Some(false),
+        dest: "artifacts".to_string(),
+        files: svg_files(&dir),
+        html: Some(false),
+        font_name: Some("iconfont".to_string()),
+        ligature: Some(false),
+        ..Default::default()
+    };
+
+    let mut resolved = resolve_generate_webfonts_options(make_options()).unwrap();
+    let source_files = load_source_files(&resolved.files);
+    finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+    let svg_options = svg_options_from_options(&resolved);
+
+    // The SVG font string encodes every glyph's path data plus the font metrics, so equality
+    // proves the prepared fonts match.
+    let full = build_svg_font(
+        &svg_options,
+        &prepare_svg_font(&svg_options, &source_files).unwrap(),
+    );
+
+    let mut cache = GlyphCache::default();
+    let fresh = build_svg_font(
+        &svg_options,
+        &prepare_svg_font_incremental(&svg_options, &source_files, &mut cache).unwrap(),
+    );
+    assert_eq!(
+        full, fresh,
+        "incremental build with an empty cache must match the full build"
+    );
+    assert_eq!(
+        cache.entries.len(),
+        source_files.len(),
+        "every glyph should be cached after the first incremental build"
+    );
+
+    // A second pass with no content change must serve entirely from the cache and still match.
+    let reused = build_svg_font(
+        &svg_options,
+        &prepare_svg_font_incremental(&svg_options, &source_files, &mut cache).unwrap(),
+    );
+    assert_eq!(
+        full, reused,
+        "a cache-reuse build must match the full build"
+    );
+}
+
+#[test]
+fn incremental_prepare_prunes_stale_content_hash_entries() {
+    let dir = icons_root().join("cleanicons");
+    let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+        css: Some(false),
+        dest: "artifacts".to_string(),
+        files: svg_files(&dir),
+        html: Some(false),
+        font_name: Some("iconfont".to_string()),
+        ligature: Some(false),
+        ..Default::default()
+    })
+    .unwrap();
+    let mut source_files = load_source_files(&resolved.files);
+    finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+    let svg_options = svg_options_from_options(&resolved);
+
+    let mut cache = GlyphCache::default();
+    prepare_svg_font_incremental(&svg_options, &source_files, &mut cache).unwrap();
+
+    let removed = source_files.pop().expect("fixture should contain files");
+    let removed_hash = source_content_hash(&removed.contents);
+    prepare_svg_font_incremental(&svg_options, &source_files, &mut cache).unwrap();
+
+    assert!(
+        !cache.by_content_hash.contains_key(&removed_hash),
+        "removed glyph geometry should not stay in the content-addressed cache"
     );
 }

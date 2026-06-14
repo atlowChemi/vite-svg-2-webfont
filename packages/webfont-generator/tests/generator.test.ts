@@ -517,3 +517,141 @@ describe('output size (deterministic)', () => {
         `);
     });
 });
+
+const REGEN_PATHS: Record<string, string> = {
+    a: 'M2 2 L22 2 L22 22 Z',
+    b: 'M2 2 L22 2 L12 22 Z',
+    c: 'M4 4 L20 4 L20 20 L4 20 Z',
+    changed: 'M0 0 L24 0 L24 24 Z',
+};
+const regenIcon = (d: string) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="${d}"/></svg>`;
+
+async function writeRegenIcon(dir: string, name: string, key: string) {
+    const path = join(dir, `${name}.svg`);
+    await writeFile(path, regenIcon(REGEN_PATHS[key]));
+    return path;
+}
+
+const regenBaseOpts = (dir: string, files: string[]): GenerateWebfontsInputOptions => ({
+    files,
+    dest: `${dir}/`,
+    fontName: 'rc',
+    fontHeight: 24,
+    css: false,
+    writeFiles: false,
+    types: ['svg', 'ttf', 'eot', 'woff', 'woff2'],
+});
+
+// Normalize to a plain Uint8Array so a Node Buffer from `readFile` compares equal to a font getter.
+const toBytes = (value: Uint8Array) => Uint8Array.from(value);
+
+function assertSameFonts(actual: Awaited<ReturnType<typeof generateWebfonts>>, expected: Awaited<ReturnType<typeof generateWebfonts>>) {
+    expect(actual.svg).toBe(expected.svg);
+    expect(actual.ttf).toEqual(expected.ttf);
+    expect(actual.eot).toEqual(expected.eot);
+    expect(actual.woff).toEqual(expected.woff);
+    expect(actual.woff2).toEqual(expected.woff2);
+}
+
+describe('regenerate (incremental)', () => {
+    it('matches a fresh build after a content change', async () => {
+        const dir = await createTempDir('regen-change-');
+        const [a, b, c] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b'), writeRegenIcon(dir, 'c', 'c')]);
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b, c]), incremental: true });
+
+        await writeFile(b, regenIcon(REGEN_PATHS.changed));
+        result.regenerate([a, b, c], [{ path: b, changeType: 'changed' }]);
+
+        assertSameFonts(result, await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
+    });
+
+    it('matches a fresh build after adding a file', async () => {
+        const dir = await createTempDir('regen-add-');
+        const [a, b] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b')]);
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b]), incremental: true });
+
+        const c = await writeRegenIcon(dir, 'c', 'c');
+        result.regenerate([a, b, c], [{ path: c, changeType: 'added' }]);
+
+        assertSameFonts(result, await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
+    });
+
+    it('matches a fresh build after adding a file that sorts before existing glyphs', async () => {
+        const dir = await createTempDir('regen-add-mid-');
+        const [b, c] = await Promise.all([writeRegenIcon(dir, 'b', 'b'), writeRegenIcon(dir, 'c', 'c')]);
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [b, c]), incremental: true });
+
+        const a = await writeRegenIcon(dir, 'a', 'a');
+        // The fresh-build order is [a, b, c]; passing it ensures the addition lands first, not at the tail.
+        result.regenerate([a, b, c], [{ path: a, changeType: 'added' }]);
+
+        assertSameFonts(result, await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
+    });
+
+    it('matches a fresh build after removing a file', async () => {
+        const dir = await createTempDir('regen-remove-');
+        const [a, b, c] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b'), writeRegenIcon(dir, 'c', 'c')]);
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b, c]), incremental: true });
+
+        result.regenerate([a, c], [{ path: b, changeType: 'removed' }]);
+
+        assertSameFonts(result, await generateWebfonts(regenBaseOpts(dir, [a, c])));
+    });
+
+    it('reuses the CSS render on a content edit and re-renders on rename', async () => {
+        const dir = await createTempDir('regen-css-');
+        const [a, b] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b')]);
+        const urls = { woff2: '/static/icons.woff2' };
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b]), incremental: true });
+        const before = result.generateCss(urls);
+
+        // Content edit keeps names/codepoints → CSS reused verbatim and equal to a fresh build.
+        await writeFile(b, regenIcon(REGEN_PATHS.changed));
+        result.regenerate([a, b], [{ path: b, changeType: 'changed' }]);
+        expect(result.generateCss(urls)).toBe(before);
+        const fresh = await generateWebfonts(regenBaseOpts(dir, [a, b]));
+        expect(result.generateCss(urls)).toBe(fresh.generateCss(urls));
+
+        // A rename changes a glyph name the template reads → CSS must re-render.
+        result.regenerate([a, b], [{ path: b, changeType: 'changed', name: 'renamed' }]);
+        expect(result.generateCss(urls)).not.toBe(before);
+        expect(result.generateCss(urls)).toContain('renamed');
+    });
+
+    it('refreshes on-disk outputs when writeFiles is true, and skips unchanged ones', async () => {
+        const dir = await createTempDir('regen-write-src-');
+        const dest = await createTempDir('regen-write-out-');
+        const [a, b] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b')]);
+        const opts: GenerateWebfontsInputOptions = { files: [a, b], dest, fontName: 'rc', fontHeight: 24, css: true, writeFiles: true, incremental: true, types: ['woff2'] };
+        const result = await generateWebfonts(opts);
+
+        const woff2Path = join(dest, 'rc.woff2');
+        const cssPath = join(dest, 'rc.css');
+        const [woff2Before, cssBefore] = await Promise.all([readFile(woff2Path), readFile(cssPath)]);
+
+        await writeFile(b, regenIcon(REGEN_PATHS.changed));
+        result.regenerate([a, b], [{ path: b, changeType: 'changed' }]);
+
+        const [woff2After, cssAfter] = await Promise.all([readFile(woff2Path), readFile(cssPath)]);
+        expect(woff2After).not.toEqual(woff2Before);
+        expect(cssAfter).not.toEqual(cssBefore);
+        // Disk matches the rebuilt in-memory bytes, and a fresh build of the new set.
+        expect(toBytes(woff2After)).toEqual(toBytes(result.woff2));
+        const fresh = await generateWebfonts({ ...opts, writeFiles: false, incremental: false });
+        expect(toBytes(woff2After)).toEqual(toBytes(fresh.woff2));
+
+        // A no-op regenerate reproduces identical output, so the write is skipped: a deleted file
+        // is not recreated.
+        await rm(woff2Path);
+        result.regenerate([a, b], [{ path: b, changeType: 'changed' }]);
+        await expect(readFile(woff2Path)).rejects.toThrow(/ENOENT/);
+    });
+
+    it('throws when regenerate is called without incremental', async () => {
+        const dir = await createTempDir('regen-noinc-');
+        const a = await writeRegenIcon(dir, 'a', 'a');
+        const result = await generateWebfonts(regenBaseOpts(dir, [a]));
+
+        expect(() => result.regenerate([a], [{ path: a, changeType: 'changed' }])).toThrow(/incremental/);
+    });
+});
