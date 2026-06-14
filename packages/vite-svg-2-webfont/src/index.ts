@@ -3,7 +3,8 @@ import type { ModuleGraph, ModuleNode, Plugin } from 'vite';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, parseFiles, parsePreloadFormatsOption } from './optionParser';
 import * as templatesImport from '@atlowchemi/webfont-generator/templates';
-import type { FontType, GenerateWebfontsResult } from '@atlowchemi/webfont-generator';
+import type { WatchedChange } from './utils';
+import type { FontType, GenerateWebfontsResult, GlyphChangeEntry } from '@atlowchemi/webfont-generator';
 import type { IconPluginOptions } from './optionParser';
 import type { GeneratedWebfont } from './types/generatedWebfont';
 import type { PublicApi } from './types/publicApi';
@@ -20,6 +21,9 @@ function getVirtualModuleId<T extends string>(moduleId: T): `virtual:${T}` {
 function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${T}` {
     return `\0${virtualModuleId}`;
 }
+
+const toGlyphChange = (change: WatchedChange): GlyphChangeEntry =>
+    change.kind === 'removed' ? { path: change.path, changeType: 'removed' } : { path: change.path, changeType: change.kind };
 
 /** Ensure vp doesn't crash locally and in CI if the native binding doesn't exist yet.  */
 let _generateWebfonts: (typeof import('@atlowchemi/webfont-generator'))['generateWebfonts'] | undefined;
@@ -84,6 +88,39 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }) as U;
     };
 
+    let lastCssOutput: string | undefined;
+    let lastHtmlOutput: string | undefined;
+
+    /** Write the companion CSS/HTML to disk in dev, skipping any file whose rendered output is unchanged. */
+    const writeDevFiles = async () => {
+        if (isBuild || processedOptions.writeFiles || !(processedOptions.css || processedOptions.html)) {
+            return;
+        }
+        const tasks: Array<Promise<void>> = [];
+        if (processedOptions.css) {
+            const css = inline(generatedFonts!.generateCss());
+            if (css !== lastCssOutput) {
+                lastCssOutput = css;
+                tasks.push(ensureDirExistsAndWriteFile(css, processedOptions.cssDest));
+            }
+        }
+        if (processedOptions.html) {
+            const html = generatedFonts!.generateHtml();
+            if (html !== lastHtmlOutput) {
+                lastHtmlOutput = html;
+                tasks.push(ensureDirExistsAndWriteFile(html, processedOptions.htmlDest));
+            }
+        }
+        await Promise.all(tasks);
+    };
+
+    const reloadVirtualModule = () => {
+        const module = _moduleGraph?.getModuleById(resolvedVirtualModuleId);
+        if (module && _reloadModule) {
+            _reloadModule(module).catch(() => null);
+        }
+    };
+
     const generate = async (updateFiles?: boolean) => {
         if (updateFiles) {
             processedOptions.files = parseFiles(options);
@@ -93,19 +130,31 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
         const generateWebfonts = await getGenerateWebfonts();
         generatedFonts = await generateWebfonts(processedOptions);
-        const hasFilesToSave = !processedOptions.writeFiles && (processedOptions.css || processedOptions.html);
-        if (!isBuild && hasFilesToSave) {
-            await Promise.all([
-                processedOptions.css && ensureDirExistsAndWriteFile(inline(generatedFonts.generateCss()), processedOptions.cssDest),
-                processedOptions.html && ensureDirExistsAndWriteFile(generatedFonts.generateHtml(), processedOptions.htmlDest),
-            ]);
-        }
+        await writeDevFiles();
         if (updateFiles) {
-            const module = _moduleGraph?.getModuleById(resolvedVirtualModuleId);
-            if (module && _reloadModule) {
-                _reloadModule(module).catch(() => null);
-            }
+            reloadVirtualModule();
         }
+    };
+
+    /** Rebuild on a watch event, incrementally reusing cached glyphs, else a full rebuild. */
+    const regenerateFromWatch = async (change: WatchedChange) => {
+        // Reuse cached glyphs, handing the engine the fresh glob order so additions land in their
+        // correct position (byte-identical to a fresh build). When `writeFiles` is set, `regenerate`
+        // refreshes the on-disk fonts itself; otherwise `writeDevFiles` handles the CSS/HTML below.
+        if (!generatedFonts || !processedOptions.incremental) {
+            await generate(true);
+            return;
+        }
+        try {
+            const orderedFiles = parseFiles(options);
+            processedOptions.files = orderedFiles;
+            generatedFonts.regenerate(orderedFiles, [toGlyphChange(change)]);
+        } catch {
+            await generate(true);
+            return;
+        }
+        await writeDevFiles();
+        reloadVirtualModule();
     };
     return {
         name: 'vite-svg-2-webfont',
@@ -117,11 +166,19 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         configResolved(_config) {
             isBuild = _config.command === 'build';
-            // In dev, default WOFF2 to a faster Brotli quality unless the user pinned one.
-            // Rebuilds run on every icon change and the dev-served font is never shipped, so the
-            // marginally larger output is irrelevant while the ~2x faster encode speeds up rebuilds.
-            if (!isBuild && processedOptions.formatOptions.woff2?.compressionQuality === undefined) {
-                processedOptions.formatOptions.woff2 = { ...processedOptions.formatOptions.woff2, compressionQuality: 10 };
+            if (!isBuild) {
+                // Retain parsed glyphs so watch rebuilds can reuse them via `result.regenerate(...)`.
+                // cssContext runs in JS during generation; regenerate is sync, so skip the
+                // incremental path when callbacks would need to be replayed after a rebuild.
+                if (!processedOptions.cssContext) {
+                    processedOptions.incremental = true;
+                }
+                // In dev, default WOFF2 to a faster Brotli quality unless the user pinned one.
+                // Rebuilds run on every icon change and the dev-served font is never shipped, so the
+                // marginally larger output is irrelevant while the ~2x faster encode speeds up rebuilds.
+                if (processedOptions.formatOptions.woff2?.compressionQuality === undefined) {
+                    processedOptions.formatOptions.woff2 = { ...processedOptions.formatOptions.woff2, compressionQuality: 10 };
+                }
             }
         },
         resolveId(id) {
@@ -177,7 +234,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         async buildStart() {
             if (!isBuild) {
-                setupWatcher(options.context, ac.signal, () => generate(true)).catch(() => null);
+                setupWatcher(options.context, ac.signal, change => regenerateFromWatch(change)).catch(() => null);
             }
             await generate();
             if (isBuild && !options.inline) {

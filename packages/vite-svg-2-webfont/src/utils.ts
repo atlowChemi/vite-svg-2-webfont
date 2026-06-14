@@ -25,23 +25,36 @@ export async function doesFileExist(folderPath: string, fileName: string): Promi
     }
 }
 
+/** A normalized SVG change surfaced by the watcher. `path` matches the `parseFiles` output. */
+export type WatchedChange = { path: string; kind: 'added' | 'changed' | 'removed' };
+
 export async function handleWatchEvent(
     folderPath: string,
     { eventType, filename }: FileChangeInfo<string>,
-    onIconAdded: (e: FileChangeInfo<string>) => void | Promise<void>,
+    onChange: (change: WatchedChange) => void | Promise<void>,
     _doesFileExist: typeof doesFileExist = doesFileExist,
 ): Promise<void> {
-    if (eventType !== 'rename' || !filename?.endsWith('.svg') || !(await _doesFileExist(folderPath, filename))) {
+    if (!filename?.endsWith('.svg')) {
         return;
     }
-    await onIconAdded({ eventType, filename });
+    // Match the path shape `parseFiles` produces (`join(context, file)`).
+    const path = pathJoin(folderPath, filename);
+    const exists = await _doesFileExist(folderPath, filename);
+    if (eventType === 'change') {
+        // Content edit. A delete can also surface as 'change' on some platforms, so guard on existence.
+        await onChange({ path, kind: exists ? 'changed' : 'removed' });
+        return;
+    }
+    // 'rename' covers both create and delete; existence disambiguates.
+    await onChange({ path, kind: exists ? 'added' : 'removed' });
 }
 
-export async function setupWatcher(folderPath: string, signal: AbortSignal, handler: (e: FileChangeInfo<string>) => void | Promise<void>): Promise<void> {
+export async function setupWatcher(folderPath: string, signal: AbortSignal, onChange: (change: WatchedChange) => void | Promise<void>): Promise<void> {
     try {
         watcher = watch(folderPath, { signal });
         for await (const event of watcher) {
-            await handleWatchEvent(folderPath, event, handler);
+            // A single failed rebuild (e.g. an unreadable file) must not tear down the watcher.
+            await handleWatchEvent(folderPath, event, onChange).catch(() => undefined);
         }
     } catch (err: unknown) {
         if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {

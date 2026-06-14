@@ -31,32 +31,38 @@ describe('utils', () => {
         });
 
         const validFileName = 'ex.svg';
-        const onIconAdded = vi.fn();
+        const onChange = vi.fn();
         const doesFileExist = vi.fn();
 
-        it("doesn't execute callback for file changes", async () => {
-            await utils.handleWatchEvent('', { eventType: 'change', filename: validFileName }, onIconAdded, doesFileExist);
-            expect(doesFileExist).not.toHaveBeenCalled();
-            expect(onIconAdded).not.toHaveBeenCalled();
-        });
-
         it("doesn't execute callback for non svg files", async () => {
-            await utils.handleWatchEvent('', { eventType: 'rename', filename: 'notsvg.png' }, onIconAdded, doesFileExist);
+            await utils.handleWatchEvent('', { eventType: 'rename', filename: 'notsvg.png' }, onChange, doesFileExist);
             expect(doesFileExist).not.toHaveBeenCalled();
-            expect(onIconAdded).not.toHaveBeenCalled();
+            expect(onChange).not.toHaveBeenCalled();
         });
 
-        it("doesn't execute callback for non existent files", async () => {
-            await utils.handleWatchEvent('', { eventType: 'rename', filename: validFileName }, onIconAdded, doesFileExist);
+        it("emits a 'removed' event for a change event on a missing file", async () => {
+            await utils.handleWatchEvent('', { eventType: 'change', filename: validFileName }, onChange, doesFileExist);
             expect(doesFileExist).toHaveBeenCalledOnce();
-            expect(onIconAdded).not.toHaveBeenCalled();
+            expect(onChange).toHaveBeenCalledExactlyOnceWith({ path: validFileName, kind: 'removed' });
         });
 
-        it('execute callback for new/renamed file', async () => {
+        it("emits a 'changed' event for an edited file", async () => {
             doesFileExist.mockResolvedValueOnce(true);
-            await utils.handleWatchEvent('', { eventType: 'rename', filename: validFileName }, onIconAdded, doesFileExist);
+            await utils.handleWatchEvent('', { eventType: 'change', filename: validFileName }, onChange, doesFileExist);
+            expect(onChange).toHaveBeenCalledExactlyOnceWith({ path: validFileName, kind: 'changed' });
+        });
+
+        it("emits a 'removed' event for a deleted file", async () => {
+            await utils.handleWatchEvent('', { eventType: 'rename', filename: validFileName }, onChange, doesFileExist);
             expect(doesFileExist).toHaveBeenCalledOnce();
-            expect(onIconAdded).toHaveBeenCalledOnce();
+            expect(onChange).toHaveBeenCalledExactlyOnceWith({ path: validFileName, kind: 'removed' });
+        });
+
+        it("emits an 'added' event for a new/renamed file", async () => {
+            doesFileExist.mockResolvedValueOnce(true);
+            await utils.handleWatchEvent('', { eventType: 'rename', filename: validFileName }, onChange, doesFileExist);
+            expect(doesFileExist).toHaveBeenCalledOnce();
+            expect(onChange).toHaveBeenCalledExactlyOnceWith({ path: validFileName, kind: 'added' });
         });
     });
 
@@ -80,7 +86,7 @@ describe('utils', () => {
             expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
         });
 
-        it('triggers the handler for files that exist', async () => {
+        it('triggers the handler for adds and removes alike', async () => {
             const { watch, access } = fs;
             const event = { eventType: 'rename', filename: 'ex.svg' };
             async function* mock() {
@@ -89,7 +95,7 @@ describe('utils', () => {
                 if (vi.isMockFunction(access)) {
                     access.mockRejectedValueOnce(new Error());
                 }
-                yield event;
+                yield event; // file gone -> still surfaces a 'removed' change
                 yield event;
             }
             if (vi.isMockFunction(watch)) {
@@ -97,7 +103,7 @@ describe('utils', () => {
             }
 
             expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
-            expect(handler).toBeCalledTimes(2);
+            expect(handler).toBeCalledTimes(3);
         });
     });
 
