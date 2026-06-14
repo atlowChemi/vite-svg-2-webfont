@@ -1,6 +1,6 @@
 // oxlint-disable jest/no-standalone-expect
 import { join } from 'node:path';
-import { rmSync } from 'node:fs';
+import { rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
@@ -303,4 +303,295 @@ describe.each([5, 300])('generateCss / generateHtml — %i glyphs', numGlyphs =>
             bench('new core', () => expect(newCore.generateHtml(templateUrls)).toBeDefined(), benchOpts);
         });
     });
+});
+
+// Incremental rebuild: full regen vs reusing unchanged glyphs.
+const DEV_FORMAT = { formatOptions: { woff2: { compressionQuality: 10 } } };
+const EDIT_SVG_A = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20v20H2z"/></svg>';
+const EDIT_SVG_B = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20L12 22z"/></svg>';
+
+async function makeEditableFiles(numGlyphs: number, label: string): Promise<string[]> {
+    const editFile = join(bulkFixtureDir, `${label}-${numGlyphs}-edit.svg`);
+    await writeFile(editFile, EDIT_SVG_A);
+    return [editFile, ...bulkFiles.slice(1, numGlyphs)];
+}
+
+const incrementalResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+await Promise.all(
+    [100, 300, 600].map(async numGlyphs => {
+        const result = await generateWebfonts(baseOpts(bulkFiles.slice(0, numGlyphs), { incremental: true, ...DEV_FORMAT }));
+        incrementalResults.set(numGlyphs, result);
+    }),
+);
+
+describe.each([100, 300, 600])('changed event with unchanged contents — %i glyphs', numGlyphs => {
+    const files = bulkFiles.slice(0, numGlyphs);
+    const opts = baseOpts(files, DEV_FORMAT);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const result = incrementalResults.get(numGlyphs)!;
+    const change = [{ path: files[0]!, changeType: 'changed' as const }];
+
+    bench('upstream — full regen', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
+    bench('new core — full regen (legacy)', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+    bench('new core — incremental regenerate', () => expect(result.regenerate(files, change)).toBeUndefined(), benchOpts);
+});
+
+const contentEditFiles = new Map<number, string[]>();
+const contentEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+await Promise.all(
+    [100, 300, 600].map(async numGlyphs => {
+        const files = await makeEditableFiles(numGlyphs, 'regen-content');
+        const result = await generateWebfonts(baseOpts(files, { incremental: true, ...DEV_FORMAT }));
+        contentEditFiles.set(numGlyphs, files);
+        contentEditResults.set(numGlyphs, result);
+    }),
+);
+
+describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyphs', numGlyphs => {
+    const files = contentEditFiles.get(numGlyphs)!;
+    const opts = baseOpts(files, DEV_FORMAT);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const result = contentEditResults.get(numGlyphs)!;
+    const change = [{ path: files[0]!, changeType: 'changed' as const }];
+    let toggle = false;
+
+    bench('upstream — full regen', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
+    bench('new core — full regen (legacy)', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+    bench(
+        'new core — incremental regenerate',
+        () => {
+            toggle = !toggle;
+            writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
+            expect(result.regenerate(files, change)).toBeUndefined();
+        },
+        benchOpts,
+    );
+});
+
+// Rebuild plus CSS render; provided URLs make content-only edits cacheable.
+const RENDER_URLS = { svg: '/f.svg', ttf: '/f.ttf', eot: '/f.eot', woff: '/f.woff', woff2: '/f.woff2' };
+const ADD_POSITIONS = ['start', 'middle', 'end'] as const;
+const extraSvgs = new Map<(typeof ADD_POSITIONS)[number], string>();
+await Promise.all(
+    ADD_POSITIONS.map(async position => {
+        const path = join(bulkFixtureDir, `icon-extra-${position}.svg`);
+        await writeFile(path, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20v20H2z"/></svg>');
+        extraSvgs.set(position, path);
+    }),
+);
+
+function insertAtPosition(files: string[], extra: string, position: (typeof ADD_POSITIONS)[number]): string[] {
+    if (position === 'start') {
+        return [extra, ...files];
+    }
+    if (position === 'end') {
+        return [...files, extra];
+    }
+    const index = Math.floor(files.length / 2);
+    return [...files.slice(0, index), extra, ...files.slice(index)];
+}
+
+describe.each([100, 300, 600])('changed event + CSS with unchanged contents — %i glyphs', numGlyphs => {
+    const files = bulkFiles.slice(0, numGlyphs);
+    const opts = baseOpts(files, DEV_FORMAT);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const result = incrementalResults.get(numGlyphs)!;
+    const change = [{ path: files[0]!, changeType: 'changed' as const }];
+
+    bench('new core — full regen + render CSS', () => expect(generateWebfonts(opts).then(r => r.generateCss(RENDER_URLS))).resolves.toBeDefined(), benchOpts);
+    bench(
+        'new core — incremental regenerate + reuse CSS',
+        () => {
+            result.regenerate(files, change);
+            expect(result.generateCss(RENDER_URLS)).toBeDefined();
+        },
+        benchOpts,
+    );
+});
+
+const contentEditCssFiles = new Map<number, string[]>();
+const contentEditCssResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+await Promise.all(
+    [100, 300, 600].map(async numGlyphs => {
+        const files = await makeEditableFiles(numGlyphs, 'regen-content-css');
+        const result = await generateWebfonts(baseOpts(files, { incremental: true, ...DEV_FORMAT }));
+        contentEditCssFiles.set(numGlyphs, files);
+        contentEditCssResults.set(numGlyphs, result);
+    }),
+);
+
+describe.each([100, 300, 600])('rebuild + CSS after a 1-file content edit — %i glyphs', numGlyphs => {
+    const files = contentEditCssFiles.get(numGlyphs)!;
+    const opts = baseOpts(files, DEV_FORMAT);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const result = contentEditCssResults.get(numGlyphs)!;
+    const change = [{ path: files[0]!, changeType: 'changed' as const }];
+    let toggle = false;
+
+    bench('new core — full regen + render CSS', () => expect(generateWebfonts(opts).then(r => r.generateCss(RENDER_URLS))).resolves.toBeDefined(), benchOpts);
+    bench(
+        'new core — incremental regenerate + reuse CSS',
+        () => {
+            toggle = !toggle;
+            writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
+            result.regenerate(files, change);
+            expect(result.generateCss(RENDER_URLS)).toBeDefined();
+        },
+        benchOpts,
+    );
+});
+
+// writeFiles path: regenerate should update disk outputs when enabled.
+const writeResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+await Promise.all(
+    [100, 300, 600].map(async numGlyphs => {
+        const dest = join(bulkFixtureDir, `regen-write-${numGlyphs}`);
+        const result = await generateWebfonts(baseOpts(bulkFiles.slice(0, numGlyphs), { incremental: true, writeFiles: true, dest, ...DEV_FORMAT }));
+        writeResults.set(numGlyphs, result);
+    }),
+);
+
+describe.each([100, 300, 600])('rebuild + writeFiles after a 1-file change — %i glyphs', numGlyphs => {
+    const files = bulkFiles.slice(0, numGlyphs);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const result = writeResults.get(numGlyphs)!;
+    const change = [{ path: files[0]!, changeType: 'changed' as const }];
+
+    bench(
+        'new core — full regen + writeFiles',
+        () => expect(generateWebfonts(baseOpts(files, { writeFiles: true, dest: join(bulkFixtureDir, `full-write-${numGlyphs}`), ...DEV_FORMAT }))).resolves.toBeDefined(),
+        benchOpts,
+    );
+    bench('new core — incremental regenerate + writeFiles', () => expect(result.regenerate(files, change)).toBeUndefined(), benchOpts);
+});
+
+const contentEditWriteFiles = new Map<number, string[]>();
+const contentEditWriteResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+await Promise.all(
+    [100, 300, 600].map(async numGlyphs => {
+        const files = await makeEditableFiles(numGlyphs, 'regen-content-write');
+        const dest = join(bulkFixtureDir, `regen-content-write-${numGlyphs}`);
+        const result = await generateWebfonts(baseOpts(files, { incremental: true, writeFiles: true, dest, ...DEV_FORMAT }));
+        contentEditWriteFiles.set(numGlyphs, files);
+        contentEditWriteResults.set(numGlyphs, result);
+    }),
+);
+
+describe.each([100, 300, 600])('rebuild + writeFiles after a 1-file content edit — %i glyphs', numGlyphs => {
+    const files = contentEditWriteFiles.get(numGlyphs)!;
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const result = contentEditWriteResults.get(numGlyphs)!;
+    const change = [{ path: files[0]!, changeType: 'changed' as const }];
+    let toggle = false;
+
+    bench(
+        'new core — full regen + writeFiles',
+        () => expect(generateWebfonts(baseOpts(files, { writeFiles: true, dest: join(bulkFixtureDir, `full-content-write-${numGlyphs}`), ...DEV_FORMAT }))).resolves.toBeDefined(),
+        benchOpts,
+    );
+    bench(
+        'new core — incremental regenerate + writeFiles',
+        () => {
+            toggle = !toggle;
+            writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
+            expect(result.regenerate(files, change)).toBeUndefined();
+        },
+        benchOpts,
+    );
+});
+
+// No-op content change isolates write-skip overhead when rebuilt bytes are unchanged.
+const writeSkipResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+await Promise.all(
+    [100, 300, 600].map(async numGlyphs => {
+        const dest = join(bulkFixtureDir, `regen-write-skip-${numGlyphs}`);
+        const result = await generateWebfonts(
+            baseOpts(bulkFiles.slice(0, numGlyphs), {
+                css: true,
+                html: true,
+                incremental: true,
+                writeFiles: true,
+                dest,
+                ...DEV_FORMAT,
+            }),
+        );
+        writeSkipResults.set(numGlyphs, result);
+    }),
+);
+
+describe.each([100, 300, 600])('write-skip on unchanged outputs — %i glyphs', numGlyphs => {
+    const files = bulkFiles.slice(0, numGlyphs);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const result = writeSkipResults.get(numGlyphs)!;
+    const change = [{ path: files[0]!, changeType: 'changed' as const }];
+
+    bench(
+        'new core — full regen + writeFiles',
+        () =>
+            expect(
+                generateWebfonts(baseOpts(files, { css: true, html: true, writeFiles: true, dest: join(bulkFixtureDir, `full-write-skip-${numGlyphs}`), ...DEV_FORMAT })),
+            ).resolves.toBeDefined(),
+        benchOpts,
+    );
+    bench('new core — incremental regenerate + write-skip', () => expect(result.regenerate(files, change)).toBeUndefined(), benchOpts);
+});
+
+// Ordered regenerate should keep adds/removes byte-identical at any insertion point.
+const addRemoveResults = new Map<string, Awaited<ReturnType<typeof generateWebfonts>>>();
+await Promise.all(
+    [100, 300, 600].flatMap(numGlyphs =>
+        ADD_POSITIONS.map(async position => {
+            const result = await generateWebfonts(baseOpts(bulkFiles.slice(0, numGlyphs), { incremental: true, ...DEV_FORMAT }));
+            addRemoveResults.set(`${numGlyphs}-${position}`, result);
+        }),
+    ),
+);
+
+describe.each([100, 300, 600])('ordered add/remove regenerate — %i glyphs', numGlyphs => {
+    const files = bulkFiles.slice(0, numGlyphs);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+
+    describe.each(ADD_POSITIONS)('add at %s', position => {
+        const extra = extraSvgs.get(position)!;
+        const filesWithExtra = insertAtPosition(files, extra, position);
+        const result = addRemoveResults.get(`${numGlyphs}-${position}`)!;
+        let hasExtra = false;
+
+        bench('new core — full regen after add', () => expect(generateWebfonts(baseOpts(filesWithExtra, DEV_FORMAT))).resolves.toBeDefined(), benchOpts);
+        bench('new core — full regen after remove', () => expect(generateWebfonts(baseOpts(files, DEV_FORMAT))).resolves.toBeDefined(), benchOpts);
+        bench(
+            'new core — incremental add/remove toggle',
+            () => {
+                if (hasExtra) {
+                    result.regenerate(files, [{ path: extra, changeType: 'removed' }]);
+                } else {
+                    result.regenerate(filesWithExtra, [{ path: extra, changeType: 'added', name: `icon-extra-${position}` }]);
+                }
+                hasExtra = !hasExtra;
+                expect(result.svg).toBeDefined();
+            },
+            benchOpts,
+        );
+    });
+});
+
+// WOFF2 quality: isolate brotli speed at q9/q10/q11.
+describe.each([100, 300, 600])('woff2 quality — %i glyphs', numGlyphs => {
+    const files = bulkFiles.slice(0, numGlyphs);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const woff2Opts = (quality: number) => baseOpts(files, { types: ['woff2'], formatOptions: { woff2: { compressionQuality: quality } } });
+
+    bench('upstream', () => expect(upstreamDirect(baseOpts(files, { types: ['woff2'] }))).resolves.toBeDefined(), benchOpts);
+    bench('new core — q11', () => expect(generateWebfonts(woff2Opts(11))).resolves.toBeDefined(), benchOpts);
+    bench('new core — q10', () => expect(generateWebfonts(woff2Opts(10))).resolves.toBeDefined(), benchOpts);
+    bench('new core — q9', () => expect(generateWebfonts(woff2Opts(9))).resolves.toBeDefined(), benchOpts);
+});
+
+// Initial-build overhead of retaining parsed glyphs for regenerate().
+describe.each([100, 300, 600])('incremental population — %i glyphs', numGlyphs => {
+    const files = bulkFiles.slice(0, numGlyphs);
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+
+    bench('new core — incremental: false', () => expect(generateWebfonts(baseOpts(files, { incremental: false }))).resolves.toBeDefined(), benchOpts);
+    bench('new core — incremental: true', () => expect(generateWebfonts(baseOpts(files, { incremental: true }))).resolves.toBeDefined(), benchOpts);
 });
