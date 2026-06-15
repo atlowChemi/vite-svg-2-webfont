@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use criterion::{Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use serde_json::Value;
 use webfont_generator::bench_support::{
-    BenchSvgSource, build_outputs_only, finalize_svg_only, parse_svg_only,
+    build_outputs_only, finalize_svg_only, parse_svg_only, BenchSvgSource,
 };
 use webfont_generator::{
     FontType, FormatOptions, GenerateWebfontsOptions, SvgFormatOptions, TtfFormatOptions,
@@ -261,14 +261,18 @@ fn bench_pipeline_stages(c: &mut Criterion) {
         )
         .unwrap();
         group.bench_function(format!("finalize_only/{size}"), |b| {
-            b.iter(|| {
-                finalize_svg_only(
-                    options(fixture.paths.clone(), vec![FontType::Svg], 10, false),
-                    &fixture.sources,
-                    parsed.clone(),
-                )
-                .unwrap()
-            })
+            b.iter_batched(
+                || parsed.clone(),
+                |parsed| {
+                    finalize_svg_only(
+                        options(fixture.paths.clone(), vec![FontType::Svg], 10, false),
+                        &fixture.sources,
+                        parsed,
+                    )
+                    .unwrap()
+                },
+                BatchSize::LargeInput,
+            )
         });
 
         let prepared = finalize_svg_only(
