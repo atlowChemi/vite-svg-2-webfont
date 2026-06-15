@@ -14,6 +14,9 @@ export default defineProject({
             build: {
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts -- --features napi',
             },
+            bench: {
+                command: 'cargo bench --features bench',
+            },
             'build:release': {
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts --release -- --features napi',
                 dependsOn: ['test'],

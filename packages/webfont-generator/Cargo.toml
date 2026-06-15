@@ -21,6 +21,7 @@ required-features = ["cli"]
 default = []
 napi = ["dep:napi", "dep:napi-derive"]
 cli = ["dep:clap"]
+bench = []
 
 [dependencies]
 clap = { version = "4", features = ["derive"], optional = true }
@@ -41,7 +42,20 @@ usvg = "0.47.0"
 write-fonts = { version = "0.49.1", features = ["read"] }
 
 [dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+
+[[bench]]
+name = "incremental"
+harness = false
+
+[[bench]]
+name = "pipeline"
+harness = false
+
+[[bench]]
+name = "features"
+harness = false
 
 [build-dependencies]
 napi-build = "2.3.2"
