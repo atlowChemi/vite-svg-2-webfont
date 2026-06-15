@@ -24,6 +24,7 @@ pub(crate) struct SvgOptions<'a> {
     pub round: Option<f64>,
 }
 
+#[derive(Clone)]
 pub(crate) struct ParsedGlyph {
     pub codepoint: u32,
     pub height: f64,
@@ -40,6 +41,7 @@ pub(crate) struct GlyphWorkItem<'a> {
     pub source_file: &'a LoadedSvgFile,
 }
 
+#[derive(Clone)]
 pub(crate) struct ProcessedGlyph {
     pub codepoint: u32,
     pub height: f64,
@@ -50,6 +52,7 @@ pub(crate) struct ProcessedGlyph {
     pub width: f64,
 }
 
+#[derive(Clone)]
 pub(crate) struct PreparedSvgFont {
     pub ascent: f64,
     pub descent: f64,

@@ -109,6 +109,124 @@ use types::{
     resolved_font_types,
 };
 
+#[cfg(feature = "bench")]
+pub mod bench_support {
+    use std::io;
+
+    use super::{
+        GenerateWebfontsOptions, GlyphCache, LoadedSvgFile, PreparedSvgFont, build_font_outputs,
+        finalize_generate_webfonts_options, prepare_svg_font, prepare_svg_font_incremental,
+        resolve_generate_webfonts_options, svg_options_from_options,
+    };
+    use crate::svg::types::ParsedGlyph;
+    use crate::svg::{finalize_glyphs, parse_glyphs};
+
+    /// Source fixture used by Rust benchmarks without exposing generator internals.
+    #[derive(Clone)]
+    pub struct BenchSvgSource {
+        pub path: String,
+        pub glyph_name: String,
+        pub contents: String,
+    }
+
+    /// Opaque parsed-glyph cache used by incremental SVG prepare benchmarks.
+    #[derive(Clone, Default)]
+    pub struct BenchGlyphCache(GlyphCache);
+
+    /// Opaque parsed glyph set used to isolate parse and finalize stages.
+    #[derive(Clone)]
+    pub struct BenchParsedGlyphs(Vec<ParsedGlyph>);
+
+    /// Opaque prepared SVG font used to isolate font-output generation stages.
+    #[derive(Clone)]
+    pub struct BenchPreparedSvgFont(PreparedSvgFont);
+
+    fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgFile> {
+        sources
+            .iter()
+            .map(|source| LoadedSvgFile {
+                contents: source.contents.clone(),
+                glyph_name: source.glyph_name.clone(),
+                path: source.path.clone(),
+            })
+            .collect()
+    }
+
+    fn resolve(
+        options: GenerateWebfontsOptions,
+        sources: &[LoadedSvgFile],
+    ) -> io::Result<super::ResolvedGenerateWebfontsOptions> {
+        let mut options = resolve_generate_webfonts_options(options)?;
+        finalize_generate_webfonts_options(&mut options, sources)?;
+        Ok(options)
+    }
+
+    /// Run the SVG parse+process preparation path and return the number of prepared glyphs.
+    pub fn prepare_svg_full(
+        options: GenerateWebfontsOptions,
+        sources: &[BenchSvgSource],
+    ) -> io::Result<usize> {
+        let sources = load_sources(sources);
+        let options = resolve(options, &sources)?;
+        let svg_options = svg_options_from_options(&options);
+        let prepared = prepare_svg_font(&svg_options, &sources)?;
+        Ok(prepared.processed_glyphs.len())
+    }
+
+    /// Parse SVG glyph geometry without running set-wide finalization/processing.
+    pub fn parse_svg_only(
+        options: GenerateWebfontsOptions,
+        sources: &[BenchSvgSource],
+    ) -> io::Result<BenchParsedGlyphs> {
+        let sources = load_sources(sources);
+        let options = resolve(options, &sources)?;
+        let svg_options = svg_options_from_options(&options);
+        parse_glyphs(&svg_options, &sources).map(BenchParsedGlyphs)
+    }
+
+    /// Run set-wide SVG finalization/processing from already parsed glyph geometry.
+    pub fn finalize_svg_only(
+        options: GenerateWebfontsOptions,
+        sources: &[BenchSvgSource],
+        parsed: BenchParsedGlyphs,
+    ) -> io::Result<BenchPreparedSvgFont> {
+        let sources = load_sources(sources);
+        let options = resolve(options, &sources)?;
+        let svg_options = svg_options_from_options(&options);
+        finalize_glyphs(&svg_options, parsed.0).map(BenchPreparedSvgFont)
+    }
+
+    /// Build requested font outputs from an already prepared SVG font and return total output bytes.
+    pub fn build_outputs_only(
+        options: GenerateWebfontsOptions,
+        sources: &[BenchSvgSource],
+        prepared: &BenchPreparedSvgFont,
+    ) -> io::Result<usize> {
+        let sources = load_sources(sources);
+        let options = resolve(options, &sources)?;
+        let svg_options = svg_options_from_options(&options);
+        let fonts = build_font_outputs(&options, &svg_options, &prepared.0)?;
+        Ok(fonts.svg_font.as_ref().map_or(0, |v| v.len())
+            + fonts.ttf_font.as_ref().map_or(0, |v| v.len())
+            + fonts.woff_font.as_ref().map_or(0, |v| v.len())
+            + fonts.woff2_font.as_ref().map_or(0, |v| v.len())
+            + fonts.eot_font.as_ref().map_or(0, |v| v.len()))
+    }
+
+    /// Run the incremental SVG preparation path and return the number of prepared glyphs.
+    pub fn prepare_svg_incremental(
+        options: GenerateWebfontsOptions,
+        sources: &[BenchSvgSource],
+        cache: &mut BenchGlyphCache,
+    ) -> io::Result<usize> {
+        let sources = load_sources(sources);
+        let options = resolve(options, &sources)?;
+        let svg_options = svg_options_from_options(&options);
+        let prepared = prepare_svg_font_incremental(&svg_options, &sources, &mut cache.0)?;
+        Ok(prepared.processed_glyphs.len())
+    }
+}
+
 #[cfg(all(test, feature = "napi"))]
 #[unsafe(no_mangle)]
 extern "C" fn napi_call_threadsafe_function(
