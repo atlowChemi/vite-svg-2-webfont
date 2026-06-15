@@ -13,6 +13,7 @@ use webfont_generator::{
 };
 
 const SIZES: [usize; 3] = [100, 300, 600];
+const BENCH_DEST: &str = "/tmp/webfont-generator-bench-out";
 const TEST_TTF_TIMESTAMP: i64 = 1_700_000_000;
 
 struct FixtureSet {
@@ -190,7 +191,7 @@ fn options_with_types(
 ) -> GenerateWebfontsOptions {
     GenerateWebfontsOptions {
         css: Some(false),
-        dest: temp_dir("out").to_string_lossy().into_owned(),
+        dest: BENCH_DEST.to_owned(),
         files: paths,
         font_name: Some("bench".to_owned()),
         format_options: Some(FormatOptions {

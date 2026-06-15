@@ -10,6 +10,7 @@ use webfont_generator::{
 };
 
 const TEST_TTF_TIMESTAMP: i64 = 1_700_000_000;
+const BENCH_DEST: &str = "/tmp/webfont-generator-feature-bench-out";
 
 struct FixtureSet {
     dir: PathBuf,
@@ -181,7 +182,7 @@ fn template_file(dir: &Path, name: &str, contents: &str) -> String {
 fn base_options(paths: Vec<String>, types: Vec<FontType>) -> GenerateWebfontsOptions {
     GenerateWebfontsOptions {
         css: Some(false),
-        dest: temp_dir("out").to_string_lossy().into_owned(),
+        dest: BENCH_DEST.to_owned(),
         files: paths,
         font_name: Some("bench".to_owned()),
         format_options: Some(FormatOptions {
