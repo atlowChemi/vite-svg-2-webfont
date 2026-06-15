@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use serde_json::Value;
 use webfont_generator::bench_support::{
-    build_outputs_only, finalize_svg_only, parse_svg_only, BenchSvgSource,
+    BenchSvgSource, build_outputs_only, finalize_svg_only, parse_svg_only,
 };
 use webfont_generator::{
     FontType, FormatOptions, GenerateWebfontsOptions, SvgFormatOptions, TtfFormatOptions,
