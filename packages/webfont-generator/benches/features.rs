@@ -53,6 +53,84 @@ fn heavy_path(index: usize) -> String {
     d
 }
 
+fn square_path(x: f64, y: f64, size: f64, reverse: bool) -> String {
+    if reverse {
+        format!(
+            "M{x:.2} {y:.2} L{:.2} {y:.2} L{:.2} {:.2} L{x:.2} {:.2} Z",
+            x + size,
+            x + size,
+            y + size,
+            y + size
+        )
+    } else {
+        format!(
+            "M{x:.2} {y:.2} L{x:.2} {:.2} L{:.2} {:.2} L{:.2} {y:.2} Z",
+            y + size,
+            x + size,
+            y + size,
+            x + size
+        )
+    }
+}
+
+fn many_independent_contours(count: usize) -> String {
+    let mut d = String::new();
+    for i in 0..count {
+        let col = i % 20;
+        let row = i / 20;
+        d.push_str(&square_path(
+            2.0 + col as f64 * 1.1,
+            2.0 + row as f64 * 1.1,
+            0.75,
+            false,
+        ));
+    }
+    d
+}
+
+fn deeply_nested_contours(count: usize, reverse_inner: bool) -> String {
+    let mut d = String::new();
+    for i in 0..count {
+        let inset = i as f64 * 0.08;
+        d.push_str(&square_path(
+            1.0 + inset,
+            1.0 + inset,
+            22.0 - inset * 2.0,
+            reverse_inner && i % 2 == 1,
+        ));
+    }
+    d
+}
+
+fn many_overlapping_contours(count: usize) -> String {
+    let mut d = String::new();
+    for i in 0..count {
+        let offset = i as f64 * 0.03;
+        d.push_str(&square_path(1.0 + offset, 1.0 + offset, 14.0, false));
+    }
+    d
+}
+
+fn many_curved_nested_contours(count: usize) -> String {
+    let mut d = String::new();
+    for i in 0..count {
+        let r = 11.0 - i as f64 * 0.08;
+        let min = 12.0 - r;
+        let max = 12.0 + r;
+        let reverse = i % 2 == 1;
+        if reverse {
+            d.push_str(&format!(
+                "M{min:.2} 12 C{min:.2} {min:.2} {max:.2} {min:.2} 12 {min:.2} C{max:.2} {max:.2} {min:.2} {max:.2} {max:.2} 12 Z"
+            ));
+        } else {
+            d.push_str(&format!(
+                "M{max:.2} 12 C{max:.2} {min:.2} {min:.2} {min:.2} 12 {min:.2} C{min:.2} {max:.2} {max:.2} {max:.2} {min:.2} 12 Z"
+            ));
+        }
+    }
+    d
+}
+
 fn svg_path(d: &str) -> String {
     format!(
         "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"{d}\"/></svg>"
@@ -90,6 +168,11 @@ fn svg_for(kind: &str, index: usize) -> String {
             heavy_path(index + 23)
         ),
         "duplicate" => svg_path(&heavy_path(0)),
+        "winding_independent" => svg_path(&many_independent_contours(300)),
+        "winding_nested_ok" => svg_path(&deeply_nested_contours(120, true)),
+        "winding_nested_reverse" => svg_path(&deeply_nested_contours(120, false)),
+        "winding_overlapping" => svg_path(&many_overlapping_contours(160)),
+        "winding_curved" => svg_path(&many_curved_nested_contours(120)),
         _ => svg_path(&heavy_path(index)),
     }
 }
@@ -395,6 +478,30 @@ fn bench_geometry_options(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_winding_normalization(c: &mut Criterion) {
+    let mut group = c.benchmark_group("winding_normalization");
+    group.sample_size(10);
+    for kind in [
+        "winding_independent",
+        "winding_nested_ok",
+        "winding_nested_reverse",
+        "winding_overlapping",
+        "winding_curved",
+    ] {
+        let fixture = fixtures(100, kind);
+        group.bench_function(format!("{kind}/100"), |b| {
+            b.iter(|| {
+                webfont_generator::generate_sync(
+                    base_options(fixture.paths.clone(), vec![FontType::Svg]),
+                    None,
+                )
+                .unwrap()
+            })
+        });
+    }
+    group.finish();
+}
+
 fn bench_ttf_features(c: &mut Criterion) {
     let mut group = c.benchmark_group("ttf_features");
     group.sample_size(10);
@@ -553,6 +660,7 @@ criterion_group! {
         bench_write_paths,
         bench_input_complexity,
         bench_geometry_options,
+        bench_winding_normalization,
         bench_ttf_features,
         bench_error_paths,
         bench_scaling,
