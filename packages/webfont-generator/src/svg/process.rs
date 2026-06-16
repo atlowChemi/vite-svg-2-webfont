@@ -3,6 +3,7 @@ use usvg::tiny_skia_path::Rect;
 
 use crate::svg::serialize::{append_path, optimize_path_data};
 use crate::svg::types::{ParsedGlyph, ProcessedGlyph};
+use crate::svg::winding::normalize_winding;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn process_glyph(
@@ -73,6 +74,9 @@ pub(crate) fn process_glyph(
                 .collect::<Result<Vec<_>, Error>>()?;
         }
     }
+    // Apply the monochrome icon-font containment heuristic: nested contours alternate winding so
+    // foreground-on-background SVG layers become knockouts. No-op glyphs pass through byte-identical.
+    let transformed_paths = normalize_winding(transformed_paths);
     let mut path_data = String::new();
     for path in &transformed_paths {
         append_path(&mut path_data, path, round);

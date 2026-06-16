@@ -662,3 +662,128 @@ fn incremental_prepare_prunes_stale_content_hash_entries() {
         "removed glyph geometry should not stay in the content-addressed cache"
     );
 }
+
+fn winding_fixtures_dir() -> PathBuf {
+    Path::new(env!("CARGO_MANIFEST_DIR")).join("src/svg/fixtures/winding")
+}
+
+/// Run a single winding fixture through the real pipeline and return the glyph's serialized path.
+fn winding_glyph_path_data(file: &str) -> String {
+    let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+        css: Some(false),
+        html: Some(false),
+        dest: "artifacts".to_string(),
+        files: vec![
+            winding_fixtures_dir()
+                .join(file)
+                .to_string_lossy()
+                .into_owned(),
+        ],
+        font_name: Some("winding".to_string()),
+        ..Default::default()
+    })
+    .unwrap();
+    let source_files = load_source_files(&resolved.files);
+    finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+    let svg_options = svg_options_from_options(&resolved);
+    let prepared = prepare_svg_font(&svg_options, &source_files).unwrap();
+    prepared.processed_glyphs[0].path_data.clone()
+}
+
+/// Signed-area sign of each subpath in serialized path data (`M`/`L`/`Q`/`C`/`Z`, absolute coords),
+/// using on-curve endpoints — enough to read winding direction.
+fn subpath_signs(path_data: &str) -> Vec<i8> {
+    let t: Vec<&str> = path_data.split_whitespace().collect();
+    let num = |s: &str| s.parse::<f64>().expect("path coordinate should parse");
+    let poly_sign = |pts: &[(f64, f64)]| -> i8 {
+        let mut a = 0.0;
+        for k in 0..pts.len() {
+            let (x1, y1) = pts[k];
+            let (x2, y2) = pts[(k + 1) % pts.len()];
+            a += x1 * y2 - x2 * y1;
+        }
+        if a >= 0.0 { 1 } else { -1 }
+    };
+    let mut signs = Vec::new();
+    let mut pts: Vec<(f64, f64)> = Vec::new();
+    let mut i = 0;
+    while i < t.len() {
+        match t[i] {
+            "M" => {
+                if pts.len() >= 3 {
+                    signs.push(poly_sign(&pts));
+                }
+                pts = vec![(num(t[i + 1]), num(t[i + 2]))];
+                i += 3;
+            }
+            "L" => {
+                pts.push((num(t[i + 1]), num(t[i + 2])));
+                i += 3;
+            }
+            "Q" => {
+                pts.push((num(t[i + 3]), num(t[i + 4])));
+                i += 5;
+            }
+            "C" => {
+                pts.push((num(t[i + 5]), num(t[i + 6])));
+                i += 7;
+            }
+            _ => i += 1,
+        }
+    }
+    if pts.len() >= 3 {
+        signs.push(poly_sign(&pts));
+    }
+    signs
+}
+
+// Deliberate geometry-only heuristic: a fully contained contour becomes a knockout *regardless of
+// fill-rule*. `contained-knockout.svg` uses default (nonzero) fill with no `fill-rule` set, so this
+// pins that a same/default-fill nested foreground is intentionally converted to a hole for
+// monochrome icon-font output — not honoring nonzero's "fill the interior" semantics. See the
+// module docs in `winding.rs` for why this trade-off is chosen.
+#[test]
+fn winding_knocks_out_a_contained_contour() {
+    let signs = subpath_signs(&winding_glyph_path_data("contained-knockout.svg"));
+    assert_eq!(signs.len(), 2, "circle + one contained square");
+    assert_ne!(
+        signs[0], signs[1],
+        "the contained square must be wound opposite (a knockout hole)"
+    );
+}
+
+// Overlapping shapes where neither contains the other must stay same-wound (union) — not punched
+// into a hole. Guards against the padlock-shackle-on-body class of false positive.
+#[test]
+fn winding_leaves_overlapping_contours_unioned() {
+    let signs = subpath_signs(&winding_glyph_path_data("overlap-union.svg"));
+    assert_eq!(signs.len(), 2, "two overlapping, non-nested rectangles");
+    assert_eq!(
+        signs[0], signs[1],
+        "overlapping non-nested contours stay same-wound (union)"
+    );
+}
+
+// The spec-aligned case: an `evenodd` path with a same-wound inner subpath — containment turns the
+// inner into the hole the fill rule intends.
+#[test]
+fn winding_holes_an_evenodd_inner_subpath() {
+    let signs = subpath_signs(&winding_glyph_path_data("evenodd-hole.svg"));
+    assert_eq!(signs.len(), 2, "outer + inner square subpaths");
+    assert_ne!(
+        signs[0], signs[1],
+        "the inner even-odd subpath must become a hole"
+    );
+}
+
+// Curve containment (contours are flattened to decide nesting): a smaller circle clearly nested in a
+// larger one must become a ring/hole.
+#[test]
+fn winding_holes_a_nested_curved_contour() {
+    let signs = subpath_signs(&winding_glyph_path_data("nested-circles.svg"));
+    assert_eq!(signs.len(), 2, "outer + inner circle");
+    assert_ne!(
+        signs[0], signs[1],
+        "the contained inner circle must become a hole"
+    );
+}

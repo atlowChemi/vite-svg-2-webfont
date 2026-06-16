@@ -4,6 +4,7 @@ mod serialize;
 #[cfg(test)]
 mod tests;
 pub(crate) mod types;
+mod winding;
 
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
