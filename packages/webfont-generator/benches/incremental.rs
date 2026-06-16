@@ -358,6 +358,86 @@ fn bench_regenerate(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_regenerate_batches(c: &mut Criterion) {
+    let mut group = c.benchmark_group("regenerate_batches");
+    group.sample_size(10);
+    let all_formats = vec![
+        FontType::Svg,
+        FontType::Ttf,
+        FontType::Eot,
+        FontType::Woff,
+        FontType::Woff2,
+    ];
+
+    for size in SIZES {
+        for change_count in [2, 10] {
+            group.bench_function(format!("separate_{change_count}/{size}"), |b| {
+                b.iter_batched(
+                    || {
+                        let fixture = fixtures(size);
+                        let result = webfont_generator::generate_sync(
+                            options_with_types(fixture.paths.clone(), true, all_formats.clone()),
+                            None,
+                        )
+                        .unwrap();
+                        let changes = fixture
+                            .paths
+                            .iter()
+                            .take(change_count)
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        (fixture, result, changes)
+                    },
+                    |(fixture, mut result, changes)| {
+                        for changed in changes {
+                            std::fs::write(&changed, svg(&changed_path_data())).unwrap();
+                            result
+                                .regenerate(
+                                    &fixture.paths,
+                                    &[(changed, GlyphChange::Changed { name: None })],
+                                )
+                                .unwrap();
+                        }
+                    },
+                    BatchSize::SmallInput,
+                )
+            });
+
+            group.bench_function(format!("batched_{change_count}/{size}"), |b| {
+                b.iter_batched(
+                    || {
+                        let fixture = fixtures(size);
+                        let result = webfont_generator::generate_sync(
+                            options_with_types(fixture.paths.clone(), true, all_formats.clone()),
+                            None,
+                        )
+                        .unwrap();
+                        let changes = fixture
+                            .paths
+                            .iter()
+                            .take(change_count)
+                            .cloned()
+                            .collect::<Vec<_>>();
+                        (fixture, result, changes)
+                    },
+                    |(fixture, mut result, changes)| {
+                        for changed in &changes {
+                            std::fs::write(changed, svg(&changed_path_data())).unwrap();
+                        }
+                        let changes = changes
+                            .into_iter()
+                            .map(|path| (path, GlyphChange::Changed { name: None }))
+                            .collect::<Vec<_>>();
+                        result.regenerate(&fixture.paths, &changes).unwrap();
+                    },
+                    BatchSize::SmallInput,
+                )
+            });
+        }
+    }
+    group.finish();
+}
+
 fn bench_add_remove(c: &mut Criterion) {
     let mut group = c.benchmark_group("add_remove");
     group.sample_size(10);
@@ -687,6 +767,7 @@ criterion_group! {
     targets =
         bench_svg_prepare,
         bench_regenerate,
+        bench_regenerate_batches,
         bench_add_remove,
         bench_regenerate_by_format,
         bench_render_cache_after_regenerate,

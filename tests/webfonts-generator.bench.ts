@@ -309,11 +309,13 @@ describe.each([5, 300])('generateCss / generateHtml — %i glyphs', numGlyphs =>
 const DEV_FORMAT = { formatOptions: { woff2: { compressionQuality: 10 } } };
 const EDIT_SVG_A = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20v20H2z"/></svg>';
 const EDIT_SVG_B = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20L12 22z"/></svg>';
+const EDIT_SVG_C = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h30L12 22z"/></svg>';
 
-async function makeEditableFiles(numGlyphs: number, label: string): Promise<string[]> {
-    const editFile = join(bulkFixtureDir, `${label}-${numGlyphs}-edit.svg`);
-    await writeFile(editFile, EDIT_SVG_A);
-    return [editFile, ...bulkFiles.slice(1, numGlyphs)];
+async function makeNEditableFiles(n: number, numGlyphs: number, label: string): Promise<string[]> {
+    const filePathGenerator = (index: number) => join(bulkFixtureDir, `${label}-${numGlyphs}-edit-${String.fromCharCode(97 + index)}.svg`);
+    const files = Array.from({ length: n }, (_, i) => filePathGenerator(i));
+    await Promise.all(files.map(file => writeFile(file, EDIT_SVG_A)));
+    return [...files, ...bulkFiles.slice(n, numGlyphs)];
 }
 
 const incrementalResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
@@ -340,7 +342,7 @@ const contentEditFiles = new Map<number, string[]>();
 const contentEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
 await Promise.all(
     [100, 300, 600].map(async numGlyphs => {
-        const files = await makeEditableFiles(numGlyphs, 'regen-content');
+        const files = await makeNEditableFiles(1, numGlyphs, 'regen-content');
         const result = await generateWebfonts(baseOpts(files, { incremental: true, ...DEV_FORMAT }));
         contentEditFiles.set(numGlyphs, files);
         contentEditResults.set(numGlyphs, result);
@@ -363,6 +365,76 @@ describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyph
             toggle = !toggle;
             writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
             expect(result.regenerate(files, change)).toBeUndefined();
+        },
+        benchOpts,
+    );
+});
+
+const separateTwoEditFiles = new Map<number, string[]>();
+const separateTenEditFiles = new Map<number, string[]>();
+const batchedEditFiles = new Map<number, string[]>();
+const separateTwoEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+const separateTenEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+const batchedEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+await Promise.all(
+    [100, 300, 600].map(async numGlyphs => {
+        const separateTwoFiles = await makeNEditableFiles(2, numGlyphs, 'regen-separate-two-content');
+        const separateTenFiles = await makeNEditableFiles(10, numGlyphs, 'regen-separate-ten-content');
+        const batchedFiles = await makeNEditableFiles(10, numGlyphs, 'regen-batch-content');
+        const [separateTwo, separateTen, batched] = await Promise.all([
+            generateWebfonts(baseOpts(separateTwoFiles, { incremental: true, ...DEV_FORMAT })),
+            generateWebfonts(baseOpts(separateTenFiles, { incremental: true, ...DEV_FORMAT })),
+            generateWebfonts(baseOpts(batchedFiles, { incremental: true, ...DEV_FORMAT })),
+        ]);
+        separateTwoEditFiles.set(numGlyphs, separateTwoFiles);
+        separateTenEditFiles.set(numGlyphs, separateTenFiles);
+        batchedEditFiles.set(numGlyphs, batchedFiles);
+        separateTwoEditResults.set(numGlyphs, separateTwo);
+        separateTenEditResults.set(numGlyphs, separateTen);
+        batchedEditResults.set(numGlyphs, batched);
+    }),
+);
+
+describe.each([100, 300, 600])('batched vs separate content edits — %i glyphs', numGlyphs => {
+    const separateTwoFiles = separateTwoEditFiles.get(numGlyphs)!;
+    const separateTenFiles = separateTenEditFiles.get(numGlyphs)!;
+    const batchedFiles = batchedEditFiles.get(numGlyphs)!;
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const separateTwo = separateTwoEditResults.get(numGlyphs)!;
+    const separateTen = separateTenEditResults.get(numGlyphs)!;
+    const batched = batchedEditResults.get(numGlyphs)!;
+    const separateTwoChanges = separateTwoFiles.slice(0, 2).map(path => ({ path, changeType: 'changed' as const }));
+    const separateTenChanges = separateTenFiles.slice(0, 10).map(path => ({ path, changeType: 'changed' as const }));
+    const batchedChanges = batchedFiles.slice(0, 10).map(path => ({ path, changeType: 'changed' as const }));
+
+    let twoToggle = false;
+    let tenToggle = false;
+    let batchedToggle = false;
+
+    bench(
+        'new core — two separate incremental regenerates',
+        () => {
+            twoToggle = !twoToggle;
+            separateTwoChanges.forEach(change => writeFileSync(change.path, twoToggle ? EDIT_SVG_B : EDIT_SVG_C));
+            expect(separateTwoChanges.map(change => separateTwo.regenerate(separateTwoFiles, [change]))).toEqual(Array.from({ length: separateTwoChanges.length }));
+        },
+        benchOpts,
+    );
+    bench(
+        'new core — ten separate incremental regenerates',
+        () => {
+            tenToggle = !tenToggle;
+            separateTenChanges.forEach(change => writeFileSync(change.path, tenToggle ? EDIT_SVG_B : EDIT_SVG_C));
+            expect(separateTenChanges.map(change => separateTen.regenerate(separateTenFiles, [change]))).toEqual(Array.from({ length: separateTenChanges.length }));
+        },
+        benchOpts,
+    );
+    bench(
+        'new core — one batched incremental regenerate',
+        () => {
+            batchedToggle = !batchedToggle;
+            batchedChanges.forEach(change => writeFileSync(change.path, batchedToggle ? EDIT_SVG_B : EDIT_SVG_C));
+            expect(batched.regenerate(batchedFiles, batchedChanges)).toBeUndefined();
         },
         benchOpts,
     );
@@ -413,7 +485,7 @@ const contentEditCssFiles = new Map<number, string[]>();
 const contentEditCssResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
 await Promise.all(
     [100, 300, 600].map(async numGlyphs => {
-        const files = await makeEditableFiles(numGlyphs, 'regen-content-css');
+        const files = await makeNEditableFiles(1, numGlyphs, 'regen-content-css');
         const result = await generateWebfonts(baseOpts(files, { incremental: true, ...DEV_FORMAT }));
         contentEditCssFiles.set(numGlyphs, files);
         contentEditCssResults.set(numGlyphs, result);
@@ -469,7 +541,7 @@ const contentEditWriteFiles = new Map<number, string[]>();
 const contentEditWriteResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
 await Promise.all(
     [100, 300, 600].map(async numGlyphs => {
-        const files = await makeEditableFiles(numGlyphs, 'regen-content-write');
+        const files = await makeNEditableFiles(1, numGlyphs, 'regen-content-write');
         const dest = join(bulkFixtureDir, `regen-content-write-${numGlyphs}`);
         const result = await generateWebfonts(baseOpts(files, { incremental: true, writeFiles: true, dest, ...DEV_FORMAT }));
         contentEditWriteFiles.set(numGlyphs, files);
