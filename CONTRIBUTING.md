@@ -29,6 +29,7 @@ vp run test                                      # run all tests
 vp run coverage                                  # run tests with coverage
 vp run vite-svg-2-webfont#pack                   # build the Vite plugin
 vp run @atlowchemi/webfont-generator#build       # build the native addon
+vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
 vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
 vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
 vp run example#dev                               # run example app
@@ -41,6 +42,39 @@ After adding, removing, or modifying SVG icons in the plugin's fixture directory
 ```bash
 vp run vite-svg-2-webfont#test:fixtures:refresh
 ```
+
+### Benchmarks
+
+The repository has two benchmark layers:
+
+- Rust Criterion benchmarks in `packages/webfont-generator/benches/` isolate native generator internals, pipeline stages, incremental regeneration, output formats, templates, write paths, and scaling behavior.
+- Vitest benchmarks in `tests/webfonts-generator.bench.ts` exercise the JavaScript-facing API and compare against upstream behavior through the Node/NAPI boundary.
+
+Run Rust benchmarks through the package Vite+ task:
+
+```bash
+vp run @atlowchemi/webfont-generator#bench
+```
+
+Use compile-only validation while editing benchmark targets or benchmark-only support code:
+
+```bash
+vp run @atlowchemi/webfont-generator#bench --no-run
+```
+
+Run targeted Criterion filters when investigating a specific path, for example:
+
+```bash
+vp run @atlowchemi/webfont-generator#bench --bench pipeline -- pipeline_stages/woff2_output_only/300
+```
+
+Run JavaScript-facing Vitest benchmarks with:
+
+```bash
+vp test bench
+```
+
+The Rust benchmarks prefer Iconify JSON fixtures from the workspace `node_modules` when available and fall back to deterministic synthetic SVGs. Keep this fallback so `cargo bench` still works after a clean Rust-only checkout, but use `vp install` first when collecting numbers intended for comparison.
 
 ## Tools
 
@@ -67,8 +101,10 @@ Before opening a pull request, please:
 1. Install dependencies with `vp install`.
 2. Build the plugin with `vp run vite-svg-2-webfont#pack`.
 3. Run `vp run test` or `vp run coverage` when your change affects behavior.
-4. Verify the example app with `vp run example#dev` or `vp run example#build` for user-facing changes.
-5. Verify the docs site with `vp run @atlowchemi/vite-svg-webfont-docs#build` when you change documentation or docs config.
+4. Run `vp run @atlowchemi/webfont-generator#bench --no-run` when changing Rust benchmark targets or benchmark-only support code.
+5. Run targeted Rust or Vitest benchmark filters when changing measured performance behavior.
+6. Verify the example app with `vp run example#dev` or `vp run example#build` for user-facing changes.
+7. Verify the docs site with `vp run @atlowchemi/vite-svg-webfont-docs#build` when you change documentation or docs config.
 
 ## Commit Conventions
 
