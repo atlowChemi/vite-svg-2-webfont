@@ -41,6 +41,7 @@ Other useful commands:
 | `vp run @atlowchemi/webfont-generator#build:release` | Build the native NAPI addon (release profile) |
 | `vp run @atlowchemi/webfont-generator#test`          | Run all RS tests                              |
 | `vp run test`                                        | Run all JS tests (includes compat suite)      |
+| `vp run @atlowchemi/webfont-generator#bench`         | Run Rust Criterion benchmarks                 |
 | `vp test bench`                                      | Run Vitest benchmarks (upstream vs new core)  |
 
 When `UPDATE_SVG_FIXTURES=1` is set, the Rust tests rewrite every matching file in `expected/` from the current implementation before asserting.
