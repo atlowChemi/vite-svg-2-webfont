@@ -3,7 +3,7 @@ import type { ModuleGraph, ModuleNode, Plugin } from 'vite';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, parseFiles, parsePreloadFormatsOption } from './optionParser';
 import * as templatesImport from '@atlowchemi/webfont-generator/templates';
-import type { WatchedChange } from './utils';
+import type { WatchedChangeBatch } from './utils';
 import type { FontType, GenerateWebfontsResult, GlyphChangeEntry } from '@atlowchemi/webfont-generator';
 import type { IconPluginOptions } from './optionParser';
 import type { GeneratedWebfont } from './types/generatedWebfont';
@@ -22,7 +22,7 @@ function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${
     return `\0${virtualModuleId}`;
 }
 
-const toGlyphChange = (change: WatchedChange): GlyphChangeEntry =>
+const toGlyphChange = (change: WatchedChangeBatch[number]): GlyphChangeEntry =>
     change.kind === 'removed' ? { path: change.path, changeType: 'removed' } : { path: change.path, changeType: change.kind };
 
 /** Ensure vp doesn't crash locally and in CI if the native binding doesn't exist yet.  */
@@ -136,8 +136,11 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
     };
 
-    /** Rebuild on a watch event, incrementally reusing cached glyphs, else a full rebuild. */
-    const regenerateFromWatch = async (change: WatchedChange) => {
+    /** Rebuild on watch events, incrementally reusing cached glyphs, else a full rebuild. */
+    const regenerateFromWatch = async (changes: WatchedChangeBatch) => {
+        if (changes.length === 0) {
+            return;
+        }
         // Reuse cached glyphs, handing the engine the fresh glob order so additions land in their
         // correct position (byte-identical to a fresh build). When `writeFiles` is set, `regenerate`
         // refreshes the on-disk fonts itself; otherwise `writeDevFiles` handles the CSS/HTML below.
@@ -148,7 +151,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         try {
             const orderedFiles = parseFiles(options);
             processedOptions.files = orderedFiles;
-            generatedFonts.regenerate(orderedFiles, [toGlyphChange(change)]);
+            generatedFonts.regenerate(orderedFiles, changes.map(toGlyphChange));
         } catch {
             await generate(true);
             return;
@@ -234,7 +237,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         async buildStart() {
             if (!isBuild) {
-                setupWatcher(options.context, ac.signal, change => regenerateFromWatch(change)).catch(() => null);
+                setupWatcher(options.context, ac.signal, changes => regenerateFromWatch(changes)).catch(() => null);
             }
             await generate();
             if (isBuild && !options.inline) {

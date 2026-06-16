@@ -711,7 +711,7 @@ describe('serve - regenerates css when a new svg is added', () => {
 
     it('reloads the virtual css module after a new svg appears', async () => {
         await writeFile(watcherSvgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path d="M0 0h1024v1024H0z"/></svg>');
-        await watcherHandler({ path: pathJoin(webfontFolder, filename), kind: 'added' });
+        await watcherHandler([{ path: pathJoin(webfontFolder, filename), kind: 'added' }]);
         await waitForCssReload;
         expect(reloadedIds.some(id => id.includes('vite-svg-2-webfont.css'))).toBe(true);
     });
@@ -750,7 +750,7 @@ describe('serve - swallows reloadModule rejection from the watcher', () => {
 
     it('does not crash the watcher when reloadModule rejects', async () => {
         await writeFile(watcherSvgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path d="M0 0h512v512H0z"/></svg>');
-        await watcherHandler({ path: pathJoin(webfontFolder, filename), kind: 'added' });
+        await watcherHandler([{ path: pathJoin(webfontFolder, filename), kind: 'added' }]);
         await waitForReloadCalled;
         expect(rejectingReload).toHaveBeenCalledOnce();
     });
@@ -802,7 +802,7 @@ describe('serve - incrementally regenerates on a content edit', () => {
     });
 
     it('reuses cached glyphs via regenerate and reloads the css module', async () => {
-        await watcherHandler({ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' });
+        await watcherHandler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
         await waitForCssReload;
         expect(regenerateCalls).toHaveLength(1);
         const [files, changes] = regenerateCalls[0]!;
@@ -812,9 +812,23 @@ describe('serve - incrementally regenerates on a content edit', () => {
     });
 
     it('passes removed watcher events through regenerate', async () => {
-        await watcherHandler({ path: pathJoin(webfontFolder, '__already-removed__.svg'), kind: 'removed' });
+        await watcherHandler([{ path: pathJoin(webfontFolder, '__already-removed__.svg'), kind: 'removed' }]);
 
         expect(regenerateCalls.at(-1)?.[1]).toEqual([{ path: pathJoin(webfontFolder, '__already-removed__.svg'), changeType: 'removed' }]);
+    });
+
+    it('passes batched watcher events through a single regenerate call', async () => {
+        const callsBefore = regenerateCalls.length;
+        await watcherHandler([
+            { path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' },
+            { path: pathJoin(webfontFolder, '__already-removed__.svg'), kind: 'removed' },
+        ]);
+
+        expect(regenerateCalls).toHaveLength(callsBefore + 1);
+        expect(regenerateCalls.at(-1)?.[1]).toEqual([
+            { path: pathJoin(webfontFolder, 'add.svg'), changeType: 'changed' },
+            { path: pathJoin(webfontFolder, '__already-removed__.svg'), changeType: 'removed' },
+        ]);
     });
 });
 
@@ -841,7 +855,7 @@ describe('serve - skips unchanged dev css/html writes', () => {
 
     it('does not rewrite dev companion files when rendered output is unchanged', async () => {
         const writesBefore = ensureDirExistsAndWriteFileMock.mock.calls.length;
-        await watcherHandler({ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' });
+        await watcherHandler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
 
         expect(ensureDirExistsAndWriteFileMock).toHaveBeenCalledTimes(writesBefore);
     });
@@ -880,7 +894,7 @@ describe('serve - falls back to full regenerate when incremental is unavailable'
 
     it('full-regenerates and reloads when cssContext disables incremental', async () => {
         const callsBefore = generateWebfontsMock.mock.calls.length;
-        await watcherHandler({ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' });
+        await watcherHandler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
         await waitForCssReload;
 
         expect(generateWebfontsMock).toHaveBeenCalledTimes(callsBefore + 1);
@@ -930,7 +944,7 @@ describe('serve - falls back when regenerate throws', () => {
 
     it('full-regenerates and skips the normal incremental reload path', async () => {
         const callsBefore = generateWebfontsMock.mock.calls.length;
-        await watcherHandler({ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' });
+        await watcherHandler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
         await waitForCssReload;
 
         expect(generateWebfontsMock).toHaveBeenCalledTimes(callsBefore + 1);
@@ -968,7 +982,7 @@ describe('serve - writes refreshed fonts to disk when generateFiles includes fon
         // The initial build wrote the font to disk; capture it, then add an icon via the watcher.
         const before = await readFile(woff2Path);
         await writeFile(svgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><path d="M0 0h1024v1024H0z"/></svg>');
-        await watcherHandler({ path: pathJoin(webfontFolder, svgName), kind: 'added' });
+        await watcherHandler([{ path: pathJoin(webfontFolder, svgName), kind: 'added' }]);
         const after = await readFile(woff2Path);
         expect(after).not.toEqual(before);
     });

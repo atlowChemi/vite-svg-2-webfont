@@ -1,4 +1,6 @@
 import * as fs from 'node:fs/promises';
+import { join as pathJoin } from 'node:path';
+import { setTimeout } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
 import * as utils from './utils';
 
@@ -73,6 +75,7 @@ describe('utils', () => {
 
         beforeEach(() => {
             ac = new AbortController();
+            handler.mockClear();
         });
 
         it('throws error if no such folder', async () => {
@@ -86,7 +89,7 @@ describe('utils', () => {
             expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
         });
 
-        it('triggers the handler for adds and removes alike', async () => {
+        it('batches and coalesces adds and removes', async () => {
             const { watch, access } = fs;
             const event = { eventType: 'rename', filename: 'ex.svg' };
             async function* mock() {
@@ -103,7 +106,61 @@ describe('utils', () => {
             }
 
             expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
-            expect(handler).toBeCalledTimes(3);
+            expect(handler).toHaveBeenCalledExactlyOnceWith([{ path: pathJoin(folderPath, 'ex.svg'), kind: 'changed' }]);
+        });
+
+        it('batches changes for multiple svg files', async () => {
+            const { watch } = fs;
+            const events = [
+                { eventType: 'change' as const, filename: 'a.svg' },
+                { eventType: 'change' as const, filename: 'b.svg' },
+            ];
+            async function* mock() {
+                yield* events;
+            }
+            if (vi.isMockFunction(watch)) {
+                watch.mockReturnValue(mock());
+            }
+
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
+            expect(handler).toHaveBeenCalledExactlyOnceWith([
+                { path: pathJoin(folderPath, 'a.svg'), kind: 'changed' },
+                { path: pathJoin(folderPath, 'b.svg'), kind: 'changed' },
+            ]);
+        });
+
+        it('serializes async batch handlers', async () => {
+            const { watch } = fs;
+            const firstHandler = Promise.withResolvers<void>();
+            const calls: utils.WatchedChangeBatch[] = [];
+            const events = [
+                { eventType: 'change' as const, filename: 'a.svg' },
+                { eventType: 'change' as const, filename: 'b.svg' },
+            ];
+            async function* mock() {
+                yield events[0]!;
+                await setTimeout(40);
+                yield events[1]!;
+            }
+            if (vi.isMockFunction(watch)) {
+                watch.mockReturnValue(mock());
+            }
+            handler.mockImplementationOnce(async (changes: utils.WatchedChangeBatch) => {
+                calls.push(changes);
+                await firstHandler.promise;
+            });
+            handler.mockImplementationOnce((changes: utils.WatchedChangeBatch) => {
+                calls.push(changes);
+            });
+
+            const watcher = utils.setupWatcher(folderPath, ac.signal, handler);
+            await setTimeout(100);
+            expect(calls).toEqual([[{ path: pathJoin(folderPath, 'a.svg'), kind: 'changed' }]]);
+
+            firstHandler.resolve();
+            await watcher;
+
+            expect(calls).toEqual([[{ path: pathJoin(folderPath, 'a.svg'), kind: 'changed' }], [{ path: pathJoin(folderPath, 'b.svg'), kind: 'changed' }]]);
         });
     });
 
