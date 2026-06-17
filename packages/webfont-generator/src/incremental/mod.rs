@@ -171,6 +171,7 @@ impl GenerateWebfontsResult {
         }
         source_files = reordered;
         validate_glyph_names(&source_files)?;
+        options.files = ordered_paths.to_vec();
 
         // Re-resolve codepoints for the (possibly changed) set from the stable explicit base, so
         // auto-assigned codepoints match what a fresh build of the new set would produce.
