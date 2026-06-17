@@ -14,9 +14,10 @@ import type { IconPluginOptions } from './optionParser';
 const { generateWebfontsMock } = vi.hoisted(() => ({
     generateWebfontsMock: vi.fn<typeof import('@atlowchemi/webfont-generator').generateWebfonts>(),
 }));
-const { ensureDirExistsAndWriteFileMock, setupWatcherMock } = vi.hoisted(() => ({
+const { ensureDirExistsAndWriteFileMock, rmDirMock, setupWatcherMock } = vi.hoisted(() => ({
     setupWatcherMock: vi.fn<typeof import('./utils').setupWatcher>(),
     ensureDirExistsAndWriteFileMock: vi.fn<typeof import('./utils').ensureDirExistsAndWriteFile>(),
+    rmDirMock: vi.fn<typeof import('./utils').rmDir>(),
 }));
 
 vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
@@ -32,7 +33,8 @@ vi.mock('./utils', async importOriginal => {
     const actual = await importOriginal<typeof import('./utils')>();
     setupWatcherMock.mockImplementation(actual.setupWatcher);
     ensureDirExistsAndWriteFileMock.mockImplementation(actual.ensureDirExistsAndWriteFile);
-    return { ...actual, setupWatcher: setupWatcherMock, ensureDirExistsAndWriteFile: ensureDirExistsAndWriteFileMock };
+    rmDirMock.mockImplementation(actual.rmDir);
+    return { ...actual, setupWatcher: setupWatcherMock, ensureDirExistsAndWriteFile: ensureDirExistsAndWriteFileMock, rmDir: rmDirMock };
 });
 
 type ViteBuildResult = Awaited<ReturnType<typeof build>>;
@@ -1006,6 +1008,30 @@ describe('build - throws when generator omits a requested font type', () => {
                 plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2', 'ttf'] })],
             }),
         ).rejects.toThrow(/Failed to generate font of type woff2/);
+    });
+});
+
+describe('serve - releases retained watch state on close', () => {
+    it('aborts the watcher signal and removes the temp directory', async () => {
+        let watchSignal: AbortSignal | undefined;
+        const rmDirCallsBefore = rmDirMock.mock.calls.length;
+        setupWatcherMock.mockImplementationOnce(async (_path, signal) => {
+            watchSignal = signal;
+        });
+
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+        const server = await created.listen();
+
+        expect(watchSignal?.aborted).toBe(false);
+        await server.close();
+
+        expect(watchSignal?.aborted).toBe(true);
+        expect(rmDirMock.mock.calls.length).toBe(rmDirCallsBefore + 1);
     });
 });
 

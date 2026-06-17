@@ -44,7 +44,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type));
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
-    let _moduleGraph: ModuleGraph;
+    let _moduleGraph: ModuleGraph | undefined;
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
     let generatedFonts: GenerateWebfontsResult<T> | undefined;
     const generatedWebfonts: GeneratedWebfont[] = [];
@@ -289,6 +289,10 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         buildEnd() {
             ac.abort();
             rmDir(tmpDir);
+            generatedFonts = undefined;
+            fileRefs = undefined;
+            _moduleGraph = undefined;
+            _reloadModule = undefined;
         },
     };
 }
