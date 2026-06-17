@@ -721,16 +721,22 @@ impl GenerateWebfontsResult {
     /// fresh build would use (e.g. the glob result) — the rebuilt glyphs are ordered to match it,
     /// so the output bytes are identical to a fresh `generateWebfonts` of that set. `changes`
     /// describes the affected files: added/changed files are re-read from disk; any file absent
-    /// from `files` is dropped. Every requested format is refreshed in memory, and — like
-    /// `generateWebfonts` — when the result was built with `writeFiles` enabled the refreshed
-    /// fonts are written to disk too, while CSS/HTML companion files are skipped if their rendered
-    /// bytes are unchanged since the last write.
+    /// from `files` is dropped. Omit `changes` to re-read/hash every current file and infer
+    /// added/changed/removed paths from `files`. Every requested format is refreshed in memory,
+    /// and — like `generateWebfonts` — when the result was built with `writeFiles` enabled the
+    /// refreshed fonts are written to disk too, while CSS/HTML companion files are skipped if their
+    /// rendered bytes are unchanged since the last write.
     #[napi(js_name = "regenerate")]
     pub fn regenerate_from_js(
         &mut self,
         files: Vec<String>,
-        changes: Vec<GlyphChangeEntry>,
+        changes: Option<Vec<GlyphChangeEntry>>,
     ) -> napi::Result<()> {
+        let Some(changes) = changes else {
+            return self
+                .regenerate_all(&files)
+                .map_err(crate::util::to_napi_err);
+        };
         let changes = changes
             .into_iter()
             .map(|entry| {

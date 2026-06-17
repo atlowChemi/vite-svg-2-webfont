@@ -313,6 +313,11 @@ fn bench_regenerate(c: &mut Criterion) {
                     .unwrap()
             })
         });
+        let mut rediff_noop_result =
+            webfont_generator::generate_sync(options(fixture.paths.clone(), true), None).unwrap();
+        group.bench_function(format!("rediff_noop/{size}"), |b| {
+            b.iter(|| rediff_noop_result.regenerate_all(&fixture.paths).unwrap())
+        });
 
         group.bench_function(format!("full_content_edit/{size}"), |b| {
             b.iter_batched(
@@ -351,6 +356,24 @@ fn bench_regenerate(c: &mut Criterion) {
                         )
                         .unwrap()
                 },
+                BatchSize::SmallInput,
+            )
+        });
+
+        group.bench_function(format!("rediff_content_edit/{size}"), |b| {
+            b.iter_batched(
+                || {
+                    let fixture = fixtures(size);
+                    let result = webfont_generator::generate_sync(
+                        options(fixture.paths.clone(), true),
+                        None,
+                    )
+                    .unwrap();
+                    let changed = fixture.paths[size / 2].clone();
+                    std::fs::write(&changed, svg(&changed_path_data())).unwrap();
+                    (fixture, result)
+                },
+                |(fixture, mut result)| result.regenerate_all(&fixture.paths).unwrap(),
                 BatchSize::SmallInput,
             )
         });

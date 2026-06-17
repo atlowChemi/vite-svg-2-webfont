@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::Path;
 
@@ -170,6 +171,7 @@ impl GenerateWebfontsResult {
         }
         source_files = reordered;
         validate_glyph_names(&source_files)?;
+        options.files = ordered_paths.to_vec();
 
         // Re-resolve codepoints for the (possibly changed) set from the stable explicit base, so
         // auto-assigned codepoints match what a fresh build of the new set would produce.
@@ -198,6 +200,45 @@ impl GenerateWebfontsResult {
             write_generate_webfonts_result_sync(self)?;
         }
         Ok(())
+    }
+
+    /// Rebuild after re-diffing the complete ordered file set against the retained incremental
+    /// cache. This is useful when the caller has a fresh file list but not a reliable watcher
+    /// change batch: every current path is re-read and hashed, missing prior paths are treated as
+    /// removed, new paths as added, and paths whose content hash changed as changed. Existing glyph
+    /// names are preserved; added paths derive their glyph name from the file stem.
+    pub fn regenerate_all(&mut self, ordered_paths: &[String]) -> std::io::Result<()> {
+        let cache = self.glyph_cache.as_ref().ok_or_else(|| {
+            std::io::Error::new(
+                ErrorKind::InvalidInput,
+                "regenerate requires the font to be generated with `incremental` enabled.",
+            )
+        })?;
+        let ordered_set: HashSet<&str> = ordered_paths.iter().map(String::as_str).collect();
+        let mut previous_paths = HashSet::with_capacity(self.source_files.len());
+        let mut changes = Vec::new();
+
+        for source_file in &self.source_files {
+            previous_paths.insert(source_file.path.as_str());
+            if !ordered_set.contains(source_file.path.as_str()) {
+                changes.push((source_file.path.clone(), GlyphChange::Removed));
+            }
+        }
+
+        for path in ordered_paths {
+            if !previous_paths.contains(path.as_str()) {
+                changes.push((path.clone(), GlyphChange::Added { name: None }));
+                continue;
+            }
+
+            let contents = std::fs::read_to_string(path)?;
+            let hash = source_content_hash(&contents);
+            if cache.content_hashes.get(path) != Some(&hash) {
+                changes.push((path.clone(), GlyphChange::Changed { name: None }));
+            }
+        }
+
+        self.regenerate(ordered_paths, &changes)
     }
 }
 

@@ -553,6 +553,10 @@ function assertSameFonts(actual: Awaited<ReturnType<typeof generateWebfonts>>, e
     expect(actual.woff2).toEqual(expected.woff2);
 }
 
+function assertSameDefaultCss(actual: Awaited<ReturnType<typeof generateWebfonts>>, expected: Awaited<ReturnType<typeof generateWebfonts>>) {
+    expect(actual.generateCss()).toBe(expected.generateCss());
+}
+
 describe('regenerate (incremental)', () => {
     it('matches a fresh build after a content change', async () => {
         const dir = await createTempDir('regen-change-');
@@ -573,7 +577,9 @@ describe('regenerate (incremental)', () => {
         const c = await writeRegenIcon(dir, 'c', 'c');
         result.regenerate([a, b, c], [{ path: c, changeType: 'added' }]);
 
-        assertSameFonts(result, await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
+        const fresh = await generateWebfonts(regenBaseOpts(dir, [a, b, c]));
+        assertSameFonts(result, fresh);
+        assertSameDefaultCss(result, fresh);
     });
 
     it('matches a fresh build after adding a file that sorts before existing glyphs', async () => {
@@ -595,7 +601,36 @@ describe('regenerate (incremental)', () => {
 
         result.regenerate([a, c], [{ path: b, changeType: 'removed' }]);
 
-        assertSameFonts(result, await generateWebfonts(regenBaseOpts(dir, [a, c])));
+        const fresh = await generateWebfonts(regenBaseOpts(dir, [a, c]));
+        assertSameFonts(result, fresh);
+        assertSameDefaultCss(result, fresh);
+    });
+
+    it('matches a fresh build after re-diffing omitted changes', async () => {
+        const dir = await createTempDir('regen-rediff-');
+        const [a, b] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b')]);
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b]), incremental: true });
+
+        await writeFile(b, regenIcon(REGEN_PATHS.changed));
+        const c = await writeRegenIcon(dir, 'c', 'c');
+        result.regenerate([a, b, c]);
+
+        const fresh = await generateWebfonts(regenBaseOpts(dir, [a, b, c]));
+        assertSameFonts(result, fresh);
+        assertSameDefaultCss(result, fresh);
+    });
+
+    it('matches a fresh build after re-diffing null changes', async () => {
+        const dir = await createTempDir('regen-rediff-null-');
+        const [a, b, c] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b'), writeRegenIcon(dir, 'c', 'c')]);
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b, c]), incremental: true });
+
+        await writeFile(c, regenIcon(REGEN_PATHS.changed));
+        result.regenerate([a, c], null);
+
+        const fresh = await generateWebfonts(regenBaseOpts(dir, [a, c]));
+        assertSameFonts(result, fresh);
+        assertSameDefaultCss(result, fresh);
     });
 
     it('reuses the CSS render on a content edit and re-renders on rename', async () => {
