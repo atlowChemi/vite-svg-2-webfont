@@ -179,6 +179,62 @@ fn regenerate_after_remove_matches_fresh() {
 }
 
 #[test]
+fn regenerate_all_after_content_change_matches_fresh() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let c = write_icon(&dir, "c", D3);
+
+    let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
+    write_icon(&dir, "b", D_CHANGED);
+    result
+        .regenerate_all(&[a.clone(), b.clone(), c.clone()])
+        .unwrap();
+
+    assert_same(&result, &generate(vec![a, b, c], false));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_all_after_add_and_remove_matches_fresh() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let c = write_icon(&dir, "c", D3);
+
+    let mut result = generate(vec![a.clone(), b], true);
+    result.regenerate_all(&[a.clone(), c.clone()]).unwrap();
+
+    assert_same(&result, &generate(vec![a, c], false));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_all_noop_returns_before_parsing() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let mut result = generate(vec![a.clone(), b.clone()], true);
+    let before = result.glyph_cache.as_ref().unwrap().parse_count;
+
+    result.regenerate_all(&[a, b]).unwrap();
+
+    assert_eq!(result.glyph_cache.as_ref().unwrap().parse_count, before);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_all_without_incremental_errors() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let mut result = generate(vec![a.clone()], false);
+    let error = result.regenerate_all(&[a]).unwrap_err();
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn regenerate_without_incremental_errors() {
     let dir = temp_dir();
     let a = write_icon(&dir, "a", D1);

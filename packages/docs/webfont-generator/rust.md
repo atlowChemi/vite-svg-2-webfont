@@ -187,9 +187,10 @@ Both methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter
 
 ### Incremental rebuild
 
-| Method                               | Return type      | Description                                          |
-| ------------------------------------ | ---------------- | ---------------------------------------------------- |
-| `regenerate(ordered_paths, changes)` | `io::Result<()>` | Rebuild after file changes, reusing unchanged glyphs |
+| Method                               | Return type      | Description                                                          |
+| ------------------------------------ | ---------------- | -------------------------------------------------------------------- |
+| `regenerate(ordered_paths, changes)` | `io::Result<()>` | Rebuild after known file changes, reusing unchanged glyphs           |
+| `regenerate_all(ordered_paths)`      | `io::Result<()>` | Re-read/hash the full file set and infer added/changed/removed paths |
 
 Requires the result to have been generated with `incremental: Some(true)` (errors otherwise).
 `ordered_paths: &[String]` is the complete file set after the changes, in the order a fresh build
@@ -199,14 +200,16 @@ existing glyphs. Any path absent from `ordered_paths` is dropped. `changes: &[(S
 names the affected files: added/changed files are re-read from disk. Every format is refreshed in
 memory, and — when the result was built with `write_files` — refreshed fonts are written to disk
 too, while unchanged CSS/HTML companion files are skipped. Rendered
-CSS/HTML is reused when glyph names and codepoints are unchanged.
+CSS/HTML is reused when glyph names and codepoints are unchanged. Use `regenerate_all` when you have
+the fresh ordered file set but no reliable watcher change batch; existing glyph names are preserved,
+and added paths derive their glyph name from the file stem.
 
 For Node.js results, `regenerate()` errors if the initial build used `cssContext` or `htmlContext`
 callbacks because the synchronous method cannot re-run JavaScript callbacks during the rebuild.
 
 ```rust
 pub enum GlyphChange {
-    Added { name: String },           // new file; `name` is the resolved glyph name
+    Added { name: Option<String> },   // new file; `name` overrides the file-stem glyph name
     Changed { name: Option<String> }, // content changed; `name` overrides the glyph name
     Removed,                          // file deleted
 }
@@ -214,6 +217,8 @@ pub enum GlyphChange {
 // result built with `incremental: Some(true)`
 let files = vec!["icons/add.svg".to_owned(), "icons/remove.svg".to_owned()];
 result.regenerate(&files, &[("icons/add.svg".to_owned(), GlyphChange::Changed { name: None })])?;
+// Or re-diff the full set when watcher hints are unavailable/untrusted:
+result.regenerate_all(&files)?;
 ```
 
 ## Full API reference

@@ -21,7 +21,7 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 - `formatOptions` is now strictly typed as `{ svg?: SvgFormatOptions; ttf?: TtfFormatOptions; woff?: WoffFormatOptions; woff2?: Woff2FormatOptions }`. The original accepted arbitrary `{ [format]: unknown }`; the `eot` key is no longer accepted (EOT is derived from the TTF output).
 - A new `optimizeOutput` option runs an SVG path optimizer over each glyph before assembling the font. Defaults to `false`; opt in for smaller output bytes at a small build-time cost. Also available as `formatOptions.svg.optimizeOutput`.
 - `formatOptions.woff2.compressionQuality` sets the Brotli compression quality (0–11) for WOFF2 output. Defaults to `11` (smallest output); lower it (e.g. to `10`) for faster encoding at a marginal size cost.
-- A new `incremental` option (default `false`) retains parsed glyph data on the result so `result.regenerate(files, changes)` can rebuild after file changes without re-parsing the glyphs that didn't change — for dev/watch rebuilds. It refreshes the outputs in memory and, when the result was generated with `writeFiles`, writes refreshed fonts to disk too while skipping unchanged CSS/HTML companion files. You pass the full file set (in the order a fresh build would use) plus what changed; the result is byte-identical to a fresh `generateWebfonts()` of that set, additions included.
+- A new `incremental` option (default `false`) retains parsed glyph data on the result so `result.regenerate(files, changes?)` can rebuild after file changes without re-parsing the glyphs that didn't change — for dev/watch rebuilds. It refreshes the outputs in memory and, when the result was generated with `writeFiles`, writes refreshed fonts to disk too while skipping unchanged CSS/HTML companion files. You pass the full file set (in the order a fresh build would use) plus what changed, or omit `changes` to re-read/hash the full set and infer changes; the result is byte-identical to a fresh `generateWebfonts()` of that set, additions included.
 - Generated font binaries (TTF, WOFF, etc.) may differ at the byte level because a different encoder is used, but the fonts are equally valid.
 - CSS, HTML, and template output is identical.
 
@@ -36,10 +36,12 @@ const result = await generateWebfonts({ files, dest, fontName: 'my-icons', incre
 // On a watch event, rebuild reusing cached geometry for unchanged glyphs. Pass the full file set
 // (in fresh-build order) so additions land in the right position, plus what changed:
 result.regenerate(files, [{ path: './icons/home.svg', changeType: 'changed' }]);
+// Or omit changes when watcher hints are unavailable/untrusted:
+result.regenerate(files);
 result.woff2; // refreshed bytes
 ```
 
-The first argument is the complete file set after the change, in the order a fresh build would use (e.g. your glob result) — any file omitted from it is dropped. Each change is `{ path, changeType: 'added' | 'changed' | 'removed', name? }`, where `name` is the resolved glyph name if you apply a custom rename; otherwise added files derive their name from the file stem, changed files keep their current name, and removed files ignore it. Results generated with `cssContext` or `htmlContext` callbacks cannot be regenerated because those JavaScript callbacks cannot be re-run by the synchronous method.
+The first argument is the complete file set after the change, in the order a fresh build would use (e.g. your glob result) — any file omitted from it is dropped. Each change is `{ path, changeType: 'added' | 'changed' | 'removed', name? }`, where `name` is the resolved glyph name if you apply a custom rename; otherwise added files derive their name from the file stem, changed files keep their current name, and removed files ignore it. When `changes` is omitted or `null`, every current file is re-read and hashed to detect added/changed/removed paths automatically. Results generated with `cssContext` or `htmlContext` callbacks cannot be regenerated because those JavaScript callbacks cannot be re-run by the synchronous method.
 
 ## Node.js (npm)
 

@@ -340,12 +340,18 @@ describe.each([100, 300, 600])('changed event with unchanged contents — %i gly
 
 const contentEditFiles = new Map<number, string[]>();
 const contentEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+const rediffContentEditFiles = new Map<number, string[]>();
+const rediffContentEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
 await Promise.all(
     [100, 300, 600].map(async numGlyphs => {
         const files = await makeNEditableFiles(1, numGlyphs, 'regen-content');
         const result = await generateWebfonts(baseOpts(files, { incremental: true, ...DEV_FORMAT }));
+        const rediffFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-rediff');
+        const rediffResult = await generateWebfonts(baseOpts(rediffFiles, { incremental: true, ...DEV_FORMAT }));
         contentEditFiles.set(numGlyphs, files);
         contentEditResults.set(numGlyphs, result);
+        rediffContentEditFiles.set(numGlyphs, rediffFiles);
+        rediffContentEditResults.set(numGlyphs, rediffResult);
     }),
 );
 
@@ -354,8 +360,11 @@ describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyph
     const opts = baseOpts(files, DEV_FORMAT);
     const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const result = contentEditResults.get(numGlyphs)!;
+    const rediffFiles = rediffContentEditFiles.get(numGlyphs)!;
+    const rediffResult = rediffContentEditResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
     let toggle = false;
+    let rediffToggle = false;
 
     bench('upstream — full regen', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
     bench('new core — full regen (legacy)', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
@@ -365,6 +374,15 @@ describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyph
             toggle = !toggle;
             writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
             expect(result.regenerate(files, change)).toBeUndefined();
+        },
+        benchOpts,
+    );
+    bench(
+        'new core — incremental regenerate rediff',
+        () => {
+            rediffToggle = !rediffToggle;
+            writeFileSync(rediffFiles[0]!, rediffToggle ? EDIT_SVG_B : EDIT_SVG_A);
+            expect(rediffResult.regenerate(rediffFiles)).toBeUndefined();
         },
         benchOpts,
     );
