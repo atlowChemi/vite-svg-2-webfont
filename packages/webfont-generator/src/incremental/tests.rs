@@ -192,6 +192,33 @@ fn regenerate_without_incremental_errors() {
 }
 
 #[test]
+fn non_incremental_results_do_not_retain_glyph_cache() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let result = generate(vec![a], false);
+
+    assert!(
+        result.glyph_cache.is_none(),
+        "one-shot builds must not retain parsed glyph geometry"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn incremental_results_seed_glyph_cache_for_active_files() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let result = generate(vec![a, b], true);
+    let cache = result.glyph_cache.as_ref().unwrap();
+
+    assert_eq!(cache.entries.len(), 2);
+    assert_eq!(cache.content_hashes.len(), 2);
+    assert_eq!(cache.by_content_hash.len(), 2);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn regenerate_noop_changed_event_returns_before_parsing() {
     let dir = temp_dir();
     let a = write_icon(&dir, "a", D1);
@@ -241,6 +268,68 @@ fn regenerate_added_duplicate_reuses_content_addressed_cache() {
         "added files with SVG bytes already in the cache should not be parsed again"
     );
     assert_same(&result, &generate(vec![a, b, c], false));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_remove_prunes_inactive_cache_entries() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let c = write_icon(&dir, "c", D3);
+    let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
+
+    result
+        .regenerate(&[a.clone(), c.clone()], &[(b, GlyphChange::Removed)])
+        .unwrap();
+
+    let cache = result.glyph_cache.as_ref().unwrap();
+    assert_eq!(cache.entries.len(), 2);
+    assert_eq!(cache.content_hashes.len(), 2);
+    assert_eq!(cache.by_content_hash.len(), 2);
+    assert!(cache.entries.contains_key(&a));
+    assert!(cache.entries.contains_key(&c));
+    assert_same(&result, &generate(vec![a, c], false));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_add_remove_cycles_do_not_grow_cache() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let mut result = generate(vec![a.clone(), b.clone()], true);
+
+    for index in 0..5 {
+        let name = format!("extra-{index}");
+        let path_data = format!("M{index} {index} L24 0 L24 24 Z");
+        let extra = write_icon(&dir, &name, &path_data);
+        let with_extra = vec![a.clone(), b.clone(), extra.clone()];
+        result
+            .regenerate(
+                &with_extra,
+                &[(extra.clone(), GlyphChange::Added { name: None })],
+            )
+            .unwrap();
+
+        let cache = result.glyph_cache.as_ref().unwrap();
+        assert_eq!(cache.entries.len(), 3);
+        assert_eq!(cache.content_hashes.len(), 3);
+        assert_eq!(cache.by_content_hash.len(), 3);
+
+        result
+            .regenerate(&[a.clone(), b.clone()], &[(extra, GlyphChange::Removed)])
+            .unwrap();
+
+        let cache = result.glyph_cache.as_ref().unwrap();
+        assert_eq!(cache.entries.len(), 2);
+        assert_eq!(cache.content_hashes.len(), 2);
+        assert_eq!(cache.by_content_hash.len(), 2);
+        assert!(cache.entries.contains_key(&a));
+        assert!(cache.entries.contains_key(&b));
+    }
+
+    assert_same(&result, &generate(vec![a, b], false));
     std::fs::remove_dir_all(&dir).ok();
 }
 
