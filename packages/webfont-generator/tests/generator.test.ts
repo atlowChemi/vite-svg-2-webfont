@@ -544,17 +544,35 @@ const regenBaseOpts = (dir: string, files: string[]): GenerateWebfontsInputOptio
 
 // Normalize to a plain Uint8Array so a Node Buffer from `readFile` compares equal to a font getter.
 const toBytes = (value: Uint8Array) => Uint8Array.from(value);
+const isFontByteEqual = (a: Uint8Array, b: Uint8Array) => toBytes(a).toString() === toBytes(b).toString();
 
-function assertSameFonts(actual: Awaited<ReturnType<typeof generateWebfonts>>, expected: Awaited<ReturnType<typeof generateWebfonts>>) {
-    expect(actual.svg).toBe(expected.svg);
-    expect(actual.ttf).toEqual(expected.ttf);
-    expect(actual.eot).toEqual(expected.eot);
-    expect(actual.woff).toEqual(expected.woff);
-    expect(actual.woff2).toEqual(expected.woff2);
-}
+expect.extend({
+    toEqualFont(received: Awaited<ReturnType<typeof generateWebfonts>>, expected: Awaited<ReturnType<typeof generateWebfonts>>) {
+        const isSvgEqual = received.svg === expected.svg;
+        const isTtfEqual = isFontByteEqual(received.ttf, expected.ttf);
+        const isEotEqual = isFontByteEqual(received.eot, expected.eot);
+        const isWoffEqual = isFontByteEqual(received.woff, expected.woff);
+        const isWoff2Equal = isFontByteEqual(received.woff2, expected.woff2);
+        const pass = isSvgEqual && isTtfEqual && isEotEqual && isWoffEqual && isWoff2Equal;
+        return {
+            pass,
+            message: () => `expected ${pass ? 'not ' : ''}to equal font bytes`,
+        };
+    },
+    toEqualCss(received: Awaited<ReturnType<typeof generateWebfonts>>, expected: Awaited<ReturnType<typeof generateWebfonts>>) {
+        const pass = received.generateCss() === expected.generateCss();
+        return {
+            pass,
+            message: () => `expected ${pass ? 'not ' : ''}to equal generated CSS`,
+        };
+    },
+});
 
-function assertSameDefaultCss(actual: Awaited<ReturnType<typeof generateWebfonts>>, expected: Awaited<ReturnType<typeof generateWebfonts>>) {
-    expect(actual.generateCss()).toBe(expected.generateCss());
+declare module 'vite-plus/test' {
+    interface Matchers<T = any> {
+        toEqualFont(expected: Awaited<ReturnType<typeof generateWebfonts>>): ReturnType<typeof expect.extend>;
+        toEqualCss(expected: Awaited<ReturnType<typeof generateWebfonts>>): ReturnType<typeof expect.extend>;
+    }
 }
 
 describe('regenerate (incremental)', () => {
@@ -566,7 +584,7 @@ describe('regenerate (incremental)', () => {
         await writeFile(b, regenIcon(REGEN_PATHS.changed));
         result.regenerate([a, b, c], [{ path: b, changeType: 'changed' }]);
 
-        assertSameFonts(result, await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
+        expect(result).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
     });
 
     it('matches a fresh build after adding a file', async () => {
@@ -578,8 +596,8 @@ describe('regenerate (incremental)', () => {
         result.regenerate([a, b, c], [{ path: c, changeType: 'added' }]);
 
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, b, c]));
-        assertSameFonts(result, fresh);
-        assertSameDefaultCss(result, fresh);
+        expect(result).toEqualFont(fresh);
+        expect(result).toEqualCss(fresh);
     });
 
     it('matches a fresh build after adding a file that sorts before existing glyphs', async () => {
@@ -591,7 +609,7 @@ describe('regenerate (incremental)', () => {
         // The fresh-build order is [a, b, c]; passing it ensures the addition lands first, not at the tail.
         result.regenerate([a, b, c], [{ path: a, changeType: 'added' }]);
 
-        assertSameFonts(result, await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
+        expect(result).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
     });
 
     it('matches a fresh build after removing a file', async () => {
@@ -602,8 +620,8 @@ describe('regenerate (incremental)', () => {
         result.regenerate([a, c], [{ path: b, changeType: 'removed' }]);
 
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, c]));
-        assertSameFonts(result, fresh);
-        assertSameDefaultCss(result, fresh);
+        expect(result).toEqualFont(fresh);
+        expect(result).toEqualCss(fresh);
     });
 
     it('matches a fresh build after re-diffing omitted changes', async () => {
@@ -616,8 +634,8 @@ describe('regenerate (incremental)', () => {
         result.regenerate([a, b, c]);
 
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, b, c]));
-        assertSameFonts(result, fresh);
-        assertSameDefaultCss(result, fresh);
+        expect(result).toEqualFont(fresh);
+        expect(result).toEqualCss(fresh);
     });
 
     it('matches a fresh build after re-diffing null changes', async () => {
@@ -629,8 +647,8 @@ describe('regenerate (incremental)', () => {
         result.regenerate([a, c], null);
 
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, c]));
-        assertSameFonts(result, fresh);
-        assertSameDefaultCss(result, fresh);
+        expect(result).toEqualFont(fresh);
+        expect(result).toEqualCss(fresh);
     });
 
     it('reuses the CSS render on a content edit and re-renders on rename', async () => {
