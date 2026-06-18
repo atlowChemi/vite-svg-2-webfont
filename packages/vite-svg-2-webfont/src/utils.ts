@@ -87,14 +87,11 @@ export async function setupWatcher(folderPath: string, signal: AbortSignal, onCh
     };
 
     const scheduleFlush = () => {
-        flushChain = flushChain
-            .catch(() => undefined)
-            .then(flush)
-            .catch(() => undefined);
+        flushChain = flushChain.then(flush).catch(() => undefined);
     };
 
     const drain = async () => {
-        await flushChain.catch(() => undefined);
+        await flushChain;
         await flush().catch(() => undefined);
     };
 
@@ -144,7 +141,7 @@ export function getTmpDir(): string {
 }
 
 export function rmDir(path: string): void {
-    fsRm(path, { force: true, recursive: true }, () => {});
+    fsRm(path, { force: true, recursive: true }, /* v8 ignore next -- best-effort temp cleanup callback has no observable behavior */ () => {});
 }
 
 export function base64ToArrayBuffer(base64: string): ArrayBuffer {

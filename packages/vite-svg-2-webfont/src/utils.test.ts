@@ -129,6 +129,40 @@ describe('utils', () => {
             ]);
         });
 
+        it('keeps a newly added svg as added when it changes in the same batch', async () => {
+            const { watch } = fs;
+            const events = [
+                { eventType: 'rename' as const, filename: 'a.svg' },
+                { eventType: 'change' as const, filename: 'a.svg' },
+            ];
+            async function* mock() {
+                yield* events;
+            }
+            if (vi.isMockFunction(watch)) {
+                watch.mockReturnValue(mock());
+            }
+
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
+            expect(handler).toHaveBeenCalledExactlyOnceWith([{ path: pathJoin(folderPath, 'a.svg'), kind: 'added' }]);
+        });
+
+        it('keeps the latest change when no special coalescing applies', async () => {
+            const { watch } = fs;
+            const events = [
+                { eventType: 'change' as const, filename: 'a.svg' },
+                { eventType: 'change' as const, filename: 'a.svg' },
+            ];
+            async function* mock() {
+                yield* events;
+            }
+            if (vi.isMockFunction(watch)) {
+                watch.mockReturnValue(mock());
+            }
+
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
+            expect(handler).toHaveBeenCalledExactlyOnceWith([{ path: pathJoin(folderPath, 'a.svg'), kind: 'changed' }]);
+        });
+
         it('serializes async batch handlers', async () => {
             const { watch } = fs;
             const firstHandler = Promise.withResolvers<void>();
@@ -161,6 +195,63 @@ describe('utils', () => {
             await watcher;
 
             expect(calls).toEqual([[{ path: pathJoin(folderPath, 'a.svg'), kind: 'changed' }], [{ path: pathJoin(folderPath, 'b.svg'), kind: 'changed' }]]);
+        });
+
+        it('continues flushing later batches after a scheduled handler rejection', async () => {
+            const { watch } = fs;
+            const calls: utils.WatchedChangeBatch[] = [];
+            const events = [
+                { eventType: 'change' as const, filename: 'a.svg' },
+                { eventType: 'change' as const, filename: 'b.svg' },
+            ];
+            async function* mock() {
+                yield events[0]!;
+                await setTimeout(40);
+                yield events[1]!;
+            }
+            if (vi.isMockFunction(watch)) {
+                watch.mockReturnValue(mock());
+            }
+            handler.mockImplementationOnce((changes: utils.WatchedChangeBatch) => {
+                calls.push(changes);
+                throw new Error('intentional batch failure');
+            });
+            handler.mockImplementationOnce((changes: utils.WatchedChangeBatch) => {
+                calls.push(changes);
+            });
+
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
+            expect(calls).toEqual([[{ path: pathJoin(folderPath, 'a.svg'), kind: 'changed' }], [{ path: pathJoin(folderPath, 'b.svg'), kind: 'changed' }]]);
+        });
+
+        it('swallows a final drain rejection after the watcher closes', async () => {
+            const { watch } = fs;
+            const event = { eventType: 'change' as const, filename: 'a.svg' };
+            async function* mock() {
+                yield event;
+            }
+            if (vi.isMockFunction(watch)) {
+                watch.mockReturnValue(mock());
+            }
+            handler.mockRejectedValueOnce(new Error('intentional drain failure'));
+
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
+            expect(handler).toHaveBeenCalledExactlyOnceWith([{ path: pathJoin(folderPath, 'a.svg'), kind: 'changed' }]);
+        });
+
+        it('does not propagate watch event classification errors', async () => {
+            const { watch } = fs;
+            const validEvent = { eventType: 'change' as const, filename: 'a.svg' };
+            async function* mock() {
+                yield { eventType: 'change' as const, filename: { endsWith: true } } as never;
+                yield validEvent;
+            }
+            if (vi.isMockFunction(watch)) {
+                watch.mockReturnValue(mock());
+            }
+
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
+            expect(handler).toHaveBeenCalledExactlyOnceWith([{ path: pathJoin(folderPath, 'a.svg'), kind: 'changed' }]);
         });
     });
 

@@ -861,6 +861,16 @@ describe('serve - skips unchanged dev css/html writes', () => {
 
         expect(ensureDirExistsAndWriteFileMock).toHaveBeenCalledTimes(writesBefore);
     });
+
+    it('ignores empty watcher batches', async () => {
+        const generateCallsBefore = generateWebfontsMock.mock.calls.length;
+        const writesBefore = ensureDirExistsAndWriteFileMock.mock.calls.length;
+
+        await watcherHandler([]);
+
+        expect(generateWebfontsMock).toHaveBeenCalledTimes(generateCallsBefore);
+        expect(ensureDirExistsAndWriteFileMock).toHaveBeenCalledTimes(writesBefore);
+    });
 });
 
 describe('serve - falls back to full regenerate when incremental is unavailable', () => {
@@ -1032,6 +1042,21 @@ describe('serve - releases retained watch state on close', () => {
 
         expect(watchSignal?.aborted).toBe(true);
         expect(rmDirMock.mock.calls.length).toBe(rmDirCallsBefore + 1);
+    });
+
+    it('does not fail server startup when watcher setup rejects', async () => {
+        setupWatcherMock.mockRejectedValueOnce(new Error('intentional watcher setup failure'));
+
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+        const server = await created.listen();
+        await server.close();
+
+        expect(setupWatcherMock).toHaveBeenCalled();
     });
 });
 
