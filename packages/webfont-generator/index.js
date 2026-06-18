@@ -5,7 +5,7 @@ const UPSTREAM_TTF_COMPAT_TS = 1_484_141_760_000;
 
 function coerceCodepoints(codepoints) {
     if (!codepoints) return undefined;
-    return Object.fromEntries(Object.entries(codepoints).map(([name, value]) => [name, String.fromCharCode(value).codePointAt(0) ?? 0]));
+    return Object.fromEntries(Object.entries(codepoints).map(([name, value]) => [name, String.fromCharCode(value).codePointAt(0)]));
 }
 
 async function generateWebfonts(options) {
