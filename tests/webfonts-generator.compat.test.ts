@@ -374,10 +374,24 @@ async function readDestFile(dest: string, fileName: string): Promise<Buffer> {
     return await readFile(join(dest, fileName));
 }
 
-async function expectNonEmptyFile(dest: string, fileName: string): Promise<void> {
-    const filePath = join(dest, fileName);
-    const fileStat = await stat(filePath);
-    expect(fileStat.size).toBeGreaterThan(0);
+expect.extend({
+    toNotBeEmptyFile: async (dest: string, fileName: string) => {
+        const filePath = join(dest, fileName);
+        const message = () => `Expected file "${filePath}" to be empty, but it is not.`;
+        try {
+            const fileStat = await stat(filePath);
+            if (fileStat.size > 0) {
+                return { pass: true, message };
+            }
+        } catch {}
+        return { pass: false, message };
+    },
+});
+
+declare module 'vite-plus/test' {
+    interface Matchers<T = any> {
+        toNotBeEmptyFile(expected: string): Promise<void>;
+    }
 }
 
 async function createScssWorkspace(): Promise<{
@@ -417,7 +431,6 @@ function compileCompatScss(filePath: string) {
 }
 
 for (const target of targets) {
-    // oxlint-disable-next-line jest/valid-describe-callback
     describe(`compat:webfonts-generator:${target.name}`, { skip: !target.enabled }, () => {
         it('generates all fonts and css files', async () => {
             const dest = await createTempDir('__webfonts-compat-');
@@ -429,7 +442,7 @@ for (const target of targets) {
                 generatedTypes.map(async type => {
                     const fileName = `${fontName}.${type}`;
                     expect(destFiles).toContain(fileName);
-                    await expectNonEmptyFile(dest, fileName);
+                    await expect(dest).toNotBeEmptyFile(fileName);
 
                     if (type !== 'svg') {
                         const buffer = await readDestFile(dest, fileName);
@@ -439,7 +452,7 @@ for (const target of targets) {
                 }),
             );
 
-            await expectNonEmptyFile(dest, `${fontName}.css`);
+            await expect(dest).toNotBeEmptyFile(`${fontName}.css`);
             await expect(stat(join(dest, `${fontName}.html`))).rejects.toThrow();
         });
 
@@ -507,7 +520,7 @@ for (const target of targets) {
             const dest = await createTempDir('__webfonts-compat-');
             await run(target, baseOptions(dest, { html: true }));
 
-            await expectNonEmptyFile(dest, `${fontName}.html`);
+            await expect(dest).toNotBeEmptyFile(`${fontName}.html`);
         });
 
         it('is deterministic across repeated runs for default outputs and helpers', async () => {

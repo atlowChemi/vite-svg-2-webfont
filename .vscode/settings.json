@@ -7,5 +7,17 @@
         "source.fixAll.oxc": "explicit"
     },
     "rust-analyzer.linkedProjects": ["packages/webfont-generator/Cargo.toml"],
-    "rust-analyzer.cargo.features": ["cli", "napi", "bench"]
+    "rust-analyzer.cargo.features": ["cli", "napi", "bench"],
+    "[javascript]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    },
+    "[javascriptreact]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    },
+    "[typescript]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode"
+    }
 }
