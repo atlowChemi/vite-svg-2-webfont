@@ -188,12 +188,12 @@ impl GenerateWebfontsResult {
             .iter()
             .map(|file| file.glyph_name.as_str())
             .eq(prev_names.iter().map(String::as_str));
-        let reuse_renders = names_unchanged && options.codepoints == prev_codepoints;
+        let codepoints_unchanged = options.codepoints == prev_codepoints;
         self.source_files = source_files;
         self.options = options;
         self.fonts = fonts;
         self.glyph_cache = Some(cache);
-        self.reset_render_cache(reuse_renders);
+        self.reset_render_cache(names_unchanged, codepoints_unchanged);
 
         // Match `generate`'s write behavior: refresh font files, and skip unchanged CSS/HTML.
         if self.options.write_files {

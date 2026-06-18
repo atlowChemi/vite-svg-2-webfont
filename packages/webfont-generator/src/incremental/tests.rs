@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use crate::test_helpers::write_temp_template;
 use crate::types::{FontType, GenerateWebfontsResult, GlyphChange, LoadedSvgFile};
 use crate::{FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
 use crate::{
@@ -497,6 +498,33 @@ fn generate_with_css(paths: Vec<String>, incremental: bool) -> GenerateWebfontsR
     generate_webfonts_sync(resolved, source_files).unwrap()
 }
 
+fn generate_with_templates(
+    paths: Vec<String>,
+    incremental: bool,
+    css_template: Option<String>,
+    html_template: Option<String>,
+) -> GenerateWebfontsResult {
+    let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+        css: Some(css_template.is_some()),
+        css_template,
+        dest: "artifacts".to_owned(),
+        files: paths,
+        html: Some(html_template.is_some()),
+        html_template,
+        font_name: Some("rc".to_owned()),
+        format_options: Some(stable_format_options()),
+        ligature: Some(false),
+        incremental: Some(incremental),
+        write_files: Some(false),
+        types: Some(vec![FontType::Woff2]),
+        ..Default::default()
+    })
+    .unwrap();
+    let source_files = load(&resolved.files);
+    finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+    generate_webfonts_sync(resolved, source_files).unwrap()
+}
+
 #[test]
 fn regenerate_reuses_provided_url_css_on_content_edit() {
     let dir = temp_dir();
@@ -579,6 +607,138 @@ fn regenerate_rerenders_css_on_rename() {
     assert!(
         after.contains("renamed"),
         "new glyph name should appear in the CSS"
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_carries_css_for_template_that_ignores_changed_glyph_data() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let css_template = write_temp_template("css-font-name-only", "{{fontName}}\n");
+
+    let mut result =
+        generate_with_templates(vec![a.clone(), b.clone()], true, Some(css_template), None);
+    let before = result.generate_css_pure(None).unwrap();
+    let c = write_icon(&dir, "c", D3);
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(c.clone(), GlyphChange::Added { name: None })],
+        )
+        .unwrap();
+
+    assert!(
+        result.has_carried_css_no_urls_for_test(),
+        "CSS that only reads stable fields should be carried across glyph set changes"
+    );
+    assert_eq!(before, result.generate_css_pure(None).unwrap());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_drops_css_for_template_that_reads_codepoints() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let css_template = write_temp_template(
+        "css-codepoints",
+        "{{#each codepoints}}{{@key}}={{this}};{{/each}}\n",
+    );
+
+    let mut result =
+        generate_with_templates(vec![a.clone(), b.clone()], true, Some(css_template), None);
+    result.generate_css_pure(None).unwrap();
+    let c = write_icon(&dir, "c", D3);
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(c.clone(), GlyphChange::Added { name: None })],
+        )
+        .unwrap();
+
+    assert!(
+        !result.has_carried_css_no_urls_for_test(),
+        "CSS that reads codepoints must be re-rendered when codepoints change"
+    );
+    assert!(result.generate_css_pure(None).unwrap().contains("c="));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_carries_html_for_template_that_ignores_names_and_styles() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let html_template = write_temp_template("html-font-name-only", "<h1>{{fontName}}</h1>\n");
+
+    let mut result =
+        generate_with_templates(vec![a.clone(), b.clone()], true, None, Some(html_template));
+    let before = result.generate_html_pure(None).unwrap();
+    let c = write_icon(&dir, "c", D3);
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(c.clone(), GlyphChange::Added { name: None })],
+        )
+        .unwrap();
+
+    assert!(
+        result.has_carried_html_no_urls_for_test(),
+        "HTML that only reads stable fields should be carried across glyph set changes"
+    );
+    assert_eq!(before, result.generate_html_pure(None).unwrap());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_drops_html_for_template_that_reads_names() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let html_template = write_temp_template("html-names", "{{#each names}}{{this}};{{/each}}\n");
+
+    let mut result =
+        generate_with_templates(vec![a.clone(), b.clone()], true, None, Some(html_template));
+    result.generate_html_pure(None).unwrap();
+    let c = write_icon(&dir, "c", D3);
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(c.clone(), GlyphChange::Added { name: None })],
+        )
+        .unwrap();
+
+    assert!(
+        !result.has_carried_html_no_urls_for_test(),
+        "HTML that reads names must be re-rendered when names change"
+    );
+    assert!(result.generate_html_pure(None).unwrap().contains("c;"));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_drops_dynamic_css_template_cache_conservatively() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let css_template = write_temp_template("css-dynamic", "{{lookup codepoints \"a\"}}\n");
+
+    let mut result =
+        generate_with_templates(vec![a.clone(), b.clone()], true, Some(css_template), None);
+    result.generate_css_pure(None).unwrap();
+    write_icon(&dir, "b", D_CHANGED);
+    result
+        .regenerate(
+            &[a.clone(), b.clone()],
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
+        .unwrap();
+
+    assert!(
+        !result.has_carried_css_no_urls_for_test(),
+        "dynamic template access should not be carried across regenerates"
     );
     std::fs::remove_dir_all(&dir).ok();
 }
