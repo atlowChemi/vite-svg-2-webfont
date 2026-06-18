@@ -311,7 +311,7 @@ describe.each([5, 300])('generateCss / generateHtml — %i glyphs', numGlyphs =>
 
 // Incremental rebuild: full regen vs reusing unchanged glyphs.
 const DEV_FORMAT = { formatOptions: { woff2: { compressionQuality: 10 } } };
-const RENDER_REUSE_FORMAT = { optimizeOutput: false, types: ['svg'] as const };
+const RENDER_REUSE_FORMAT = { optimizeOutput: false, types: ['svg'] } satisfies Partial<GenerateWebfontsInputOptions>;
 const EDIT_SVG_A = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20v20H2z"/></svg>';
 const EDIT_SVG_B = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h20L12 22z"/></svg>';
 const EDIT_SVG_C = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2h30L12 22z"/></svg>';
@@ -675,22 +675,18 @@ await Promise.all(
     [15, 100, 300, 600].flatMap(numGlyphs => {
         const files = bulkFiles.slice(0, numGlyphs);
         return [
-            generateWebfonts(baseOpts(files, { css: true, incremental: true, ...RENDER_REUSE_FORMAT })).then(result => {
-                result.generateCss();
-                dependencyAwareResults.set(`${numGlyphs}-default-css`, result);
-            }),
-            generateWebfonts(baseOpts(files, { css: true, cssTemplate: dependencyAwareCssTemplate, incremental: true, ...RENDER_REUSE_FORMAT })).then(result => {
-                result.generateCss();
-                dependencyAwareResults.set(`${numGlyphs}-custom-css`, result);
-            }),
-            generateWebfonts(baseOpts(files, { html: true, incremental: true, ...RENDER_REUSE_FORMAT })).then(result => {
-                result.generateHtml();
-                dependencyAwareResults.set(`${numGlyphs}-default-html`, result);
-            }),
-            generateWebfonts(baseOpts(files, { html: true, htmlTemplate: dependencyAwareHtmlTemplate, incremental: true, ...RENDER_REUSE_FORMAT })).then(result => {
-                result.generateHtml();
-                dependencyAwareResults.set(`${numGlyphs}-custom-html`, result);
-            }),
+            generateWebfonts(baseOpts(files, { css: true, incremental: true, ...RENDER_REUSE_FORMAT })).then(
+                result => (result.generateCss(), dependencyAwareResults.set(`${numGlyphs}-default-css`, result)),
+            ),
+            generateWebfonts(baseOpts(files, { css: true, cssTemplate: dependencyAwareCssTemplate, incremental: true, ...RENDER_REUSE_FORMAT })).then(
+                result => (result.generateCss(), dependencyAwareResults.set(`${numGlyphs}-custom-css`, result)),
+            ),
+            generateWebfonts(baseOpts(files, { html: true, incremental: true, ...RENDER_REUSE_FORMAT })).then(
+                result => (result.generateHtml(), dependencyAwareResults.set(`${numGlyphs}-default-html`, result)),
+            ),
+            generateWebfonts(baseOpts(files, { html: true, htmlTemplate: dependencyAwareHtmlTemplate, incremental: true, ...RENDER_REUSE_FORMAT })).then(
+                result => (result.generateHtml(), dependencyAwareResults.set(`${numGlyphs}-custom-html`, result)),
+            ),
         ];
     }),
 );

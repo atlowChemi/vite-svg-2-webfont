@@ -390,9 +390,17 @@ fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependen
 }
 
 fn collect_path_dependency(path: &str, deps: &mut TemplateDependencies) {
-    let path = path
+    let mut path = path
         .trim_matches(|c| matches!(c, '(' | ')' | ',' | '"' | '\''))
         .trim_start_matches("../");
+    path = path
+        .strip_prefix("@root.")
+        .or_else(|| path.strip_prefix("@root/"))
+        .unwrap_or(path);
+    path = path
+        .strip_prefix("this.")
+        .or_else(|| path.strip_prefix("this/"))
+        .unwrap_or(path);
     if path.is_empty() || path == "this" || path.starts_with('@') {
         return;
     }
@@ -1452,6 +1460,17 @@ mod tests {
         assert!(deps.names);
         assert!(deps.styles);
         assert!(!deps.codepoints);
+        assert!(!deps.src);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_normalizes_root_qualified_paths() {
+        let deps = template_dependencies("{{@root.styles}} {{this.names}} {{@root/codepoints.a}}");
+
+        assert!(deps.names);
+        assert!(deps.styles);
+        assert!(deps.codepoints);
         assert!(!deps.src);
         assert!(!deps.dynamic);
     }

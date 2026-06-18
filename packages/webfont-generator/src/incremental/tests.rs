@@ -719,6 +719,40 @@ fn regenerate_drops_html_for_template_that_reads_names() {
 }
 
 #[test]
+fn regenerate_drops_html_for_template_that_reads_root_styles() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let html_template =
+        write_temp_template("html-root-styles", "<style>{{{@root.styles}}}</style>\n");
+
+    let mut result = generate_with_templates(
+        vec![a.clone(), b.clone()],
+        true,
+        None,
+        Some(html_template.clone()),
+    );
+    let before = result.generate_html_pure(None).unwrap();
+    write_icon(&dir, "b", D_CHANGED);
+    result
+        .regenerate(
+            &[a.clone(), b.clone()],
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
+        .unwrap();
+    let after = result.generate_html_pure(None).unwrap();
+
+    assert_ne!(before, after, "HTML styles changed with the font hash");
+    assert!(
+        !result.has_carried_html_no_urls_for_test(),
+        "HTML that reads @root.styles must be re-rendered when styles change"
+    );
+    let fresh = generate_with_templates(vec![a, b], false, None, Some(html_template));
+    assert_eq!(after, fresh.generate_html_pure(None).unwrap());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn regenerate_drops_dynamic_css_template_cache_conservatively() {
     let dir = temp_dir();
     let a = write_icon(&dir, "a", D1);
