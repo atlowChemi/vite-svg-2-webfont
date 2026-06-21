@@ -63,6 +63,19 @@ fn svg(path_data: &str) -> String {
     )
 }
 
+fn tall_svg() -> String {
+    "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 96\"><path d=\"M2 2 C8 24 16 48 22 94\"/></svg>"
+        .to_owned()
+}
+
+fn sources_with_first_changed(fixture: &FixtureSet, contents: String) -> Vec<BenchSvgSource> {
+    let mut sources = fixture.sources.clone();
+    if let Some(source) = sources.first_mut() {
+        source.contents = contents;
+    }
+    sources
+}
+
 fn iconify_json_path(icon_set: &str) -> Option<PathBuf> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
     let direct = root
@@ -361,6 +374,97 @@ fn bench_optimize_output(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_recalc_finalize_inputs(c: &mut Criterion) {
+    let mut group = c.benchmark_group("recalc_finalize_inputs");
+    group.sample_size(10);
+    for size in SIZES {
+        let fixture = fixtures(size);
+        let stable_sources = sources_with_first_changed(&fixture, svg(&path_data(size + 1)));
+        let metric_shift_sources = sources_with_first_changed(&fixture, tall_svg());
+
+        for optimize in [false, true] {
+            let stable_options = options(fixture.paths.clone(), vec![FontType::Svg], 10, optimize);
+            let stable_parsed = parse_svg_only(stable_options.clone(), &stable_sources).unwrap();
+            group.bench_function(
+                format!("stable_metrics_finalize/optimize_{optimize}/{size}"),
+                |b| {
+                    b.iter_batched(
+                        || stable_parsed.clone(),
+                        |parsed| {
+                            finalize_svg_only(stable_options.clone(), &stable_sources, parsed)
+                                .unwrap()
+                        },
+                        BatchSize::LargeInput,
+                    )
+                },
+            );
+
+            let shifted_options = options(fixture.paths.clone(), vec![FontType::Svg], 10, optimize);
+            let shifted_parsed =
+                parse_svg_only(shifted_options.clone(), &metric_shift_sources).unwrap();
+            group.bench_function(
+                format!("metric_shift_finalize/optimize_{optimize}/{size}"),
+                |b| {
+                    b.iter_batched(
+                        || shifted_parsed.clone(),
+                        |parsed| {
+                            finalize_svg_only(
+                                shifted_options.clone(),
+                                &metric_shift_sources,
+                                parsed,
+                            )
+                            .unwrap()
+                        },
+                        BatchSize::LargeInput,
+                    )
+                },
+            );
+        }
+    }
+    group.finish();
+}
+
+fn bench_recalc_output_ceiling(c: &mut Criterion) {
+    let mut group = c.benchmark_group("recalc_output_ceiling");
+    group.sample_size(10);
+    for size in SIZES {
+        let fixture = fixtures(size);
+        let parsed = parse_svg_only(
+            options(fixture.paths.clone(), vec![FontType::Svg], 10, false),
+            &fixture.sources,
+        )
+        .unwrap();
+        let prepared = finalize_svg_only(
+            options(fixture.paths.clone(), vec![FontType::Svg], 10, false),
+            &fixture.sources,
+            parsed,
+        )
+        .unwrap();
+
+        group.bench_function(format!("ttf_from_prepared/{size}"), |b| {
+            b.iter(|| {
+                build_outputs_only(
+                    options(fixture.paths.clone(), vec![FontType::Ttf], 10, false),
+                    &fixture.sources,
+                    &prepared,
+                )
+                .unwrap()
+            })
+        });
+        group.bench_function(format!("woff2_from_prepared/{size}"), |b| {
+            b.iter(|| {
+                build_outputs_only(
+                    options(fixture.paths.clone(), vec![FontType::Woff2], 10, false),
+                    &fixture.sources,
+                    &prepared,
+                )
+                .unwrap()
+            })
+        });
+    }
+    group.finish();
+}
+
 fn criterion_config() -> Criterion {
     Criterion::default().sample_size(10)
 }
@@ -368,6 +472,6 @@ fn criterion_config() -> Criterion {
 criterion_group! {
     name = benches;
     config = criterion_config();
-    targets = bench_pipeline_slices, bench_pipeline_stages, bench_woff2_quality, bench_optimize_output
+    targets = bench_pipeline_slices, bench_pipeline_stages, bench_woff2_quality, bench_optimize_output, bench_recalc_finalize_inputs, bench_recalc_output_ceiling
 }
 criterion_main!(benches);
