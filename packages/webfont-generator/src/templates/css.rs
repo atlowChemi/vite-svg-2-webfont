@@ -1548,6 +1548,8 @@ mod tests {
         assert!(template_dependencies("{{this}}").dynamic);
         assert!(template_dependencies("{{.}}").dynamic);
         assert!(template_dependencies("{{@root}}").dynamic);
+        assert!(template_dependencies("{{#each this}}{{@key}}={{this}}{{/each}}").dynamic);
+        assert!(template_dependencies("{{#each .}}{{@key}}={{this}}{{/each}}").dynamic);
     }
 
     #[test]
