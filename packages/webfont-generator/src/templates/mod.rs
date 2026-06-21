@@ -16,6 +16,6 @@ pub(crate) use css::{
     render_css_with_hbs_context, render_css_with_src_mutate,
 };
 pub(crate) use html::{
-    build_html_context, build_html_registry, html_template_dependencies,
-    render_default_html_with_styles, render_html_with_hbs_context,
+    build_html_context, build_html_registry_and_dependencies, render_default_html_with_styles,
+    render_html_with_hbs_context,
 };

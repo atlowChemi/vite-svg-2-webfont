@@ -691,7 +691,7 @@ await Promise.all(
     }),
 );
 
-describe.each([15, 100, 300, 600])('dependency-aware render reuse after add/remove — %i glyphs', numGlyphs => {
+describe.each([15, 100, 300, 600])('dependency-aware render reuse add/remove toggle — %i glyphs', numGlyphs => {
     const files = bulkFiles.slice(0, numGlyphs);
     const extra = extraSvgs.get('end')!;
     const filesWithExtra = [...files, extra];
@@ -700,22 +700,22 @@ describe.each([15, 100, 300, 600])('dependency-aware render reuse after add/remo
     const cases = [
         {
             key: `${numGlyphs}-default-css`,
-            label: 'default CSS — rerender',
+            label: 'default CSS rerender',
             render: (result: Awaited<ReturnType<typeof generateWebfonts>>) => result.generateCss(),
         },
         {
             key: `${numGlyphs}-custom-css`,
-            label: 'custom CSS ignored deps — reused',
+            label: 'custom CSS ignored deps reused',
             render: (result: Awaited<ReturnType<typeof generateWebfonts>>) => result.generateCss(),
         },
         {
             key: `${numGlyphs}-default-html`,
-            label: 'default HTML — rerender',
+            label: 'default HTML rerender',
             render: (result: Awaited<ReturnType<typeof generateWebfonts>>) => result.generateHtml(),
         },
         {
             key: `${numGlyphs}-custom-html`,
-            label: 'custom HTML ignored deps — reused',
+            label: 'custom HTML ignored deps reused',
             render: (result: Awaited<ReturnType<typeof generateWebfonts>>) => result.generateHtml(),
         },
     ];
@@ -725,7 +725,7 @@ describe.each([15, 100, 300, 600])('dependency-aware render reuse after add/remo
         let hasExtra = false;
 
         bench(
-            `new core — ${label}`,
+            `new core — ${label} toggle`,
             () => {
                 if (hasExtra) {
                     result.regenerate(files, [{ path: extra, changeType: 'removed' }]);

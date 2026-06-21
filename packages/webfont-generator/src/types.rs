@@ -11,7 +11,7 @@ use serde_json::{Map, Value};
 use crate::svg::types::GlyphCache;
 use crate::templates::{
     SharedTemplateData, TemplateDependencies, build_css_context, build_html_context,
-    build_html_registry, html_template_dependencies, make_src, render_css_with_hbs_context,
+    build_html_registry_and_dependencies, make_src, render_css_with_hbs_context,
     render_css_with_src_mutate, render_default_html_with_styles, render_html_with_hbs_context,
 };
 use crate::util::to_io_err;
@@ -488,10 +488,9 @@ impl GenerateWebfontsResult {
                     None => build_html_context(&self.options, &shared, &self.source_files, None)
                         .map_err(|e| e.to_string())?,
                 };
-                let html_registry =
-                    build_html_registry(&self.options).map_err(|e| e.to_string())?;
-                let html_template_dependencies =
-                    html_template_dependencies(&self.options).map_err(|e| e.to_string())?;
+                let (html_registry, html_template_dependencies) =
+                    build_html_registry_and_dependencies(&self.options)
+                        .map_err(|e| e.to_string())?;
                 let css_hbs_context =
                     handlebars::Context::wraps(&css_context).map_err(|e| e.to_string())?;
                 let html_hbs_context =

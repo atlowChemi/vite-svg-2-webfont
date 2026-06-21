@@ -284,7 +284,7 @@ impl TemplateDependencies {
         }
     }
 
-    pub(crate) const fn depends_on_src(self) -> bool {
+    pub(crate) const fn may_depend_on_src(self) -> bool {
         self.src || self.dynamic
     }
 
@@ -478,14 +478,13 @@ impl SharedTemplateData {
             Some(path) => Some(fs::read_to_string(path)?),
             None => None,
         };
-        // Default template always uses src. Custom templates: scan for any
-        // Handlebars expression referencing `src` (handles whitespace variants
-        // like `{{ src }}`, `{{{ src }}}`, etc.).
+        // Default template always uses src. Dynamic custom templates stay URL-sensitive because
+        // helpers, partials, or whole-context reads may observe `src` indirectly.
         let css_template_dependencies = match &css_template_source {
             None => TemplateDependencies::css_default(),
             Some(source) => template_dependencies(source),
         };
-        let css_template_uses_src = css_template_dependencies.depends_on_src();
+        let css_template_uses_src = css_template_dependencies.may_depend_on_src();
         let (codepoints_hex, codepoints_num) = make_codepoints(options);
         Ok(Self {
             codepoints_hex,
