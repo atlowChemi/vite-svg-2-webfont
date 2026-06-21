@@ -93,7 +93,7 @@ use svg::{
 #[cfg(feature = "napi")]
 use templates::{
     SharedTemplateData, apply_context_function, build_css_context, build_html_context,
-    build_html_registry,
+    build_html_registry_and_dependencies,
 };
 #[cfg(feature = "napi")]
 use util::to_napi_err;
@@ -318,7 +318,8 @@ pub async fn generate_webfonts(
         }
 
         // Seed the OnceLock -- avoids re-creating SharedTemplateData in get_cached()
-        let html_registry = build_html_registry(&result.options).map_err(to_napi_err)?;
+        let (html_registry, html_template_dependencies) =
+            build_html_registry_and_dependencies(&result.options).map_err(to_napi_err)?;
         let css_hbs_context = handlebars::Context::wraps(&css_ctx).map_err(to_napi_err)?;
         let html_hbs_context = handlebars::Context::wraps(&html_ctx).map_err(to_napi_err)?;
         let _ = result.cached.set(Ok(types::CachedTemplateData {
@@ -327,6 +328,7 @@ pub async fn generate_webfonts(
             css_hbs_context: Mutex::new(css_hbs_context),
             html_context: html_ctx,
             html_hbs_context: Mutex::new(html_hbs_context),
+            html_template_dependencies,
             html_registry,
             render_cache: Mutex::new(Default::default()),
         }));

@@ -623,6 +623,58 @@ fn bench_render_cache_after_regenerate(c: &mut Criterion) {
             BatchSize::SmallInput,
         )
     });
+    group.bench_function("add_custom_html_ignored_deps_reused/300", |b| {
+        b.iter_batched(
+            || {
+                let mut fixture = fixtures(size);
+                let template = fixture.dir.join("html-font-name-only.hbs");
+                std::fs::write(&template, "<h1>{{fontName}}</h1>\n").unwrap();
+                let mut opts = css_html_options(fixture.paths.clone(), true);
+                opts.html_template = Some(template.to_string_lossy().into_owned());
+                let result = webfont_generator::generate_sync(opts, None).unwrap();
+                result.generate_html_pure(None).unwrap();
+                let added = write_icon(&fixture.dir, "added-html-reuse", &changed_path_data());
+                fixture.paths.push(added.clone());
+                (fixture, result, added)
+            },
+            |(fixture, mut result, added)| {
+                result
+                    .regenerate(
+                        &fixture.paths,
+                        &[(added, GlyphChange::Added { name: None })],
+                    )
+                    .unwrap();
+                result.generate_html_pure(None).unwrap()
+            },
+            BatchSize::SmallInput,
+        )
+    });
+    group.bench_function("add_default_html_rerender/300", |b| {
+        b.iter_batched(
+            || {
+                let mut fixture = fixtures(size);
+                let result = webfont_generator::generate_sync(
+                    css_html_options(fixture.paths.clone(), true),
+                    None,
+                )
+                .unwrap();
+                result.generate_html_pure(None).unwrap();
+                let added = write_icon(&fixture.dir, "added-html-rerender", &changed_path_data());
+                fixture.paths.push(added.clone());
+                (fixture, result, added)
+            },
+            |(fixture, mut result, added)| {
+                result
+                    .regenerate(
+                        &fixture.paths,
+                        &[(added, GlyphChange::Added { name: None })],
+                    )
+                    .unwrap();
+                result.generate_html_pure(None).unwrap()
+            },
+            BatchSize::SmallInput,
+        )
+    });
     group.finish();
 }
 

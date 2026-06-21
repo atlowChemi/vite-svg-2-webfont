@@ -4,7 +4,8 @@ use std::io::Error;
 use std::path::Path;
 
 use crate::templates::css::{
-    SharedTemplateData, build_css_context_with_fonts_url, render_css_with_context,
+    SharedTemplateData, TemplateDependencies, build_css_context_with_fonts_url,
+    render_css_with_context, template_dependencies,
 };
 use crate::types::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
 use crate::util::to_io_err;
@@ -66,20 +67,28 @@ fn render_html_with_context(
 /// Pre-compile the HTML Handlebars template with the removePeriods helper.
 /// Returns Ok(None) when no custom template is configured.
 /// Returns Err when the template exists but fails to compile.
+#[cfg(test)]
 pub(crate) fn build_html_registry(
     options: &ResolvedGenerateWebfontsOptions,
 ) -> Result<Option<Handlebars<'static>>, Error> {
+    Ok(build_html_registry_and_dependencies(options)?.0)
+}
+
+pub(crate) fn build_html_registry_and_dependencies(
+    options: &ResolvedGenerateWebfontsOptions,
+) -> Result<(Option<Handlebars<'static>>, TemplateDependencies), Error> {
     let path = match &options.html_template {
         Some(path) => path,
-        None => return Ok(None),
+        None => return Ok((None, TemplateDependencies::html_default())),
     };
     let source = fs::read_to_string(path)?;
+    let dependencies = template_dependencies(&source);
     let mut registry = Handlebars::new();
     registry.register_helper("removePeriods", Box::new(RemovePeriodsHelper));
     registry
         .register_template_string("html", &source)
         .map_err(|error| to_io_err(format!("Failed to compile HTML template: {error}")))?;
-    Ok(Some(registry))
+    Ok((Some(registry), dependencies))
 }
 
 #[inline]

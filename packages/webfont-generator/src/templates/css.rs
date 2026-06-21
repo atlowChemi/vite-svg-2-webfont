@@ -254,28 +254,202 @@ fn render_default_css_inner(ctx: &Map<String, Value>, font_name: &str, src: &str
     result
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct TemplateDependencies {
+    pub names: bool,
+    pub codepoints: bool,
+    pub src: bool,
+    pub styles: bool,
+    pub dynamic: bool,
+}
+
+impl TemplateDependencies {
+    pub(crate) const fn css_default() -> Self {
+        Self {
+            names: false,
+            codepoints: true,
+            src: true,
+            styles: false,
+            dynamic: false,
+        }
+    }
+
+    pub(crate) const fn html_default() -> Self {
+        Self {
+            names: true,
+            codepoints: false,
+            src: false,
+            styles: true,
+            dynamic: false,
+        }
+    }
+
+    pub(crate) const fn may_depend_on_src(self) -> bool {
+        self.src || self.dynamic
+    }
+
+    pub(crate) const fn can_reuse_css_no_urls(
+        self,
+        names_unchanged: bool,
+        codepoints_unchanged: bool,
+    ) -> bool {
+        !self.dynamic
+            && !self.src
+            && (!self.names || names_unchanged)
+            && (!self.codepoints || codepoints_unchanged)
+    }
+
+    pub(crate) const fn can_reuse_css_with_urls(
+        self,
+        names_unchanged: bool,
+        codepoints_unchanged: bool,
+    ) -> bool {
+        !self.dynamic
+            && (!self.names || names_unchanged)
+            && (!self.codepoints || codepoints_unchanged)
+    }
+
+    pub(crate) const fn can_reuse_html(
+        self,
+        names_unchanged: bool,
+        codepoints_unchanged: bool,
+        styles_unchanged: bool,
+    ) -> bool {
+        !self.dynamic
+            && (!self.names || names_unchanged)
+            && (!self.codepoints || codepoints_unchanged)
+            && (!self.styles || styles_unchanged)
+    }
+}
+
+pub(crate) fn template_dependencies(source: &str) -> TemplateDependencies {
+    let mut deps = TemplateDependencies::default();
+    for expression in mustache_expressions(source) {
+        collect_expression_dependencies(expression, &mut deps);
+        if deps.dynamic {
+            break;
+        }
+    }
+    deps
+}
+
+fn mustache_expressions(mut source: &str) -> Vec<&str> {
+    let mut expressions = Vec::new();
+    loop {
+        let Some(open) = source.find("{{") else {
+            return expressions;
+        };
+        source = &source[open + 2..];
+        let (inner_start, close_pat) = match source.strip_prefix('{') {
+            Some(rest) => (rest, "}}}"),
+            None => (source, "}}"),
+        };
+        let Some(close) = inner_start.find(close_pat) else {
+            return expressions;
+        };
+        expressions.push(inner_start[..close].trim());
+        source = &inner_start[close + close_pat.len()..];
+    }
+}
+
+fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependencies) {
+    let expression = expression.trim().trim_matches('~').trim();
+    if expression.is_empty() || expression.starts_with('!') || expression.starts_with('/') {
+        return;
+    }
+    if matches!(expression, "." | "this" | "@root") || expression.starts_with('>') {
+        deps.dynamic = true;
+        return;
+    }
+    if expression.contains('[') || expression.contains(']') {
+        deps.dynamic = true;
+        return;
+    }
+    if expression.contains('|') {
+        deps.dynamic = true;
+        return;
+    }
+    let tokens = expression.split_whitespace().collect::<Vec<_>>();
+    let Some(first) = tokens.first().copied() else {
+        return;
+    };
+    let first = first.trim_start_matches(['#', '^']);
+    if first.starts_with('>') {
+        deps.dynamic = true;
+        return;
+    }
+    if tokens.iter().any(|token| is_lookup_token(token)) {
+        deps.dynamic = true;
+        return;
+    }
+    if matches!(first, "each" | "if" | "unless" | "with") {
+        for token in tokens.iter().skip(1) {
+            collect_path_dependency(token, deps);
+        }
+        return;
+    }
+    if tokens.len() == 1 {
+        collect_path_dependency(first, deps);
+        return;
+    }
+    if first == "removePeriods" {
+        for token in tokens.iter().skip(1) {
+            collect_path_dependency(token, deps);
+        }
+        return;
+    }
+    deps.dynamic = true;
+}
+
+fn is_lookup_token(token: &str) -> bool {
+    token
+        .trim_matches(|c| matches!(c, '(' | ')' | ',' | '"' | '\'' | '~'))
+        .trim_start_matches(['#', '^'])
+        == "lookup"
+}
+
+fn collect_path_dependency(path: &str, deps: &mut TemplateDependencies) {
+    let mut path = path
+        .trim_matches(|c| matches!(c, '(' | ')' | ',' | '"' | '\'' | '~'))
+        .trim_start_matches('&')
+        .trim_start_matches("../")
+        .trim_start_matches("./");
+    path = path
+        .strip_prefix("@root.")
+        .or_else(|| path.strip_prefix("@root/"))
+        .unwrap_or(path);
+    path = path
+        .strip_prefix("this.")
+        .or_else(|| path.strip_prefix("this/"))
+        .unwrap_or(path);
+    if matches!(path, "" | "." | "this" | "@root") {
+        deps.dynamic = true;
+        return;
+    }
+    if path.starts_with('@') {
+        return;
+    }
+    let root = path.split(['.', '/']).next().unwrap_or(path);
+    match root {
+        "names" => deps.names = true,
+        "codepoints" => deps.codepoints = true,
+        "src" => deps.src = true,
+        "styles" => deps.styles = true,
+        _ => {}
+    }
+}
+
 /// Check whether a Handlebars template source contains `{{name}}` or `{{{name}}}` as an
 /// exact variable reference (with optional whitespace). Does not match block helpers,
 /// conditionals, or sub-expressions — only bare mustache names.
+#[cfg(test)]
 fn template_contains_exact_mustache_name(source: &str, name: &str) -> bool {
-    let mut s = source;
-    loop {
-        let Some(open) = s.find("{{") else {
-            return false;
-        };
-        s = &s[open + 2..];
-        let (inner_start, close_pat) = match s.strip_prefix('{') {
-            Some(rest) => (rest, "}}}"),
-            None => (s, "}}"),
-        };
-        let Some(close) = inner_start.find(close_pat) else {
-            return false;
-        };
-        if inner_start[..close].trim() == name {
+    for expression in mustache_expressions(source) {
+        if expression == name {
             return true;
         }
-        s = &inner_start[close + close_pat.len()..];
     }
+    false
 }
 
 /// Pre-computed values shared between CSS and HTML context building.
@@ -288,6 +462,7 @@ pub(crate) struct SharedTemplateData {
     pub codepoints_num: Map<String, Value>,
     css_template_source: Option<String>,
     css_registry_cache: std::sync::OnceLock<Result<Handlebars<'static>, String>>,
+    pub css_template_dependencies: TemplateDependencies,
     /// Whether the CSS template references `{src}` — if false, URL overrides are a no-op.
     pub css_template_uses_src: bool,
     pub hash: String,
@@ -303,19 +478,20 @@ impl SharedTemplateData {
             Some(path) => Some(fs::read_to_string(path)?),
             None => None,
         };
-        // Default template always uses src. Custom templates: scan for any
-        // Handlebars expression referencing `src` (handles whitespace variants
-        // like `{{ src }}`, `{{{ src }}}`, etc.).
-        let css_template_uses_src = match &css_template_source {
-            None => true,
-            Some(source) => template_contains_exact_mustache_name(source, "src"),
+        // Default template always uses src. Dynamic custom templates stay URL-sensitive because
+        // helpers, partials, or whole-context reads may observe `src` indirectly.
+        let css_template_dependencies = match &css_template_source {
+            None => TemplateDependencies::css_default(),
+            Some(source) => template_dependencies(source),
         };
+        let css_template_uses_src = css_template_dependencies.may_depend_on_src();
         let (codepoints_hex, codepoints_num) = make_codepoints(options);
         Ok(Self {
             codepoints_hex,
             codepoints_num,
             css_template_source,
             css_registry_cache: std::sync::OnceLock::new(),
+            css_template_dependencies,
             css_template_uses_src,
             hash: calc_hash(options, source_files),
             template_options: resolved_template_options(options),
@@ -579,7 +755,7 @@ impl<'a> From<&'a crate::types::WoffFormatOptions> for HashableWoffFormatOptions
 mod tests {
     use super::{
         SharedTemplateData, build_css_context, calc_hash, make_ctx, make_src, make_urls,
-        render_css_with_context, template_contains_exact_mustache_name,
+        render_css_with_context, template_contains_exact_mustache_name, template_dependencies,
     };
     use crate::{
         FontType, FormatOptions, GenerateWebfontsOptions, LoadedSvgFile,
@@ -1282,6 +1458,114 @@ mod tests {
             shared.is_ok(),
             "init should succeed even with invalid template content"
         );
+    }
+
+    // --- template_dependencies ---
+
+    #[test]
+    fn template_dependencies_detect_each_codepoints_and_parent_paths() {
+        let deps = template_dependencies(
+            "{{#each codepoints}}.{{../classPrefix}}{{@key}} { content: x }{{/each}}",
+        );
+
+        assert!(deps.codepoints);
+        assert!(!deps.names);
+        assert!(!deps.src);
+        assert!(!deps.styles);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_detect_html_names_styles_and_known_helper_arg() {
+        let deps = template_dependencies(
+            "{{{styles}}} {{#each names}}{{removePeriods ../baseSelector}} {{@index}}{{/each}}",
+        );
+
+        assert!(deps.names);
+        assert!(deps.styles);
+        assert!(!deps.codepoints);
+        assert!(!deps.src);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_normalizes_root_qualified_paths() {
+        let deps = template_dependencies("{{@root.styles}} {{this.names}} {{@root/codepoints.a}}");
+
+        assert!(deps.names);
+        assert!(deps.styles);
+        assert!(deps.codepoints);
+        assert!(!deps.src);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_normalizes_whitespace_control_markers() {
+        let deps = template_dependencies(
+            "{{~styles}} {{#each names~}}{{@index}}{{/each}} {{~@root/codepoints.a~}}",
+        );
+
+        assert!(deps.names);
+        assert!(deps.styles);
+        assert!(deps.codepoints);
+        assert!(!deps.src);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_lookup_dynamic() {
+        let deps = template_dependencies("{{lookup codepoints \"a\"}}");
+
+        assert!(deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_lookup_subexpression_dynamic() {
+        let deps = template_dependencies("{{#each (lookup this field)}}{{this}}{{/each}}");
+
+        assert!(deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_block_params_dynamic() {
+        let deps = template_dependencies(
+            "{{#with this as |ctx|}}{{#each ctx.names}}{{this}}{{/each}}{{/with}}",
+        );
+
+        assert!(deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_normalizes_current_context_paths() {
+        let deps = template_dependencies("{{#each ./names}}{{@index}}{{/each}}");
+
+        assert!(deps.names);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_normalizes_unescaped_ampersand_paths() {
+        let deps = template_dependencies("{{&styles}}{{&src}}");
+
+        assert!(deps.styles);
+        assert!(deps.src);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_whole_context_reads_dynamic() {
+        assert!(template_dependencies("{{this}}").dynamic);
+        assert!(template_dependencies("{{.}}").dynamic);
+        assert!(template_dependencies("{{@root}}").dynamic);
+        assert!(template_dependencies("{{#each this}}{{@key}}={{this}}{{/each}}").dynamic);
+        assert!(template_dependencies("{{#each .}}{{@key}}={{this}}{{/each}}").dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_partials_dynamic() {
+        assert!(template_dependencies("{{> iconPreview}}").dynamic);
+        assert!(template_dependencies("{{>iconPreview}}").dynamic);
+        assert!(template_dependencies("{{#> iconPreview}}{{/iconPreview}}").dynamic);
     }
 
     // --- template_contains_exact_mustache_name ---

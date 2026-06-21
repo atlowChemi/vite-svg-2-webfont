@@ -10,9 +10,9 @@ use serde_json::{Map, Value};
 
 use crate::svg::types::GlyphCache;
 use crate::templates::{
-    SharedTemplateData, build_css_context, build_html_context, build_html_registry, make_src,
-    render_css_with_hbs_context, render_css_with_src_mutate, render_default_html_with_styles,
-    render_html_with_hbs_context,
+    SharedTemplateData, TemplateDependencies, build_css_context, build_html_context,
+    build_html_registry_and_dependencies, make_src, render_css_with_hbs_context,
+    render_css_with_src_mutate, render_default_html_with_styles, render_html_with_hbs_context,
 };
 use crate::util::to_io_err;
 
@@ -389,6 +389,7 @@ pub(crate) struct CachedTemplateData {
     pub css_hbs_context: Mutex<handlebars::Context>,
     pub html_context: Map<String, Value>,
     pub html_hbs_context: Mutex<handlebars::Context>,
+    pub html_template_dependencies: TemplateDependencies,
     pub html_registry: Option<handlebars::Handlebars<'static>>,
     pub(crate) render_cache: Mutex<RenderCache>,
 }
@@ -431,6 +432,20 @@ pub struct GenerateWebfontsResult {
 
 // Pure Rust getters (always available)
 impl GenerateWebfontsResult {
+    #[cfg(test)]
+    pub(crate) fn has_carried_css_no_urls_for_test(&self) -> bool {
+        self.carried_render
+            .as_ref()
+            .is_some_and(|cache| cache.css_no_urls.is_some())
+    }
+
+    #[cfg(test)]
+    pub(crate) fn has_carried_html_no_urls_for_test(&self) -> bool {
+        self.carried_render
+            .as_ref()
+            .is_some_and(|cache| cache.html_no_urls.is_some())
+    }
+
     /// Returns the EOT font bytes, if generated.
     pub fn eot_bytes(&self) -> Option<&[u8]> {
         self.fonts.eot_font.as_ref().map(|v| v.as_ref().as_slice())
@@ -473,8 +488,9 @@ impl GenerateWebfontsResult {
                     None => build_html_context(&self.options, &shared, &self.source_files, None)
                         .map_err(|e| e.to_string())?,
                 };
-                let html_registry =
-                    build_html_registry(&self.options).map_err(|e| e.to_string())?;
+                let (html_registry, html_template_dependencies) =
+                    build_html_registry_and_dependencies(&self.options)
+                        .map_err(|e| e.to_string())?;
                 let css_hbs_context =
                     handlebars::Context::wraps(&css_context).map_err(|e| e.to_string())?;
                 let html_hbs_context =
@@ -485,6 +501,7 @@ impl GenerateWebfontsResult {
                     css_hbs_context: Mutex::new(css_hbs_context),
                     html_context,
                     html_hbs_context: Mutex::new(html_hbs_context),
+                    html_template_dependencies,
                     html_registry,
                     // Seed with any entries carried across a regenerate (see reset_render_cache);
                     // these are renders that don't depend on what changed, so reusing them is safe.
@@ -495,27 +512,51 @@ impl GenerateWebfontsResult {
             .map_err(to_io_err)
     }
 
-    /// Reset the lazily-built template/render cache after an incremental `regenerate`. The
-    /// template data (font hash, `src`, contexts) is always rebuilt fresh so default/no-URL
-    /// renders pick up the new font. When `reuse_renders` is true (the glyph names and codepoints
-    /// the templates read are unchanged), the still-valid rendered strings are carried forward to
-    /// seed the rebuilt cache: provided-URL renders always (they don't embed the font hash), and
-    /// no-URL renders only when the CSS template doesn't reference `src` (so it can't embed the
-    /// hash either). Everything else is dropped and re-rendered on next use.
-    pub(crate) fn reset_render_cache(&mut self, reuse_renders: bool) {
-        let carried = reuse_renders
-            .then(|| self.cached.get().and_then(|cached| cached.as_ref().ok()))
-            .flatten()
+    /// Reset the lazily-built template/render cache after an incremental `regenerate`. Template
+    /// data (font hash, `src`, contexts) is rebuilt fresh, but rendered strings that provably do
+    /// not depend on changed template inputs are carried forward into the next cache.
+    pub(crate) fn reset_render_cache(&mut self, names_unchanged: bool, codepoints_unchanged: bool) {
+        let carried = self
+            .cached
+            .get()
+            .and_then(|cached| cached.as_ref().ok())
             .map(|cached| {
+                let css_deps = cached.shared.css_template_dependencies;
+                let css_no_urls_unchanged =
+                    css_deps.can_reuse_css_no_urls(names_unchanged, codepoints_unchanged);
+                let css_with_urls_unchanged =
+                    css_deps.can_reuse_css_with_urls(names_unchanged, codepoints_unchanged);
+                let html_no_urls_unchanged = cached.html_template_dependencies.can_reuse_html(
+                    names_unchanged,
+                    codepoints_unchanged,
+                    css_no_urls_unchanged,
+                );
+                let html_with_urls_unchanged = cached.html_template_dependencies.can_reuse_html(
+                    names_unchanged,
+                    codepoints_unchanged,
+                    css_with_urls_unchanged,
+                );
+
                 let rc = cached.render_cache.lock().unwrap();
-                let keep_no_urls = !cached.shared.css_template_uses_src;
                 RenderCache {
-                    css_no_urls: keep_no_urls.then(|| rc.css_no_urls.clone()).flatten(),
-                    html_no_urls: keep_no_urls.then(|| rc.html_no_urls.clone()).flatten(),
-                    css_last_urls: rc.css_last_urls.clone(),
-                    css_last_result: rc.css_last_result.clone(),
-                    html_last_urls: rc.html_last_urls.clone(),
-                    html_last_result: rc.html_last_result.clone(),
+                    css_no_urls: css_no_urls_unchanged
+                        .then(|| rc.css_no_urls.clone())
+                        .flatten(),
+                    html_no_urls: html_no_urls_unchanged
+                        .then(|| rc.html_no_urls.clone())
+                        .flatten(),
+                    css_last_urls: css_with_urls_unchanged
+                        .then(|| rc.css_last_urls.clone())
+                        .flatten(),
+                    css_last_result: css_with_urls_unchanged
+                        .then(|| rc.css_last_result.clone())
+                        .flatten(),
+                    html_last_urls: html_with_urls_unchanged
+                        .then(|| rc.html_last_urls.clone())
+                        .flatten(),
+                    html_last_result: html_with_urls_unchanged
+                        .then(|| rc.html_last_result.clone())
+                        .flatten(),
                 }
             });
         self.cached = OnceLock::new();
