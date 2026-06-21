@@ -353,7 +353,7 @@ fn mustache_expressions(mut source: &str) -> Vec<&str> {
 }
 
 fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependencies) {
-    let expression = expression.trim();
+    let expression = expression.trim().trim_matches('~').trim();
     if expression.is_empty() || expression.starts_with('!') || expression.starts_with('/') {
         return;
     }
@@ -391,7 +391,7 @@ fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependen
 
 fn collect_path_dependency(path: &str, deps: &mut TemplateDependencies) {
     let mut path = path
-        .trim_matches(|c| matches!(c, '(' | ')' | ',' | '"' | '\''))
+        .trim_matches(|c| matches!(c, '(' | ')' | ',' | '"' | '\'' | '~'))
         .trim_start_matches("../");
     path = path
         .strip_prefix("@root.")
@@ -1467,6 +1467,19 @@ mod tests {
     #[test]
     fn template_dependencies_normalizes_root_qualified_paths() {
         let deps = template_dependencies("{{@root.styles}} {{this.names}} {{@root/codepoints.a}}");
+
+        assert!(deps.names);
+        assert!(deps.styles);
+        assert!(deps.codepoints);
+        assert!(!deps.src);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_normalizes_whitespace_control_markers() {
+        let deps = template_dependencies(
+            "{{~styles}} {{#each names~}}{{this}}{{/each}} {{~@root/codepoints.a~}}",
+        );
 
         assert!(deps.names);
         assert!(deps.styles);
