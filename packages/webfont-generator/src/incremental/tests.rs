@@ -880,6 +880,39 @@ fn regenerate_drops_html_for_block_param_template() {
 }
 
 #[test]
+fn regenerate_drops_html_for_whole_context_template() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let html_template = write_temp_template("html-whole-context", "{{this}}\n");
+
+    let mut result = generate_with_templates(
+        vec![a.clone(), b.clone()],
+        true,
+        None,
+        Some(html_template.clone()),
+    );
+    result.generate_html_pure(None).unwrap();
+    let c = write_icon(&dir, "c", D3);
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(c.clone(), GlyphChange::Added { name: None })],
+        )
+        .unwrap();
+
+    assert!(
+        !result.has_carried_html_no_urls_for_test(),
+        "HTML with whole-context reads must not carry render cache"
+    );
+    let after = result.generate_html_pure(None).unwrap();
+    assert!(after.contains("c"));
+    let fresh = generate_with_templates(vec![a, b, c], false, None, Some(html_template));
+    assert_eq!(after, fresh.generate_html_pure(None).unwrap());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn regenerate_drops_dynamic_css_template_cache_conservatively() {
     let dir = temp_dir();
     let a = write_icon(&dir, "a", D1);

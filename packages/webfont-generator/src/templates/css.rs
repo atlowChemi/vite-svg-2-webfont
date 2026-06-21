@@ -357,6 +357,10 @@ fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependen
     if expression.is_empty() || expression.starts_with('!') || expression.starts_with('/') {
         return;
     }
+    if matches!(expression, "." | "this" | "@root") || expression.starts_with('>') {
+        deps.dynamic = true;
+        return;
+    }
     if expression.contains('[') || expression.contains(']') {
         deps.dynamic = true;
         return;
@@ -370,6 +374,10 @@ fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependen
         return;
     };
     let first = first.trim_start_matches(['#', '^']);
+    if first.starts_with('>') {
+        deps.dynamic = true;
+        return;
+    }
     if tokens.iter().any(|token| is_lookup_token(token)) {
         deps.dynamic = true;
         return;
@@ -403,7 +411,8 @@ fn is_lookup_token(token: &str) -> bool {
 fn collect_path_dependency(path: &str, deps: &mut TemplateDependencies) {
     let mut path = path
         .trim_matches(|c| matches!(c, '(' | ')' | ',' | '"' | '\'' | '~'))
-        .trim_start_matches("../");
+        .trim_start_matches("../")
+        .trim_start_matches("./");
     path = path
         .strip_prefix("@root.")
         .or_else(|| path.strip_prefix("@root/"))
@@ -412,7 +421,11 @@ fn collect_path_dependency(path: &str, deps: &mut TemplateDependencies) {
         .strip_prefix("this.")
         .or_else(|| path.strip_prefix("this/"))
         .unwrap_or(path);
-    if path.is_empty() || path == "this" || path.starts_with('@') {
+    if matches!(path, "" | "." | "this" | "@root") {
+        deps.dynamic = true;
+        return;
+    }
+    if path.starts_with('@') {
         return;
     }
     let root = path.split(['.', '/']).next().unwrap_or(path);
@@ -1452,7 +1465,7 @@ mod tests {
     #[test]
     fn template_dependencies_detect_each_codepoints_and_parent_paths() {
         let deps = template_dependencies(
-            "{{#each codepoints}}.{{../classPrefix}}{{@key}} { content: {{this}} }{{/each}}",
+            "{{#each codepoints}}.{{../classPrefix}}{{@key}} { content: x }{{/each}}",
         );
 
         assert!(deps.codepoints);
@@ -1465,7 +1478,7 @@ mod tests {
     #[test]
     fn template_dependencies_detect_html_names_styles_and_known_helper_arg() {
         let deps = template_dependencies(
-            "{{{styles}}} {{#each names}}{{removePeriods ../baseSelector}} {{this}}{{/each}}",
+            "{{{styles}}} {{#each names}}{{removePeriods ../baseSelector}} {{@index}}{{/each}}",
         );
 
         assert!(deps.names);
@@ -1489,7 +1502,7 @@ mod tests {
     #[test]
     fn template_dependencies_normalizes_whitespace_control_markers() {
         let deps = template_dependencies(
-            "{{~styles}} {{#each names~}}{{this}}{{/each}} {{~@root/codepoints.a~}}",
+            "{{~styles}} {{#each names~}}{{@index}}{{/each}} {{~@root/codepoints.a~}}",
         );
 
         assert!(deps.names);
@@ -1520,6 +1533,28 @@ mod tests {
         );
 
         assert!(deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_normalizes_current_context_paths() {
+        let deps = template_dependencies("{{#each ./names}}{{@index}}{{/each}}");
+
+        assert!(deps.names);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_whole_context_reads_dynamic() {
+        assert!(template_dependencies("{{this}}").dynamic);
+        assert!(template_dependencies("{{.}}").dynamic);
+        assert!(template_dependencies("{{@root}}").dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_partials_dynamic() {
+        assert!(template_dependencies("{{> iconPreview}}").dynamic);
+        assert!(template_dependencies("{{>iconPreview}}").dynamic);
+        assert!(template_dependencies("{{#> iconPreview}}{{/iconPreview}}").dynamic);
     }
 
     // --- template_contains_exact_mustache_name ---
