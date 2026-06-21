@@ -361,6 +361,10 @@ fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependen
         deps.dynamic = true;
         return;
     }
+    if expression.contains('|') {
+        deps.dynamic = true;
+        return;
+    }
     let tokens = expression.split_whitespace().collect::<Vec<_>>();
     let Some(first) = tokens.first().copied() else {
         return;
@@ -1505,6 +1509,15 @@ mod tests {
     #[test]
     fn template_dependencies_marks_lookup_subexpression_dynamic() {
         let deps = template_dependencies("{{#each (lookup this field)}}{{this}}{{/each}}");
+
+        assert!(deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_block_params_dynamic() {
+        let deps = template_dependencies(
+            "{{#with this as |ctx|}}{{#each ctx.names}}{{this}}{{/each}}{{/with}}",
+        );
 
         assert!(deps.dynamic);
     }
