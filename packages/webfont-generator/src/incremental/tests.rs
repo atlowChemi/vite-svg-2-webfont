@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::Path;
 
+use serde_json::{Map, Value};
+
 use crate::test_helpers::write_temp_template;
 use crate::types::{FontType, GenerateWebfontsResult, GlyphChange, LoadedSvgFile};
 use crate::{FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
@@ -504,6 +506,16 @@ fn generate_with_templates(
     css_template: Option<String>,
     html_template: Option<String>,
 ) -> GenerateWebfontsResult {
+    generate_with_templates_and_options(paths, incremental, css_template, html_template, None)
+}
+
+fn generate_with_templates_and_options(
+    paths: Vec<String>,
+    incremental: bool,
+    css_template: Option<String>,
+    html_template: Option<String>,
+    template_options: Option<Map<String, Value>>,
+) -> GenerateWebfontsResult {
     let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
         css: Some(css_template.is_some()),
         css_template,
@@ -515,6 +527,7 @@ fn generate_with_templates(
         format_options: Some(stable_format_options()),
         ligature: Some(false),
         incremental: Some(incremental),
+        template_options,
         write_files: Some(false),
         types: Some(vec![FontType::Woff2]),
         ..Default::default()
@@ -781,6 +794,51 @@ fn regenerate_drops_html_for_template_that_reads_trimmed_styles() {
         "HTML that reads {{~styles~}} must be re-rendered when styles change"
     );
     let fresh = generate_with_templates(vec![a, b], false, None, Some(html_template));
+    assert_eq!(after, fresh.generate_html_pure(None).unwrap());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_drops_html_for_lookup_subexpression_template() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let html_template = write_temp_template(
+        "html-lookup-names",
+        "{{#each (lookup this field)}}{{this}};{{/each}}\n",
+    );
+    let template_options =
+        Map::from_iter([("field".to_owned(), Value::String("names".to_owned()))]);
+
+    let mut result = generate_with_templates_and_options(
+        vec![a.clone(), b.clone()],
+        true,
+        None,
+        Some(html_template.clone()),
+        Some(template_options.clone()),
+    );
+    result.generate_html_pure(None).unwrap();
+    let c = write_icon(&dir, "c", D3);
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(c.clone(), GlyphChange::Added { name: None })],
+        )
+        .unwrap();
+
+    assert!(
+        !result.has_carried_html_no_urls_for_test(),
+        "HTML with lookup subexpressions must not carry render cache"
+    );
+    let after = result.generate_html_pure(None).unwrap();
+    assert!(after.contains("c;"));
+    let fresh = generate_with_templates_and_options(
+        vec![a, b, c],
+        false,
+        None,
+        Some(html_template),
+        Some(template_options),
+    );
     assert_eq!(after, fresh.generate_html_pure(None).unwrap());
     std::fs::remove_dir_all(&dir).ok();
 }

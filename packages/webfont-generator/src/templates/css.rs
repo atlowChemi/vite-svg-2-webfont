@@ -366,7 +366,7 @@ fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependen
         return;
     };
     let first = first.trim_start_matches(['#', '^']);
-    if first == "lookup" {
+    if tokens.iter().any(|token| is_lookup_token(token)) {
         deps.dynamic = true;
         return;
     }
@@ -387,6 +387,13 @@ fn collect_expression_dependencies(expression: &str, deps: &mut TemplateDependen
         return;
     }
     deps.dynamic = true;
+}
+
+fn is_lookup_token(token: &str) -> bool {
+    token
+        .trim_matches(|c| matches!(c, '(' | ')' | ',' | '"' | '\'' | '~'))
+        .trim_start_matches(['#', '^'])
+        == "lookup"
 }
 
 fn collect_path_dependency(path: &str, deps: &mut TemplateDependencies) {
@@ -1491,6 +1498,13 @@ mod tests {
     #[test]
     fn template_dependencies_marks_lookup_dynamic() {
         let deps = template_dependencies("{{lookup codepoints \"a\"}}");
+
+        assert!(deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_marks_lookup_subexpression_dynamic() {
+        let deps = template_dependencies("{{#each (lookup this field)}}{{this}}{{/each}}");
 
         assert!(deps.dynamic);
     }
