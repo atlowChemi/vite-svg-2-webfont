@@ -411,6 +411,7 @@ fn is_lookup_token(token: &str) -> bool {
 fn collect_path_dependency(path: &str, deps: &mut TemplateDependencies) {
     let mut path = path
         .trim_matches(|c| matches!(c, '(' | ')' | ',' | '"' | '\'' | '~'))
+        .trim_start_matches('&')
         .trim_start_matches("../")
         .trim_start_matches("./");
     path = path
@@ -1540,6 +1541,15 @@ mod tests {
         let deps = template_dependencies("{{#each ./names}}{{@index}}{{/each}}");
 
         assert!(deps.names);
+        assert!(!deps.dynamic);
+    }
+
+    #[test]
+    fn template_dependencies_normalizes_unescaped_ampersand_paths() {
+        let deps = template_dependencies("{{&styles}}{{&src}}");
+
+        assert!(deps.styles);
+        assert!(deps.src);
         assert!(!deps.dynamic);
     }
 
