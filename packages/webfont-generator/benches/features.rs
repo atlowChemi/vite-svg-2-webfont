@@ -348,6 +348,7 @@ fn bench_template_rendering(c: &mut Criterion) {
     let mut custom_opts = opts.clone();
     custom_opts.css_template = Some(css_template);
     custom_opts.html_template = Some(html_template);
+    let custom_result = webfont_generator::generate_sync(custom_opts.clone(), None).unwrap();
     group.bench_function("css_first/custom/300", |b| {
         b.iter_batched(
             || webfont_generator::generate_sync(custom_opts.clone(), None).unwrap(),
@@ -355,12 +356,20 @@ fn bench_template_rendering(c: &mut Criterion) {
             BatchSize::SmallInput,
         )
     });
+    custom_result.generate_css_pure(None).unwrap();
+    group.bench_function("css_cached/custom/300", |b| {
+        b.iter(|| custom_result.generate_css_pure(None).unwrap())
+    });
     group.bench_function("html_first/custom/300", |b| {
         b.iter_batched(
             || webfont_generator::generate_sync(custom_opts.clone(), None).unwrap(),
             |result| result.generate_html_pure(None).unwrap(),
             BatchSize::SmallInput,
         )
+    });
+    custom_result.generate_html_pure(None).unwrap();
+    group.bench_function("html_cached/custom/300", |b| {
+        b.iter(|| custom_result.generate_html_pure(None).unwrap())
     });
     group.finish();
 }
