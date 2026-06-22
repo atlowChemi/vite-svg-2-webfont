@@ -1,0 +1,127 @@
+name: Benchmark Baselines
+
+on:
+    push:
+        branches:
+            - main
+        paths:
+            - .github/workflows/benchmark-baselines.yml
+            - tests/**/*.bench.ts
+            - packages/webfont-generator/**
+    schedule:
+        - cron: '42 4 * * 1'
+    workflow_dispatch:
+
+permissions:
+    contents: write
+
+concurrency:
+    group: benchmark-baselines
+    cancel-in-progress: true
+
+env:
+    VITEST_BENCH_OUTPUT: benchmark-results/vitest/webfonts-generator.json
+
+jobs:
+    update-baselines:
+        name: Update Benchmark Baselines
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+            - name: Checkout benchmark baselines
+              uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+              with:
+                  ref: benchmark-baselines
+                  path: benchmark-baselines
+
+            - name: Setup Vite+
+              uses: voidzero-dev/setup-vp@2dec1e33f4ab2c6d5bce1b0c4607961bb1a3f7a1 # v1.12.0
+              with:
+                  node-version-file: .node-version
+                  cache: true
+                  run-install: true
+
+            - name: Setup Rust
+              uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable@2026-05
+
+            - name: Cache cargo registry and benchmark artifacts
+              uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+              with:
+                  path: |
+                      ~/.cargo/registry
+                      ~/.cargo/git
+                      packages/webfont-generator/target
+                  key: cargo-bench-${{ runner.os }}-${{ hashFiles('packages/webfont-generator/Cargo.lock') }}
+                  restore-keys: cargo-bench-${{ runner.os }}-
+
+            - name: Restore previous Criterion baseline
+              run: |
+                  set -euo pipefail
+
+                  if [ -d benchmark-baselines/webfont-generator/criterion ]; then
+                    mkdir -p packages/webfont-generator/target
+                    rm -rf packages/webfont-generator/target/criterion
+                    cp -R benchmark-baselines/webfont-generator/criterion packages/webfont-generator/target/criterion
+                  else
+                    echo "::warning::No previous Criterion baseline found on benchmark-baselines."
+                  fi
+
+            - name: Build webfont generator
+              run: vp run @atlowchemi/webfont-generator#build
+
+            - name: Run Rust benchmarks
+              run: |
+                  set -euo pipefail
+                  cargo bench --manifest-path packages/webfont-generator/Cargo.toml --features bench --bench features -- --save-baseline main
+                  cargo bench --manifest-path packages/webfont-generator/Cargo.toml --features bench --bench incremental -- --save-baseline main
+                  cargo bench --manifest-path packages/webfont-generator/Cargo.toml --features bench --bench pipeline -- --save-baseline main
+
+            - name: Run Vitest benchmarks
+              run: |
+                  set -euo pipefail
+                  mkdir -p "$(dirname "$VITEST_BENCH_OUTPUT")"
+                  vp test bench --run --outputJson "$VITEST_BENCH_OUTPUT"
+
+            - name: Store benchmark outputs
+              run: |
+                  set -euo pipefail
+
+                  rm -rf benchmark-baselines/webfont-generator
+                  mkdir -p benchmark-baselines/webfont-generator
+
+                  cp -R packages/webfont-generator/target/criterion benchmark-baselines/webfont-generator/criterion
+                  mkdir -p benchmark-baselines/webfont-generator/vitest
+                  cp "$VITEST_BENCH_OUTPUT" benchmark-baselines/webfont-generator/vitest/webfonts-generator.json
+
+                  {
+                    printf '{\n'
+                    printf '  "schemaVersion": 1,\n'
+                    printf '  "updatedAt": "%s",\n' "$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+                    printf '  "sourceBranch": "%s",\n' "${GITHUB_REF_NAME}"
+                    printf '  "sourceSha": "%s",\n' "${GITHUB_SHA}"
+                    printf '  "runner": "%s"\n' "${RUNNER_NAME}"
+                    printf '}\n'
+                  } > benchmark-baselines/metadata.json
+
+                  vp --version > benchmark-baselines/tool-versions.txt
+
+            - name: Commit benchmark baselines
+              working-directory: benchmark-baselines
+              run: |
+                  set -euo pipefail
+
+                  git config user.name 'github-actions[bot]'
+                  git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+                  git add webfont-generator metadata.json tool-versions.txt
+
+                  if git diff --cached --quiet; then
+                    echo "No benchmark baseline changes to commit."
+                    exit 0
+                  fi
+
+                  git commit -m "chore: update benchmark baselines for ${GITHUB_SHA::7}"
+                  BASELINE_SHA=$(git rev-parse HEAD)
+                  echo "::notice title=Benchmark baseline commit::${BASELINE_SHA}"
+                  git push origin HEAD:benchmark-baselines
