@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <title>Index - Criterion.rs</title>
+    <style type="text/css">
+        body {
+            font: 14px Helvetica Neue;
+            text-rendering: optimizelegibility;
+        }
+
+        .body {
+            width: 960px;
+            margin: auto;
+        }
+
+        a:link {
+            color: #1F78B4;
+            text-decoration: none;
+        }
+
+        h2 {
+            font-size: 36px;
+            font-weight: 300;
+        }
+
+        h3 {
+            font-size: 24px;
+            font-weight: 300;
+        }
+
+        #footer {
+            height: 40px;
+            background: #888;
+            color: white;
+            font-size: larger;
+            font-weight: 300;
+        }
+
+        #footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        #footer p {
+            text-align: center
+        }
+
+        table {
+            border-collapse: collapse;
+        }
+
+        table,
+        th,
+        td {
+            border: 1px solid #888;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="body">
+        <h2>Criterion.rs Benchmark Index</h2>
+        See individual benchmark pages below for more details.
+        <ul>
+            <li><a href="../add_remove/report/index.html">add_remove</a></li>
+            
+            <ul>
+                <li><a href="../add_remove/full_add_at_end_100/report/index.html">full_add_at_end/100</a></li>
+                <li><a href="../add_remove/full_add_at_end_300/report/index.html">full_add_at_end/300</a></li>
+                <li><a href="../add_remove/full_add_at_end_600/report/index.html">full_add_at_end/600</a></li>
+                <li><a href="../add_remove/full_add_at_middle_100/report/index.html">full_add_at_middle/100</a></li>
+                <li><a href="../add_remove/full_add_at_middle_300/report/index.html">full_add_at_middle/300</a></li>
+                <li><a href="../add_remove/full_add_at_middle_600/report/index.html">full_add_at_middle/600</a></li>
+                <li><a href="../add_remove/full_add_at_start_100/report/index.html">full_add_at_start/100</a></li>
+                <li><a href="../add_remove/full_add_at_start_300/report/index.html">full_add_at_start/300</a></li>
+                <li><a href="../add_remove/full_add_at_start_600/report/index.html">full_add_at_start/600</a></li>
+                <li><a href="../add_remove/full_remove_at_end_100/report/index.html">full_remove_at_end/100</a></li>
+                <li><a href="../add_remove/full_remove_at_end_300/report/index.html">full_remove_at_end/300</a></li>
+                <li><a href="../add_remove/full_remove_at_end_600/report/index.html">full_remove_at_end/600</a></li>
+                <li><a href="../add_remove/full_remove_at_middle_100/report/index.html">full_remove_at_middle/100</a></li>
+                <li><a href="../add_remove/full_remove_at_middle_300/report/index.html">full_remove_at_middle/300</a></li>
+                <li><a href="../add_remove/full_remove_at_middle_600/report/index.html">full_remove_at_middle/600</a></li>
+                <li><a href="../add_remove/full_remove_at_start_100/report/index.html">full_remove_at_start/100</a></li>
+                <li><a href="../add_remove/full_remove_at_start_300/report/index.html">full_remove_at_start/300</a></li>
+                <li><a href="../add_remove/full_remove_at_start_600/report/index.html">full_remove_at_start/600</a></li>
+                <li><a href="../add_remove/incremental_add_at_end_100/report/index.html">incremental_add_at_end/100</a></li>
+                <li><a href="../add_remove/incremental_add_at_end_300/report/index.html">incremental_add_at_end/300</a></li>
+                <li><a href="../add_remove/incremental_add_at_end_600/report/index.html">incremental_add_at_end/600</a></li>
+                <li><a href="../add_remove/incremental_add_at_middle_100/report/index.html">incremental_add_at_middle/100</a></li>
+                <li><a href="../add_remove/incremental_add_at_middle_300/report/index.html">incremental_add_at_middle/300</a></li>
+                <li><a href="../add_remove/incremental_add_at_middle_600/report/index.html">incremental_add_at_middle/600</a></li>
+                <li><a href="../add_remove/incremental_add_at_start_100/report/index.html">incremental_add_at_start/100</a></li>
+                <li><a href="../add_remove/incremental_add_at_start_300/report/index.html">incremental_add_at_start/300</a></li>
+                <li><a href="../add_remove/incremental_add_at_start_600/report/index.html">incremental_add_at_start/600</a></li>
+                <li><a href="../add_remove/incremental_remove_at_end_100/report/index.html">incremental_remove_at_end/100</a></li>
+                <li><a href="../add_remove/incremental_remove_at_end_300/report/index.html">incremental_remove_at_end/300</a></li>
+                <li><a href="../add_remove/incremental_remove_at_end_600/report/index.html">incremental_remove_at_end/600</a></li>
+                <li><a href="../add_remove/incremental_remove_at_middle_100/report/index.html">incremental_remove_at_middle/100</a></li>
+                <li><a href="../add_remove/incremental_remove_at_middle_300/report/index.html">incremental_remove_at_middle/300</a></li>
+                <li><a href="../add_remove/incremental_remove_at_middle_600/report/index.html">incremental_remove_at_middle/600</a></li>
+                <li><a href="../add_remove/incremental_remove_at_start_100/report/index.html">incremental_remove_at_start/100</a></li>
+                <li><a href="../add_remove/incremental_remove_at_start_300/report/index.html">incremental_remove_at_start/300</a></li>
+                <li><a href="../add_remove/incremental_remove_at_start_600/report/index.html">incremental_remove_at_start/600</a></li>
+            </ul>
+            <li><a href="../async_overhead/report/index.html">async_overhead</a></li>
+            
+            <ul>
+                <li><a href="../async_overhead/generate_async_15/report/index.html">generate_async/15</a></li>
+                <li><a href="../async_overhead/generate_sync_15/report/index.html">generate_sync/15</a></li>
+            </ul>
+            <li><a href="../error_paths/report/index.html">error_paths</a></li>
+            
+            <ul>
+                <li><a href="../error_paths/duplicate_glyph_names/report/index.html">duplicate_glyph_names</a></li>
+                <li><a href="../error_paths/empty_files/report/index.html">empty_files</a></li>
+                <li><a href="../error_paths/invalid_svg/report/index.html">invalid_svg</a></li>
+                <li><a href="../error_paths/missing_file/report/index.html">missing_file</a></li>
+            </ul>
+            <li><a href="../geometry_options/report/index.html">geometry_options</a></li>
+            
+            <ul>
+                <li><a href="../geometry_options/center_h_300/report/index.html">center_h/300</a></li>
+                <li><a href="../geometry_options/center_v_300/report/index.html">center_v/300</a></li>
+                <li><a href="../geometry_options/fixed_width_300/report/index.html">fixed_width/300</a></li>
+                <li><a href="../geometry_options/normalize_false_300/report/index.html">normalize_false/300</a></li>
+                <li><a href="../geometry_options/normalize_true_300/report/index.html">normalize_true/300</a></li>
+                <li><a href="../geometry_options/optimize_output_300/report/index.html">optimize_output/300</a></li>
+                <li><a href="../geometry_options/preserve_aspect_300/report/index.html">preserve_aspect/300</a></li>
+                <li><a href="../geometry_options/round_2_300/report/index.html">round_2/300</a></li>
+            </ul>
+            <li><a href="../input_complexity/report/index.html">input_complexity</a></li>
+            
+            <ul>
+                <li><a href="../input_complexity/heavy_100/report/index.html">heavy/100</a></li>
+                <li><a href="../input_complexity/hidden_100/report/index.html">hidden/100</a></li>
+                <li><a href="../input_complexity/iconify_100/report/index.html">iconify/100</a></li>
+                <li><a href="../input_complexity/multipath_100/report/index.html">multipath/100</a></li>
+                <li><a href="../input_complexity/shapes_100/report/index.html">shapes/100</a></li>
+                <li><a href="../input_complexity/simple_100/report/index.html">simple/100</a></li>
+                <li><a href="../input_complexity/transformed_100/report/index.html">transformed/100</a></li>
+            </ul>
+            <li><a href="../optimize_output/report/index.html">optimize_output</a></li>
+            
+            <ul>
+                <li><a href="../optimize_output/optimize_false/report/index.html">optimize_false</a></li>
+                <li><a href="../optimize_output/optimize_true/report/index.html">optimize_true</a></li>
+            </ul>
+            <li><a href="../pipeline/report/index.html">pipeline</a></li>
+            
+            <ul>
+                <li><a href="../pipeline/all_formats_100/report/index.html">all_formats/100</a></li>
+                <li><a href="../pipeline/all_formats_300/report/index.html">all_formats/300</a></li>
+                <li><a href="../pipeline/all_formats_600/report/index.html">all_formats/600</a></li>
+                <li><a href="../pipeline/svg_100/report/index.html">svg/100</a></li>
+                <li><a href="../pipeline/svg_300/report/index.html">svg/300</a></li>
+                <li><a href="../pipeline/svg_600/report/index.html">svg/600</a></li>
+                <li><a href="../pipeline/ttf_100/report/index.html">ttf/100</a></li>
+                <li><a href="../pipeline/ttf_300/report/index.html">ttf/300</a></li>
+                <li><a href="../pipeline/ttf_600/report/index.html">ttf/600</a></li>
+            </ul>
+            <li><a href="../pipeline_stages/report/index.html">pipeline_stages</a></li>
+            
+            <ul>
+                <li><a href="../pipeline_stages/eot_output_only_100/report/index.html">eot_output_only/100</a></li>
+                <li><a href="../pipeline_stages/eot_output_only_300/report/index.html">eot_output_only/300</a></li>
+                <li><a href="../pipeline_stages/eot_output_only_600/report/index.html">eot_output_only/600</a></li>
+                <li><a href="../pipeline_stages/finalize_only_100/report/index.html">finalize_only/100</a></li>
+                <li><a href="../pipeline_stages/finalize_only_300/report/index.html">finalize_only/300</a></li>
+                <li><a href="../pipeline_stages/finalize_only_600/report/index.html">finalize_only/600</a></li>
+                <li><a href="../pipeline_stages/parse_only_100/report/index.html">parse_only/100</a></li>
+                <li><a href="../pipeline_stages/parse_only_300/report/index.html">parse_only/300</a></li>
+                <li><a href="../pipeline_stages/parse_only_600/report/index.html">parse_only/600</a></li>
+                <li><a href="../pipeline_stages/ttf_output_only_100/report/index.html">ttf_output_only/100</a></li>
+                <li><a href="../pipeline_stages/ttf_output_only_300/report/index.html">ttf_output_only/300</a></li>
+                <li><a href="../pipeline_stages/ttf_output_only_600/report/index.html">ttf_output_only/600</a></li>
+                <li><a href="../pipeline_stages/woff2_output_only_100/report/index.html">woff2_output_only/100</a></li>
+                <li><a href="../pipeline_stages/woff2_output_only_300/report/index.html">woff2_output_only/300</a></li>
+                <li><a href="../pipeline_stages/woff2_output_only_600/report/index.html">woff2_output_only/600</a></li>
+                <li><a href="../pipeline_stages/woff_output_only_100/report/index.html">woff_output_only/100</a></li>
+                <li><a href="../pipeline_stages/woff_output_only_300/report/index.html">woff_output_only/300</a></li>
+                <li><a href="../pipeline_stages/woff_output_only_600/report/index.html">woff_output_only/600</a></li>
+            </ul>
+            <li><a href="../recalc_finalize_inputs/report/index.html">recalc_finalize_inputs</a></li>
+            
+            <ul>
+                <li><a href="../recalc_finalize_inputs/metric_shift_finalize_optimize_false_100/report/index.html">metric_shift_finalize/optimize_false/100</a></li>
+                <li><a href="../recalc_finalize_inputs/metric_shift_finalize_optimize_false_300/report/index.html">metric_shift_finalize/optimize_false/300</a></li>
+                <li><a href="../recalc_finalize_inputs/metric_shift_finalize_optimize_false_600/report/index.html">metric_shift_finalize/optimize_false/600</a></li>
+                <li><a href="../recalc_finalize_inputs/metric_shift_finalize_optimize_true_100/report/index.html">metric_shift_finalize/optimize_true/100</a></li>
+                <li><a href="../recalc_finalize_inputs/metric_shift_finalize_optimize_true_300/report/index.html">metric_shift_finalize/optimize_true/300</a></li>
+                <li><a href="../recalc_finalize_inputs/metric_shift_finalize_optimize_true_600/report/index.html">metric_shift_finalize/optimize_true/600</a></li>
+                <li><a href="../recalc_finalize_inputs/stable_metrics_finalize_optimize_false_100/report/index.html">stable_metrics_finalize/optimize_false/100</a></li>
+                <li><a href="../recalc_finalize_inputs/stable_metrics_finalize_optimize_false_300/report/index.html">stable_metrics_finalize/optimize_false/300</a></li>
+                <li><a href="../recalc_finalize_inputs/stable_metrics_finalize_optimize_false_600/report/index.html">stable_metrics_finalize/optimize_false/600</a></li>
+                <li><a href="../recalc_finalize_inputs/stable_metrics_finalize_optimize_true_100/report/index.html">stable_metrics_finalize/optimize_true/100</a></li>
+                <li><a href="../recalc_finalize_inputs/stable_metrics_finalize_optimize_true_300/report/index.html">stable_metrics_finalize/optimize_true/300</a></li>
+                <li><a href="../recalc_finalize_inputs/stable_metrics_finalize_optimize_true_600/report/index.html">stable_metrics_finalize/optimize_true/600</a></li>
+            </ul>
+            <li><a href="../recalc_output_ceiling/report/index.html">recalc_output_ceiling</a></li>
+            
+            <ul>
+                <li><a href="../recalc_output_ceiling/ttf_from_prepared_100/report/index.html">ttf_from_prepared/100</a></li>
+                <li><a href="../recalc_output_ceiling/ttf_from_prepared_300/report/index.html">ttf_from_prepared/300</a></li>
+                <li><a href="../recalc_output_ceiling/ttf_from_prepared_600/report/index.html">ttf_from_prepared/600</a></li>
+                <li><a href="../recalc_output_ceiling/woff2_from_prepared_100/report/index.html">woff2_from_prepared/100</a></li>
+                <li><a href="../recalc_output_ceiling/woff2_from_prepared_300/report/index.html">woff2_from_prepared/300</a></li>
+                <li><a href="../recalc_output_ceiling/woff2_from_prepared_600/report/index.html">woff2_from_prepared/600</a></li>
+            </ul>
+            <li><a href="../regenerate/report/index.html">regenerate</a></li>
+            
+            <ul>
+                <li><a href="../regenerate/full_content_edit_100/report/index.html">full_content_edit/100</a></li>
+                <li><a href="../regenerate/full_content_edit_300/report/index.html">full_content_edit/300</a></li>
+                <li><a href="../regenerate/full_content_edit_600/report/index.html">full_content_edit/600</a></li>
+                <li><a href="../regenerate/full_unchanged_100/report/index.html">full_unchanged/100</a></li>
+                <li><a href="../regenerate/full_unchanged_300/report/index.html">full_unchanged/300</a></li>
+                <li><a href="../regenerate/full_unchanged_600/report/index.html">full_unchanged/600</a></li>
+                <li><a href="../regenerate/incremental_content_edit_100/report/index.html">incremental_content_edit/100</a></li>
+                <li><a href="../regenerate/incremental_content_edit_300/report/index.html">incremental_content_edit/300</a></li>
+                <li><a href="../regenerate/incremental_content_edit_600/report/index.html">incremental_content_edit/600</a></li>
+                <li><a href="../regenerate/noop_changed_100/report/index.html">noop_changed/100</a></li>
+                <li><a href="../regenerate/noop_changed_300/report/index.html">noop_changed/300</a></li>
+                <li><a href="../regenerate/noop_changed_600/report/index.html">noop_changed/600</a></li>
+                <li><a href="../regenerate/rediff_content_edit_100/report/index.html">rediff_content_edit/100</a></li>
+                <li><a href="../regenerate/rediff_content_edit_300/report/index.html">rediff_content_edit/300</a></li>
+                <li><a href="../regenerate/rediff_content_edit_600/report/index.html">rediff_content_edit/600</a></li>
+                <li><a href="../regenerate/rediff_noop_100/report/index.html">rediff_noop/100</a></li>
+                <li><a href="../regenerate/rediff_noop_300/report/index.html">rediff_noop/300</a></li>
+                <li><a href="../regenerate/rediff_noop_600/report/index.html">rediff_noop/600</a></li>
+            </ul>
+            <li><a href="../regenerate_batches/report/index.html">regenerate_batches</a></li>
+            
+            <ul>
+                <li><a href="../regenerate_batches/batched_10_100/report/index.html">batched_10/100</a></li>
+                <li><a href="../regenerate_batches/batched_10_300/report/index.html">batched_10/300</a></li>
+                <li><a href="../regenerate_batches/batched_10_600/report/index.html">batched_10/600</a></li>
+                <li><a href="../regenerate_batches/batched_2_100/report/index.html">batched_2/100</a></li>
+                <li><a href="../regenerate_batches/batched_2_300/report/index.html">batched_2/300</a></li>
+                <li><a href="../regenerate_batches/batched_2_600/report/index.html">batched_2/600</a></li>
+                <li><a href="../regenerate_batches/separate_10_100/report/index.html">separate_10/100</a></li>
+                <li><a href="../regenerate_batches/separate_10_300/report/index.html">separate_10/300</a></li>
+                <li><a href="../regenerate_batches/separate_10_600/report/index.html">separate_10/600</a></li>
+                <li><a href="../regenerate_batches/separate_2_100/report/index.html">separate_2/100</a></li>
+                <li><a href="../regenerate_batches/separate_2_300/report/index.html">separate_2/300</a></li>
+                <li><a href="../regenerate_batches/separate_2_600/report/index.html">separate_2/600</a></li>
+            </ul>
+            <li><a href="../regenerate_by_format/report/index.html">regenerate_by_format</a></li>
+            
+            <ul>
+                <li><a href="../regenerate_by_format/full_content_edit_all_formats_300/report/index.html">full_content_edit/all_formats/300</a></li>
+                <li><a href="../regenerate_by_format/full_content_edit_svg_300/report/index.html">full_content_edit/svg/300</a></li>
+                <li><a href="../regenerate_by_format/full_content_edit_ttf_300/report/index.html">full_content_edit/ttf/300</a></li>
+                <li><a href="../regenerate_by_format/full_content_edit_woff2_300/report/index.html">full_content_edit/woff2/300</a></li>
+                <li><a href="../regenerate_by_format/incremental_content_edit_all_formats_300/report/index.html">incremental_content_edit/all_formats/300</a></li>
+                <li><a href="../regenerate_by_format/incremental_content_edit_svg_300/report/index.html">incremental_content_edit/svg/300</a></li>
+                <li><a href="../regenerate_by_format/incremental_content_edit_ttf_300/report/index.html">incremental_content_edit/ttf/300</a></li>
+                <li><a href="../regenerate_by_format/incremental_content_edit_woff2_300/report/index.html">incremental_content_edit/woff2/300</a></li>
+            </ul>
+            <li><a href="../render_cache_after_regenerate/report/index.html">render_cache_after_regenerate</a></li>
+            
+            <ul>
+                <li><a href="../render_cache_after_regenerate/add_custom_html_ignored_deps_reused_300/report/index.html">add_custom_html_ignored_deps_reused/300</a></li>
+                <li><a href="../render_cache_after_regenerate/add_default_html_rerender_300/report/index.html">add_default_html_rerender/300</a></li>
+                <li><a href="../render_cache_after_regenerate/content_edit_css_urls_reused_300/report/index.html">content_edit_css_urls_reused/300</a></li>
+                <li><a href="../render_cache_after_regenerate/rename_css_rerender_300/report/index.html">rename_css_rerender/300</a></li>
+            </ul>
+            <li><a href="../scaling/report/index.html">scaling</a></li>
+            
+            <ul>
+                <li><a href="../scaling/woff2_100/report/index.html">woff2/100</a></li>
+                <li><a href="../scaling/woff2_1000/report/index.html">woff2/1000</a></li>
+                <li><a href="../scaling/woff2_15/report/index.html">woff2/15</a></li>
+                <li><a href="../scaling/woff2_300/report/index.html">woff2/300</a></li>
+                <li><a href="../scaling/woff2_600/report/index.html">woff2/600</a></li>
+            </ul>
+            <li><a href="../specialized_incremental_paths/report/index.html">specialized_incremental_paths</a></li>
+            
+            <ul>
+                <li><a href="../specialized_incremental_paths/duplicate_content_add_300/report/index.html">duplicate_content_add/300</a></li>
+                <li><a href="../specialized_incremental_paths/rename_only_300/report/index.html">rename_only/300</a></li>
+            </ul>
+            <li><a href="../svg_prepare/report/index.html">svg_prepare</a></li>
+            
+            <ul>
+                <li><a href="../svg_prepare/full_100/report/index.html">full/100</a></li>
+                <li><a href="../svg_prepare/full_300/report/index.html">full/300</a></li>
+                <li><a href="../svg_prepare/full_600/report/index.html">full/600</a></li>
+                <li><a href="../svg_prepare/incremental_warm_100/report/index.html">incremental_warm/100</a></li>
+                <li><a href="../svg_prepare/incremental_warm_300/report/index.html">incremental_warm/300</a></li>
+                <li><a href="../svg_prepare/incremental_warm_600/report/index.html">incremental_warm/600</a></li>
+            </ul>
+            <li><a href="../template_rendering/report/index.html">template_rendering</a></li>
+            
+            <ul>
+                <li><a href="../template_rendering/css_cached_custom_300/report/index.html">css_cached/custom/300</a></li>
+                <li><a href="../template_rendering/css_cached_default_300/report/index.html">css_cached/default/300</a></li>
+                <li><a href="../template_rendering/css_first_custom_300/report/index.html">css_first/custom/300</a></li>
+                <li><a href="../template_rendering/css_first_default_300/report/index.html">css_first/default/300</a></li>
+                <li><a href="../template_rendering/css_urls_default_300/report/index.html">css_urls/default/300</a></li>
+                <li><a href="../template_rendering/html_cached_custom_300/report/index.html">html_cached/custom/300</a></li>
+                <li><a href="../template_rendering/html_cached_default_300/report/index.html">html_cached/default/300</a></li>
+                <li><a href="../template_rendering/html_first_custom_300/report/index.html">html_first/custom/300</a></li>
+                <li><a href="../template_rendering/html_first_default_300/report/index.html">html_first/default/300</a></li>
+            </ul>
+            <li><a href="../ttf_features/report/index.html">ttf_features</a></li>
+            
+            <ul>
+                <li><a href="../ttf_features/duplicate_outlines_300/report/index.html">duplicate_outlines/300</a></li>
+                <li><a href="../ttf_features/explicit_codepoints_300/report/index.html">explicit_codepoints/300</a></li>
+                <li><a href="../ttf_features/ligatures_false_unique_300/report/index.html">ligatures_false_unique/300</a></li>
+                <li><a href="../ttf_features/ligatures_true_unique_300/report/index.html">ligatures_true_unique/300</a></li>
+            </ul>
+            <li><a href="../winding_normalization/report/index.html">winding_normalization</a></li>
+            
+            <ul>
+                <li><a href="../winding_normalization/winding_curved_100/report/index.html">winding_curved/100</a></li>
+                <li><a href="../winding_normalization/winding_independent_100/report/index.html">winding_independent/100</a></li>
+                <li><a href="../winding_normalization/winding_nested_ok_100/report/index.html">winding_nested_ok/100</a></li>
+                <li><a href="../winding_normalization/winding_nested_reverse_100/report/index.html">winding_nested_reverse/100</a></li>
+                <li><a href="../winding_normalization/winding_overlapping_100/report/index.html">winding_overlapping/100</a></li>
+            </ul>
+            <li><a href="../woff2_quality/report/index.html">woff2_quality</a></li>
+            
+            <ul>
+                <li><a href="../woff2_quality/quality_10/report/index.html">quality_10</a></li>
+                <li><a href="../woff2_quality/quality_11/report/index.html">quality_11</a></li>
+                <li><a href="../woff2_quality/quality_9/report/index.html">quality_9</a></li>
+            </ul>
+            <li>write_files_after_regenerate</li>
+            
+            <ul>
+                <li><a href="../write_files_after_regenerate/content_edit_100/report/index.html">content_edit/100</a></li>
+            </ul>
+            <li><a href="../write_paths/report/index.html">write_paths</a></li>
+            
+            <ul>
+                <li><a href="../write_paths/incremental_write_skip_100/report/index.html">incremental_write_skip/100</a></li>
+                <li><a href="../write_paths/initial_write_100/report/index.html">initial_write/100</a></li>
+            </ul>
+        </ul>
+    </div>
+    <div id="footer">
+        <p>This report was generated by
+            <a href="https://github.com/criterion-rs/criterion.rs">Criterion.rs</a>, a statistics-driven benchmarking
+            library in Rust.</p>
+    </div>
+</body>
+</html>
