@@ -58,14 +58,34 @@ fn path_data(index: usize) -> String {
 }
 
 fn svg(path_data: &str) -> String {
+    svg_with_viewbox(24.0, 24.0, path_data)
+}
+
+fn svg_with_viewbox(width: f64, height: f64, path_data: &str) -> String {
     format!(
-        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"{path_data}\"/></svg>"
+        "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {width:.2} {height:.2}\"><path d=\"{path_data}\"/></svg>"
     )
 }
 
-fn tall_svg() -> String {
-    "<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 96\"><path d=\"M2 2 C8 24 16 48 22 94\"/></svg>"
-        .to_owned()
+fn replacement_path(width: f64, height: f64) -> String {
+    let max_x = (width - 2.0).max(2.0);
+    let max_y = (height - 2.0).max(2.0);
+    format!(
+        "M2 2 C{:.2} {:.2} {:.2} {:.2} {max_x:.2} {max_y:.2}",
+        width * 0.33,
+        height * 0.25,
+        width * 0.67,
+        height * 0.5
+    )
+}
+
+fn viewbox_size(svg: &str) -> Option<(f64, f64)> {
+    let (_, after_attr) = svg.split_once("viewBox=\"")?;
+    let (viewbox, _) = after_attr.split_once('"')?;
+    let mut values = viewbox.split_ascii_whitespace();
+    values.next()?;
+    values.next()?;
+    Some((values.next()?.parse().ok()?, values.next()?.parse().ok()?))
 }
 
 fn sources_with_first_changed(fixture: &FixtureSet, contents: String) -> Vec<BenchSvgSource> {
@@ -74,6 +94,36 @@ fn sources_with_first_changed(fixture: &FixtureSet, contents: String) -> Vec<Ben
         source.contents = contents;
     }
     sources
+}
+
+fn stable_metric_sources(fixture: &FixtureSet) -> Vec<BenchSvgSource> {
+    let (width, height) = fixture
+        .sources
+        .first()
+        .and_then(|source| viewbox_size(&source.contents))
+        .unwrap_or((24.0, 24.0));
+    sources_with_first_changed(
+        fixture,
+        svg_with_viewbox(width, height, &replacement_path(width, height)),
+    )
+}
+
+fn metric_shift_sources(fixture: &FixtureSet) -> Vec<BenchSvgSource> {
+    let (first_width, first_height) = fixture
+        .sources
+        .first()
+        .and_then(|source| viewbox_size(&source.contents))
+        .unwrap_or((24.0, 24.0));
+    let max_height = fixture
+        .sources
+        .iter()
+        .filter_map(|source| viewbox_size(&source.contents).map(|(_, height)| height))
+        .fold(first_height, f64::max);
+    let height = max_height + first_height.max(24.0);
+    sources_with_first_changed(
+        fixture,
+        svg_with_viewbox(first_width, height, &replacement_path(first_width, height)),
+    )
 }
 
 fn iconify_json_path(icon_set: &str) -> Option<PathBuf> {
@@ -379,8 +429,8 @@ fn bench_recalc_finalize_inputs(c: &mut Criterion) {
     group.sample_size(10);
     for size in SIZES {
         let fixture = fixtures(size);
-        let stable_sources = sources_with_first_changed(&fixture, svg(&path_data(size + 1)));
-        let metric_shift_sources = sources_with_first_changed(&fixture, tall_svg());
+        let stable_sources = stable_metric_sources(&fixture);
+        let metric_shift_sources = metric_shift_sources(&fixture);
 
         for optimize in [false, true] {
             let stable_options = options(fixture.paths.clone(), vec![FontType::Svg], 10, optimize);
