@@ -68,8 +68,8 @@ jobs:
                     echo "::warning::No previous Criterion baseline found on benchmark-baselines."
                   fi
 
-            - name: Build webfont generator
-              run: vp run @atlowchemi/webfont-generator#build
+            - name: Build webfont generator release binding
+              run: vp run --ignore-depends-on @atlowchemi/webfont-generator#build:release
 
             - name: Run Rust benchmarks
               run: |
