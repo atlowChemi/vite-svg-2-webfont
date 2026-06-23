@@ -301,7 +301,7 @@ fn urls() -> HashMap<FontType, String> {
 
 fn bench_template_rendering(c: &mut Criterion) {
     let mut group = c.benchmark_group("template_rendering");
-    group.sample_size(10);
+    group.sample_size(50);
     let fixture = fixtures(300, "heavy");
     let mut opts = base_options(fixture.paths.clone(), vec![FontType::Woff2]);
     opts.css = Some(true);
@@ -376,7 +376,7 @@ fn bench_template_rendering(c: &mut Criterion) {
 
 fn bench_write_paths(c: &mut Criterion) {
     let mut group = c.benchmark_group("write_paths");
-    group.sample_size(10);
+    group.sample_size(50);
     let fixture = fixtures(100, "heavy");
     group.bench_function("initial_write/100", |b| {
         b.iter_batched(
@@ -448,7 +448,7 @@ fn bench_input_complexity(c: &mut Criterion) {
 
 fn bench_geometry_options(c: &mut Criterion) {
     let mut group = c.benchmark_group("geometry_options");
-    group.sample_size(10);
+    group.sample_size(30);
     let fixture = fixtures(300, "heavy");
     for name in [
         "normalize_false",

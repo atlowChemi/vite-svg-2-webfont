@@ -259,7 +259,7 @@ fn remove_position(paths: &[String], position: &str) -> (Vec<String>, String) {
 
 fn bench_svg_prepare(c: &mut Criterion) {
     let mut group = c.benchmark_group("svg_prepare");
-    group.sample_size(10);
+    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("full/{size}"), |b| {
