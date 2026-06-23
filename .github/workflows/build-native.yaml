@@ -60,7 +60,7 @@ jobs:
                       xwin-${{ runner.os }}-windows-msvc-
                       xwin-${{ runner.os }}-
 
-            - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable@2026-05
+            - uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8 # stable
               with:
                   targets: ${{ matrix.target }}
 
