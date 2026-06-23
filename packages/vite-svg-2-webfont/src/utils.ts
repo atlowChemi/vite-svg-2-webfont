@@ -3,7 +3,6 @@ import { tmpdir as osTmpdir } from 'node:os';
 import { constants, rm as fsRm, mkdtempSync } from 'node:fs';
 import { resolve, dirname, join as pathJoin } from 'node:path';
 import { watch, access, mkdir, writeFile } from 'node:fs/promises';
-import type { FileChangeInfo } from 'node:fs/promises';
 import type { FontType } from '@atlowchemi/webfont-generator';
 
 let watcher: ReturnType<typeof watch> | undefined;
@@ -29,13 +28,15 @@ export async function doesFileExist(folderPath: string, fileName: string): Promi
 export type WatchedChange = { path: string; kind: 'added' | 'changed' | 'removed' };
 export type WatchedChangeBatch = WatchedChange[];
 
+type FileChangeInfoType = ReturnType<typeof watch> extends AsyncIterable<infer T> ? T : never;
+
 export async function handleWatchEvent(
     folderPath: string,
-    { eventType, filename }: FileChangeInfo<string>,
+    { eventType, filename }: FileChangeInfoType,
     onChange: (change: WatchedChange) => void | Promise<void>,
     _doesFileExist: typeof doesFileExist = doesFileExist,
 ): Promise<void> {
-    if (!filename?.endsWith('.svg')) {
+    if (typeof filename !== 'string' || !filename.endsWith('.svg')) {
         return;
     }
     // Match the path shape `parseFiles` produces (`join(context, file)`).
