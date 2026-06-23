@@ -1,0 +1,1 @@
+../../.agents/opencode-agents/vp-check.md

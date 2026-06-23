@@ -37,7 +37,7 @@ describe('utils', () => {
         const doesFileExist = vi.fn();
 
         it("doesn't execute callback for non string events", async () => {
-            await utils.handleWatchEvent('', { eventType: 'rename', filename: Buffer.from('ex.svg') }, onChange, doesFileExist);
+            await utils.handleWatchEvent('', { eventType: 'rename', filename: Buffer.from(validFileName) }, onChange, doesFileExist);
             expect(doesFileExist).not.toHaveBeenCalled();
             expect(onChange).not.toHaveBeenCalled();
         });
@@ -247,16 +247,20 @@ describe('utils', () => {
 
         it('does not propagate watch event classification errors', async () => {
             const { watch } = fs;
+            const rejectedEvent = { eventType: 'change' as const, filename: 'unreadable.svg' };
             const validEvent = { eventType: 'change' as const, filename: 'a.svg' };
             async function* mock() {
-                yield { eventType: 'change' as const, filename: { endsWith: true } } as never;
+                yield rejectedEvent;
                 yield validEvent;
             }
             if (vi.isMockFunction(watch)) {
                 watch.mockReturnValue(mock());
             }
+            const handleWatchEvent = vi.fn<typeof utils.handleWatchEvent>().mockRejectedValueOnce(new Error('intentional classification failure'));
+            handleWatchEvent.mockImplementation((...args) => utils.handleWatchEvent(...args));
 
-            expect(await utils.setupWatcher(folderPath, ac.signal, handler)).toEqual(undefined);
+            expect(await utils.setupWatcher(folderPath, ac.signal, handler, handleWatchEvent)).toEqual(undefined);
+            expect(handleWatchEvent).toHaveBeenCalledTimes(2);
             expect(handler).toHaveBeenCalledExactlyOnceWith([{ path: pathJoin(folderPath, 'a.svg'), kind: 'changed' }]);
         });
     });

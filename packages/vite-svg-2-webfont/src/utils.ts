@@ -69,7 +69,12 @@ function coalesceChange(previous: WatchedChange | undefined, next: WatchedChange
     return next;
 }
 
-export async function setupWatcher(folderPath: string, signal: AbortSignal, onChange: (changes: WatchedChangeBatch) => void | Promise<void>): Promise<void> {
+export async function setupWatcher(
+    folderPath: string,
+    signal: AbortSignal,
+    onChange: (changes: WatchedChangeBatch) => void | Promise<void>,
+    _handleWatchEvent: typeof handleWatchEvent = handleWatchEvent,
+): Promise<void> {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let flushChain = Promise.resolve();
     const pending = new Map<string, WatchedChange>();
@@ -110,7 +115,7 @@ export async function setupWatcher(folderPath: string, signal: AbortSignal, onCh
         watcher = watch(folderPath, { signal });
         for await (const event of watcher) {
             // A single failed event classification (e.g. an unreadable file) must not tear down the watcher.
-            await handleWatchEvent(folderPath, event, queueChange).catch(() => undefined);
+            await _handleWatchEvent(folderPath, event, queueChange).catch(() => undefined);
         }
         await drain();
     } catch (err: unknown) {

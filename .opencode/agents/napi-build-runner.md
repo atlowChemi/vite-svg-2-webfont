@@ -1,0 +1,1 @@
+../../.agents/opencode-agents/napi-build-runner.md

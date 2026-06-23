@@ -1,0 +1,1 @@
+../../.agents/agents/coverage-runner.md

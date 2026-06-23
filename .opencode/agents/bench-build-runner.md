@@ -1,0 +1,1 @@
+../../.agents/opencode-agents/bench-build-runner.md

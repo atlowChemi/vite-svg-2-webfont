@@ -1,0 +1,1 @@
+../../.agents/opencode-agents/test-runner.md
