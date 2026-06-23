@@ -258,7 +258,7 @@ fn options(
 
 fn bench_pipeline_slices(c: &mut Criterion) {
     let mut group = c.benchmark_group("pipeline");
-    group.sample_size(10);
+    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("svg/{size}"), |b| {
@@ -305,7 +305,7 @@ fn bench_pipeline_slices(c: &mut Criterion) {
 
 fn bench_pipeline_stages(c: &mut Criterion) {
     let mut group = c.benchmark_group("pipeline_stages");
-    group.sample_size(10);
+    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("parse_only/{size}"), |b| {
