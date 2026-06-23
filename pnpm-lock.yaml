@@ -117,7 +117,7 @@ catalogs:
 overrides:
   brace-expansion@>=1.0.0 <=1.1.11: ^1.1.12
   lodash@>=4.0.0 <=4.17.22: ^4.17.23
-  make-fetch-happen: 13.0.0
+  make-fetch-happen: 13.0.1
   minimatch@<3.1.4: ^3.1.4
   underscore@<=1.13.7: ^1.13.8
   vite: npm:@voidzero-dev/vite-plus-core@0.2.1
@@ -3125,8 +3125,8 @@ packages:
     resolution: {integrity: sha512-hXdUTZYIVOt1Ex//jAQi+wTZZpUpwBj/0QsOzqegb3rGMMeJiSEu5xLHnYfBrRV4RH2+OCSOO95Is/7x1WJ4bw==}
     engines: {node: '>=10'}
 
-  make-fetch-happen@13.0.0:
-    resolution: {integrity: sha512-7ThobcL8brtGo9CavByQrQi+23aIfgYU++wg4B87AIS8Rb2ZBt/MEaDqzA00Xwv/jUjAjYkLHjVolYuTLKda2A==}
+  make-fetch-happen@13.0.1:
+    resolution: {integrity: sha512-cKTUFc/rbKUd/9meOvgrpJ2WrNzymt6jfRDdwg5UCnVzv9dTpEj9JS5m3wtziXVCjluIXyL8pcaukYqezIzZQA==}
     engines: {node: ^16.14.0 || >=18.0.0}
 
   mark.js@8.11.1:
@@ -3487,6 +3487,10 @@ packages:
   pretty-format@27.5.1:
     resolution: {integrity: sha512-Qb1gy5OrP5+zDf2Bvnzdl3jsTf1qXVMazbvCoKhtKqVs4/YK4ozX4gKQJJVyNe+cajNPn0KoC0MC3FUmaHWEmQ==}
     engines: {node: ^10.13.0 || ^12.13.0 || ^14.15.0 || >=15.0.0}
+
+  proc-log@4.2.0:
+    resolution: {integrity: sha512-g8+OnU/L2v+wyiVK+D5fA34J7EH8jZ8DDlvwhRCMxmMj7UCBvxiO1mGeN+36JXIKF4zevU4kRBd8lVgG9vLelA==}
+    engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
 
   promise-retry@2.0.1:
     resolution: {integrity: sha512-y+WKFlBR8BGXnsNlIHFGPZmyDf3DFMoLhaflAnyZgV6rG6xu+JwesTo2Q9R6XwYmtmwAFCkAk3e35jEdoeh/3g==}
@@ -6539,7 +6543,7 @@ snapshots:
     dependencies:
       semver: 7.8.5
 
-  make-fetch-happen@13.0.0:
+  make-fetch-happen@13.0.1:
     dependencies:
       '@npmcli/agent': 2.2.2
       cacache: 18.0.4
@@ -6550,6 +6554,7 @@ snapshots:
       minipass-flush: 1.0.5
       minipass-pipeline: 1.2.4
       negotiator: 0.6.3
+      proc-log: 4.2.0
       promise-retry: 2.0.1
       ssri: 10.0.6
     transitivePeerDependencies:
@@ -6897,7 +6902,7 @@ snapshots:
       env-paths: 2.2.1
       glob: 7.2.3
       graceful-fs: 4.2.10
-      make-fetch-happen: 13.0.0
+      make-fetch-happen: 13.0.1
       nopt: 6.0.0
       npmlog: 6.0.2
       rimraf: 3.0.2
@@ -7069,6 +7074,8 @@ snapshots:
       ansi-regex: 5.0.1
       ansi-styles: 5.2.0
       react-is: 17.0.2
+
+  proc-log@4.2.0: {}
 
   promise-retry@2.0.1:
     dependencies:
