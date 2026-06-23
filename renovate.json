@@ -1,0 +1,26 @@
+{
+    "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+    "extends": ["config:recommended", ":gitSignOff"],
+    "abandonmentThreshold": "6 months",
+    "assignees": ["atlowChemi"],
+    "commitBodyTable": true,
+    "configMigration": true,
+    "dependencyDashboard": true,
+    "dependencyDashboardAutoclose": true,
+    "minimumReleaseAge": "5 days",
+    "packageRules": [
+        {
+            "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+            "automerge": true
+        },
+        {
+            "matchDepTypes": ["devDependencies"],
+            "automerge": true
+        }
+    ],
+    "postUpdateOptions": ["pnpmDedupe"],
+    "rollbackPrs": true,
+    "semanticCommitScope": "deps",
+    "semanticCommitType": "chore",
+    "semanticCommits": "enabled"
+}
