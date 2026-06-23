@@ -36,6 +36,12 @@ describe('utils', () => {
         const onChange = vi.fn();
         const doesFileExist = vi.fn();
 
+        it("doesn't execute callback for non string events", async () => {
+            await utils.handleWatchEvent('', { eventType: 'rename', filename: Buffer.from('ex.svg') }, onChange, doesFileExist);
+            expect(doesFileExist).not.toHaveBeenCalled();
+            expect(onChange).not.toHaveBeenCalled();
+        });
+
         it("doesn't execute callback for non svg files", async () => {
             await utils.handleWatchEvent('', { eventType: 'rename', filename: 'notsvg.png' }, onChange, doesFileExist);
             expect(doesFileExist).not.toHaveBeenCalled();
