@@ -498,9 +498,9 @@ describe('output size (deterministic)', () => {
     it('woff2 size by brotli compression quality', { skip: isMuslLinux() }, () => {
         expect(woff2ByQuality).toMatchInlineSnapshot(`
           {
-            "q10": 22880,
-            "q11": 22328,
-            "q9": 24968,
+            "q10": 22860,
+            "q11": 22320,
+            "q9": 24900,
           }
         `);
     });
@@ -508,11 +508,11 @@ describe('output size (deterministic)', () => {
     it('per-format output sizes', { skip: isMuslLinux() }, () => {
         expect(perFormat).toMatchInlineSnapshot(`
           {
-            "eot": 61080,
-            "svg": 818884,
-            "ttf": 60928,
-            "woff": 30048,
-            "woff2": 22328,
+            "eot": 60944,
+            "svg": 817318,
+            "ttf": 60792,
+            "woff": 29980,
+            "woff2": 22320,
           }
         `);
     });
