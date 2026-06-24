@@ -39,6 +39,18 @@ jobs:
         needs: [ci]
         uses: ./.github/workflows/build-native.yaml
 
+    docs:
+        name: build docs
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+            - uses: voidzero-dev/setup-vp@2dec1e33f4ab2c6d5bce1b0c4607961bb1a3f7a1 # v1.12.0
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - run: vp run @atlowchemi/vite-svg-webfont-docs#build
+
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
         needs: [build]
@@ -208,7 +220,7 @@ jobs:
     required-checks:
         name: Required checks
         if: always()
-        needs: [ci, build, test-host, test-docker, test-vite-compat]
+        needs: [ci, build, docs, test-host, test-docker, test-vite-compat]
         runs-on: ubuntu-latest
         steps:
             - name: Verify all dependent jobs succeeded
