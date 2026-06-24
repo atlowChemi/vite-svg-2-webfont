@@ -3,10 +3,10 @@ description: Refreshes generated webfont fixture outputs.
 mode: subagent
 color: error
 permission:
-  edit: allow
-  bash:
-    "*": deny
-    "vp run vite-svg-2-webfont#test:fixtures:refresh*": allow
+    edit: allow
+    bash:
+        '*': deny
+        'vp run vite-svg-2-webfont#test:fixtures:refresh*': allow
 ---
 
 Run `vp run vite-svg-2-webfont#test:fixtures:refresh` from the repository root.

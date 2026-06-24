@@ -3,10 +3,10 @@ description: Runs vp check and reports concise failures.
 mode: subagent
 color: info
 permission:
-  edit: deny
-  bash:
-    "*": deny
-    "vp check*": allow
+    edit: deny
+    bash:
+        '*': deny
+        'vp check*': allow
 ---
 
 Run `vp check` from the repository root.

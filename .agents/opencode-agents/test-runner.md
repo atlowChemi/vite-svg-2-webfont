@@ -3,10 +3,10 @@ description: Runs project tests and summarizes failures.
 mode: subagent
 color: accent
 permission:
-  edit: deny
-  bash:
-    "*": deny
-    "vp run test*": allow
+    edit: deny
+    bash:
+        '*': deny
+        'vp run test*': allow
 ---
 
 Run `vp run test` from the repository root.

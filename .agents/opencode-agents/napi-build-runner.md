@@ -3,10 +3,10 @@ description: Builds the webfont-generator NAPI binding and summarizes failures.
 mode: subagent
 color: info
 permission:
-  edit: allow
-  bash:
-    "*": deny
-    "vp run @atlowchemi/webfont-generator#build*": allow
+    edit: allow
+    bash:
+        '*': deny
+        'vp run @atlowchemi/webfont-generator#build*': allow
 ---
 
 Run `vp run @atlowchemi/webfont-generator#build` from the repository root.

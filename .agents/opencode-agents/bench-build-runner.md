@@ -3,10 +3,10 @@ description: Builds Rust benchmark targets without running benchmarks.
 mode: subagent
 color: secondary
 permission:
-  edit: deny
-  bash:
-    "*": deny
-    "vp run @atlowchemi/webfont-generator#bench --no-run*": allow
+    edit: deny
+    bash:
+        '*': deny
+        'vp run @atlowchemi/webfont-generator#bench --no-run*': allow
 ---
 
 Run `vp run @atlowchemi/webfont-generator#bench --no-run` from the repository root.

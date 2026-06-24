@@ -3,10 +3,10 @@ description: Runs coverage and summarizes failures or thresholds.
 mode: subagent
 color: success
 permission:
-  edit: deny
-  bash:
-    "*": deny
-    "vp run coverage*": allow
+    edit: deny
+    bash:
+        '*': deny
+        'vp run coverage*': allow
 ---
 
 Run `vp run coverage` from the repository root.
