@@ -1,8 +1,10 @@
 use std::collections::HashMap;
+use std::hint::black_box;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::{Duration, Instant};
 
-use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use criterion::{BatchSize, Criterion, SamplingMode, criterion_group, criterion_main};
 use serde_json::Value;
 use webfont_generator::{
     FontType, FormatOptions, GenerateWebfontsOptions, RenameFn, SvgFormatOptions, TtfFormatOptions,
@@ -11,6 +13,8 @@ use webfont_generator::{
 
 const TEST_TTF_TIMESTAMP: i64 = 1_700_000_000;
 const BENCH_DEST: &str = "/tmp/webfont-generator-feature-bench-out";
+const TEMPLATE_CACHE_REPEATS: u32 = 256;
+const WRITE_SKIP_REPEATS: u32 = 32;
 
 struct FixtureSet {
     dir: PathBuf,
@@ -299,6 +303,18 @@ fn urls() -> HashMap<FontType, String> {
     ])
 }
 
+fn repeated_batch_timing(
+    iters: u64,
+    repeats_per_iter: u32,
+    mut run: impl FnMut(),
+) -> std::time::Duration {
+    let start = Instant::now();
+    for _ in 0..iters * u64::from(repeats_per_iter) {
+        run();
+    }
+    start.elapsed()
+}
+
 fn bench_template_rendering(c: &mut Criterion) {
     let mut group = c.benchmark_group("template_rendering");
     group.sample_size(50);
@@ -316,11 +332,19 @@ fn bench_template_rendering(c: &mut Criterion) {
         )
     });
     result.generate_css_pure(None).unwrap();
-    group.bench_function("css_cached/default/300", |b| {
-        b.iter(|| result.generate_css_pure(None).unwrap())
+    group.bench_function("css_cached_batch/default/300", |b| {
+        b.iter_custom(|iters| {
+            repeated_batch_timing(iters, TEMPLATE_CACHE_REPEATS, || {
+                black_box(result.generate_css_pure(None).unwrap());
+            })
+        })
     });
-    group.bench_function("css_urls/default/300", |b| {
-        b.iter(|| result.generate_css_pure(Some(urls())).unwrap())
+    group.bench_function("css_urls_batch/default/300", |b| {
+        b.iter_custom(|iters| {
+            repeated_batch_timing(iters, TEMPLATE_CACHE_REPEATS, || {
+                black_box(result.generate_css_pure(Some(urls())).unwrap());
+            })
+        })
     });
     group.bench_function("html_first/default/300", |b| {
         b.iter_batched(
@@ -330,8 +354,12 @@ fn bench_template_rendering(c: &mut Criterion) {
         )
     });
     result.generate_html_pure(None).unwrap();
-    group.bench_function("html_cached/default/300", |b| {
-        b.iter(|| result.generate_html_pure(None).unwrap())
+    group.bench_function("html_cached_batch/default/300", |b| {
+        b.iter_custom(|iters| {
+            repeated_batch_timing(iters, TEMPLATE_CACHE_REPEATS, || {
+                black_box(result.generate_html_pure(None).unwrap());
+            })
+        })
     });
 
     let template_dir = temp_dir("templates");
@@ -357,8 +385,12 @@ fn bench_template_rendering(c: &mut Criterion) {
         )
     });
     custom_result.generate_css_pure(None).unwrap();
-    group.bench_function("css_cached/custom/300", |b| {
-        b.iter(|| custom_result.generate_css_pure(None).unwrap())
+    group.bench_function("css_cached_batch/custom/300", |b| {
+        b.iter_custom(|iters| {
+            repeated_batch_timing(iters, TEMPLATE_CACHE_REPEATS, || {
+                black_box(custom_result.generate_css_pure(None).unwrap());
+            })
+        })
     });
     group.bench_function("html_first/custom/300", |b| {
         b.iter_batched(
@@ -368,8 +400,12 @@ fn bench_template_rendering(c: &mut Criterion) {
         )
     });
     custom_result.generate_html_pure(None).unwrap();
-    group.bench_function("html_cached/custom/300", |b| {
-        b.iter(|| custom_result.generate_html_pure(None).unwrap())
+    group.bench_function("html_cached_batch/custom/300", |b| {
+        b.iter_custom(|iters| {
+            repeated_batch_timing(iters, TEMPLATE_CACHE_REPEATS, || {
+                black_box(custom_result.generate_html_pure(None).unwrap());
+            })
+        })
     });
     group.finish();
 }
@@ -377,6 +413,8 @@ fn bench_template_rendering(c: &mut Criterion) {
 fn bench_write_paths(c: &mut Criterion) {
     let mut group = c.benchmark_group("write_paths");
     group.sample_size(50);
+    group.measurement_time(Duration::from_secs(10));
+    group.sampling_mode(SamplingMode::Flat);
     let fixture = fixtures(100, "heavy");
     group.bench_function("initial_write/100", |b| {
         b.iter_batched(
@@ -392,30 +430,24 @@ fn bench_write_paths(c: &mut Criterion) {
             BatchSize::SmallInput,
         )
     });
-    group.bench_function("incremental_write_skip/100", |b| {
-        b.iter_batched(
-            || {
-                let mut opts = base_options(fixture.paths.clone(), vec![FontType::Woff2]);
-                opts.css = Some(true);
-                opts.dest = temp_dir("write-skip").to_string_lossy().into_owned();
-                opts.incremental = Some(true);
-                opts.write_files = Some(true);
-                let result = webfont_generator::generate_sync(opts, None).unwrap();
-                (result, fixture.paths[0].clone())
-            },
-            |(mut result, changed)| {
-                result
-                    .regenerate(
-                        &fixture.paths,
-                        &[(
-                            changed,
-                            webfont_generator::GlyphChange::Changed { name: None },
-                        )],
-                    )
-                    .unwrap()
-            },
-            BatchSize::SmallInput,
-        )
+    group.bench_function("incremental_write_skip_batch/100", |b| {
+        b.iter_custom(|iters| {
+            let mut opts = base_options(fixture.paths.clone(), vec![FontType::Woff2]);
+            opts.css = Some(true);
+            opts.dest = temp_dir("write-skip").to_string_lossy().into_owned();
+            opts.incremental = Some(true);
+            opts.write_files = Some(true);
+            let mut result = webfont_generator::generate_sync(opts, None).unwrap();
+            let changed = fixture.paths[0].clone();
+            let change = [(
+                changed,
+                webfont_generator::GlyphChange::Changed { name: None },
+            )];
+
+            repeated_batch_timing(iters, WRITE_SKIP_REPEATS, || {
+                result.regenerate(&fixture.paths, &change).unwrap();
+            })
+        })
     });
     group.finish();
 }
