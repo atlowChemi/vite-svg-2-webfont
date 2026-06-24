@@ -1,0 +1,1 @@
+../../.agents/agents/vp-check.md
