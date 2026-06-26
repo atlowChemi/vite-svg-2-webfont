@@ -203,7 +203,7 @@ importers:
         version: 1.7.5(@voidzero-dev/vite-plus-core@0.2.1(@types/node@24.13.2)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.101.0)(typescript@6.0.3))
       vitepress-plugin-llms:
         specifier: ^1.13.0
-        version: 1.13.1
+        version: 1.13.2
       vue:
         specifier: ^3.5.34
         version: 3.5.38(typescript@6.0.3)
@@ -2800,8 +2800,8 @@ packages:
   estree-walker@3.0.3:
     resolution: {integrity: sha512-7RUKfXgSMMkzt6ZuXmqapOurLGPPfgj6l9uRZ7lRGolvk0y2yocc35LdcxKC5PQZdn2DMqioAQ2NoWcrTKmm6g==}
 
-  expect-type@1.3.0:
-    resolution: {integrity: sha512-knvyeauYhqjOYvQ66MznSMs83wmHrCycNEN6Ao+2AeYEfxUIkuiVxdEa1qlGEPK+We3n0THiDciYSsCcgW/DoA==}
+  expect-type@1.4.0:
+    resolution: {integrity: sha512-KfYbmpRm0VbLjEvVa9yGwCi9GI34xvi7A/HXYWQO65CSD2u3MczUJSuwXKFIxlGsgBQizV9q5J9NHj4VG0n+pA==}
     engines: {node: '>=12.0.0'}
 
   extend-shallow@2.0.1:
@@ -2883,6 +2883,7 @@ packages:
   git-raw-commits@5.0.1:
     resolution: {integrity: sha512-Y+csSm2GD/PCSh6Isd/WiMjNAydu0VBiG9J7EdQsNA5P9uXvLayqjmTsNlK5Gs9IhblFZqOU0yid5Il5JPoLiQ==}
     engines: {node: '>=18'}
+    deprecated: Deprecated and no longer maintained. Use @conventional-changelog/git-client instead.
     hasBin: true
 
   glob@13.0.6:
@@ -3969,8 +3970,8 @@ packages:
       vite:
         optional: true
 
-  vitepress-plugin-llms@1.13.1:
-    resolution: {integrity: sha512-m+rxyghF5INi8hBw0huFPx6+VvaX1tDGvw1H7FdXowaZJ3dcRY5ShgbmK1AQlmeOFMdd16H8WarhSHLPXF/2OA==}
+  vitepress-plugin-llms@1.13.2:
+    resolution: {integrity: sha512-2O4s0I5pjEZzgnoWgBPCZCyhah9FH5uQB6lGADazMoyF1URJshtG04ZnmX+cbmQmniN3T5JzdJO9B4q8JHDKOQ==}
     engines: {node: '>=18'}
 
   vitepress@2.0.0-alpha.17:
@@ -6248,7 +6249,7 @@ snapshots:
     dependencies:
       '@types/estree': 1.0.9
 
-  expect-type@1.3.0: {}
+  expect-type@1.4.0: {}
 
   extend-shallow@2.0.1:
     dependencies:
@@ -7616,7 +7617,7 @@ snapshots:
     optionalDependencies:
       vite: '@voidzero-dev/vite-plus-core@0.2.1(@types/node@24.13.2)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.101.0)(typescript@6.0.3)'
 
-  vitepress-plugin-llms@1.13.1:
+  vitepress-plugin-llms@1.13.2:
     dependencies:
       gray-matter: 4.0.3
       markdown-it: 14.2.0
@@ -7695,7 +7696,7 @@ snapshots:
       '@vitest/spy': 4.1.9
       '@vitest/utils': 4.1.9
       es-module-lexer: 2.1.0
-      expect-type: 1.3.0
+      expect-type: 1.4.0
       magic-string: 0.30.21
       obug: 2.1.3
       pathe: 2.0.3
