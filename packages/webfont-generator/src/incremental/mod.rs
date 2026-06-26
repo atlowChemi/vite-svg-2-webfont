@@ -101,6 +101,7 @@ impl GenerateWebfontsResult {
                     source_files.retain(|file| &file.path != path);
                     cache.entries.remove(path);
                     cache.content_hashes.remove(path);
+                    cache.processed_entries.remove(path);
                     changed_inputs |= source_files.len() != before;
                 }
                 GlyphChange::Added { name } => {
@@ -116,6 +117,7 @@ impl GenerateWebfontsResult {
                         cache.entries.remove(path);
                         cache.content_hashes.remove(path);
                     }
+                    cache.processed_entries.remove(path);
                     changed_inputs = true;
                 }
                 GlyphChange::Changed { name } => {
@@ -142,6 +144,7 @@ impl GenerateWebfontsResult {
                             cache.entries.remove(path);
                             cache.content_hashes.remove(path);
                         }
+                        cache.processed_entries.remove(path);
                     }
                     changed_inputs = true;
                 }
@@ -179,7 +182,7 @@ impl GenerateWebfontsResult {
 
         let svg_options = svg_options_from_options(&options);
         let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
-        let fonts = build_font_outputs(&options, &svg_options, &prepared)?;
+        let fonts = build_font_outputs(&options, &svg_options, &prepared, self.ttf_cache.as_mut())?;
 
         // Rebuild the template data fresh (the font hash changed), but keep the rendered CSS/HTML
         // that can't have changed: only when the glyph names and codepoints the templates read are

@@ -121,7 +121,7 @@ fn calculate_combined_bounds(paths: &[usvg::tiny_skia_path::Path]) -> Rect {
         .unwrap_or_else(|| Rect::from_xywh(0.0, 0.0, 1.0, 1.0).expect("fallback rect"))
 }
 
-fn build_unicode_values(name: &str, codepoint: u32, ligature: bool) -> Vec<String> {
+pub(crate) fn build_unicode_values(name: &str, codepoint: u32, ligature: bool) -> Vec<String> {
     let mut values = vec![format!("&#x{:X};", codepoint)];
     if ligature {
         let ligature_value = name

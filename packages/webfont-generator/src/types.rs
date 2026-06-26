@@ -14,6 +14,7 @@ use crate::templates::{
     build_html_registry_and_dependencies, make_src, render_css_with_hbs_context,
     render_css_with_src_mutate, render_default_html_with_styles, render_html_with_hbs_context,
 };
+use crate::ttf::TtfGlyphCache;
 use crate::util::to_io_err;
 
 /// What happened to a file, for [`GenerateWebfontsResult::regenerate`]. `name` is the
@@ -423,6 +424,8 @@ pub struct GenerateWebfontsResult {
     pub(crate) html_context: Option<Map<String, Value>>,
     pub(crate) options: ResolvedGenerateWebfontsOptions,
     pub(crate) source_files: Vec<LoadedSvgFile>,
+    /// Compiled TTF outline cache for incremental TTF-derived output rebuilds.
+    pub(crate) ttf_cache: Option<TtfGlyphCache>,
     /// Hash per CSS/HTML output path of what was last written to disk. Seeded by the initial write
     /// when `write_files` is enabled, then updated by incremental `regenerate` writes so unchanged
     /// rendered companion files are not rewritten. Font outputs are written directly after real
@@ -885,6 +888,7 @@ mod tests {
             html_context: None,
             options: resolved,
             source_files,
+            ttf_cache: None,
             written_outputs: Default::default(),
         };
 
@@ -1157,6 +1161,7 @@ mod tests {
             html_context: None,
             options: resolved,
             source_files,
+            ttf_cache: None,
             written_outputs: Default::default(),
         }
     }

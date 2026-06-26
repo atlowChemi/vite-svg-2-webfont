@@ -53,6 +53,13 @@ pub(crate) struct ProcessedGlyph {
 }
 
 #[derive(Clone)]
+pub(crate) struct CachedProcessedGlyph {
+    pub height: f64,
+    pub path_data: String,
+    pub width: f64,
+}
+
+#[derive(Clone)]
 pub(crate) struct PreparedSvgFont {
     pub ascent: f64,
     pub descent: f64,
@@ -84,6 +91,11 @@ pub(crate) struct GlyphCache {
     pub content_hashes: HashMap<String, [u8; 16]>,
     /// Parsed geometry keyed by SVG source bytes so added/renamed duplicate icons can reuse it.
     pub by_content_hash: HashMap<[u8; 16], CachedGlyph>,
+    /// Processed path data keyed by path for unchanged files while metrics/options stay stable.
+    pub processed_entries: HashMap<String, CachedProcessedGlyph>,
+    pub processed_signature: Option<[u8; 16]>,
     #[cfg(test)]
     pub parse_count: usize,
+    #[cfg(test)]
+    pub process_count: usize,
 }
