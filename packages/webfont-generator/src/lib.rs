@@ -95,6 +95,7 @@ use templates::{
     SharedTemplateData, apply_context_function, build_css_context, build_html_context,
     build_html_registry_and_dependencies,
 };
+use ttf::TtfGlyphCache;
 #[cfg(feature = "napi")]
 use util::to_napi_err;
 use write::write_generate_webfonts_result;
@@ -205,7 +206,7 @@ pub mod bench_support {
         let sources = load_sources(sources);
         let options = resolve(options, &sources)?;
         let svg_options = svg_options_from_options(&options);
-        let fonts = build_font_outputs(&options, &svg_options, &prepared.0)?;
+        let fonts = build_font_outputs(&options, &svg_options, &prepared.0, None)?;
         Ok(fonts.svg_font.as_ref().map_or(0, |v| v.len())
             + fonts.ttf_font.as_ref().map_or(0, |v| v.len())
             + fonts.woff_font.as_ref().map_or(0, |v| v.len())
@@ -559,14 +560,14 @@ fn generate_webfonts_sync(
     // When incremental, retain the parsed-glyph cache so a later `regenerate` can reuse the
     // glyphs whose source didn't change. Otherwise the geometry is dropped as soon as the font
     // is built, so one-shot builds carry no extra memory.
-    let (prepared, glyph_cache) = if options.incremental {
+    let (prepared, glyph_cache, mut ttf_cache) = if options.incremental {
         let mut cache = GlyphCache::default();
         let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
-        (prepared, Some(cache))
+        (prepared, Some(cache), Some(TtfGlyphCache::default()))
     } else {
-        (prepare_svg_font(&svg_options, &source_files)?, None)
+        (prepare_svg_font(&svg_options, &source_files)?, None, None)
     };
-    let fonts = build_font_outputs(&options, &svg_options, &prepared)?;
+    let fonts = build_font_outputs(&options, &svg_options, &prepared, ttf_cache.as_mut())?;
 
     Ok(GenerateWebfontsResult {
         cached: std::sync::OnceLock::new(),
@@ -577,6 +578,7 @@ fn generate_webfonts_sync(
         html_context: None,
         options,
         source_files,
+        ttf_cache,
         written_outputs: std::collections::HashMap::new(),
     })
 }
@@ -586,6 +588,7 @@ fn build_font_outputs(
     options: &ResolvedGenerateWebfontsOptions,
     svg_options: &SvgOptions<'_>,
     prepared: &PreparedSvgFont,
+    ttf_cache: Option<&mut TtfGlyphCache>,
 ) -> std::io::Result<FontOutputs> {
     let wants_svg = options.types.contains(&FontType::Svg);
     let wants_ttf = options.types.contains(&FontType::Ttf);
@@ -604,8 +607,19 @@ fn build_font_outputs(
         || -> std::io::Result<Option<Vec<u8>>> {
             if wants_ttf || wants_woff || wants_woff2 || wants_eot {
                 let ttf_options = ttf::ttf_options_from_options(options);
-                ttf::generate_ttf_font_bytes_from_glyphs(ttf_options, &prepared.processed_glyphs)
-                    .map(Some)
+                match ttf_cache {
+                    Some(cache) => ttf::generate_ttf_font_bytes_from_glyphs_cached(
+                        ttf_options,
+                        &prepared.processed_glyphs,
+                        cache,
+                    )
+                    .map(Some),
+                    None => ttf::generate_ttf_font_bytes_from_glyphs(
+                        ttf_options,
+                        &prepared.processed_glyphs,
+                    )
+                    .map(Some),
+                }
             } else {
                 Ok(None)
             }

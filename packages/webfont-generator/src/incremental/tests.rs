@@ -39,10 +39,14 @@ fn temp_dir() -> std::path::PathBuf {
 }
 
 fn write_icon(dir: &Path, name: &str, d: &str) -> String {
+    write_icon_with_viewbox(dir, name, 24, 24, d)
+}
+
+fn write_icon_with_viewbox(dir: &Path, name: &str, width: u32, height: u32, d: &str) -> String {
     let path = dir.join(format!("{name}.svg"));
     std::fs::write(
         &path,
-        format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><path d=\"{d}\"/></svg>"),
+        format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 {width} {height}\"><path d=\"{d}\"/></svg>"),
     )
     .unwrap();
     path.to_string_lossy().into_owned()
@@ -119,6 +123,60 @@ fn regenerate_after_content_change_matches_fresh() {
         .unwrap();
 
     assert_same(&result, &generate(vec![a, b, c], false));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_reuses_compiled_ttf_glyphs_for_stable_metrics() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let c = write_icon(&dir, "c", D3);
+
+    let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
+    let processed_before = result.glyph_cache.as_ref().unwrap().process_count;
+    let before = result.ttf_cache.as_ref().unwrap().compile_count;
+    write_icon(&dir, "b", D_CHANGED);
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
+        .unwrap();
+
+    assert_same(&result, &generate(vec![a, b, c], false));
+    assert_eq!(
+        result.glyph_cache.as_ref().unwrap().process_count,
+        processed_before + 1
+    );
+    assert_eq!(result.ttf_cache.as_ref().unwrap().compile_count, before + 1);
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_recompiles_compiled_ttf_glyphs_after_metric_shift() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let c = write_icon(&dir, "c", D3);
+
+    let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
+    let processed_before = result.glyph_cache.as_ref().unwrap().process_count;
+    let before = result.ttf_cache.as_ref().unwrap().compile_count;
+    write_icon_with_viewbox(&dir, "b", 24, 48, D_CHANGED);
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
+        .unwrap();
+
+    assert_same(&result, &generate(vec![a, b, c], false));
+    assert_eq!(
+        result.glyph_cache.as_ref().unwrap().process_count,
+        processed_before + 3
+    );
+    assert_eq!(result.ttf_cache.as_ref().unwrap().compile_count, before + 3);
     std::fs::remove_dir_all(&dir).ok();
 }
 

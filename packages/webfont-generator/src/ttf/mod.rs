@@ -69,6 +69,27 @@ struct CompiledGlyph {
     source_index: usize,
 }
 
+#[derive(Clone)]
+struct CachedCompiledGlyph {
+    advance_width: u16,
+    bbox: write_fonts::tables::glyf::Bbox,
+    simple_glyph: SimpleGlyph,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct TtfGlyphCache {
+    entries: HashMap<[u8; 16], CachedCompiledGlyph>,
+    #[cfg(test)]
+    pub compile_count: usize,
+}
+
+fn compiled_glyph_cache_key(path_data: &str, advance_width: u16) -> [u8; 16] {
+    let mut bytes = Vec::with_capacity(path_data.len() + 2);
+    bytes.extend_from_slice(path_data.as_bytes());
+    bytes.extend_from_slice(&advance_width.to_le_bytes());
+    md5::compute(bytes).0
+}
+
 struct LigaturePlaceholderGlyph {
     codepoint: u32,
     name: String,
@@ -161,6 +182,40 @@ pub(crate) fn generate_ttf_font_bytes_from_glyphs(
     )
 }
 
+pub(crate) fn generate_ttf_font_bytes_from_glyphs_cached(
+    options: TtfOptions,
+    glyphs: &[ProcessedGlyph],
+    cache: &mut TtfGlyphCache,
+) -> Result<Vec<u8>, Error> {
+    let font_height = options.font_height.unwrap_or_else(|| {
+        glyphs
+            .iter()
+            .fold(0.0_f64, |current, glyph| current.max(glyph.height))
+            .max(1.0)
+    });
+    let descent = options.descent.unwrap_or(0.0);
+    let ascent = options.ascent.unwrap_or(font_height - descent);
+
+    let (compiled_glyphs, cmap_aliases) = compile_and_dedup_glyphs_cached(glyphs, cache)?;
+    let ligature_placeholders = build_ligature_placeholders(&compiled_glyphs, options.ligature);
+    let (glyf, loca, loca_format) = build_glyf_table(&compiled_glyphs, &ligature_placeholders)?;
+    let metrics = compute_glyph_metrics(&compiled_glyphs);
+
+    assemble_font(
+        &options,
+        &compiled_glyphs,
+        &cmap_aliases,
+        &ligature_placeholders,
+        glyf,
+        loca,
+        loca_format,
+        &metrics,
+        ascent,
+        descent,
+        font_height,
+    )
+}
+
 /// Codepoint aliases for deduplicated glyphs: (codepoint, index of first occurrence).
 type CmapAliases = Vec<(u32, usize)>;
 
@@ -191,6 +246,63 @@ fn compile_and_dedup_glyphs(
         }
     }
 
+    Ok((compiled, aliases))
+}
+
+fn compile_and_dedup_glyphs_cached(
+    glyphs: &[ProcessedGlyph],
+    cache: &mut TtfGlyphCache,
+) -> Result<(Vec<CompiledGlyph>, CmapAliases), Error> {
+    let mut compiled: Vec<CompiledGlyph> = Vec::with_capacity(glyphs.len());
+    let mut aliases: Vec<(u32, usize)> = Vec::new();
+    let mut seen: HashMap<(usize, u16), Vec<usize>> = HashMap::new();
+    let mut next_entries = HashMap::new();
+
+    for (i, glyph) in glyphs.iter().enumerate() {
+        let advance_width = clamp_to_u16(glyph.width.round(), 0, u16::MAX);
+        let key = (glyph.path_data.len(), advance_width);
+        let duplicate_of = seen.get(&key).and_then(|indices| {
+            indices
+                .iter()
+                .find(|&&idx| glyphs[compiled[idx].source_index].path_data == glyph.path_data)
+                .copied()
+        });
+        if let Some(first_idx) = duplicate_of {
+            aliases.push((glyph.codepoint, first_idx));
+        } else {
+            let cache_key = compiled_glyph_cache_key(&glyph.path_data, advance_width);
+            let cached = cache.entries.get(&cache_key).cloned();
+            let cached = match cached {
+                Some(cached) => cached,
+                None => {
+                    #[cfg(test)]
+                    {
+                        cache.compile_count += 1;
+                    }
+                    let compiled = compile_glyph(i, glyph)?;
+                    CachedCompiledGlyph {
+                        advance_width: compiled.advance_width,
+                        bbox: compiled.bbox,
+                        simple_glyph: compiled.simple_glyph,
+                    }
+                }
+            };
+            next_entries.insert(cache_key, cached.clone());
+            let idx = compiled.len();
+            seen.entry(key).or_default().push(idx);
+            compiled.push(CompiledGlyph {
+                advance_width: cached.advance_width,
+                bbox: cached.bbox,
+                codepoint: glyph.codepoint,
+                left_side_bearing: cached.bbox.x_min,
+                name: glyph.name.clone(),
+                simple_glyph: cached.simple_glyph,
+                source_index: i,
+            });
+        }
+    }
+
+    cache.entries = next_entries;
     Ok((compiled, aliases))
 }
 

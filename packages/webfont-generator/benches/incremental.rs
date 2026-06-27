@@ -769,7 +769,7 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
 
 fn bench_regenerate_by_format(c: &mut Criterion) {
     let mut group = c.benchmark_group("regenerate_by_format");
-    group.sample_size(10);
+    group.sample_size(40);
     let size = 300;
     for (label, types) in [
         ("svg", vec![FontType::Svg]),

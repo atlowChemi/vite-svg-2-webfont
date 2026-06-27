@@ -11,11 +11,31 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
 
 use parse::parse_svg_glyph;
-use process::process_glyph;
+use process::{build_unicode_values, process_glyph};
 pub(crate) use serialize::build_svg_font;
-use types::{CachedGlyph, GlyphCache, GlyphWorkItem, ParsedGlyph, PreparedSvgFont, SvgOptions};
+use types::{
+    CachedGlyph, CachedProcessedGlyph, GlyphCache, GlyphWorkItem, ParsedGlyph, PreparedSvgFont,
+    ProcessedGlyph, SvgOptions,
+};
 
 use crate::types::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+
+struct FinalizePlan {
+    normalize: bool,
+    fixed_width: bool,
+    center_horizontally: bool,
+    center_vertically: bool,
+    ligature: bool,
+    round: f64,
+    max_glyph_height: f64,
+    font_height: f64,
+    font_width: f64,
+    ascent: f64,
+    descent: f64,
+    font_id: String,
+    metadata: String,
+    optimize_output: bool,
+}
 
 pub(crate) fn svg_options_from_options(
     options: &ResolvedGenerateWebfontsOptions,
@@ -111,20 +131,34 @@ pub(crate) fn finalize_glyphs(
     options: &SvgOptions,
     glyphs: Vec<ParsedGlyph>,
 ) -> Result<PreparedSvgFont, Error> {
-    let normalize = options.normalize;
-    let fixed_width = options.fixed_width.unwrap_or(false);
-    let center_horizontally = options.center_horizontally.unwrap_or(false);
-    let center_vertically = options.center_vertically.unwrap_or(false);
-    let ligature = options.ligature;
-    let round = options.round.unwrap_or(10e12);
+    let plan = finalize_plan(options, &glyphs);
 
+    let mut processed_glyphs = glyphs
+        .into_par_iter()
+        .map(|glyph| process_glyph_with_plan(glyph, &plan))
+        .collect::<Result<Vec<_>, Error>>()
+        .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
+    processed_glyphs.sort_by_key(|glyph| glyph.index);
+
+    Ok(PreparedSvgFont {
+        ascent: plan.ascent,
+        descent: plan.descent,
+        font_height: plan.font_height,
+        font_id: plan.font_id,
+        font_width: plan.font_width,
+        metadata: plan.metadata,
+        processed_glyphs,
+    })
+}
+
+fn finalize_plan(options: &SvgOptions, glyphs: &[ParsedGlyph]) -> FinalizePlan {
+    let normalize = options.normalize;
     let max_glyph_height = glyphs
         .iter()
         .fold(0.0_f64, |current, glyph| current.max(glyph.height));
     let max_glyph_width = glyphs
         .iter()
         .fold(0.0_f64, |current, glyph| current.max(glyph.width));
-
     let font_height = options.font_height.unwrap_or(max_glyph_height.max(1.0));
     let descent = options.descent.unwrap_or(0.0);
     let mut font_width = if max_glyph_height > 0.0 {
@@ -146,42 +180,43 @@ pub(crate) fn finalize_glyphs(
     } else if options.font_height.is_some() && max_glyph_height > 0.0 {
         font_width *= font_height / max_glyph_height;
     }
-    let ascent = options.ascent.unwrap_or(font_height - descent);
-    let font_id = options.font_id.unwrap_or(options.font_name).to_owned();
-    let metadata = options.metadata.unwrap_or_default().to_owned();
-    let optimize_output = options.optimize_output.unwrap_or(false);
 
-    let mut processed_glyphs = glyphs
-        .into_par_iter()
-        .map(|glyph| {
-            process_glyph(
-                glyph,
-                normalize,
-                fixed_width,
-                center_horizontally,
-                center_vertically,
-                ligature,
-                round,
-                max_glyph_height,
-                font_height,
-                font_width,
-                descent,
-                optimize_output,
-            )
-        })
-        .collect::<Result<Vec<_>, Error>>()
-        .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
-    processed_glyphs.sort_by_key(|glyph| glyph.index);
-
-    Ok(PreparedSvgFont {
-        ascent,
-        descent,
+    FinalizePlan {
+        normalize,
+        fixed_width: options.fixed_width.unwrap_or(false),
+        center_horizontally: options.center_horizontally.unwrap_or(false),
+        center_vertically: options.center_vertically.unwrap_or(false),
+        ligature: options.ligature,
+        round: options.round.unwrap_or(10e12),
+        max_glyph_height,
         font_height,
-        font_id,
         font_width,
-        metadata,
-        processed_glyphs,
-    })
+        ascent: options.ascent.unwrap_or(font_height - descent),
+        descent,
+        font_id: options.font_id.unwrap_or(options.font_name).to_owned(),
+        metadata: options.metadata.unwrap_or_default().to_owned(),
+        optimize_output: options.optimize_output.unwrap_or(false),
+    }
+}
+
+fn process_glyph_with_plan(
+    glyph: ParsedGlyph,
+    plan: &FinalizePlan,
+) -> Result<ProcessedGlyph, Error> {
+    process_glyph(
+        glyph,
+        plan.normalize,
+        plan.fixed_width,
+        plan.center_horizontally,
+        plan.center_vertically,
+        plan.ligature,
+        plan.round,
+        plan.max_glyph_height,
+        plan.font_height,
+        plan.font_width,
+        plan.descent,
+        plan.optimize_output,
+    )
 }
 
 /// Like [`prepare_svg_font`], but reuses cached glyph geometry instead of re-parsing. A file
@@ -196,7 +231,7 @@ pub(crate) fn prepare_svg_font_incremental(
     cache: &mut GlyphCache,
 ) -> Result<PreparedSvgFont, Error> {
     let glyphs = parse_glyphs_incremental(options, source_files, cache)?;
-    finalize_glyphs(options, glyphs)
+    finalize_glyphs_incremental(options, glyphs, source_files, cache)
 }
 
 pub(crate) fn source_content_hash(contents: &str) -> [u8; 16] {
@@ -224,6 +259,9 @@ fn parse_glyphs_incremental(
         .retain(|path, _| current.contains(path.as_str()));
     cache
         .content_hashes
+        .retain(|path, _| current.contains(path.as_str()));
+    cache
+        .processed_entries
         .retain(|path, _| current.contains(path.as_str()));
 
     // Rehydrate path entries from content-addressed geometry where possible. This handles added
@@ -326,4 +364,129 @@ fn parse_glyphs_incremental(
     }
     glyphs.sort_by_key(|glyph| glyph.index);
     Ok(glyphs)
+}
+
+fn processed_glyph_cache_signature(plan: &FinalizePlan) -> [u8; 16] {
+    let mut bytes = Vec::with_capacity(8 * 5 + 5);
+    bytes.extend_from_slice(&[
+        plan.normalize as u8,
+        plan.fixed_width as u8,
+        plan.center_horizontally as u8,
+        plan.center_vertically as u8,
+        plan.optimize_output as u8,
+    ]);
+    for value in [
+        plan.round,
+        plan.max_glyph_height,
+        plan.font_height,
+        plan.font_width,
+        plan.descent,
+    ] {
+        bytes.extend_from_slice(&value.to_bits().to_le_bytes());
+    }
+    md5::compute(bytes).0
+}
+
+fn finalize_glyphs_incremental(
+    options: &SvgOptions,
+    glyphs: Vec<ParsedGlyph>,
+    source_files: &[LoadedSvgFile],
+    cache: &mut GlyphCache,
+) -> Result<PreparedSvgFont, Error> {
+    let plan = finalize_plan(options, &glyphs);
+    let signature = processed_glyph_cache_signature(&plan);
+    if cache.processed_signature != Some(signature) {
+        cache.processed_entries.clear();
+        cache.processed_signature = Some(signature);
+    }
+
+    let processed: Vec<(usize, ProcessedGlyph, CachedProcessedGlyph)> = glyphs
+        .into_par_iter()
+        .enumerate()
+        .filter(|(_, glyph)| {
+            !cache
+                .processed_entries
+                .contains_key(&source_files[glyph.index].path)
+        })
+        .map(|(_, glyph)| {
+            let path_index = glyph.index;
+            process_glyph_with_plan(glyph, &plan).map(|glyph| {
+                let cached = CachedProcessedGlyph {
+                    height: glyph.height,
+                    path_data: glyph.path_data.clone(),
+                    width: glyph.width,
+                };
+                (path_index, glyph, cached)
+            })
+        })
+        .collect::<Result<Vec<_>, Error>>()
+        .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
+
+    #[cfg(test)]
+    {
+        cache.process_count += processed.len();
+    }
+
+    let mut freshly_processed = HashMap::with_capacity(processed.len());
+    for (index, glyph, cached) in processed {
+        cache
+            .processed_entries
+            .insert(source_files[index].path.clone(), cached);
+        freshly_processed.insert(index, glyph);
+    }
+
+    let mut processed_glyphs = Vec::with_capacity(source_files.len());
+    for (index, source_file) in source_files.iter().enumerate() {
+        let glyph = match freshly_processed.remove(&index) {
+            Some(glyph) => glyph,
+            None => {
+                let cached = cache
+                    .processed_entries
+                    .get(&source_file.path)
+                    .expect("an unchanged file must have a processed cache entry");
+                let codepoint = glyphs_codepoint(options, source_file)?;
+                ProcessedGlyph {
+                    codepoint,
+                    height: cached.height,
+                    index,
+                    name: source_file.glyph_name.clone(),
+                    path_data: cached.path_data.clone(),
+                    unicode_values: build_unicode_values(
+                        &source_file.glyph_name,
+                        codepoint,
+                        plan.ligature,
+                    ),
+                    width: cached.width,
+                }
+            }
+        };
+        processed_glyphs.push(glyph);
+    }
+    processed_glyphs.sort_by_key(|glyph| glyph.index);
+
+    Ok(PreparedSvgFont {
+        ascent: plan.ascent,
+        descent: plan.descent,
+        font_height: plan.font_height,
+        font_id: plan.font_id,
+        font_width: plan.font_width,
+        metadata: plan.metadata,
+        processed_glyphs,
+    })
+}
+
+fn glyphs_codepoint(options: &SvgOptions, source_file: &LoadedSvgFile) -> Result<u32, Error> {
+    options
+        .codepoints
+        .get(source_file.glyph_name.as_str())
+        .copied()
+        .ok_or_else(|| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "Missing resolved codepoint for glyph '{}'.",
+                    source_file.glyph_name
+                ),
+            )
+        })
 }
