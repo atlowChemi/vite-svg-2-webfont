@@ -33,7 +33,7 @@ jobs:
             - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
             - name: Cache cargo registry
-              uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+              uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: |
                       ~/.cargo/registry
@@ -41,7 +41,7 @@ jobs:
                   key: cargo-${{ runner.os }}-${{ hashFiles('packages/webfont-generator/Cargo.lock') }}
                   restore-keys: cargo-${{ runner.os }}-
             - name: Cache build artifacts
-              uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+              uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: |
                       ./packages/webfont-generator/target
@@ -52,7 +52,7 @@ jobs:
             - name: Restore xwin SDK/CRT cache
               id: xwin-cache-restore
               if: contains(matrix.target, 'windows-msvc')
-              uses: actions/cache/restore@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+              uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: ${{ github.workspace }}/.xwin
                   key: xwin-${{ runner.os }}-windows-msvc-v1
@@ -78,7 +78,7 @@ jobs:
 
             - name: Install cargo-zigbuild
               if: matrix.target != 'x86_64-unknown-linux-gnu' && !contains(matrix.target, 'windows-msvc')
-              uses: taiki-e/install-action@ace6ebe54a6a0c86dfb5f7764b17f793b6925bc3 # v2.82.3
+              uses: taiki-e/install-action@bffeee26d4db9be238a4ea78d8826604ebcb594d # v2.82.5
               env:
                   GITHUB_TOKEN: ${{ github.token }}
               with:
@@ -98,7 +98,7 @@ jobs:
 
             - name: Install cargo-xwin
               if: contains(matrix.target, 'windows-msvc')
-              uses: taiki-e/install-action@ace6ebe54a6a0c86dfb5f7764b17f793b6925bc3 # v2.82.3
+              uses: taiki-e/install-action@bffeee26d4db9be238a4ea78d8826604ebcb594d # v2.82.5
               env:
                   GITHUB_TOKEN: ${{ github.token }}
               with:
@@ -112,7 +112,7 @@ jobs:
 
             - name: Save xwin SDK/CRT cache
               if: contains(matrix.target, 'windows-msvc') && success() && steps.xwin-cache-restore.outputs.cache-hit != 'true'
-              uses: actions/cache/save@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
+              uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: ${{ github.workspace }}/.xwin
                   key: xwin-${{ runner.os }}-windows-msvc-v1
