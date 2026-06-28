@@ -258,7 +258,6 @@ fn options(
 
 fn bench_pipeline_slices(c: &mut Criterion) {
     let mut group = c.benchmark_group("pipeline");
-    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("svg/{size}"), |b| {

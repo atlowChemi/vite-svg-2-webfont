@@ -461,7 +461,6 @@ fn bench_regenerate_batches(c: &mut Criterion) {
 
 fn bench_add_remove(c: &mut Criterion) {
     let mut group = c.benchmark_group("add_remove");
-    group.sample_size(30);
     for size in SIZES {
         for position in ["start", "middle", "end"] {
             group.bench_function(format!("full_add_at_{position}/{size}"), |b| {
