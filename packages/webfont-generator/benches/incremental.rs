@@ -259,7 +259,6 @@ fn remove_position(paths: &[String], position: &str) -> (Vec<String>, String) {
 
 fn bench_svg_prepare(c: &mut Criterion) {
     let mut group = c.benchmark_group("svg_prepare");
-    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("full/{size}"), |b| {
@@ -291,7 +290,6 @@ fn bench_svg_prepare(c: &mut Criterion) {
 
 fn bench_regenerate(c: &mut Criterion) {
     let mut group = c.benchmark_group("regenerate");
-    group.sample_size(10);
     for size in SIZES {
         let fixture = fixtures(size);
         let mut result =
@@ -383,7 +381,7 @@ fn bench_regenerate(c: &mut Criterion) {
 
 fn bench_regenerate_batches(c: &mut Criterion) {
     let mut group = c.benchmark_group("regenerate_batches");
-    group.sample_size(10);
+    group.sample_size(30);
     let all_formats = vec![
         FontType::Svg,
         FontType::Ttf,
@@ -463,7 +461,6 @@ fn bench_regenerate_batches(c: &mut Criterion) {
 
 fn bench_add_remove(c: &mut Criterion) {
     let mut group = c.benchmark_group("add_remove");
-    group.sample_size(10);
     for size in SIZES {
         for position in ["start", "middle", "end"] {
             group.bench_function(format!("full_add_at_{position}/{size}"), |b| {
@@ -565,7 +562,6 @@ fn bench_add_remove(c: &mut Criterion) {
 
 fn bench_render_cache_after_regenerate(c: &mut Criterion) {
     let mut group = c.benchmark_group("render_cache_after_regenerate");
-    group.sample_size(10);
     let size = 300;
     group.bench_function("content_edit_css_urls_reused/300", |b| {
         b.iter_batched(
@@ -680,7 +676,6 @@ fn bench_render_cache_after_regenerate(c: &mut Criterion) {
 
 fn bench_incremental_write_content_edit(c: &mut Criterion) {
     let mut group = c.benchmark_group("write_files_after_regenerate");
-    group.sample_size(10);
     let size = 100;
     group.bench_function("content_edit/100", |b| {
         b.iter_batched(
@@ -712,7 +707,6 @@ fn bench_incremental_write_content_edit(c: &mut Criterion) {
 
 fn bench_specialized_incremental_paths(c: &mut Criterion) {
     let mut group = c.benchmark_group("specialized_incremental_paths");
-    group.sample_size(10);
     let size = 300;
     group.bench_function("rename_only/300", |b| {
         b.iter_batched(
@@ -769,7 +763,6 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
 
 fn bench_regenerate_by_format(c: &mut Criterion) {
     let mut group = c.benchmark_group("regenerate_by_format");
-    group.sample_size(40);
     let size = 300;
     for (label, types) in [
         ("svg", vec![FontType::Svg]),
@@ -832,21 +825,15 @@ fn bench_regenerate_by_format(c: &mut Criterion) {
     group.finish();
 }
 
-fn criterion_config() -> Criterion {
-    Criterion::default().sample_size(10)
-}
-
-criterion_group! {
-    name = benches;
-    config = criterion_config();
-    targets =
-        bench_svg_prepare,
-        bench_regenerate,
-        bench_regenerate_batches,
-        bench_add_remove,
-        bench_regenerate_by_format,
-        bench_render_cache_after_regenerate,
-        bench_incremental_write_content_edit,
-        bench_specialized_incremental_paths
-}
+criterion_group!(
+    benches,
+    bench_svg_prepare,
+    bench_regenerate,
+    bench_regenerate_batches,
+    bench_add_remove,
+    bench_regenerate_by_format,
+    bench_render_cache_after_regenerate,
+    bench_incremental_write_content_edit,
+    bench_specialized_incremental_paths
+);
 criterion_main!(benches);

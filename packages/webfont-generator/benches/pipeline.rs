@@ -258,7 +258,6 @@ fn options(
 
 fn bench_pipeline_slices(c: &mut Criterion) {
     let mut group = c.benchmark_group("pipeline");
-    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("svg/{size}"), |b| {
@@ -305,7 +304,6 @@ fn bench_pipeline_slices(c: &mut Criterion) {
 
 fn bench_pipeline_stages(c: &mut Criterion) {
     let mut group = c.benchmark_group("pipeline_stages");
-    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("parse_only/{size}"), |b| {
@@ -390,7 +388,6 @@ fn bench_pipeline_stages(c: &mut Criterion) {
 
 fn bench_woff2_quality(c: &mut Criterion) {
     let mut group = c.benchmark_group("woff2_quality");
-    group.sample_size(10);
     let fixture = fixtures(300);
     for quality in [9, 10, 11] {
         group.bench_function(format!("quality_{quality}"), |b| {
@@ -408,7 +405,6 @@ fn bench_woff2_quality(c: &mut Criterion) {
 
 fn bench_optimize_output(c: &mut Criterion) {
     let mut group = c.benchmark_group("optimize_output");
-    group.sample_size(10);
     let fixture = fixtures(300);
     for optimize in [false, true] {
         group.bench_function(format!("optimize_{optimize}"), |b| {
@@ -426,7 +422,6 @@ fn bench_optimize_output(c: &mut Criterion) {
 
 fn bench_recalc_finalize_inputs(c: &mut Criterion) {
     let mut group = c.benchmark_group("recalc_finalize_inputs");
-    group.sample_size(10);
     for size in SIZES {
         let fixture = fixtures(size);
         let stable_sources = stable_metric_sources(&fixture);
@@ -476,7 +471,6 @@ fn bench_recalc_finalize_inputs(c: &mut Criterion) {
 
 fn bench_recalc_output_ceiling(c: &mut Criterion) {
     let mut group = c.benchmark_group("recalc_output_ceiling");
-    group.sample_size(10);
     for size in SIZES {
         let fixture = fixtures(size);
         let parsed = parse_svg_only(
@@ -515,13 +509,13 @@ fn bench_recalc_output_ceiling(c: &mut Criterion) {
     group.finish();
 }
 
-fn criterion_config() -> Criterion {
-    Criterion::default().sample_size(10)
-}
-
-criterion_group! {
-    name = benches;
-    config = criterion_config();
-    targets = bench_pipeline_slices, bench_pipeline_stages, bench_woff2_quality, bench_optimize_output, bench_recalc_finalize_inputs, bench_recalc_output_ceiling
-}
+criterion_group!(
+    benches,
+    bench_pipeline_slices,
+    bench_pipeline_stages,
+    bench_woff2_quality,
+    bench_optimize_output,
+    bench_recalc_finalize_inputs,
+    bench_recalc_output_ceiling
+);
 criterion_main!(benches);

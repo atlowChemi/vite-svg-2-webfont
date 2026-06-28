@@ -317,7 +317,6 @@ fn repeated_batch_timing(
 
 fn bench_template_rendering(c: &mut Criterion) {
     let mut group = c.benchmark_group("template_rendering");
-    group.sample_size(50);
     let fixture = fixtures(300, "heavy");
     let mut opts = base_options(fixture.paths.clone(), vec![FontType::Woff2]);
     opts.css = Some(true);
@@ -412,7 +411,6 @@ fn bench_template_rendering(c: &mut Criterion) {
 
 fn bench_write_paths(c: &mut Criterion) {
     let mut group = c.benchmark_group("write_paths");
-    group.sample_size(50);
     group.measurement_time(Duration::from_secs(10));
     group.sampling_mode(SamplingMode::Flat);
     let fixture = fixtures(100, "heavy");
@@ -454,7 +452,6 @@ fn bench_write_paths(c: &mut Criterion) {
 
 fn bench_input_complexity(c: &mut Criterion) {
     let mut group = c.benchmark_group("input_complexity");
-    group.sample_size(10);
     for kind in [
         "simple",
         "heavy",
@@ -480,7 +477,6 @@ fn bench_input_complexity(c: &mut Criterion) {
 
 fn bench_geometry_options(c: &mut Criterion) {
     let mut group = c.benchmark_group("geometry_options");
-    group.sample_size(30);
     let fixture = fixtures(300, "heavy");
     for name in [
         "normalize_false",
@@ -521,7 +517,6 @@ fn bench_geometry_options(c: &mut Criterion) {
 
 fn bench_winding_normalization(c: &mut Criterion) {
     let mut group = c.benchmark_group("winding_normalization");
-    group.sample_size(10);
     for kind in [
         "winding_independent",
         "winding_nested_ok",
@@ -545,7 +540,6 @@ fn bench_winding_normalization(c: &mut Criterion) {
 
 fn bench_ttf_features(c: &mut Criterion) {
     let mut group = c.benchmark_group("ttf_features");
-    group.sample_size(10);
     for (name, fixture, ligature, explicit) in [
         (
             "ligatures_false_unique",
@@ -592,7 +586,6 @@ fn bench_ttf_features(c: &mut Criterion) {
 
 fn bench_error_paths(c: &mut Criterion) {
     let mut group = c.benchmark_group("error_paths");
-    group.sample_size(10);
     let fixture = fixtures(10, "heavy");
     let missing = temp_dir("missing")
         .join("missing.svg")
@@ -646,7 +639,6 @@ fn bench_error_paths(c: &mut Criterion) {
 
 fn bench_scaling(c: &mut Criterion) {
     let mut group = c.benchmark_group("scaling");
-    group.sample_size(10);
     for size in [15, 100, 300, 600, 1000] {
         let fixture = fixtures(size, "heavy");
         group.bench_function(format!("woff2/{size}"), |b| {
@@ -664,7 +656,6 @@ fn bench_scaling(c: &mut Criterion) {
 
 fn bench_async_overhead(c: &mut Criterion) {
     let mut group = c.benchmark_group("async_overhead");
-    group.sample_size(10);
     let fixture = fixtures(15, "heavy");
     let runtime = tokio::runtime::Runtime::new().unwrap();
     group.bench_function("generate_sync/15", |b| {
@@ -689,22 +680,16 @@ fn bench_async_overhead(c: &mut Criterion) {
     group.finish();
 }
 
-fn criterion_config() -> Criterion {
-    Criterion::default().sample_size(10)
-}
-
-criterion_group! {
-    name = benches;
-    config = criterion_config();
-    targets =
-        bench_template_rendering,
-        bench_write_paths,
-        bench_input_complexity,
-        bench_geometry_options,
-        bench_winding_normalization,
-        bench_ttf_features,
-        bench_error_paths,
-        bench_scaling,
-        bench_async_overhead
-}
+criterion_group!(
+    benches,
+    bench_template_rendering,
+    bench_write_paths,
+    bench_input_complexity,
+    bench_geometry_options,
+    bench_winding_normalization,
+    bench_ttf_features,
+    bench_error_paths,
+    bench_scaling,
+    bench_async_overhead
+);
 criterion_main!(benches);
