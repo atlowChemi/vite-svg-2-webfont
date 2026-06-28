@@ -305,7 +305,6 @@ fn bench_pipeline_slices(c: &mut Criterion) {
 
 fn bench_pipeline_stages(c: &mut Criterion) {
     let mut group = c.benchmark_group("pipeline_stages");
-    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("parse_only/{size}"), |b| {
@@ -390,7 +389,6 @@ fn bench_pipeline_stages(c: &mut Criterion) {
 
 fn bench_woff2_quality(c: &mut Criterion) {
     let mut group = c.benchmark_group("woff2_quality");
-    group.sample_size(30);
     let fixture = fixtures(300);
     for quality in [9, 10, 11] {
         group.bench_function(format!("quality_{quality}"), |b| {
@@ -425,7 +423,6 @@ fn bench_optimize_output(c: &mut Criterion) {
 
 fn bench_recalc_finalize_inputs(c: &mut Criterion) {
     let mut group = c.benchmark_group("recalc_finalize_inputs");
-    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         let stable_sources = stable_metric_sources(&fixture);

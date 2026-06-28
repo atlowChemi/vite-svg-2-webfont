@@ -259,7 +259,6 @@ fn remove_position(paths: &[String], position: &str) -> (Vec<String>, String) {
 
 fn bench_svg_prepare(c: &mut Criterion) {
     let mut group = c.benchmark_group("svg_prepare");
-    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         group.bench_function(format!("full/{size}"), |b| {
@@ -291,7 +290,6 @@ fn bench_svg_prepare(c: &mut Criterion) {
 
 fn bench_regenerate(c: &mut Criterion) {
     let mut group = c.benchmark_group("regenerate");
-    group.sample_size(30);
     for size in SIZES {
         let fixture = fixtures(size);
         let mut result =
@@ -766,7 +764,6 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
 
 fn bench_regenerate_by_format(c: &mut Criterion) {
     let mut group = c.benchmark_group("regenerate_by_format");
-    group.sample_size(30);
     let size = 300;
     for (label, types) in [
         ("svg", vec![FontType::Svg]),
