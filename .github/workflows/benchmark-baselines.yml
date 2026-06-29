@@ -8,6 +8,11 @@ on:
             - .github/workflows/benchmark-baselines.yml
             - tests/**/*.bench.ts
             - packages/webfont-generator/**
+    pull_request:
+        paths:
+            - .github/workflows/benchmark-baselines.yml
+            - tests/**/*.bench.ts
+            - packages/webfont-generator/**
     schedule:
         - cron: '42 4 * * 1'
     workflow_dispatch:
@@ -16,16 +21,18 @@ permissions:
     contents: write
 
 concurrency:
-    group: benchmark-baselines
+    group: ${{ github.event_name == 'pull_request' && format('benchmark-advisory-{0}', github.event.pull_request.number) || 'benchmark-baselines' }}
     cancel-in-progress: true
 
 env:
     VITEST_BENCH_BASELINE: benchmark-baselines/webfont-generator/vitest/webfonts-generator.json
     VITEST_BENCH_OUTPUT: benchmark-results/vitest/webfonts-generator.json
+    CONTINUOUS_BENCH_DATA: benchmark-baselines/webfont-generator/continuous-benchmark/data.json
+    CONTINUOUS_BENCH_INPUT: benchmark-results/continuous-benchmark/input.json
 
 jobs:
     update-baselines:
-        name: Update Benchmark Baselines
+        name: ${{ github.event_name == 'pull_request' && 'Benchmark Advisory' || 'Update Benchmark Baselines' }}
         runs-on: ubuntu-latest
         steps:
             - name: Checkout
@@ -75,9 +82,15 @@ jobs:
             - name: Run Rust benchmarks
               run: |
                   set -euo pipefail
-                  cargo bench --manifest-path packages/webfont-generator/Cargo.toml --features bench --bench features -- --save-baseline main
-                  cargo bench --manifest-path packages/webfont-generator/Cargo.toml --features bench --bench incremental -- --save-baseline main
-                  cargo bench --manifest-path packages/webfont-generator/Cargo.toml --features bench --bench pipeline -- --save-baseline main
+
+                  BASELINE_FLAG="--save-baseline"
+                  if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
+                    BASELINE_FLAG="--baseline"
+                  fi
+
+                  for bench in features incremental pipeline; do
+                    cargo bench --manifest-path packages/webfont-generator/Cargo.toml --features bench --bench "$bench" -- "$BASELINE_FLAG" main
+                  done
 
             - name: Run Vitest benchmarks
               run: |
@@ -90,16 +103,36 @@ jobs:
                     vp test bench --run --outputJson "$VITEST_BENCH_OUTPUT"
                   fi
 
+            - name: Convert benchmark outputs
+              run: |
+                  set -euo pipefail
+                  mkdir -p "$(dirname "$CONTINUOUS_BENCH_DATA")"
+                  node scripts/benchmark-continuous-json.mjs "$CONTINUOUS_BENCH_INPUT" packages/webfont-generator/target/criterion "$VITEST_BENCH_OUTPUT"
+
+            - name: Compare benchmark results
+              uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+              with:
+                  name: Webfont Generator
+                  tool: customSmallerIsBetter
+                  output-file-path: ${{ env.CONTINUOUS_BENCH_INPUT }}
+                  external-data-json-path: ${{ env.CONTINUOUS_BENCH_DATA }}
+                  save-data-file: ${{ github.event_name != 'pull_request' }}
+                  fail-on-alert: false
+                  summary-always: true
+
             - name: Store benchmark outputs
+              if: github.event_name != 'pull_request'
               run: |
                   set -euo pipefail
 
-                  rm -rf benchmark-baselines/webfont-generator
                   mkdir -p benchmark-baselines/webfont-generator
 
+                  rm -rf benchmark-baselines/webfont-generator/criterion benchmark-baselines/webfont-generator/vitest benchmark-baselines/webfont-generator/continuous-benchmark/input.json
                   cp -R packages/webfont-generator/target/criterion benchmark-baselines/webfont-generator/criterion
                   mkdir -p benchmark-baselines/webfont-generator/vitest
                   cp "$VITEST_BENCH_OUTPUT" benchmark-baselines/webfont-generator/vitest/webfonts-generator.json
+                  mkdir -p benchmark-baselines/webfont-generator/continuous-benchmark
+                  cp "$CONTINUOUS_BENCH_INPUT" benchmark-baselines/webfont-generator/continuous-benchmark/input.json
 
                   {
                     printf '{\n'
@@ -114,6 +147,7 @@ jobs:
                   vp --version > benchmark-baselines/tool-versions.txt
 
             - name: Commit benchmark baselines
+              if: github.event_name != 'pull_request'
               working-directory: benchmark-baselines
               run: |
                   set -euo pipefail
