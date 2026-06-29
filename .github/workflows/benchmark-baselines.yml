@@ -19,6 +19,7 @@ on:
 
 permissions:
     contents: write
+    pull-requests: write
 
 concurrency:
     group: ${{ github.event_name == 'pull_request' && format('benchmark-advisory-{0}', github.event.pull_request.number) || 'benchmark-baselines' }}
@@ -116,7 +117,9 @@ jobs:
                   tool: customSmallerIsBetter
                   output-file-path: ${{ env.CONTINUOUS_BENCH_INPUT }}
                   external-data-json-path: ${{ env.CONTINUOUS_BENCH_DATA }}
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
                   save-data-file: ${{ github.event_name != 'pull_request' }}
+                  comment-always: ${{ github.event_name == 'pull_request' }}
                   fail-on-alert: false
                   summary-always: true
 
