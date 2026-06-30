@@ -1,4 +1,5 @@
 use std::io::{Error, ErrorKind};
+use std::sync::{Arc, OnceLock};
 
 const CHECKSUM_ADJUSTMENT: u32 = 0xb1b0_afba;
 const HEAD_CHECKSUM_ADJUSTMENT_OFFSET: usize = 8;
@@ -16,7 +17,7 @@ const RECOMMENDED_TABLE_ORDER_TTF: [[u8; 4]; 19] = [
 #[derive(Clone)]
 pub(crate) struct SerializedFontTables {
     tables: Vec<SerializedTable>,
-    ttf: Vec<u8>,
+    ttf: OnceLock<Arc<Vec<u8>>>,
 }
 
 #[derive(Clone)]
@@ -28,6 +29,9 @@ pub(crate) struct SerializedTable {
 
 impl SerializedFontTables {
     pub fn new(tables: Vec<([u8; 4], Vec<u8>)>) -> Result<Self, Error> {
+        if tables.len() > u16::MAX as usize {
+            return Err(Error::new(ErrorKind::InvalidInput, "Too many SFNT tables."));
+        }
         let mut tables = tables;
         tables.sort_unstable_by_key(|(tag, _)| table_order_key(tag));
         let mut tables = tables
@@ -44,13 +48,19 @@ impl SerializedFontTables {
                 }
             })
             .collect::<Vec<_>>();
-        apply_checksum_adjustment(&mut tables)?;
-        let ttf = build_sfnt(&tables)?;
+        apply_checksum_adjustment(&mut tables);
+        let ttf = OnceLock::new();
         Ok(Self { tables, ttf })
     }
 
     pub fn ttf(&self) -> &[u8] {
-        &self.ttf
+        self.ttf
+            .get_or_init(|| Arc::new(build_sfnt(&self.tables)))
+            .as_slice()
+    }
+
+    pub fn ttf_arc(&self) -> Arc<Vec<u8>> {
+        Arc::clone(self.ttf.get_or_init(|| Arc::new(build_sfnt(&self.tables))))
     }
 
     pub fn tables(&self) -> &[SerializedTable] {
@@ -71,40 +81,35 @@ fn table_order_key(tag: &[u8; 4]) -> (u8, usize, [u8; 4]) {
     (1, 0, *tag)
 }
 
-fn apply_checksum_adjustment(tables: &mut [SerializedTable]) -> Result<(), Error> {
-    let checksum_adjustment = checksum_adjustment(tables)?;
+fn apply_checksum_adjustment(tables: &mut [SerializedTable]) {
+    let checksum_adjustment = checksum_adjustment(tables);
     if let Some(head) = tables.iter_mut().find(|table| table.tag == HEAD_TAG)
         && head.bytes.len() >= HEAD_CHECKSUM_ADJUSTMENT_OFFSET + 4
     {
         head.bytes[HEAD_CHECKSUM_ADJUSTMENT_OFFSET..HEAD_CHECKSUM_ADJUSTMENT_OFFSET + 4]
             .copy_from_slice(&checksum_adjustment.to_be_bytes());
     }
-    Ok(())
 }
 
-fn checksum_adjustment(tables: &[SerializedTable]) -> Result<u32, Error> {
-    let directory_checksum = checksum(&sfnt_directory(tables)?);
+fn checksum_adjustment(tables: &[SerializedTable]) -> u32 {
+    let directory_checksum = checksum(&sfnt_directory(tables));
     let table_checksum = tables
         .iter()
         .map(|table| table.checksum)
         .fold(0_u32, u32::wrapping_add);
-    Ok(CHECKSUM_ADJUSTMENT.wrapping_sub(table_checksum.wrapping_add(directory_checksum)))
+    CHECKSUM_ADJUSTMENT.wrapping_sub(table_checksum.wrapping_add(directory_checksum))
 }
 
-fn build_sfnt(tables: &[SerializedTable]) -> Result<Vec<u8>, Error> {
-    let mut bytes = sfnt_directory(tables)?;
+fn build_sfnt(tables: &[SerializedTable]) -> Vec<u8> {
+    let mut bytes = sfnt_directory(tables);
     for table in tables {
         bytes.extend_from_slice(&table.bytes);
         align4(&mut bytes);
     }
-    Ok(bytes)
+    bytes
 }
 
-fn sfnt_directory(tables: &[SerializedTable]) -> Result<Vec<u8>, Error> {
-    if tables.len() > u16::MAX as usize {
-        return Err(Error::new(ErrorKind::InvalidInput, "Too many SFNT tables."));
-    }
-
+fn sfnt_directory(tables: &[SerializedTable]) -> Vec<u8> {
     let mut offset = SFNT_HEADER_SIZE + tables.len() * SFNT_TABLE_ENTRY_SIZE;
     let mut records = Vec::with_capacity(tables.len());
     for table in tables {
@@ -129,7 +134,7 @@ fn sfnt_directory(tables: &[SerializedTable]) -> Result<Vec<u8>, Error> {
         write_u32_be(&mut directory, offset as u32);
         write_u32_be(&mut directory, length as u32);
     }
-    Ok(directory)
+    directory
 }
 
 fn search_range(item_count: usize, item_size: usize) -> (u16, u16, u16) {

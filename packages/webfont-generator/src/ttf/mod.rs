@@ -589,42 +589,42 @@ fn assemble_font(
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        hmtx_cache_key(compiled_glyphs, ligature_placeholders),
+        || hmtx_cache_key(compiled_glyphs, ligature_placeholders),
         &hmtx,
         "hmtx",
     )?);
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        cmap_cache_key(compiled_glyphs, cmap_aliases, ligature_placeholders),
+        || cmap_cache_key(compiled_glyphs, cmap_aliases, ligature_placeholders),
         &cmap,
         "cmap",
     )?);
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        glyf_loca_cache_key(b"loca", compiled_glyphs, ligature_placeholders),
+        || glyf_loca_cache_key(b"loca", compiled_glyphs, ligature_placeholders),
         &loca,
         "loca",
     )?);
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        glyf_loca_cache_key(b"glyf", compiled_glyphs, ligature_placeholders),
+        || glyf_loca_cache_key(b"glyf", compiled_glyphs, ligature_placeholders),
         &glyf,
         "glyf",
     )?);
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        name_cache_key(options, &font_subfamily),
+        || name_cache_key(options, &font_subfamily),
         &name,
         "name",
     )?);
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        post_cache_key(compiled_glyphs, ligature_placeholders),
+        || post_cache_key(compiled_glyphs, ligature_placeholders),
         &post,
         "post",
     )?);
@@ -632,7 +632,7 @@ fn assemble_font(
         tables.push(dump_cached_ttf_table(
             &mut table_cache,
             &mut used_table_keys,
-            gsub_cache_key(compiled_glyphs, ligature_placeholders),
+            || gsub_cache_key(compiled_glyphs, ligature_placeholders),
             gsub,
             "GSUB",
         )?);
@@ -646,7 +646,7 @@ fn assemble_font(
 fn dump_cached_ttf_table<T>(
     cache: &mut Option<&mut TtfGlyphCache>,
     used_table_keys: &mut HashSet<[u8; 16]>,
-    cache_key: [u8; 16],
+    cache_key: impl FnOnce() -> [u8; 16],
     table: &T,
     name: &str,
 ) -> Result<([u8; 4], Vec<u8>), Error>
@@ -656,6 +656,7 @@ where
     let Some(cache) = cache.as_deref_mut() else {
         return dump_ttf_table(table, name);
     };
+    let cache_key = cache_key();
     used_table_keys.insert(cache_key);
     if let Some(cached) = cache.tables.get(&cache_key) {
         return Ok(cached.clone());

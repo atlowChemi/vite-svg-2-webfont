@@ -18,10 +18,10 @@ pub(crate) fn parse_svg_glyph(
     item: &GlyphWorkItem,
     preserve_aspect_ratio: bool,
 ) -> Result<ParsedGlyph, Error> {
-    let svg = item.source_file.contents.as_bytes();
+    let svg = item.source_file.contents.as_str();
     let root_metrics = parse_root_svg_metrics(svg)?;
     let options = usvg::Options::default();
-    let tree = usvg::Tree::from_data(svg, &options).map_err(|error| {
+    let tree = usvg::Tree::from_str(svg, &options).map_err(|error| {
         Error::new(
             ErrorKind::InvalidInput,
             format!(
@@ -111,15 +111,9 @@ fn collect_paths(
     Ok(())
 }
 
-fn parse_root_svg_metrics(svg: &[u8]) -> Result<Option<RootSvgMetrics>, Error> {
-    let svg_text = std::str::from_utf8(svg).map_err(|error| {
-        Error::new(
-            ErrorKind::InvalidInput,
-            format!("Failed to decode SVG fixture as UTF-8: {error}"),
-        )
-    })?;
+fn parse_root_svg_metrics(svg: &str) -> Result<Option<RootSvgMetrics>, Error> {
     let document = roxmltree::Document::parse_with_options(
-        svg_text,
+        svg,
         roxmltree::ParsingOptions {
             allow_dtd: true,
             ..roxmltree::ParsingOptions::default()

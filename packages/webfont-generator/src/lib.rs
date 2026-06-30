@@ -637,9 +637,6 @@ fn build_font_outputs(
     let ttf_tables = ttf_tables?;
 
     let (ttf_font, woff_font, woff2_font, eot_font) = if let Some(ttf_tables) = ttf_tables {
-        let ttf_tables = Arc::new(ttf_tables);
-        let raw_ttf = Arc::new(ttf_tables.ttf().to_vec());
-        let ttf_font = wants_ttf.then(|| Arc::clone(&raw_ttf));
         let woff_metadata = options
             .format_options
             .as_ref()
@@ -651,6 +648,10 @@ fn build_font_outputs(
             .and_then(|value| value.woff2.as_ref())
             .and_then(|value| value.compression_quality)
             .unwrap_or(11);
+
+        let ttf_tables = Arc::new(ttf_tables);
+        let raw_ttf = (wants_ttf || wants_woff2).then(|| ttf_tables.ttf_arc());
+        let ttf_font = wants_ttf.then(|| Arc::clone(raw_ttf.as_ref().unwrap()));
         let (woff_font, (woff2_font, eot_font)) = join(
             || -> std::io::Result<Option<Vec<u8>>> {
                 if wants_woff {
@@ -669,7 +670,7 @@ fn build_font_outputs(
                 join(
                     || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_woff2 {
-                            woff::ttf_to_woff2(&raw_ttf, woff2_quality).map(Some)
+                            woff::ttf_to_woff2(raw_ttf.as_ref().unwrap(), woff2_quality).map(Some)
                         } else {
                             Ok(None)
                         }
