@@ -1,5 +1,22 @@
 # Changelog
 
+## [8.1.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.0.0...vite-svg-2-webfont-v8.1.0) (2026-06-30)
+
+### Features
+
+- **vite-svg-2-webfont:** batch watch regenerates ([1d42dc6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/1d42dc61736dca152139580aab4693c2a54b0758))
+- **vite-svg-2-webfont:** use incremental regeneration for watch rebuilds ([137631b](https://github.com/atlowChemi/vite-svg-2-webfont/commit/137631b4a0202a5c8ef543ee76c78065142bd83f))
+
+### Bug Fixes
+
+- **vite-svg-2-webfont:** await font temp-file writes during build ([#148](https://github.com/atlowChemi/vite-svg-2-webfont/issues/148)) ([f0cdcb0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/f0cdcb0f6e1093889ae1751a3f8a98bea97d2eca))
+- **vite-svg-2-webfont:** release generated fonts on shutdown ([9d63970](https://github.com/atlowChemi/vite-svg-2-webfont/commit/9d639703a6e9885e1c9da8b5cca29a46c38507f5))
+
+### Performance Improvements
+
+- **vite-svg-2-webfont:** make no-op watch rebuilds up to 1078x faster and changed rebuilds up to 1.17x faster ([137631b](https://github.com/atlowChemi/vite-svg-2-webfont/commit/137631b4a0202a5c8ef543ee76c78065142bd83f))
+- **vite-svg-2-webfont:** use faster WOFF2 compression in dev ([0edd41a](https://github.com/atlowChemi/vite-svg-2-webfont/commit/0edd41ac20f8e864622a645ba2b94ee00d626625))
+
 ## [8.0.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v7.0.1...vite-svg-2-webfont-v8.0.0) (2026-05-28)
 
 ### ⚠ BREAKING CHANGES
