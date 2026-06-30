@@ -154,6 +154,47 @@ fn regenerate_reuses_compiled_ttf_glyphs_for_stable_metrics() {
 }
 
 #[test]
+fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let c = write_icon(&dir, "c", D3);
+
+    let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
+    let before = result.ttf_cache.as_ref().unwrap().table_compile_count;
+    let woff_before = result
+        .ttf_cache
+        .as_ref()
+        .unwrap()
+        .woff1_payload_compile_count;
+    result
+        .regenerate(
+            &[a.clone(), b.clone(), c.clone()],
+            &[(
+                b.clone(),
+                GlyphChange::Changed {
+                    name: Some("renamed".to_owned()),
+                },
+            )],
+        )
+        .unwrap();
+
+    assert_eq!(
+        result.ttf_cache.as_ref().unwrap().table_compile_count,
+        before + 1
+    );
+    assert_eq!(
+        result
+            .ttf_cache
+            .as_ref()
+            .unwrap()
+            .woff1_payload_compile_count,
+        woff_before + 2
+    );
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
 fn regenerate_recompiles_compiled_ttf_glyphs_after_metric_shift() {
     let dir = temp_dir();
     let a = write_icon(&dir, "a", D1);

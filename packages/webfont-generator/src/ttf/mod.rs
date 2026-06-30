@@ -4,7 +4,7 @@ use std::io::{Error, ErrorKind};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use kurbo::{BezPath, CubicBez, PathEl, Point};
-use write_fonts::FontBuilder;
+use write_fonts::read::TopLevelTable;
 use write_fonts::tables::cmap::Cmap;
 use write_fonts::tables::glyf::{GlyfLocaBuilder, Glyph, SimpleGlyph};
 use write_fonts::tables::gsub::{
@@ -23,9 +23,12 @@ use write_fonts::tables::os2::Os2;
 use write_fonts::tables::post::Post;
 use write_fonts::tables::variations::ivs_builder::VariationStoreBuilder;
 use write_fonts::types::{FWord, Fixed, GlyphId, GlyphId16, LongDateTime, NameId, Tag, UfWord};
+use write_fonts::validate::Validate;
+use write_fonts::{FontWrite, dump_table};
 
 #[cfg(test)]
 use crate::GenerateWebfontsOptions;
+use crate::sfnt::SerializedFontTables;
 use crate::svg::types::ProcessedGlyph;
 #[cfg(test)]
 use crate::svg::{prepare_svg_font, svg_options_from_options};
@@ -65,6 +68,7 @@ struct CompiledGlyph {
     codepoint: u32,
     left_side_bearing: i16,
     name: String,
+    outline_key: [u8; 16],
     simple_glyph: SimpleGlyph,
     source_index: usize,
 }
@@ -79,8 +83,37 @@ struct CachedCompiledGlyph {
 #[derive(Clone, Default)]
 pub(crate) struct TtfGlyphCache {
     entries: HashMap<[u8; 16], CachedCompiledGlyph>,
+    tables: HashMap<[u8; 16], ([u8; 4], Vec<u8>)>,
+    woff1_payloads: HashMap<[u8; 16], Vec<u8>>,
     #[cfg(test)]
     pub compile_count: usize,
+    #[cfg(test)]
+    pub table_compile_count: usize,
+    #[cfg(test)]
+    pub woff1_payload_compile_count: usize,
+}
+
+impl TtfGlyphCache {
+    pub(crate) fn woff1_payload(&self, key: &[u8; 16]) -> Option<Vec<u8>> {
+        self.woff1_payloads.get(key).cloned()
+    }
+
+    pub(crate) fn insert_woff1_payload(&mut self, key: [u8; 16], payload: Vec<u8>) {
+        #[cfg(test)]
+        {
+            self.woff1_payload_compile_count += 1;
+        }
+        self.woff1_payloads.insert(key, payload);
+    }
+
+    pub(crate) fn retain_woff1_payloads(&mut self, used_keys: &HashSet<[u8; 16]>) {
+        self.woff1_payloads.retain(|key, _| used_keys.contains(key));
+    }
+
+    #[cfg(feature = "bench")]
+    pub(crate) fn clear_woff1_payloads(&mut self) {
+        self.woff1_payloads.clear();
+    }
 }
 
 fn compiled_glyph_cache_key(path_data: &str, advance_width: u16) -> [u8; 16] {
@@ -119,10 +152,11 @@ pub(crate) fn generate_ttf_font_bytes(options: GenerateWebfontsOptions) -> Resul
     let svg_options = svg_options_from_options(&resolved_options);
     let prepared = prepare_svg_font(&svg_options, &source_files)
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
-    generate_ttf_font_bytes_from_glyphs(
+    generate_ttf_font_from_glyphs(
         ttf_options_from_options(&resolved_options),
         &prepared.processed_glyphs,
     )
+    .map(|tables| tables.ttf().to_vec())
 }
 
 pub(crate) fn ttf_options_from_options(
@@ -149,10 +183,10 @@ pub(crate) fn ttf_options_from_options(
     }
 }
 
-pub(crate) fn generate_ttf_font_bytes_from_glyphs(
+pub(crate) fn generate_ttf_font_from_glyphs(
     options: TtfOptions,
     glyphs: &[ProcessedGlyph],
-) -> Result<Vec<u8>, Error> {
+) -> Result<SerializedFontTables, Error> {
     let font_height = options.font_height.unwrap_or_else(|| {
         glyphs
             .iter()
@@ -179,14 +213,15 @@ pub(crate) fn generate_ttf_font_bytes_from_glyphs(
         ascent,
         descent,
         font_height,
+        None,
     )
 }
 
-pub(crate) fn generate_ttf_font_bytes_from_glyphs_cached(
+pub(crate) fn generate_ttf_font_from_glyphs_cached(
     options: TtfOptions,
     glyphs: &[ProcessedGlyph],
     cache: &mut TtfGlyphCache,
-) -> Result<Vec<u8>, Error> {
+) -> Result<SerializedFontTables, Error> {
     let font_height = options.font_height.unwrap_or_else(|| {
         glyphs
             .iter()
@@ -213,6 +248,7 @@ pub(crate) fn generate_ttf_font_bytes_from_glyphs_cached(
         ascent,
         descent,
         font_height,
+        Some(cache),
     )
 }
 
@@ -296,6 +332,7 @@ fn compile_and_dedup_glyphs_cached(
                 codepoint: glyph.codepoint,
                 left_side_bearing: cached.bbox.x_min,
                 name: glyph.name.clone(),
+                outline_key: cache_key,
                 simple_glyph: cached.simple_glyph,
                 source_index: i,
             });
@@ -420,7 +457,8 @@ fn assemble_font(
     ascent: f64,
     descent: f64,
     font_height: f64,
-) -> Result<Vec<u8>, Error> {
+    mut table_cache: Option<&mut TtfGlyphCache>,
+) -> Result<SerializedFontTables, Error> {
     let units_per_em = clamp_to_u16(font_height.round(), 16, 16_384);
     let h_metrics = std::iter::once(LongMetric::new(0, 0))
         .chain(
@@ -541,36 +579,237 @@ fn assemble_font(
             .chain(ligature_placeholders.iter().map(|g| g.name.as_str())),
     );
     let gsub = build_ligature_gsub(compiled_glyphs, ligature_placeholders);
+    let mut used_table_keys = HashSet::new();
 
-    macro_rules! add_table {
-        ($font:expr, $table:expr, $name:literal) => {
-            $font.add_table($table).map_err(|e| {
-                Error::new(
-                    ErrorKind::Other,
-                    format!("Failed to add {} table: {e:?}", $name),
-                )
-            })?
-        };
-    }
-    let mut font = FontBuilder::new();
-    add_table!(font, &head, "head");
-    add_table!(font, &hhea, "hhea");
-    add_table!(font, &maxp, "maxp");
-    add_table!(font, &os2, "OS/2");
-    add_table!(font, &hmtx, "hmtx");
-    add_table!(font, &cmap, "cmap");
-    add_table!(font, &loca, "loca");
-    add_table!(font, &glyf, "glyf");
-    add_table!(font, &name, "name");
-    add_table!(font, &post, "post");
+    let mut tables = Vec::with_capacity(11);
+    tables.push(dump_ttf_table(&head, "head")?);
+    tables.push(dump_ttf_table(&hhea, "hhea")?);
+    tables.push(dump_ttf_table(&maxp, "maxp")?);
+    tables.push(dump_ttf_table(&os2, "OS/2")?);
+    tables.push(dump_cached_ttf_table(
+        &mut table_cache,
+        &mut used_table_keys,
+        hmtx_cache_key(compiled_glyphs, ligature_placeholders),
+        &hmtx,
+        "hmtx",
+    )?);
+    tables.push(dump_cached_ttf_table(
+        &mut table_cache,
+        &mut used_table_keys,
+        cmap_cache_key(compiled_glyphs, cmap_aliases, ligature_placeholders),
+        &cmap,
+        "cmap",
+    )?);
+    tables.push(dump_cached_ttf_table(
+        &mut table_cache,
+        &mut used_table_keys,
+        glyf_loca_cache_key(b"loca", compiled_glyphs, ligature_placeholders),
+        &loca,
+        "loca",
+    )?);
+    tables.push(dump_cached_ttf_table(
+        &mut table_cache,
+        &mut used_table_keys,
+        glyf_loca_cache_key(b"glyf", compiled_glyphs, ligature_placeholders),
+        &glyf,
+        "glyf",
+    )?);
+    tables.push(dump_cached_ttf_table(
+        &mut table_cache,
+        &mut used_table_keys,
+        name_cache_key(options, &font_subfamily),
+        &name,
+        "name",
+    )?);
+    tables.push(dump_cached_ttf_table(
+        &mut table_cache,
+        &mut used_table_keys,
+        post_cache_key(compiled_glyphs, ligature_placeholders),
+        &post,
+        "post",
+    )?);
     if let Some(gsub) = &gsub {
-        add_table!(font, gsub, "GSUB");
+        tables.push(dump_cached_ttf_table(
+            &mut table_cache,
+            &mut used_table_keys,
+            gsub_cache_key(compiled_glyphs, ligature_placeholders),
+            gsub,
+            "GSUB",
+        )?);
     }
+    if let Some(cache) = table_cache {
+        cache.tables.retain(|key, _| used_table_keys.contains(key));
+    }
+    SerializedFontTables::new(tables)
+}
 
-    Ok(font.build())
+fn dump_cached_ttf_table<T>(
+    cache: &mut Option<&mut TtfGlyphCache>,
+    used_table_keys: &mut HashSet<[u8; 16]>,
+    cache_key: [u8; 16],
+    table: &T,
+    name: &str,
+) -> Result<([u8; 4], Vec<u8>), Error>
+where
+    T: FontWrite + TopLevelTable + Validate,
+{
+    let Some(cache) = cache.as_deref_mut() else {
+        return dump_ttf_table(table, name);
+    };
+    used_table_keys.insert(cache_key);
+    if let Some(cached) = cache.tables.get(&cache_key) {
+        return Ok(cached.clone());
+    }
+    #[cfg(test)]
+    {
+        cache.table_compile_count += 1;
+    }
+    let dumped = dump_ttf_table(table, name)?;
+    cache.tables.insert(cache_key, dumped.clone());
+    Ok(dumped)
+}
+
+fn hmtx_cache_key(
+    compiled_glyphs: &[CompiledGlyph],
+    ligature_placeholders: &[LigaturePlaceholderGlyph],
+) -> [u8; 16] {
+    table_cache_key(b"hmtx", |bytes| {
+        for glyph in compiled_glyphs {
+            push_u16(bytes, glyph.advance_width);
+            push_i16(bytes, glyph.left_side_bearing);
+        }
+        push_usize(bytes, ligature_placeholders.len());
+    })
+}
+
+fn cmap_cache_key(
+    compiled_glyphs: &[CompiledGlyph],
+    cmap_aliases: &[(u32, usize)],
+    ligature_placeholders: &[LigaturePlaceholderGlyph],
+) -> [u8; 16] {
+    table_cache_key(b"cmap", |bytes| {
+        for glyph in compiled_glyphs {
+            push_u32(bytes, glyph.codepoint);
+        }
+        for (codepoint, index) in cmap_aliases {
+            push_u32(bytes, *codepoint);
+            push_usize(bytes, *index);
+        }
+        for glyph in ligature_placeholders {
+            push_u32(bytes, glyph.codepoint);
+        }
+    })
+}
+
+fn glyf_loca_cache_key(
+    tag: &[u8; 4],
+    compiled_glyphs: &[CompiledGlyph],
+    ligature_placeholders: &[LigaturePlaceholderGlyph],
+) -> [u8; 16] {
+    table_cache_key(tag, |bytes| {
+        push_glyf_loca_inputs(bytes, compiled_glyphs, ligature_placeholders)
+    })
+}
+
+fn name_cache_key(options: &TtfOptions, font_subfamily: &str) -> [u8; 16] {
+    table_cache_key(b"name", |bytes| {
+        push_str(bytes, options.font_name);
+        push_str(bytes, font_subfamily);
+        push_option_str(bytes, options.copyright);
+        push_option_str(bytes, options.description);
+        push_option_str(bytes, options.manufacturer_url);
+        push_option_str(bytes, derive_version_string(options.version).as_deref());
+    })
+}
+
+fn post_cache_key(
+    compiled_glyphs: &[CompiledGlyph],
+    ligature_placeholders: &[LigaturePlaceholderGlyph],
+) -> [u8; 16] {
+    table_cache_key(b"post", |bytes| {
+        for glyph in compiled_glyphs {
+            push_str(bytes, &glyph.name);
+        }
+        for glyph in ligature_placeholders {
+            push_str(bytes, &glyph.name);
+        }
+    })
+}
+
+fn gsub_cache_key(
+    compiled_glyphs: &[CompiledGlyph],
+    ligature_placeholders: &[LigaturePlaceholderGlyph],
+) -> [u8; 16] {
+    table_cache_key(b"GSUB", |bytes| {
+        for glyph in compiled_glyphs {
+            push_str(bytes, &glyph.name);
+        }
+        for glyph in ligature_placeholders {
+            push_u32(bytes, glyph.codepoint);
+        }
+    })
+}
+
+fn push_glyf_loca_inputs(
+    bytes: &mut Vec<u8>,
+    compiled_glyphs: &[CompiledGlyph],
+    ligature_placeholders: &[LigaturePlaceholderGlyph],
+) {
+    for glyph in compiled_glyphs {
+        bytes.extend_from_slice(&glyph.outline_key);
+    }
+    push_usize(bytes, ligature_placeholders.len());
+}
+
+fn table_cache_key(tag: &[u8; 4], push_inputs: impl FnOnce(&mut Vec<u8>)) -> [u8; 16] {
+    let mut bytes = Vec::new();
+    bytes.extend_from_slice(tag);
+    push_inputs(&mut bytes);
+    md5::compute(bytes).0
+}
+
+fn push_option_str(bytes: &mut Vec<u8>, value: Option<&str>) {
+    match value {
+        Some(value) => {
+            bytes.push(1);
+            push_str(bytes, value);
+        }
+        None => bytes.push(0),
+    }
+}
+
+fn push_str(bytes: &mut Vec<u8>, value: &str) {
+    push_usize(bytes, value.len());
+    bytes.extend_from_slice(value.as_bytes());
+}
+
+fn push_u32(bytes: &mut Vec<u8>, value: u32) {
+    bytes.extend_from_slice(&value.to_le_bytes());
+}
+
+fn push_u16(bytes: &mut Vec<u8>, value: u16) {
+    bytes.extend_from_slice(&value.to_le_bytes());
+}
+
+fn push_i16(bytes: &mut Vec<u8>, value: i16) {
+    bytes.extend_from_slice(&value.to_le_bytes());
+}
+
+fn push_usize(bytes: &mut Vec<u8>, value: usize) {
+    bytes.extend_from_slice(&(value as u64).to_le_bytes());
+}
+
+fn dump_ttf_table<T>(table: &T, name: &str) -> Result<([u8; 4], Vec<u8>), Error>
+where
+    T: FontWrite + TopLevelTable + Validate,
+{
+    dump_table(table)
+        .map(|bytes| (T::TAG.to_be_bytes(), bytes))
+        .map_err(|error| Error::other(format!("Failed to add {name} table: {error:?}")))
 }
 
 fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<CompiledGlyph, Error> {
+    let advance_width = clamp_to_u16(glyph.width.round(), 0, u16::MAX);
     let path = quadratic_path_from_svg_path_data(&glyph.path_data)?;
     let simple_glyph = SimpleGlyph::from_bezpath(&path).map_err(|error| {
         Error::other(format!(
@@ -581,11 +820,12 @@ fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<Compiled
     let bbox = simple_glyph.bbox;
 
     Ok(CompiledGlyph {
-        advance_width: clamp_to_u16(glyph.width.round(), 0, u16::MAX),
+        advance_width,
         bbox,
         codepoint: glyph.codepoint,
         left_side_bearing: bbox.x_min,
         name: glyph.name.clone(),
+        outline_key: compiled_glyph_cache_key(&glyph.path_data, advance_width),
         simple_glyph,
         source_index,
     })

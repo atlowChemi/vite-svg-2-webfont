@@ -61,6 +61,7 @@
 
 mod eot;
 mod incremental;
+mod sfnt;
 mod svg;
 mod templates;
 #[cfg(test)]
@@ -115,9 +116,9 @@ pub mod bench_support {
     use std::io;
 
     use super::{
-        GenerateWebfontsOptions, GlyphCache, LoadedSvgFile, PreparedSvgFont, build_font_outputs,
-        finalize_generate_webfonts_options, prepare_svg_font, prepare_svg_font_incremental,
-        resolve_generate_webfonts_options, svg_options_from_options,
+        GenerateWebfontsOptions, GenerateWebfontsResult, GlyphCache, LoadedSvgFile,
+        PreparedSvgFont, build_font_outputs, finalize_generate_webfonts_options, prepare_svg_font,
+        prepare_svg_font_incremental, resolve_generate_webfonts_options, svg_options_from_options,
     };
     use crate::svg::types::ParsedGlyph;
     use crate::svg::{finalize_glyphs, parse_glyphs};
@@ -212,6 +213,13 @@ pub mod bench_support {
             + fonts.woff_font.as_ref().map_or(0, |v| v.len())
             + fonts.woff2_font.as_ref().map_or(0, |v| v.len())
             + fonts.eot_font.as_ref().map_or(0, |v| v.len()))
+    }
+
+    /// Clear retained WOFF1 payloads so benchmarks can compare warm vs cold compression cache.
+    pub fn clear_woff1_payload_cache(result: &mut GenerateWebfontsResult) {
+        if let Some(cache) = result.ttf_cache.as_mut() {
+            cache.clear_woff1_payloads();
+        }
     }
 
     /// Run the incremental SVG preparation path and return the number of prepared glyphs.
@@ -588,7 +596,7 @@ fn build_font_outputs(
     options: &ResolvedGenerateWebfontsOptions,
     svg_options: &SvgOptions<'_>,
     prepared: &PreparedSvgFont,
-    ttf_cache: Option<&mut TtfGlyphCache>,
+    mut ttf_cache: Option<&mut TtfGlyphCache>,
 ) -> std::io::Result<FontOutputs> {
     let wants_svg = options.types.contains(&FontType::Svg);
     let wants_ttf = options.types.contains(&FontType::Ttf);
@@ -596,7 +604,7 @@ fn build_font_outputs(
     let wants_woff2 = options.types.contains(&FontType::Woff2);
     let wants_eot = options.types.contains(&FontType::Eot);
 
-    let (svg_font, raw_ttf) = join(
+    let (svg_font, ttf_tables) = join(
         || -> std::io::Result<Option<String>> {
             if wants_svg {
                 Ok(Some(build_svg_font(svg_options, prepared)))
@@ -604,21 +612,20 @@ fn build_font_outputs(
                 Ok(None)
             }
         },
-        || -> std::io::Result<Option<Vec<u8>>> {
+        || -> std::io::Result<Option<sfnt::SerializedFontTables>> {
             if wants_ttf || wants_woff || wants_woff2 || wants_eot {
                 let ttf_options = ttf::ttf_options_from_options(options);
-                match ttf_cache {
-                    Some(cache) => ttf::generate_ttf_font_bytes_from_glyphs_cached(
+                match ttf_cache.as_deref_mut() {
+                    Some(cache) => ttf::generate_ttf_font_from_glyphs_cached(
                         ttf_options,
                         &prepared.processed_glyphs,
                         cache,
                     )
                     .map(Some),
-                    None => ttf::generate_ttf_font_bytes_from_glyphs(
-                        ttf_options,
-                        &prepared.processed_glyphs,
-                    )
-                    .map(Some),
+                    None => {
+                        ttf::generate_ttf_font_from_glyphs(ttf_options, &prepared.processed_glyphs)
+                            .map(Some)
+                    }
                 }
             } else {
                 Ok(None)
@@ -627,10 +634,11 @@ fn build_font_outputs(
     );
 
     let svg_font = svg_font?.map(Arc::new);
-    let raw_ttf = raw_ttf?;
+    let ttf_tables = ttf_tables?;
 
-    let (ttf_font, woff_font, woff2_font, eot_font) = if let Some(raw_ttf) = raw_ttf {
-        let raw_ttf = Arc::new(raw_ttf);
+    let (ttf_font, woff_font, woff2_font, eot_font) = if let Some(ttf_tables) = ttf_tables {
+        let ttf_tables = Arc::new(ttf_tables);
+        let raw_ttf = Arc::new(ttf_tables.ttf().to_vec());
         let ttf_font = wants_ttf.then(|| Arc::clone(&raw_ttf));
         let woff_metadata = options
             .format_options
@@ -643,11 +651,16 @@ fn build_font_outputs(
             .and_then(|value| value.woff2.as_ref())
             .and_then(|value| value.compression_quality)
             .unwrap_or(11);
-
         let (woff_font, (woff2_font, eot_font)) = join(
             || -> std::io::Result<Option<Vec<u8>>> {
                 if wants_woff {
-                    woff::ttf_to_woff1(&raw_ttf, woff_metadata).map(Some)
+                    match ttf_cache {
+                        Some(cache) => {
+                            woff::tables_to_woff1_cached(&ttf_tables, woff_metadata, cache)
+                        }
+                        None => woff::tables_to_woff1(&ttf_tables, woff_metadata),
+                    }
+                    .map(Some)
                 } else {
                     Ok(None)
                 }
@@ -663,7 +676,7 @@ fn build_font_outputs(
                     },
                     || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_eot {
-                            eot::ttf_to_eot(&raw_ttf).map(Some)
+                            eot::tables_to_eot(&ttf_tables).map(Some)
                         } else {
                             Ok(None)
                         }
