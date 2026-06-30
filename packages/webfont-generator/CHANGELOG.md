@@ -2,26 +2,23 @@
 
 ## [0.5.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.4.0...webfont-generator-v0.5.0) (2026-06-30)
 
-
 ### Features
 
-* **webfont-generator:** add incremental regenerate ([222d929](https://github.com/atlowChemi/vite-svg-2-webfont/commit/222d9292f1a6e67af5a46861af9b4a311e7db303))
-* **webfont-generator:** configurable WOFF2 compression quality ([3e5c250](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3e5c250bec4e920186df59d3a66c33d4f6fa1eed))
-* **webfont-generator:** reuse processed and compiled glyphs during recalc ([#192](https://github.com/atlowChemi/vite-svg-2-webfont/issues/192)) ([a80aecf](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a80aecf080f9434abac195485fbba1f2c7854f19))
-* **webfont-generator:** support regenerate rediff ([#158](https://github.com/atlowChemi/vite-svg-2-webfont/issues/158)) ([a74d120](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a74d1200c55998a8c72e881c96b27a905a7afe81))
-
+- **webfont-generator:** add incremental regenerate ([222d929](https://github.com/atlowChemi/vite-svg-2-webfont/commit/222d9292f1a6e67af5a46861af9b4a311e7db303))
+- **webfont-generator:** configurable WOFF2 compression quality ([3e5c250](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3e5c250bec4e920186df59d3a66c33d4f6fa1eed))
+- **webfont-generator:** reuse processed and compiled glyphs during recalc ([#192](https://github.com/atlowChemi/vite-svg-2-webfont/issues/192)) ([a80aecf](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a80aecf080f9434abac195485fbba1f2c7854f19))
+- **webfont-generator:** support regenerate rediff ([#158](https://github.com/atlowChemi/vite-svg-2-webfont/issues/158)) ([a74d120](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a74d1200c55998a8c72e881c96b27a905a7afe81))
 
 ### Bug Fixes
 
-* **webfont-generator:** normalize nested contour winding ([#155](https://github.com/atlowChemi/vite-svg-2-webfont/issues/155)) ([afcb1be](https://github.com/atlowChemi/vite-svg-2-webfont/commit/afcb1befe1884ae4229bc17f42b7fa16d9651544))
-
+- **webfont-generator:** normalize nested contour winding ([#155](https://github.com/atlowChemi/vite-svg-2-webfont/issues/155)) ([afcb1be](https://github.com/atlowChemi/vite-svg-2-webfont/commit/afcb1befe1884ae4229bc17f42b7fa16d9651544))
 
 ### Performance Improvements
 
-* **vite-svg-2-webfont:** use faster WOFF2 compression in dev ([0edd41a](https://github.com/atlowChemi/vite-svg-2-webfont/commit/0edd41ac20f8e864622a645ba2b94ee00d626625))
-* **webfont-generator:** make no-op incremental rebuilds up to 1078x faster and changed rebuilds up to 1.17x faster ([222d929](https://github.com/atlowChemi/vite-svg-2-webfont/commit/222d9292f1a6e67af5a46861af9b4a311e7db303))
-* **webfont-generator:** reuse renders by template dependencies ([#161](https://github.com/atlowChemi/vite-svg-2-webfont/issues/161)) ([94abd39](https://github.com/atlowChemi/vite-svg-2-webfont/commit/94abd39e937445bb14e460009bfd59eba21755c1))
-* **webfont-generator:** simplify glyf contours to shrink TTF ([#144](https://github.com/atlowChemi/vite-svg-2-webfont/issues/144)) ([ec0a919](https://github.com/atlowChemi/vite-svg-2-webfont/commit/ec0a919918d012cbeac10907cc546e632af211f9))
+- **vite-svg-2-webfont:** use faster WOFF2 compression in dev ([0edd41a](https://github.com/atlowChemi/vite-svg-2-webfont/commit/0edd41ac20f8e864622a645ba2b94ee00d626625))
+- **webfont-generator:** make no-op incremental rebuilds up to 1078x faster and changed rebuilds up to 1.17x faster ([222d929](https://github.com/atlowChemi/vite-svg-2-webfont/commit/222d9292f1a6e67af5a46861af9b4a311e7db303))
+- **webfont-generator:** reuse renders by template dependencies ([#161](https://github.com/atlowChemi/vite-svg-2-webfont/issues/161)) ([94abd39](https://github.com/atlowChemi/vite-svg-2-webfont/commit/94abd39e937445bb14e460009bfd59eba21755c1))
+- **webfont-generator:** simplify glyf contours to shrink TTF ([#144](https://github.com/atlowChemi/vite-svg-2-webfont/issues/144)) ([ec0a919](https://github.com/atlowChemi/vite-svg-2-webfont/commit/ec0a919918d012cbeac10907cc546e632af211f9))
 
 ## [0.4.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.3.1...webfont-generator-v0.4.0) (2026-05-28)
 
