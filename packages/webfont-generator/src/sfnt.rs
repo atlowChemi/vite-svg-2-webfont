@@ -102,6 +102,12 @@ fn checksum_adjustment(tables: &[SerializedTable]) -> u32 {
 
 fn build_sfnt(tables: &[SerializedTable]) -> Vec<u8> {
     let mut bytes = sfnt_directory(tables);
+    bytes.reserve(
+        tables
+            .iter()
+            .map(|table| align4_len(table.bytes.len()))
+            .sum(),
+    );
     for table in tables {
         bytes.extend_from_slice(&table.bytes);
         align4(&mut bytes);
@@ -113,7 +119,7 @@ fn sfnt_directory(tables: &[SerializedTable]) -> Vec<u8> {
     let mut offset = SFNT_HEADER_SIZE + tables.len() * SFNT_TABLE_ENTRY_SIZE;
     let mut records = Vec::with_capacity(tables.len());
     for table in tables {
-        records.push((table.tag, offset, table.bytes.len()));
+        records.push((table.tag, table.checksum, offset, table.bytes.len()));
         offset += align4_len(table.bytes.len());
     }
     records.sort_unstable_by_key(|record| record.0);
@@ -127,10 +133,9 @@ fn sfnt_directory(tables: &[SerializedTable]) -> Vec<u8> {
     write_u16_be(&mut directory, search_range);
     write_u16_be(&mut directory, entry_selector);
     write_u16_be(&mut directory, range_shift);
-    for (tag, offset, length) in records {
-        let table = tables.iter().find(|table| table.tag == tag).unwrap();
+    for (tag, checksum, offset, length) in records {
         directory.extend_from_slice(&tag);
-        write_u32_be(&mut directory, table.checksum);
+        write_u32_be(&mut directory, checksum);
         write_u32_be(&mut directory, offset as u32);
         write_u32_be(&mut directory, length as u32);
     }
@@ -153,11 +158,21 @@ fn search_range(item_count: usize, item_size: usize) -> (u16, u16, u16) {
 }
 
 fn checksum(data: &[u8]) -> u32 {
-    data.chunks(4).fold(0_u32, |sum, chunk| {
-        let mut bytes = [0_u8; 4];
-        bytes[..chunk.len()].copy_from_slice(chunk);
-        sum.wrapping_add(u32::from_be_bytes(bytes))
-    })
+    let mut sum = 0_u32;
+    let mut chunks = data.chunks_exact(4);
+    for chunk in &mut chunks {
+        let bytes: [u8; 4] = chunk.try_into().unwrap_or_default();
+        sum = sum.wrapping_add(u32::from_be_bytes(bytes));
+    }
+
+    let remainder = match *chunks.remainder() {
+        [a] => u32::from_be_bytes([a, 0, 0, 0]),
+        [a, b] => u32::from_be_bytes([a, b, 0, 0]),
+        [a, b, c] => u32::from_be_bytes([a, b, c, 0]),
+        _ => 0,
+    };
+
+    sum.wrapping_add(remainder)
 }
 
 fn align4(bytes: &mut Vec<u8>) {
