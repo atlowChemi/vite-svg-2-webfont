@@ -120,8 +120,12 @@ pub mod bench_support {
         PreparedSvgFont, build_font_outputs, finalize_generate_webfonts_options, prepare_svg_font,
         prepare_svg_font_incremental, resolve_generate_webfonts_options, svg_options_from_options,
     };
+    use crate::sfnt::SerializedFontTables;
     use crate::svg::types::ParsedGlyph;
     use crate::svg::{finalize_glyphs, parse_glyphs};
+    use crate::ttf;
+    use write_fonts::FontBuilder;
+    use write_fonts::types::Tag;
 
     /// Source fixture used by Rust benchmarks without exposing generator internals.
     #[derive(Clone)]
@@ -142,6 +146,10 @@ pub mod bench_support {
     /// Opaque prepared SVG font used to isolate font-output generation stages.
     #[derive(Clone)]
     pub struct BenchPreparedSvgFont(PreparedSvgFont);
+
+    /// Opaque serialized TTF table set used to isolate SFNT assembly costs.
+    #[derive(Clone)]
+    pub struct BenchSerializedFontTables(SerializedFontTables);
 
     fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgFile> {
         sources
@@ -213,6 +221,40 @@ pub mod bench_support {
             + fonts.woff_font.as_ref().map_or(0, |v| v.len())
             + fonts.woff2_font.as_ref().map_or(0, |v| v.len())
             + fonts.eot_font.as_ref().map_or(0, |v| v.len()))
+    }
+
+    /// Build serialized TTF tables from an already prepared SVG font.
+    pub fn build_serialized_ttf_tables(
+        options: GenerateWebfontsOptions,
+        sources: &[BenchSvgSource],
+        prepared: &BenchPreparedSvgFont,
+    ) -> io::Result<BenchSerializedFontTables> {
+        let sources = load_sources(sources);
+        let options = resolve(options, &sources)?;
+        let ttf_options = ttf::ttf_options_from_options(&options);
+        ttf::generate_ttf_font_from_glyphs(ttf_options, &prepared.0.processed_glyphs)
+            .map(BenchSerializedFontTables)
+    }
+
+    /// Rebuild serialized table metadata from already dumped table bytes.
+    pub fn rewrap_serialized_ttf_tables(
+        tables: &BenchSerializedFontTables,
+    ) -> io::Result<BenchSerializedFontTables> {
+        SerializedFontTables::new(tables.0.clone_raw_tables()).map(BenchSerializedFontTables)
+    }
+
+    /// Assemble final TTF bytes with the current serialized-table SFNT writer, without cache reuse.
+    pub fn serialized_ttf_uncached(tables: &BenchSerializedFontTables) -> Vec<u8> {
+        tables.0.uncached_ttf()
+    }
+
+    /// Assemble final TTF bytes with write-fonts FontBuilder from the same serialized tables.
+    pub fn fontbuilder_ttf(tables: &BenchSerializedFontTables) -> Vec<u8> {
+        let mut builder = FontBuilder::new();
+        for table in tables.0.tables() {
+            builder.add_raw(Tag::new(&table.tag), table.bytes.as_slice());
+        }
+        builder.build()
     }
 
     /// Clear retained WOFF1 payloads so benchmarks can compare warm vs cold compression cache.

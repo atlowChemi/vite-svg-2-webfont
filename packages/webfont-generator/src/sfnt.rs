@@ -1,6 +1,8 @@
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, OnceLock};
 
+use write_fonts::read::tables::compute_checksum;
+
 const CHECKSUM_ADJUSTMENT: u32 = 0xb1b0_afba;
 const HEAD_CHECKSUM_ADJUSTMENT_OFFSET: usize = 8;
 const HEAD_TAG: [u8; 4] = *b"head";
@@ -43,7 +45,7 @@ impl SerializedFontTables {
                 }
                 SerializedTable {
                     tag,
-                    checksum: checksum(&bytes),
+                    checksum: compute_checksum(&bytes),
                     bytes,
                 }
             })
@@ -65,6 +67,19 @@ impl SerializedFontTables {
 
     pub fn tables(&self) -> &[SerializedTable] {
         &self.tables
+    }
+
+    #[cfg(feature = "bench")]
+    pub(crate) fn uncached_ttf(&self) -> Vec<u8> {
+        build_sfnt(&self.tables)
+    }
+
+    #[cfg(feature = "bench")]
+    pub(crate) fn clone_raw_tables(&self) -> Vec<([u8; 4], Vec<u8>)> {
+        self.tables
+            .iter()
+            .map(|table| (table.tag, table.bytes.clone()))
+            .collect()
     }
 }
 
@@ -92,7 +107,7 @@ fn apply_checksum_adjustment(tables: &mut [SerializedTable]) {
 }
 
 fn checksum_adjustment(tables: &[SerializedTable]) -> u32 {
-    let directory_checksum = checksum(&sfnt_directory(tables));
+    let directory_checksum = compute_checksum(&sfnt_directory(tables));
     let table_checksum = tables
         .iter()
         .map(|table| table.checksum)
@@ -155,24 +170,6 @@ fn search_range(item_count: usize, item_size: usize) -> (u16, u16, u16) {
         entry_selector as u16,
         range_shift as u16,
     )
-}
-
-fn checksum(data: &[u8]) -> u32 {
-    let mut sum = 0_u32;
-    let mut chunks = data.chunks_exact(4);
-    for chunk in &mut chunks {
-        let bytes: [u8; 4] = chunk.try_into().unwrap_or_default();
-        sum = sum.wrapping_add(u32::from_be_bytes(bytes));
-    }
-
-    let remainder = match *chunks.remainder() {
-        [a] => u32::from_be_bytes([a, 0, 0, 0]),
-        [a, b] => u32::from_be_bytes([a, b, 0, 0]),
-        [a, b, c] => u32::from_be_bytes([a, b, c, 0]),
-        _ => 0,
-    };
-
-    sum.wrapping_add(remainder)
 }
 
 fn align4(bytes: &mut Vec<u8>) {
