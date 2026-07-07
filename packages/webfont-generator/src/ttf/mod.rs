@@ -68,7 +68,7 @@ struct CompiledGlyph {
     codepoint: u32,
     left_side_bearing: i16,
     name: String,
-    outline_key: [u8; 16],
+    outline_key: Option<[u8; 16]>,
     simple_glyph: SimpleGlyph,
     source_index: usize,
 }
@@ -332,7 +332,7 @@ fn compile_and_dedup_glyphs_cached(
                 codepoint: glyph.codepoint,
                 left_side_bearing: cached.bbox.x_min,
                 name: glyph.name.clone(),
-                outline_key: cache_key,
+                outline_key: Some(cache_key),
                 simple_glyph: cached.simple_glyph,
                 source_index: i,
             });
@@ -757,7 +757,11 @@ fn push_glyf_loca_inputs(
     ligature_placeholders: &[LigaturePlaceholderGlyph],
 ) {
     for glyph in compiled_glyphs {
-        bytes.extend_from_slice(&glyph.outline_key);
+        bytes.extend_from_slice(
+            &glyph
+                .outline_key
+                .expect("glyf/loca cache keys are only built for cached glyphs"),
+        );
     }
     push_usize(bytes, ligature_placeholders.len());
 }
@@ -826,7 +830,7 @@ fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<Compiled
         codepoint: glyph.codepoint,
         left_side_bearing: bbox.x_min,
         name: glyph.name.clone(),
-        outline_key: compiled_glyph_cache_key(&glyph.path_data, advance_width),
+        outline_key: None,
         simple_glyph,
         source_index,
     })
