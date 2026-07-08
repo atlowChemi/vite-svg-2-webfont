@@ -10,12 +10,6 @@ const SFNT_HEADER_SIZE: usize = 12;
 const SFNT_TABLE_ENTRY_SIZE: usize = 16;
 const TT_SFNT_VERSION: [u8; 4] = [0x00, 0x01, 0x00, 0x00];
 
-const RECOMMENDED_TABLE_ORDER_TTF: [[u8; 4]; 19] = [
-    *b"head", *b"hhea", *b"maxp", *b"OS/2", *b"hmtx", *b"LTSH", *b"VDMX", *b"hdmx", *b"cmap",
-    *b"fpgm", *b"prep", *b"cvt ", *b"loca", *b"glyf", *b"kern", *b"name", *b"post", *b"gasp",
-    *b"PCLT",
-];
-
 #[derive(Clone)]
 pub(crate) struct SerializedFontTables {
     tables: Vec<SerializedTable>,
@@ -84,16 +78,32 @@ impl SerializedFontTables {
 }
 
 fn table_order_key(tag: &[u8; 4]) -> (u8, usize, [u8; 4]) {
-    if tag == b"DSIG" {
-        return (2, 0, *tag);
-    }
-    if let Some(index) = RECOMMENDED_TABLE_ORDER_TTF
-        .iter()
-        .position(|ordered| ordered == tag)
-    {
-        return (0, index, *tag);
-    }
-    (1, 0, *tag)
+    // Recommended TTF table order (OpenType spec). DSIG sorts last, unknown
+    // tables sort after the recommended set but before DSIG.
+    let recommended = match tag {
+        b"head" => 0,
+        b"hhea" => 1,
+        b"maxp" => 2,
+        b"OS/2" => 3,
+        b"hmtx" => 4,
+        b"LTSH" => 5,
+        b"VDMX" => 6,
+        b"hdmx" => 7,
+        b"cmap" => 8,
+        b"fpgm" => 9,
+        b"prep" => 10,
+        b"cvt " => 11,
+        b"loca" => 12,
+        b"glyf" => 13,
+        b"kern" => 14,
+        b"name" => 15,
+        b"post" => 16,
+        b"gasp" => 17,
+        b"PCLT" => 18,
+        b"DSIG" => return (2, 0, *tag),
+        _ => return (1, 0, *tag),
+    };
+    (0, recommended, *tag)
 }
 
 fn apply_checksum_adjustment(tables: &mut [SerializedTable]) {

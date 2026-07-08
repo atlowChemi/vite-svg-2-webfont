@@ -1,9 +1,11 @@
+use std::hash::Hasher;
 use std::io::{Error, ErrorKind, Write};
 
 use crate::sfnt::SerializedFontTables;
 use crate::ttf::TtfGlyphCache;
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
+use rustc_hash::FxHasher;
 
 const WOFF_HEADER_SIZE: usize = 44;
 const WOFF_TABLE_ENTRY_SIZE: usize = 20;
@@ -165,11 +167,17 @@ fn zlib_compress(bytes: &[u8], compression: Compression) -> Result<Vec<u8>, Erro
     encoder.finish()
 }
 
-fn woff1_payload_cache_key(tag: [u8; 4], bytes: &[u8]) -> [u8; 16] {
-    let mut key = Vec::with_capacity(4 + bytes.len());
-    key.extend_from_slice(&tag);
-    key.extend_from_slice(bytes);
-    md5::compute(key).0
+// ponytail: non-crypto FxHash over tag + full table body. The SFNT checksum is
+// NOT safe as a key here — it is a plain u32 word-sum and collides for distinct
+// real font-table bodies (observed on `post`/`glyf`), which would reuse a stale
+// compressed payload. Hashing the bytes with FxHash keeps the speed win over
+// md5 without that collision risk. In-process only, so hasher stability across
+// versions is a non-concern.
+fn woff1_payload_cache_key(tag: [u8; 4], bytes: &[u8]) -> u64 {
+    let mut hasher = FxHasher::default();
+    hasher.write(&tag);
+    hasher.write(bytes);
+    hasher.finish()
 }
 
 fn total_sfnt_size(tables: &SerializedFontTables) -> u32 {

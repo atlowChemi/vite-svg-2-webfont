@@ -1,9 +1,11 @@
 use std::cmp::{max, min};
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use kurbo::{BezPath, CubicBez, PathEl, Point};
+use rustc_hash::FxHasher;
 use write_fonts::read::TopLevelTable;
 use write_fonts::tables::cmap::Cmap;
 use write_fonts::tables::glyf::{GlyfLocaBuilder, Glyph, SimpleGlyph};
@@ -68,7 +70,7 @@ struct CompiledGlyph {
     codepoint: u32,
     left_side_bearing: i16,
     name: String,
-    outline_key: Option<[u8; 16]>,
+    outline_key: Option<u64>,
     simple_glyph: SimpleGlyph,
     source_index: usize,
 }
@@ -82,9 +84,9 @@ struct CachedCompiledGlyph {
 
 #[derive(Clone, Default)]
 pub(crate) struct TtfGlyphCache {
-    entries: HashMap<[u8; 16], CachedCompiledGlyph>,
-    tables: HashMap<[u8; 16], ([u8; 4], Vec<u8>)>,
-    woff1_payloads: HashMap<[u8; 16], Vec<u8>>,
+    entries: HashMap<u64, CachedCompiledGlyph>,
+    tables: HashMap<u64, ([u8; 4], Vec<u8>)>,
+    woff1_payloads: HashMap<u64, Vec<u8>>,
     #[cfg(test)]
     pub compile_count: usize,
     #[cfg(test)]
@@ -94,11 +96,11 @@ pub(crate) struct TtfGlyphCache {
 }
 
 impl TtfGlyphCache {
-    pub(crate) fn woff1_payload(&self, key: &[u8; 16]) -> Option<Vec<u8>> {
+    pub(crate) fn woff1_payload(&self, key: &u64) -> Option<Vec<u8>> {
         self.woff1_payloads.get(key).cloned()
     }
 
-    pub(crate) fn insert_woff1_payload(&mut self, key: [u8; 16], payload: Vec<u8>) {
+    pub(crate) fn insert_woff1_payload(&mut self, key: u64, payload: Vec<u8>) {
         #[cfg(test)]
         {
             self.woff1_payload_compile_count += 1;
@@ -106,7 +108,7 @@ impl TtfGlyphCache {
         self.woff1_payloads.insert(key, payload);
     }
 
-    pub(crate) fn retain_woff1_payloads(&mut self, used_keys: &HashSet<[u8; 16]>) {
+    pub(crate) fn retain_woff1_payloads(&mut self, used_keys: &HashSet<u64>) {
         self.woff1_payloads.retain(|key, _| used_keys.contains(key));
     }
 
@@ -116,11 +118,16 @@ impl TtfGlyphCache {
     }
 }
 
-fn compiled_glyph_cache_key(path_data: &str, advance_width: u16) -> [u8; 16] {
-    let mut bytes = Vec::with_capacity(path_data.len() + 2);
-    bytes.extend_from_slice(path_data.as_bytes());
-    bytes.extend_from_slice(&advance_width.to_le_bytes());
-    md5::compute(bytes).0
+fn compiled_glyph_cache_key(path_data: &str, advance_width: u16) -> u64 {
+    // ponytail: non-crypto FxHash for an in-process dedup key. u64 birthday
+    // bound (~2^32 distinct keys) dwarfs any realistic glyph count; a collision
+    // would silently reuse the wrong outline, but is astronomically unlikely
+    // here. Not persisted across runs, so hasher stability across versions is
+    // a non-concern.
+    let mut hasher = FxHasher::default();
+    hasher.write(path_data.as_bytes());
+    hasher.write_u16(advance_width);
+    hasher.finish()
 }
 
 struct LigaturePlaceholderGlyph {
@@ -645,8 +652,8 @@ fn assemble_font(
 
 fn dump_cached_ttf_table<T>(
     cache: &mut Option<&mut TtfGlyphCache>,
-    used_table_keys: &mut HashSet<[u8; 16]>,
-    cache_key: impl FnOnce() -> [u8; 16],
+    used_table_keys: &mut HashSet<u64>,
+    cache_key: impl FnOnce() -> u64,
     table: &T,
     name: &str,
 ) -> Result<([u8; 4], Vec<u8>), Error>
@@ -673,13 +680,13 @@ where
 fn hmtx_cache_key(
     compiled_glyphs: &[CompiledGlyph],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
-) -> [u8; 16] {
-    table_cache_key(b"hmtx", |bytes| {
+) -> u64 {
+    table_cache_key(b"hmtx", |hasher| {
         for glyph in compiled_glyphs {
-            push_u16(bytes, glyph.advance_width);
-            push_i16(bytes, glyph.left_side_bearing);
+            hasher.write_u16(glyph.advance_width);
+            hasher.write_i16(glyph.left_side_bearing);
         }
-        push_usize(bytes, ligature_placeholders.len());
+        hasher.write_usize(ligature_placeholders.len());
     })
 }
 
@@ -687,17 +694,17 @@ fn cmap_cache_key(
     compiled_glyphs: &[CompiledGlyph],
     cmap_aliases: &[(u32, usize)],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
-) -> [u8; 16] {
-    table_cache_key(b"cmap", |bytes| {
+) -> u64 {
+    table_cache_key(b"cmap", |hasher| {
         for glyph in compiled_glyphs {
-            push_u32(bytes, glyph.codepoint);
+            hasher.write_u32(glyph.codepoint);
         }
         for (codepoint, index) in cmap_aliases {
-            push_u32(bytes, *codepoint);
-            push_usize(bytes, *index);
+            hasher.write_u32(*codepoint);
+            hasher.write_usize(*index);
         }
         for glyph in ligature_placeholders {
-            push_u32(bytes, glyph.codepoint);
+            hasher.write_u32(glyph.codepoint);
         }
     })
 }
@@ -706,33 +713,40 @@ fn glyf_loca_cache_key(
     tag: &[u8; 4],
     compiled_glyphs: &[CompiledGlyph],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
-) -> [u8; 16] {
-    table_cache_key(tag, |bytes| {
-        push_glyf_loca_inputs(bytes, compiled_glyphs, ligature_placeholders)
+) -> u64 {
+    table_cache_key(tag, |hasher| {
+        for glyph in compiled_glyphs {
+            hasher.write_u64(
+                glyph
+                    .outline_key
+                    .expect("glyf/loca cache keys are only built for cached glyphs"),
+            );
+        }
+        hasher.write_usize(ligature_placeholders.len());
     })
 }
 
-fn name_cache_key(options: &TtfOptions, font_subfamily: &str) -> [u8; 16] {
-    table_cache_key(b"name", |bytes| {
-        push_str(bytes, options.font_name);
-        push_str(bytes, font_subfamily);
-        push_option_str(bytes, options.copyright);
-        push_option_str(bytes, options.description);
-        push_option_str(bytes, options.manufacturer_url);
-        push_option_str(bytes, derive_version_string(options.version).as_deref());
+fn name_cache_key(options: &TtfOptions, font_subfamily: &str) -> u64 {
+    table_cache_key(b"name", |hasher| {
+        hash_str(hasher, options.font_name);
+        hash_str(hasher, font_subfamily);
+        hash_option_str(hasher, options.copyright);
+        hash_option_str(hasher, options.description);
+        hash_option_str(hasher, options.manufacturer_url);
+        hash_option_str(hasher, derive_version_string(options.version).as_deref());
     })
 }
 
 fn post_cache_key(
     compiled_glyphs: &[CompiledGlyph],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
-) -> [u8; 16] {
-    table_cache_key(b"post", |bytes| {
+) -> u64 {
+    table_cache_key(b"post", |hasher| {
         for glyph in compiled_glyphs {
-            push_str(bytes, &glyph.name);
+            hash_str(hasher, &glyph.name);
         }
         for glyph in ligature_placeholders {
-            push_str(bytes, &glyph.name);
+            hash_str(hasher, &glyph.name);
         }
     })
 }
@@ -740,68 +754,42 @@ fn post_cache_key(
 fn gsub_cache_key(
     compiled_glyphs: &[CompiledGlyph],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
-) -> [u8; 16] {
-    table_cache_key(b"GSUB", |bytes| {
+) -> u64 {
+    table_cache_key(b"GSUB", |hasher| {
         for glyph in compiled_glyphs {
-            push_str(bytes, &glyph.name);
+            hash_str(hasher, &glyph.name);
         }
         for glyph in ligature_placeholders {
-            push_u32(bytes, glyph.codepoint);
+            hasher.write_u32(glyph.codepoint);
         }
     })
 }
 
-fn push_glyf_loca_inputs(
-    bytes: &mut Vec<u8>,
-    compiled_glyphs: &[CompiledGlyph],
-    ligature_placeholders: &[LigaturePlaceholderGlyph],
-) {
-    for glyph in compiled_glyphs {
-        bytes.extend_from_slice(
-            &glyph
-                .outline_key
-                .expect("glyf/loca cache keys are only built for cached glyphs"),
-        );
-    }
-    push_usize(bytes, ligature_placeholders.len());
+// ponytail: non-crypto FxHash keyed on the tables' semantic inputs. Hashes
+// straight into the hasher, so no intermediate key buffer is allocated. u64
+// collisions are negligible at font scale and would only surface as reusing an
+// identical table's bytes; not persisted, so hasher stability is a non-concern.
+fn table_cache_key(tag: &[u8; 4], hash_inputs: impl FnOnce(&mut FxHasher)) -> u64 {
+    let mut hasher = FxHasher::default();
+    hasher.write(tag);
+    hash_inputs(&mut hasher);
+    hasher.finish()
 }
 
-fn table_cache_key(tag: &[u8; 4], push_inputs: impl FnOnce(&mut Vec<u8>)) -> [u8; 16] {
-    let mut bytes = Vec::new();
-    bytes.extend_from_slice(tag);
-    push_inputs(&mut bytes);
-    md5::compute(bytes).0
-}
-
-fn push_option_str(bytes: &mut Vec<u8>, value: Option<&str>) {
+fn hash_option_str(hasher: &mut FxHasher, value: Option<&str>) {
     match value {
         Some(value) => {
-            bytes.push(1);
-            push_str(bytes, value);
+            hasher.write_u8(1);
+            hash_str(hasher, value);
         }
-        None => bytes.push(0),
+        None => hasher.write_u8(0),
     }
 }
 
-fn push_str(bytes: &mut Vec<u8>, value: &str) {
-    push_usize(bytes, value.len());
-    bytes.extend_from_slice(value.as_bytes());
-}
-
-fn push_u32(bytes: &mut Vec<u8>, value: u32) {
-    bytes.extend_from_slice(&value.to_le_bytes());
-}
-
-fn push_u16(bytes: &mut Vec<u8>, value: u16) {
-    bytes.extend_from_slice(&value.to_le_bytes());
-}
-
-fn push_i16(bytes: &mut Vec<u8>, value: i16) {
-    bytes.extend_from_slice(&value.to_le_bytes());
-}
-
-fn push_usize(bytes: &mut Vec<u8>, value: usize) {
-    bytes.extend_from_slice(&(value as u64).to_le_bytes());
+fn hash_str(hasher: &mut FxHasher, value: &str) {
+    // Length-prefix so concatenation is unambiguous ("ab"+"c" != "a"+"bc").
+    hasher.write_usize(value.len());
+    hasher.write(value.as_bytes());
 }
 
 fn dump_ttf_table<T>(table: &T, name: &str) -> Result<([u8; 4], Vec<u8>), Error>
