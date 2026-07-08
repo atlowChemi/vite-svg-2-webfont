@@ -26,7 +26,7 @@ jobs:
                       packages/webfont-generator/target
                   key: cargo-${{ runner.os }}-${{ hashFiles('packages/webfont-generator/Cargo.lock') }}
                   restore-keys: cargo-${{ runner.os }}-
-            - uses: voidzero-dev/setup-vp@13e7afb99c66525824db54e107d667216e795d37 # v1.14.0
+            - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -44,7 +44,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-            - uses: voidzero-dev/setup-vp@13e7afb99c66525824db54e107d667216e795d37 # v1.14.0
+            - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -173,7 +173,7 @@ jobs:
         steps:
             - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
             - uses: dtolnay/rust-toolchain@4be7066ada62dd38de10e7b70166bc74ed198c30 # stable
-            - uses: voidzero-dev/setup-vp@13e7afb99c66525824db54e107d667216e795d37 # v1.14.0
+            - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
               with:
                   node-version: ${{ matrix.node_version }}
                   run-install: false
