@@ -64,7 +64,7 @@ jobs:
               with:
                   targets: ${{ matrix.target }}
 
-            - uses: voidzero-dev/setup-vp@13e7afb99c66525824db54e107d667216e795d37 # v1.14.0
+            - uses: voidzero-dev/setup-vp@250f29ce396baf5e8f24498e17c0dfdebabc26eb # v1.15.0
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -78,7 +78,7 @@ jobs:
 
             - name: Install cargo-zigbuild
               if: matrix.target != 'x86_64-unknown-linux-gnu' && !contains(matrix.target, 'windows-msvc')
-              uses: taiki-e/install-action@c93ccc03e00cd0e08e494f5fd058a6c55a6a1907 # v2.82.8
+              uses: taiki-e/install-action@5ebac0d9522d786674368e47e92963ba13f2c376 # v2.82.11
               env:
                   GITHUB_TOKEN: ${{ github.token }}
               with:
@@ -98,7 +98,7 @@ jobs:
 
             - name: Install cargo-xwin
               if: contains(matrix.target, 'windows-msvc')
-              uses: taiki-e/install-action@c93ccc03e00cd0e08e494f5fd058a6c55a6a1907 # v2.82.8
+              uses: taiki-e/install-action@5ebac0d9522d786674368e47e92963ba13f2c376 # v2.82.11
               env:
                   GITHUB_TOKEN: ${{ github.token }}
               with:
