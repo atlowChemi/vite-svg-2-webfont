@@ -239,8 +239,8 @@ describe('generateWebfonts', () => {
 
         expect(Buffer.from(result.svg).toString('utf8')).toContain('glyph-name="add"');
         expect(Buffer.from(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
-        expect(result.generateCss({ svg: '/assets/iconfont.svg', ttf: '/assets/iconfont.ttf' } as never)).toContain('format("svg")');
-        expect(result.generateCss({ svg: '/assets/iconfont.svg', ttf: '/assets/iconfont.ttf' } as never)).toContain('format("truetype")');
+        expect(result.generateCss({ svg: '/assets/iconfont.svg', ttf: '/assets/iconfont.ttf' })).toContain('format("svg")');
+        expect(result.generateCss({ svg: '/assets/iconfont.svg', ttf: '/assets/iconfont.ttf' })).toContain('format("truetype")');
     });
 
     it('can generate ttf and eot together from the native path', async () => {
@@ -261,8 +261,8 @@ describe('generateWebfonts', () => {
 
         expect(Buffer.from(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
         expect(Buffer.from(result.eot).subarray(34, 36).toString('ascii')).toBe('LP');
-        expect(result.generateCss({ eot: '/assets/iconfont.eot', ttf: '/assets/iconfont.ttf' } as never)).toContain('format("embedded-opentype")');
-        expect(result.generateCss({ eot: '/assets/iconfont.eot', ttf: '/assets/iconfont.ttf' } as never)).toContain('/assets/iconfont.eot?#iefix');
+        expect(result.generateCss({ eot: '/assets/iconfont.eot', ttf: '/assets/iconfont.ttf' })).toContain('format("embedded-opentype")');
+        expect(result.generateCss({ eot: '/assets/iconfont.eot', ttf: '/assets/iconfont.ttf' })).toContain('/assets/iconfont.eot?#iefix');
     });
 
     it('can generate ttf and woff together from the native path', async () => {
@@ -283,7 +283,7 @@ describe('generateWebfonts', () => {
 
         expect(Buffer.from(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
         expect(Buffer.from(result.woff).subarray(0, 4).toString('ascii')).toBe('wOFF');
-        expect(result.generateCss({ ttf: '/assets/iconfont.ttf', woff: '/assets/iconfont.woff' } as never)).toContain('format("woff")');
+        expect(result.generateCss({ ttf: '/assets/iconfont.ttf', woff: '/assets/iconfont.woff' })).toContain('format("woff")');
     });
 
     it('can generate ttf and woff2 together from the native path', async () => {
@@ -304,7 +304,7 @@ describe('generateWebfonts', () => {
 
         expect(Buffer.from(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
         expect(Buffer.from(result.woff2).subarray(0, 4).toString('ascii')).toBe('wOF2');
-        expect(result.generateCss({ ttf: '/assets/iconfont.ttf', woff2: '/assets/iconfont.woff2' } as never)).toContain('format("woff2")');
+        expect(result.generateCss({ ttf: '/assets/iconfont.ttf', woff2: '/assets/iconfont.woff2' })).toContain('format("woff2")');
     });
 
     it('can generate svg and eot together from the native path', async () => {
@@ -325,8 +325,8 @@ describe('generateWebfonts', () => {
 
         expect(Buffer.from(result.svg).toString('utf8')).toContain('glyph-name="add"');
         expect(Buffer.from(result.eot).subarray(34, 36).toString('ascii')).toBe('LP');
-        expect(result.generateCss({ eot: '/assets/iconfont.eot', svg: '/assets/iconfont.svg' } as never)).toContain('format("embedded-opentype")');
-        expect(result.generateCss({ eot: '/assets/iconfont.eot', svg: '/assets/iconfont.svg' } as never)).toContain('format("svg")');
+        expect(result.generateCss({ eot: '/assets/iconfont.eot', svg: '/assets/iconfont.svg' })).toContain('format("embedded-opentype")');
+        expect(result.generateCss({ eot: '/assets/iconfont.eot', svg: '/assets/iconfont.svg' })).toContain('format("svg")');
     });
 
     it('can generate svg and woff together from the native path', async () => {
@@ -352,7 +352,7 @@ describe('generateWebfonts', () => {
 
         expect(Buffer.from(result.svg).toString('utf8')).toContain('glyph-name="add"');
         expect(Buffer.from(result.woff).subarray(0, 4).toString('ascii')).toBe('wOFF');
-        expect(result.generateCss({ svg: '/assets/iconfont.svg', woff: '/assets/iconfont.woff' } as never)).toContain('format("woff")');
+        expect(result.generateCss({ svg: '/assets/iconfont.svg', woff: '/assets/iconfont.woff' })).toContain('format("woff")');
     });
 
     it('can generate svg and woff2 together from the native path', async () => {
@@ -373,7 +373,7 @@ describe('generateWebfonts', () => {
 
         expect(Buffer.from(result.svg).toString('utf8')).toContain('glyph-name="add"');
         expect(Buffer.from(result.woff2).subarray(0, 4).toString('ascii')).toBe('wOF2');
-        expect(result.generateCss({ svg: '/assets/iconfont.svg', woff2: '/assets/iconfont.woff2' } as never)).toContain('format("woff2")');
+        expect(result.generateCss({ svg: '/assets/iconfont.svg', woff2: '/assets/iconfont.woff2' })).toContain('format("woff2")');
     });
 
     it('passes preserveAspectRatio through to the native svg generator', async () => {

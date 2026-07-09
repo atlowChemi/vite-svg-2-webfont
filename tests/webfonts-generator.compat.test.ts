@@ -1162,7 +1162,7 @@ describe('compat:webfonts-generator:side-by-side', () => {
         const { newCore, upstream } = await runSideBySide(
             baseOptions(dest, {
                 codepoints: {
-                    back: -1 as never,
+                    back: -1,
                 },
                 ligature: false,
                 types: ['svg'],
@@ -1180,7 +1180,7 @@ describe('compat:webfonts-generator:side-by-side', () => {
         const { newCore, upstream } = await runSideBySide(
             baseOptions(dest, {
                 codepoints: {
-                    back: 99999999 as never,
+                    back: 99999999,
                 },
                 ligature: false,
                 types: ['svg'],

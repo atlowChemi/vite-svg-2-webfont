@@ -11,7 +11,7 @@ import { generateWebfonts, type GenerateWebfontsInputOptions } from '@atlowchemi
 
 const require = createRequire(import.meta.url);
 const upstreamCallback = require('@vusion/webfonts-generator') as (options: GenerateWebfontsInputOptions, done: (error: unknown, result?: unknown) => void) => void;
-const upstreamDirect = promisify(upstreamCallback) as unknown as (options: GenerateWebfontsInputOptions) => Promise<unknown>;
+const upstreamDirect = promisify(upstreamCallback);
 
 // --- Fixture setup ---
 // Materialize 600 real icons from an Iconify set, instead of synthetic circles, so the
