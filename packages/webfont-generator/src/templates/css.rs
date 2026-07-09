@@ -54,7 +54,7 @@ fn make_urls(
         .map(|font_type| {
             let file_name = format!(
                 "{}.{}?{}",
-                &options.font_name,
+                options.font_name,
                 font_type.as_extension(),
                 hash
             );
@@ -91,7 +91,7 @@ pub(crate) fn make_src(
                 _ = write!(
                     result,
                     "url(\"{url}#{}\") format(\"{}\")",
-                    &options.font_name,
+                    options.font_name,
                     font_type.css_format()
                 );
             }
