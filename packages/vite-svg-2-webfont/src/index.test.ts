@@ -915,7 +915,6 @@ describe('serve - falls back to full regenerate when incremental is unavailable'
 });
 
 describe('serve - falls back when regenerate throws', () => {
-    type RegenResult = Awaited<ReturnType<typeof generateWebfontsMock>>;
     const reloadedIds: string[] = [];
     const { promise: waitForCssReload, resolve: markCssReloaded } = Promise.withResolvers<void>();
     let watcherHandler: Parameters<typeof setupWatcherMock>[2];
@@ -928,9 +927,9 @@ describe('serve - falls back when regenerate throws', () => {
         const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
         generateWebfontsMock.mockImplementationOnce(async options => {
             const result = await realGen(options);
-            result.regenerate = (() => {
+            result.regenerate = () => {
                 throw new Error('intentional regenerate failure');
-            }) as RegenResult['regenerate'];
+            };
             return result;
         });
         const created = await createServer({
