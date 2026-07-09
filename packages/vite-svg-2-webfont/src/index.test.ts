@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { viteSvgToWebfont } from './index';
 import { base64ToArrayBuffer } from './utils';
 import type { IconPluginOptions } from './optionParser';
+import type { AddressInfo } from 'node:net';
 
 const { generateWebfontsMock } = vi.hoisted(() => ({
     generateWebfontsMock: vi.fn<typeof import('@atlowchemi/webfont-generator').generateWebfonts>(),
@@ -116,21 +117,36 @@ const getConfig = (configType: ConfigType, overrides?: Partial<IconPluginOptions
     }
 };
 
-const getServerPort = (server: ViteDevServer | PreviewServer) => {
+const getServerAddress = (server: ViteDevServer | PreviewServer) => {
     const address = server.httpServer?.address();
     if (!address) {
         throw new Error('Address not found');
     }
     if (typeof address === 'string') {
-        const [, port] = address.split(':', 2);
-        return parseInt(port || '80', 10);
+        const [host, port] = address.split(':', 2);
+        return { host: host || '127.0.0.1', port: parseInt(port || '80', 10) };
     }
-    return address.port;
+    // Connect to the exact address the server bound to instead of "localhost". localhost resolves
+    // to ::1 on macOS and to both ::1/127.0.0.1 on Windows CI, so a fixed hostname races the
+    // IPv4/IPv6 stacks against whichever one the server chose - the ETIMEDOUT/ECONNREFUSED flake.
+    return { host: resolveConnectHost(address), port: address.port };
+};
+
+/**
+ * Turns the server's bound address into a connectable host. A wildcard bind (0.0.0.0 / ::) is
+ * reachable via the matching loopback, and IPv6 hosts get bracketed for use in a URL.
+ */
+const resolveConnectHost = (address: AddressInfo) => {
+    const isWildcard = address.address === '0.0.0.0' || address.address === '::' || address.address === '';
+    if (address.family === 'IPv6') {
+        return `[${isWildcard ? '::1' : address.address}]`;
+    }
+    return isWildcard ? '127.0.0.1' : address.address;
 };
 
 const fetchFromServer = async (server: ViteDevServer | PreviewServer, path: string) => {
-    const port = getServerPort(server);
-    const url = `http://localhost:${port}${path}`;
+    const { host, port } = getServerAddress(server);
+    const url = `http://${host}:${port}${path}`;
     return await fetch(url);
 };
 
