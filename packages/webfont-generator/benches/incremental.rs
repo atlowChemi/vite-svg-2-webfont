@@ -5,7 +5,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use serde_json::Value;
 use webfont_generator::bench_support::{
-    BenchGlyphCache, BenchSvgSource, prepare_svg_full, prepare_svg_incremental,
+    BenchGlyphCache, BenchSvgSource, clear_woff1_payload_cache, prepare_svg_full,
+    prepare_svg_incremental,
 };
 use webfont_generator::{
     FontType, FormatOptions, GenerateWebfontsOptions, GlyphChange, TtfFormatOptions,
@@ -734,6 +735,63 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
             BatchSize::SmallInput,
         )
     });
+    group.bench_function("rename_only_woff/300", |b| {
+        b.iter_batched(
+            || {
+                let fixture = fixtures(size);
+                let result = webfont_generator::generate_sync(
+                    options_with_types(fixture.paths.clone(), true, vec![FontType::Woff]),
+                    None,
+                )
+                .unwrap();
+                let changed = fixture.paths[size / 2].clone();
+                (fixture, result, changed)
+            },
+            |(fixture, mut result, changed)| {
+                result
+                    .regenerate(
+                        &fixture.paths,
+                        &[(
+                            changed,
+                            GlyphChange::Changed {
+                                name: Some("renamed-glyph".to_owned()),
+                            },
+                        )],
+                    )
+                    .unwrap()
+            },
+            BatchSize::SmallInput,
+        )
+    });
+    group.bench_function("rename_only_woff_cold_cache/300", |b| {
+        b.iter_batched(
+            || {
+                let fixture = fixtures(size);
+                let mut result = webfont_generator::generate_sync(
+                    options_with_types(fixture.paths.clone(), true, vec![FontType::Woff]),
+                    None,
+                )
+                .unwrap();
+                clear_woff1_payload_cache(&mut result);
+                let changed = fixture.paths[size / 2].clone();
+                (fixture, result, changed)
+            },
+            |(fixture, mut result, changed)| {
+                result
+                    .regenerate(
+                        &fixture.paths,
+                        &[(
+                            changed,
+                            GlyphChange::Changed {
+                                name: Some("renamed-glyph".to_owned()),
+                            },
+                        )],
+                    )
+                    .unwrap()
+            },
+            BatchSize::SmallInput,
+        )
+    });
     group.bench_function("duplicate_content_add/300", |b| {
         b.iter_batched(
             || {
@@ -763,64 +821,66 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
 
 fn bench_regenerate_by_format(c: &mut Criterion) {
     let mut group = c.benchmark_group("regenerate_by_format");
-    let size = 300;
-    for (label, types) in [
-        ("svg", vec![FontType::Svg]),
-        ("ttf", vec![FontType::Ttf]),
-        ("woff2", vec![FontType::Woff2]),
-        (
-            "all_formats",
-            vec![
-                FontType::Svg,
-                FontType::Ttf,
-                FontType::Eot,
-                FontType::Woff,
-                FontType::Woff2,
-            ],
-        ),
-    ] {
-        group.bench_function(format!("full_content_edit/{label}/{size}"), |b| {
-            b.iter_batched(
-                || {
-                    let fixture = fixtures(size);
-                    let changed = fixture.paths[size / 2].clone();
-                    std::fs::write(&changed, svg(&changed_path_data())).unwrap();
-                    fixture
-                },
-                |fixture| {
-                    webfont_generator::generate_sync(
-                        options_with_types(fixture.paths.clone(), false, types.clone()),
-                        None,
-                    )
-                    .unwrap()
-                },
-                BatchSize::SmallInput,
-            )
-        });
-        group.bench_function(format!("incremental_content_edit/{label}/{size}"), |b| {
-            b.iter_batched(
-                || {
-                    let fixture = fixtures(size);
-                    let result = webfont_generator::generate_sync(
-                        options_with_types(fixture.paths.clone(), true, types.clone()),
-                        None,
-                    )
-                    .unwrap();
-                    let changed = fixture.paths[size / 2].clone();
-                    std::fs::write(&changed, svg(&changed_path_data())).unwrap();
-                    (fixture, result, changed)
-                },
-                |(fixture, mut result, changed)| {
-                    result
-                        .regenerate(
-                            &fixture.paths,
-                            &[(changed, GlyphChange::Changed { name: None })],
+    for size in SIZES {
+        for (label, types) in [
+            ("svg", vec![FontType::Svg]),
+            ("ttf", vec![FontType::Ttf]),
+            ("woff", vec![FontType::Woff]),
+            ("woff2", vec![FontType::Woff2]),
+            (
+                "all_formats",
+                vec![
+                    FontType::Svg,
+                    FontType::Ttf,
+                    FontType::Eot,
+                    FontType::Woff,
+                    FontType::Woff2,
+                ],
+            ),
+        ] {
+            group.bench_function(format!("full_content_edit/{label}/{size}"), |b| {
+                b.iter_batched(
+                    || {
+                        let fixture = fixtures(size);
+                        let changed = fixture.paths[size / 2].clone();
+                        std::fs::write(&changed, svg(&changed_path_data())).unwrap();
+                        fixture
+                    },
+                    |fixture| {
+                        webfont_generator::generate_sync(
+                            options_with_types(fixture.paths.clone(), false, types.clone()),
+                            None,
                         )
                         .unwrap()
-                },
-                BatchSize::SmallInput,
-            )
-        });
+                    },
+                    BatchSize::SmallInput,
+                )
+            });
+            group.bench_function(format!("incremental_content_edit/{label}/{size}"), |b| {
+                b.iter_batched(
+                    || {
+                        let fixture = fixtures(size);
+                        let result = webfont_generator::generate_sync(
+                            options_with_types(fixture.paths.clone(), true, types.clone()),
+                            None,
+                        )
+                        .unwrap();
+                        let changed = fixture.paths[size / 2].clone();
+                        std::fs::write(&changed, svg(&changed_path_data())).unwrap();
+                        (fixture, result, changed)
+                    },
+                    |(fixture, mut result, changed)| {
+                        result
+                            .regenerate(
+                                &fixture.paths,
+                                &[(changed, GlyphChange::Changed { name: None })],
+                            )
+                            .unwrap()
+                    },
+                    BatchSize::SmallInput,
+                )
+            });
+        }
     }
     group.finish();
 }

@@ -1,10 +1,12 @@
+use std::hint::black_box;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use serde_json::Value;
 use webfont_generator::bench_support::{
-    BenchSvgSource, build_outputs_only, finalize_svg_only, parse_svg_only,
+    BenchSvgSource, build_outputs_only, build_serialized_ttf_tables, finalize_svg_only,
+    fontbuilder_ttf, parse_svg_only, rewrap_serialized_ttf_tables, serialized_ttf_uncached,
 };
 use webfont_generator::{
     FontType, FormatOptions, GenerateWebfontsOptions, SvgFormatOptions, TtfFormatOptions,
@@ -509,6 +511,68 @@ fn bench_recalc_output_ceiling(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_sfnt_assembly_compare(c: &mut Criterion) {
+    let mut group = c.benchmark_group("sfnt_assembly_compare");
+    for size in SIZES {
+        let fixture = fixtures(size);
+        let parsed = parse_svg_only(
+            options(fixture.paths.clone(), vec![FontType::Svg], 10, false),
+            &fixture.sources,
+        )
+        .unwrap();
+        let prepared = finalize_svg_only(
+            options(fixture.paths.clone(), vec![FontType::Svg], 10, false),
+            &fixture.sources,
+            parsed,
+        )
+        .unwrap();
+
+        group.bench_function(format!("serialized_tables_new/{size}"), |b| {
+            b.iter(|| {
+                black_box(
+                    build_serialized_ttf_tables(
+                        options(fixture.paths.clone(), vec![FontType::Ttf], 10, false),
+                        &fixture.sources,
+                        &prepared,
+                    )
+                    .unwrap(),
+                )
+            })
+        });
+
+        let tables = build_serialized_ttf_tables(
+            options(fixture.paths.clone(), vec![FontType::Ttf], 10, false),
+            &fixture.sources,
+            &prepared,
+        )
+        .unwrap();
+
+        group.bench_function(format!("serialized_tables_rewrap/{size}"), |b| {
+            b.iter_batched(
+                || tables.clone(),
+                |tables| black_box(rewrap_serialized_ttf_tables(black_box(&tables)).unwrap()),
+                BatchSize::PerIteration,
+            )
+        });
+
+        group.bench_function(format!("current_uncached_ttf/{size}"), |b| {
+            b.iter_batched(
+                || tables.clone(),
+                |tables| black_box(serialized_ttf_uncached(black_box(&tables))),
+                BatchSize::PerIteration,
+            )
+        });
+        group.bench_function(format!("fontbuilder_from_serialized_tables/{size}"), |b| {
+            b.iter_batched(
+                || tables.clone(),
+                |tables| black_box(fontbuilder_ttf(black_box(&tables))),
+                BatchSize::PerIteration,
+            )
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_pipeline_slices,
@@ -516,6 +580,7 @@ criterion_group!(
     bench_woff2_quality,
     bench_optimize_output,
     bench_recalc_finalize_inputs,
-    bench_recalc_output_ceiling
+    bench_recalc_output_ceiling,
+    bench_sfnt_assembly_compare
 );
 criterion_main!(benches);

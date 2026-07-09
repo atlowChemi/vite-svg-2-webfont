@@ -86,7 +86,7 @@ jobs:
 
                   BASELINE_FLAG="--save-baseline"
                   if [ "${GITHUB_EVENT_NAME}" = "pull_request" ]; then
-                    BASELINE_FLAG="--baseline"
+                    BASELINE_FLAG="--baseline-lenient"
                   fi
 
                   for bench in features incremental pipeline; do
