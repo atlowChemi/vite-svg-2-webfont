@@ -178,7 +178,9 @@ function parseSvgSemanticSummary(svg: string) {
 
 function parseCssSemanticSummary(css: string, classPrefix = 'icon-') {
     const classPattern = new RegExp(`\\.${classPrefix}([a-zA-Z0-9_-]+):before\\s*\\{[^}]*content\\s*:\\s*["']\\\\([0-9a-fA-F]+)["']`, 'g');
-    const glyphs = sortGlyphEntries([...css.matchAll(classPattern)].map((match): [string, string] => [match[1]!, match[2]!.toUpperCase()]));
+    const glyphs = Array.from(css.matchAll(classPattern), (match): [string, string] => [match[1]!, match[2]!.toUpperCase()]).toSorted(([left], [right]) =>
+        left.localeCompare(right),
+    );
 
     return {
         glyphs,
@@ -196,7 +198,7 @@ function parseHtmlIconNames(html: string, classPrefix = 'icon-') {
         }
     }
 
-    return sortStrings(names);
+    return Array.from(names).toSorted();
 }
 
 function sanitizeTemplateOutput(source: string) {
@@ -338,36 +340,6 @@ function summarizeWoff2(buffer: Buffer) {
     return {
         magic: buffer.subarray(0, 4).toString('ascii'),
     };
-}
-
-function sortGlyphEntries(entries: [string, string][]) {
-    const sorted: [string, string][] = [];
-
-    for (const entry of entries) {
-        const index = sorted.findIndex(candidate => candidate[0].localeCompare(entry[0]) > 0);
-        if (index === -1) {
-            sorted.push(entry);
-        } else {
-            sorted.splice(index, 0, entry);
-        }
-    }
-
-    return sorted;
-}
-
-function sortStrings(values: Iterable<string>) {
-    const sorted: string[] = [];
-
-    for (const value of values) {
-        const index = sorted.findIndex(candidate => candidate.localeCompare(value) > 0);
-        if (index === -1) {
-            sorted.push(value);
-        } else {
-            sorted.splice(index, 0, value);
-        }
-    }
-
-    return sorted;
 }
 
 async function readDestFile(dest: string, fileName: string): Promise<Buffer> {

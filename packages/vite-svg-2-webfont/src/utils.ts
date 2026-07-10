@@ -149,12 +149,3 @@ export function getTmpDir(): string {
 export function rmDir(path: string): void {
     fsRm(path, { force: true, recursive: true }, /* v8 ignore next -- best-effort temp cleanup callback has no observable behavior */ () => {});
 }
-
-export function base64ToArrayBuffer(base64: string): ArrayBuffer {
-    const binaryString = Buffer.from(base64, 'base64').toString('binary');
-    const bytes = new Uint8Array(binaryString.length);
-    for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
-    }
-    return bytes.buffer;
-}
