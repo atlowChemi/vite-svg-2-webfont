@@ -439,19 +439,6 @@ fn collect_path_dependency(path: &str, deps: &mut TemplateDependencies) {
     }
 }
 
-/// Check whether a Handlebars template source contains `{{name}}` or `{{{name}}}` as an
-/// exact variable reference (with optional whitespace). Does not match block helpers,
-/// conditionals, or sub-expressions — only bare mustache names.
-#[cfg(test)]
-fn template_contains_exact_mustache_name(source: &str, name: &str) -> bool {
-    for expression in mustache_expressions(source) {
-        if expression == name {
-            return true;
-        }
-    }
-    false
-}
-
 /// Pre-computed values shared between CSS and HTML context building.
 /// Avoids recomputing the hash, codepoints map, template options, and reading
 /// the CSS template file multiple times. The CSS template source is read eagerly
@@ -755,7 +742,7 @@ impl<'a> From<&'a crate::types::WoffFormatOptions> for HashableWoffFormatOptions
 mod tests {
     use super::{
         SharedTemplateData, build_css_context, calc_hash, make_ctx, make_src, make_urls,
-        render_css_with_context, template_contains_exact_mustache_name, template_dependencies,
+        render_css_with_context, template_dependencies,
     };
     use crate::{
         FontType, FormatOptions, GenerateWebfontsOptions, LoadedSvgFile,
@@ -1566,99 +1553,5 @@ mod tests {
         assert!(template_dependencies("{{> iconPreview}}").dynamic);
         assert!(template_dependencies("{{>iconPreview}}").dynamic);
         assert!(template_dependencies("{{#> iconPreview}}{{/iconPreview}}").dynamic);
-    }
-
-    // --- template_contains_exact_mustache_name ---
-
-    #[test]
-    fn mustache_match_double_no_whitespace() {
-        assert!(template_contains_exact_mustache_name("{{src}}", "src"));
-    }
-
-    #[test]
-    fn mustache_match_triple_no_whitespace() {
-        assert!(template_contains_exact_mustache_name("{{{src}}}", "src"));
-    }
-
-    #[test]
-    fn mustache_match_double_leading_space() {
-        assert!(template_contains_exact_mustache_name("{{ src}}", "src"));
-    }
-
-    #[test]
-    fn mustache_match_double_trailing_space() {
-        assert!(template_contains_exact_mustache_name("{{src }}", "src"));
-    }
-
-    #[test]
-    fn mustache_match_double_both_spaces() {
-        assert!(template_contains_exact_mustache_name("{{ src }}", "src"));
-    }
-
-    #[test]
-    fn mustache_match_triple_leading_space() {
-        assert!(template_contains_exact_mustache_name("{{{ src}}}", "src"));
-    }
-
-    #[test]
-    fn mustache_match_triple_trailing_space() {
-        assert!(template_contains_exact_mustache_name("{{{src }}}", "src"));
-    }
-
-    #[test]
-    fn mustache_match_triple_both_spaces() {
-        assert!(template_contains_exact_mustache_name("{{{ src }}}", "src"));
-    }
-
-    #[test]
-    fn mustache_match_with_surrounding_text() {
-        assert!(template_contains_exact_mustache_name(
-            "@font-face { src: {{ src }}; }",
-            "src"
-        ));
-    }
-
-    #[test]
-    fn mustache_match_with_tabs() {
-        assert!(template_contains_exact_mustache_name("{{\tsrc\t}}", "src"));
-    }
-
-    #[test]
-    fn mustache_no_match_different_name() {
-        assert!(!template_contains_exact_mustache_name(
-            "{{fontName}}",
-            "src"
-        ));
-    }
-
-    #[test]
-    fn mustache_no_match_prefix() {
-        assert!(!template_contains_exact_mustache_name("{{srcUrl}}", "src"));
-    }
-
-    #[test]
-    fn mustache_no_match_block_helper() {
-        assert!(!template_contains_exact_mustache_name("{{#if src}}", "src"));
-    }
-
-    #[test]
-    fn mustache_no_match_empty_source() {
-        assert!(!template_contains_exact_mustache_name("", "src"));
-    }
-
-    #[test]
-    fn mustache_no_match_no_braces() {
-        assert!(!template_contains_exact_mustache_name(
-            "plain text src",
-            "src"
-        ));
-    }
-
-    #[test]
-    fn mustache_match_multiple_expressions_second_matches() {
-        assert!(template_contains_exact_mustache_name(
-            "{{fontName}} {{ src }}",
-            "src"
-        ));
     }
 }

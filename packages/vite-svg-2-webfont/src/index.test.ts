@@ -8,7 +8,6 @@ import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevSer
 import { build, createServer, normalizePath, preview } from 'vite';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { viteSvgToWebfont } from './index';
-import { base64ToArrayBuffer } from './utils';
 import type { IconPluginOptions } from './optionParser';
 import type { AddressInfo } from 'node:net';
 
@@ -20,6 +19,11 @@ const { ensureDirExistsAndWriteFileMock, rmDirMock, setupWatcherMock } = vi.hois
     ensureDirExistsAndWriteFileMock: vi.fn<typeof import('./utils').ensureDirExistsAndWriteFile>(),
     rmDirMock: vi.fn<typeof import('./utils').rmDir>(),
 }));
+
+function base64ToArrayBuffer(base64: string): ArrayBuffer {
+    const buffer = Buffer.from(base64, 'base64');
+    return buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength);
+}
 
 vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
     const actual = await importOriginal<typeof import('@atlowchemi/webfont-generator')>();
