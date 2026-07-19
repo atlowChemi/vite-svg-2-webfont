@@ -78,7 +78,7 @@ jobs:
 
             - name: Install cargo-zigbuild
               if: matrix.target != 'x86_64-unknown-linux-gnu' && !contains(matrix.target, 'windows-msvc')
-              uses: taiki-e/install-action@43aecc8d72668fbcfe75c31400bc4f890f1c5853 # v2.83.2
+              uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b # v2.83.4
               env:
                   GITHUB_TOKEN: ${{ github.token }}
               with:
@@ -98,7 +98,7 @@ jobs:
 
             - name: Install cargo-xwin
               if: contains(matrix.target, 'windows-msvc')
-              uses: taiki-e/install-action@43aecc8d72668fbcfe75c31400bc4f890f1c5853 # v2.83.2
+              uses: taiki-e/install-action@07b4745e0c39a41822af610387492e3e53aa222b # v2.83.4
               env:
                   GITHUB_TOKEN: ${{ github.token }}
               with:
