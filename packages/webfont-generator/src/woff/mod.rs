@@ -7,6 +7,9 @@ use flate2::Compression;
 use flate2::write::ZlibEncoder;
 use rustc_hash::FxHasher;
 
+#[cfg(any(test, feature = "bench"))]
+mod woff2;
+
 const WOFF_HEADER_SIZE: usize = 44;
 const WOFF_TABLE_ENTRY_SIZE: usize = 20;
 const META_OFFSET_POS: usize = 24;
@@ -43,6 +46,14 @@ pub(crate) fn tables_to_woff1_cached(
 pub(crate) fn ttf_to_woff2(ttf: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
     ::woff::version2::compress(ttf, "", quality.min(11) as usize, true)
         .ok_or_else(|| Error::new(ErrorKind::InvalidData, "WOFF2 compression failed"))
+}
+
+#[cfg(feature = "bench")]
+pub(crate) fn tables_to_woff2_no_transform(
+    tables: &SerializedFontTables,
+    quality: u8,
+) -> Result<Vec<u8>, Error> {
+    woff2::encode(tables, quality)
 }
 
 fn inject_woff_metadata(woff: &mut Vec<u8>, metadata: &str) -> Result<(), Error> {
@@ -328,6 +339,26 @@ mod tests {
     }
 
     #[test]
+    fn internal_no_transform_woff2_acceptance_1_glyph() {
+        assert_internal_no_transform_woff2(1);
+    }
+
+    #[test]
+    fn internal_no_transform_woff2_acceptance_100_glyphs() {
+        assert_internal_no_transform_woff2(100);
+    }
+
+    #[test]
+    fn internal_no_transform_woff2_acceptance_300_glyphs() {
+        assert_internal_no_transform_woff2(300);
+    }
+
+    #[test]
+    fn internal_no_transform_woff2_acceptance_600_glyphs() {
+        assert_internal_no_transform_woff2(600);
+    }
+
+    #[test]
     fn woff2_round_trips_an_empty_glyph() {
         assert_woff2_roundtrip(&font_tables(vec![
             glyph(0, "empty", "", 16.0, 16.0),
@@ -396,6 +427,17 @@ mod tests {
                 encoded, baseline,
                 "WOFF2 baseline changed for {glyph_count} glyphs; inspect it and rerun with UPDATE_WOFF2_FIXTURES=1 to accept it",
             );
+        }
+    }
+
+    fn assert_internal_no_transform_woff2(glyph_count: usize) {
+        let tables = acceptance_font_tables(glyph_count);
+        for quality in WOFF2_QUALITIES {
+            let output = super::woff2::encode(&tables, quality).unwrap();
+            assert_eq!(output, super::woff2::encode(&tables, quality).unwrap());
+            let decoded = ::woff::version2::decompress(&output)
+                .expect("internal no-transform WOFF2 should decode");
+            assert_semantically_equal(tables.ttf(), &decoded);
         }
     }
 

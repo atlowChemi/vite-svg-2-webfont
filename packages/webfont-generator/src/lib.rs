@@ -248,6 +248,14 @@ pub mod bench_support {
         tables.0.uncached_ttf()
     }
 
+    /// Encode serialized tables with the internal no-transform WOFF2 encoder.
+    pub fn internal_no_transform_woff2(
+        tables: &BenchSerializedFontTables,
+        quality: u8,
+    ) -> io::Result<Vec<u8>> {
+        crate::woff::tables_to_woff2_no_transform(&tables.0, quality)
+    }
+
     /// Assemble final TTF bytes with write-fonts FontBuilder from the same serialized tables.
     pub fn fontbuilder_ttf(tables: &BenchSerializedFontTables) -> Vec<u8> {
         let mut builder = FontBuilder::new();

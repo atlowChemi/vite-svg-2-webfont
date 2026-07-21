@@ -5,7 +5,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use webfont_generator::bench_support::{
     BenchSvgSource, build_outputs_only, build_serialized_ttf_tables, finalize_svg_only,
-    fontbuilder_ttf, parse_svg_only, rewrap_serialized_ttf_tables, serialized_ttf_uncached,
+    fontbuilder_ttf, internal_no_transform_woff2, parse_svg_only, rewrap_serialized_ttf_tables,
+    serialized_ttf_uncached,
 };
 
 mod support;
@@ -513,6 +514,48 @@ fn bench_sfnt_assembly_compare(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_woff2_encoder_compare(c: &mut Criterion) {
+    let mut group = c.benchmark_group("woff2_encoder_compare");
+    for size in [1, 100, 300, 600] {
+        let fixture = fixtures(size);
+        let parsed = parse_svg_only(
+            options(fixture.paths.clone(), vec![FontType::Svg], 10, false),
+            &fixture.sources,
+        )
+        .unwrap();
+        let prepared = finalize_svg_only(
+            options(fixture.paths.clone(), vec![FontType::Svg], 10, false),
+            &fixture.sources,
+            parsed,
+        )
+        .unwrap();
+        let tables = build_serialized_ttf_tables(
+            options(fixture.paths.clone(), vec![FontType::Ttf], 10, false),
+            &fixture.sources,
+            &prepared,
+        )
+        .unwrap();
+        let ttf = serialized_ttf_uncached(&tables);
+
+        for quality in 0..=11_u8 {
+            group.bench_function(format!("native/{size}/quality_{quality}"), |b| {
+                b.iter(|| {
+                    black_box(
+                        woff::version2::compress(black_box(&ttf), "", usize::from(quality), false)
+                            .unwrap(),
+                    )
+                })
+            });
+            group.bench_function(format!("internal/{size}/quality_{quality}"), |b| {
+                b.iter(|| {
+                    black_box(internal_no_transform_woff2(black_box(&tables), quality).unwrap())
+                })
+            });
+        }
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_pipeline_slices,
@@ -521,6 +564,7 @@ criterion_group!(
     bench_optimize_output,
     bench_recalc_finalize_inputs,
     bench_recalc_output_ceiling,
-    bench_sfnt_assembly_compare
+    bench_sfnt_assembly_compare,
+    bench_woff2_encoder_compare
 );
 criterion_main!(benches);
