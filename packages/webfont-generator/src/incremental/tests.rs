@@ -166,7 +166,7 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
         .ttf_cache
         .as_ref()
         .unwrap()
-        .woff1_payload_compile_count;
+        .woff1_payload_compile_count();
     result
         .regenerate(
             &[a.clone(), b.clone(), c.clone()],
@@ -188,7 +188,7 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
             .ttf_cache
             .as_ref()
             .unwrap()
-            .woff1_payload_compile_count,
+            .woff1_payload_compile_count(),
         woff_before + 2
     );
     std::fs::remove_dir_all(&dir).ok();

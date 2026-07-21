@@ -123,7 +123,7 @@ pub mod bench_support {
     use crate::sfnt::SerializedFontTables;
     use crate::svg::types::ParsedGlyph;
     use crate::svg::{finalize_glyphs, parse_glyphs};
-    use crate::ttf;
+    use crate::ttf::{self, Woff2TransformCache};
     use write_fonts::FontBuilder;
     use write_fonts::types::Tag;
 
@@ -150,6 +150,13 @@ pub mod bench_support {
     /// Opaque serialized TTF table set used to isolate SFNT assembly costs.
     #[derive(Clone)]
     pub struct BenchSerializedFontTables(SerializedFontTables);
+
+    /// Opaque WOFF2 transform cache used by preparation benchmarks.
+    #[derive(Clone, Default)]
+    pub struct BenchWoff2TransformCache(Woff2TransformCache);
+
+    /// Opaque prepared WOFF2 directory and table stream.
+    pub struct BenchPreparedWoff2(crate::woff::PreparedWoff2);
 
     fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgFile> {
         sources
@@ -254,6 +261,22 @@ pub mod bench_support {
         quality: u8,
     ) -> io::Result<Vec<u8>> {
         crate::woff::tables_to_woff2_no_transform(&tables.0, quality)
+    }
+
+    /// Prepare the internal WOFF2 directory and table stream without Brotli compression.
+    pub fn prepare_internal_woff2(
+        tables: &BenchSerializedFontTables,
+        cache: &mut BenchWoff2TransformCache,
+    ) -> io::Result<BenchPreparedWoff2> {
+        crate::woff::prepare_woff2_no_transform(&tables.0, &mut cache.0).map(BenchPreparedWoff2)
+    }
+
+    /// Brotli-compress an already prepared internal WOFF2 stream and return its byte length.
+    pub fn compress_prepared_internal_woff2(
+        prepared: &BenchPreparedWoff2,
+        quality: u8,
+    ) -> io::Result<usize> {
+        crate::woff::compress_prepared_woff2(&prepared.0, quality)
     }
 
     /// Assemble final TTF bytes with write-fonts FontBuilder from the same serialized tables.
@@ -702,10 +725,17 @@ fn build_font_outputs(
         let ttf_tables = Arc::new(ttf_tables);
         let raw_ttf = (wants_ttf || wants_woff2).then(|| ttf_tables.ttf_arc());
         let ttf_font = wants_ttf.then(|| Arc::clone(raw_ttf.as_ref().unwrap()));
+        let (woff1_cache, _woff2_cache) = match ttf_cache {
+            Some(cache) => {
+                let (woff1, woff2) = cache.output_caches();
+                (Some(woff1), Some(woff2))
+            }
+            None => (None, None),
+        };
         let (woff_font, (woff2_font, eot_font)) = join(
             || -> std::io::Result<Option<Vec<u8>>> {
                 if wants_woff {
-                    match ttf_cache {
+                    match woff1_cache {
                         Some(cache) => {
                             woff::tables_to_woff1_cached(&ttf_tables, woff_metadata, cache)
                         }

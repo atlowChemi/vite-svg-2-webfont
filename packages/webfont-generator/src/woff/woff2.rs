@@ -1,7 +1,11 @@
+use std::collections::HashSet;
 use std::ffi::c_int;
+use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
 use crate::sfnt::{SerializedFontTables, SerializedTable};
+use crate::ttf::Woff2TransformCache;
+use rustc_hash::FxHasher;
 
 const HEADER_SIZE: usize = 48;
 const KNOWN_TAGS: [[u8; 4]; 63] = [
@@ -26,7 +30,23 @@ unsafe extern "C" {
     ) -> c_int;
 }
 
+pub(super) struct PreparedWoff2 {
+    directory: Vec<u8>,
+    stream: Vec<u8>,
+    table_count: u16,
+    total_sfnt_size: u32,
+}
+
 pub(super) fn encode(tables: &SerializedFontTables, quality: u8) -> Result<Vec<u8>, Error> {
+    let prepared = prepare(tables, None)?;
+    let compressed = compress(&prepared, quality)?;
+    assemble(&prepared, &compressed)
+}
+
+pub(super) fn prepare(
+    tables: &SerializedFontTables,
+    cache: Option<&mut Woff2TransformCache>,
+) -> Result<PreparedWoff2, Error> {
     let mut ordered = tables
         .tables()
         .iter()
@@ -58,9 +78,6 @@ pub(super) fn encode(tables: &SerializedFontTables, quality: u8) -> Result<Vec<u
         }
     }
 
-    let compressed = google_brotli_compress(&stream, quality.min(11))?;
-    let compressed_size = u32::try_from(compressed.len())
-        .map_err(|_| Error::new(ErrorKind::InvalidData, "compressed stream exceeds u32"))?;
     let total_sfnt_size = 12_usize
         .checked_add(16 * ordered.len())
         .and_then(|size| {
@@ -70,8 +87,26 @@ pub(super) fn encode(tables: &SerializedFontTables, quality: u8) -> Result<Vec<u
         })
         .and_then(|size| u32::try_from(size).ok())
         .ok_or_else(|| Error::new(ErrorKind::InvalidData, "SFNT size exceeds u32"))?;
+    if let Some(cache) = cache {
+        cache.retain(&HashSet::new());
+    }
+    Ok(PreparedWoff2 {
+        directory,
+        stream,
+        table_count: ordered.len() as u16,
+        total_sfnt_size,
+    })
+}
+
+pub(super) fn compress(prepared: &PreparedWoff2, quality: u8) -> Result<Vec<u8>, Error> {
+    google_brotli_compress(&prepared.stream, quality.min(11))
+}
+
+fn assemble(prepared: &PreparedWoff2, compressed: &[u8]) -> Result<Vec<u8>, Error> {
+    let compressed_size = u32::try_from(compressed.len())
+        .map_err(|_| Error::new(ErrorKind::InvalidData, "compressed stream exceeds u32"))?;
     let unaligned_length = HEADER_SIZE
-        .checked_add(directory.len())
+        .checked_add(prepared.directory.len())
         .and_then(|size| size.checked_add(compressed.len()))
         .ok_or_else(|| Error::new(ErrorKind::InvalidData, "WOFF2 size overflow"))?;
     let length = unaligned_length
@@ -84,17 +119,28 @@ pub(super) fn encode(tables: &SerializedFontTables, quality: u8) -> Result<Vec<u
     output.extend_from_slice(b"wOF2");
     output.extend_from_slice(&0x0001_0000_u32.to_be_bytes());
     output.extend_from_slice(&length.to_be_bytes());
-    output.extend_from_slice(&(ordered.len() as u16).to_be_bytes());
+    output.extend_from_slice(&prepared.table_count.to_be_bytes());
     output.extend_from_slice(&0_u16.to_be_bytes());
-    output.extend_from_slice(&total_sfnt_size.to_be_bytes());
+    output.extend_from_slice(&prepared.total_sfnt_size.to_be_bytes());
     output.extend_from_slice(&compressed_size.to_be_bytes());
     output.extend_from_slice(&1_u16.to_be_bytes());
     output.extend_from_slice(&0_u16.to_be_bytes());
     output.extend_from_slice(&[0; 20]);
-    output.extend_from_slice(&directory);
-    output.extend_from_slice(&compressed);
+    output.extend_from_slice(&prepared.directory);
+    output.extend_from_slice(compressed);
     output.resize(length as usize, 0);
     Ok(output)
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+fn transform_cache_key(tag: [u8; 4], transform_version: u8, inputs: &[&[u8]]) -> u64 {
+    let mut hasher = FxHasher::default();
+    hasher.write(&tag);
+    hasher.write_u8(transform_version);
+    for input in inputs {
+        hasher.write(input);
+    }
+    hasher.finish()
 }
 
 fn move_loca_after_glyf(tables: &mut Vec<&SerializedTable>) {
@@ -167,6 +213,7 @@ fn google_brotli_compress(input: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
 mod tests {
     use super::*;
     use crate::test_helpers::fixture_font_tables;
+    use write_fonts::read::tables::compute_checksum;
     use write_fonts::read::{FontRef, TableProvider};
 
     #[test]
@@ -212,6 +259,55 @@ mod tests {
         )
         .unwrap();
         assert_eq!(output, [63, b'T', b'E', b'S', b'T', 0x81, 0]);
+    }
+
+    #[test]
+    fn transform_cache_key_hashes_tag_version_and_full_bodies() {
+        let body = b"body".as_slice();
+        let key = transform_cache_key(*b"glyf", 0, &[body]);
+        assert_ne!(key, transform_cache_key(*b"loca", 0, &[body]));
+        assert_ne!(key, transform_cache_key(*b"glyf", 1, &[body]));
+        assert_ne!(key, transform_cache_key(*b"glyf", 0, &[b"Body"]));
+
+        let first = [0, 0, 0, 1, 0, 0, 0, 2];
+        let second = [0, 0, 0, 2, 0, 0, 0, 1];
+        assert_eq!(compute_checksum(&first), compute_checksum(&second));
+        assert_ne!(
+            transform_cache_key(*b"glyf", 0, &[&first]),
+            transform_cache_key(*b"glyf", 0, &[&second])
+        );
+    }
+
+    #[test]
+    fn transform_cache_hits_and_prunes_unused_entries() {
+        let mut cache = Woff2TransformCache::default();
+        cache.insert(1, vec![1]);
+        cache.insert(2, vec![2]);
+        assert_eq!(cache.transformed(&1), Some(vec![1]));
+        assert_eq!(cache.compile_count, 2);
+
+        cache.retain(&HashSet::from([2]));
+        assert_eq!(cache.transformed(&1), None);
+        assert_eq!(cache.transformed(&2), Some(vec![2]));
+    }
+
+    #[test]
+    fn identity_preparation_does_not_populate_the_transform_cache() {
+        let mut cache = Woff2TransformCache::default();
+        prepare(&fixture_font_tables(), Some(&mut cache)).unwrap();
+        assert_eq!(cache.compile_count, 0);
+        assert_eq!(cache.transformed(&0), None);
+    }
+
+    #[test]
+    fn split_preparation_compression_and_assembly_matches_encode() {
+        let tables = fixture_font_tables();
+        let prepared = prepare(&tables, None).unwrap();
+        let compressed = compress(&prepared, 11).unwrap();
+        assert_eq!(
+            assemble(&prepared, &compressed).unwrap(),
+            encode(&tables, 11).unwrap()
+        );
     }
 
     #[test]

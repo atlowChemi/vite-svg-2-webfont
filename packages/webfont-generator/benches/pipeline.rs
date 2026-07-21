@@ -4,9 +4,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use webfont_generator::bench_support::{
-    BenchSvgSource, build_outputs_only, build_serialized_ttf_tables, finalize_svg_only,
-    fontbuilder_ttf, internal_no_transform_woff2, parse_svg_only, rewrap_serialized_ttf_tables,
-    serialized_ttf_uncached,
+    BenchSvgSource, BenchWoff2TransformCache, build_outputs_only, build_serialized_ttf_tables,
+    compress_prepared_internal_woff2, finalize_svg_only, fontbuilder_ttf,
+    internal_no_transform_woff2, parse_svg_only, prepare_internal_woff2,
+    rewrap_serialized_ttf_tables, serialized_ttf_uncached,
 };
 
 mod support;
@@ -550,6 +551,31 @@ fn bench_woff2_encoder_compare(c: &mut Criterion) {
                 b.iter(|| {
                     black_box(internal_no_transform_woff2(black_box(&tables), quality).unwrap())
                 })
+            });
+        }
+
+        if size > 1 {
+            group.bench_function(format!("internal_prepare_cold/{size}"), |b| {
+                b.iter_batched(
+                    BenchWoff2TransformCache::default,
+                    |mut cache| {
+                        black_box(prepare_internal_woff2(black_box(&tables), &mut cache).unwrap())
+                    },
+                    BatchSize::SmallInput,
+                )
+            });
+
+            let mut cache = BenchWoff2TransformCache::default();
+            prepare_internal_woff2(&tables, &mut cache).unwrap();
+            group.bench_function(format!("internal_prepare_warm/{size}"), |b| {
+                b.iter(|| {
+                    black_box(prepare_internal_woff2(black_box(&tables), &mut cache).unwrap())
+                })
+            });
+
+            let prepared = prepare_internal_woff2(&tables, &mut cache).unwrap();
+            group.bench_function(format!("internal_brotli_quality_10/{size}"), |b| {
+                b.iter(|| black_box(compress_prepared_internal_woff2(&prepared, 10).unwrap()))
             });
         }
     }

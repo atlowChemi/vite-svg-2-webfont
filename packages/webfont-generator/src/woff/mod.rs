@@ -2,7 +2,9 @@ use std::hash::Hasher;
 use std::io::{Error, ErrorKind, Write};
 
 use crate::sfnt::SerializedFontTables;
-use crate::ttf::TtfGlyphCache;
+use crate::ttf::Woff1PayloadCache;
+#[cfg(feature = "bench")]
+use crate::ttf::Woff2TransformCache;
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
 use rustc_hash::FxHasher;
@@ -32,7 +34,7 @@ pub(crate) fn tables_to_woff1(
 pub(crate) fn tables_to_woff1_cached(
     tables: &SerializedFontTables,
     metadata: Option<&str>,
-    cache: &mut TtfGlyphCache,
+    cache: &mut Woff1PayloadCache,
 ) -> Result<Vec<u8>, Error> {
     let mut woff_buf = encode_woff1(tables, Some(cache))?;
     if let Some(metadata) = metadata {
@@ -54,6 +56,25 @@ pub(crate) fn tables_to_woff2_no_transform(
     quality: u8,
 ) -> Result<Vec<u8>, Error> {
     woff2::encode(tables, quality)
+}
+
+#[cfg(feature = "bench")]
+pub(crate) struct PreparedWoff2(woff2::PreparedWoff2);
+
+#[cfg(feature = "bench")]
+pub(crate) fn prepare_woff2_no_transform(
+    tables: &SerializedFontTables,
+    cache: &mut Woff2TransformCache,
+) -> Result<PreparedWoff2, Error> {
+    woff2::prepare(tables, Some(cache)).map(PreparedWoff2)
+}
+
+#[cfg(feature = "bench")]
+pub(crate) fn compress_prepared_woff2(
+    prepared: &PreparedWoff2,
+    quality: u8,
+) -> Result<usize, Error> {
+    woff2::compress(&prepared.0, quality).map(|compressed| compressed.len())
 }
 
 fn inject_woff_metadata(woff: &mut Vec<u8>, metadata: &str) -> Result<(), Error> {
@@ -88,7 +109,7 @@ fn inject_woff_metadata(woff: &mut Vec<u8>, metadata: &str) -> Result<(), Error>
 
 fn encode_woff1(
     tables: &SerializedFontTables,
-    mut cache: Option<&mut TtfGlyphCache>,
+    mut cache: Option<&mut Woff1PayloadCache>,
 ) -> Result<Vec<u8>, Error> {
     let table_count = tables.tables().len();
     let mut used_cache_keys = std::collections::HashSet::new();
