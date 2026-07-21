@@ -103,9 +103,17 @@ pub(crate) struct Woff1PayloadCache {
 
 #[derive(Clone, Default)]
 pub(crate) struct Woff2TransformCache {
-    entries: HashMap<u64, Vec<u8>>,
+    entries: HashMap<u64, Woff2TransformPayload>,
     #[cfg(test)]
     pub compile_count: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Woff2TransformPayload {
+    pub transformed: Vec<u8>,
+    pub normalized_glyf_len: usize,
+    pub normalized_glyf_checksum: u32,
+    pub normalized_loca_checksum: u32,
 }
 
 impl Woff1PayloadCache {
@@ -133,12 +141,12 @@ impl Woff1PayloadCache {
 
 impl Woff2TransformCache {
     #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn transformed(&self, key: &u64) -> Option<Vec<u8>> {
+    pub(crate) fn transformed(&self, key: &u64) -> Option<Woff2TransformPayload> {
         self.entries.get(key).cloned()
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn insert(&mut self, key: u64, payload: Vec<u8>) {
+    pub(crate) fn insert(&mut self, key: u64, payload: Woff2TransformPayload) {
         #[cfg(test)]
         {
             self.compile_count += 1;

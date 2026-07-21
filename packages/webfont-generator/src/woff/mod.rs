@@ -3,7 +3,7 @@ use std::io::{Error, ErrorKind, Write};
 
 use crate::sfnt::SerializedFontTables;
 use crate::ttf::Woff1PayloadCache;
-#[cfg(feature = "bench")]
+#[cfg(any(test, feature = "bench"))]
 use crate::ttf::Woff2TransformCache;
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
@@ -58,6 +58,15 @@ pub(crate) fn tables_to_woff2_no_transform(
     woff2::encode(tables, quality)
 }
 
+#[cfg(any(test, feature = "bench"))]
+pub(crate) fn tables_to_woff2_transformed(
+    tables: &SerializedFontTables,
+    quality: u8,
+    cache: Option<&mut Woff2TransformCache>,
+) -> Result<Vec<u8>, Error> {
+    woff2::encode_transformed(tables, quality, cache)
+}
+
 #[cfg(feature = "bench")]
 pub(crate) struct PreparedWoff2(woff2::PreparedWoff2);
 
@@ -67,6 +76,14 @@ pub(crate) fn prepare_woff2_no_transform(
     cache: &mut Woff2TransformCache,
 ) -> Result<PreparedWoff2, Error> {
     woff2::prepare(tables, Some(cache)).map(PreparedWoff2)
+}
+
+#[cfg(feature = "bench")]
+pub(crate) fn prepare_woff2_transformed(
+    tables: &SerializedFontTables,
+    cache: &mut Woff2TransformCache,
+) -> Result<PreparedWoff2, Error> {
+    woff2::prepare_transformed(tables, Some(cache)).map(PreparedWoff2)
 }
 
 #[cfg(feature = "bench")]
@@ -380,6 +397,49 @@ mod tests {
     }
 
     #[test]
+    fn internal_transformed_woff2_acceptance_1_glyph() {
+        assert_internal_transformed_woff2(1);
+    }
+
+    #[test]
+    fn internal_transformed_woff2_acceptance_100_glyphs() {
+        assert_internal_transformed_woff2(100);
+    }
+
+    #[test]
+    fn internal_transformed_woff2_acceptance_300_glyphs() {
+        assert_internal_transformed_woff2(300);
+    }
+
+    #[test]
+    fn internal_transformed_woff2_acceptance_600_glyphs() {
+        assert_internal_transformed_woff2(600);
+    }
+
+    #[test]
+    fn internal_transformed_woff2_matches_native_for_curves() {
+        let tables = font_tables(vec![glyph(
+            0,
+            "curve",
+            "M0,0 C4,16 12,-8 16,16 Z",
+            16.0,
+            16.0,
+        )]);
+        for quality in WOFF2_QUALITIES {
+            assert_eq!(
+                tables_to_woff2_transformed(&tables, quality, None).unwrap(),
+                ::woff::version2::compress(
+                    tables.ttf(),
+                    "",
+                    usize::from(quality),
+                    true,
+                )
+                .unwrap()
+            );
+        }
+    }
+
+    #[test]
     fn woff2_round_trips_an_empty_glyph() {
         assert_woff2_roundtrip(&font_tables(vec![
             glyph(0, "empty", "", 16.0, 16.0),
@@ -460,6 +520,26 @@ mod tests {
                 .expect("internal no-transform WOFF2 should decode");
             assert_semantically_equal(tables.ttf(), &decoded);
         }
+    }
+
+    fn assert_internal_transformed_woff2(glyph_count: usize) {
+        let tables = acceptance_font_tables(glyph_count);
+        let mut cache = crate::ttf::Woff2TransformCache::default();
+        for quality in WOFF2_QUALITIES {
+            let output = tables_to_woff2_transformed(&tables, quality, Some(&mut cache)).unwrap();
+            assert_eq!(
+                output,
+                tables_to_woff2_transformed(&tables, quality, Some(&mut cache)).unwrap()
+            );
+            let decoded = ::woff::version2::decompress(&output)
+                .expect("internal transformed WOFF2 should decode");
+            assert_semantically_equal(tables.ttf(), &decoded);
+            assert_eq!(
+                output,
+                ::woff::version2::compress(tables.ttf(), "", usize::from(quality), true).unwrap()
+            );
+        }
+        assert_eq!(cache.compile_count, 1);
     }
 
     fn acceptance_font_tables(glyph_count: usize) -> SerializedFontTables {

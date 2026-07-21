@@ -2,13 +2,15 @@ use std::hint::black_box;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main};
+use criterion::{BatchSize, Criterion};
 use webfont_generator::bench_support::{
-    BenchSvgSource, BenchWoff2TransformCache, build_outputs_only, build_serialized_ttf_tables,
-    compress_prepared_internal_woff2, finalize_svg_only, fontbuilder_ttf,
-    internal_no_transform_woff2, parse_svg_only, prepare_internal_woff2,
-    rewrap_serialized_ttf_tables, serialized_ttf_uncached,
+    build_outputs_only, build_serialized_ttf_tables, compress_prepared_internal_woff2,
+    finalize_svg_only, fontbuilder_ttf, internal_no_transform_woff2, internal_transformed_woff2,
+    parse_svg_only, prepare_internal_transformed_woff2, rewrap_serialized_ttf_tables,
+    serialized_ttf_uncached,
 };
+use webfont_generator::bench_support::{BenchSvgSource, BenchWoff2TransformCache};
 
 mod support;
 
@@ -537,21 +539,62 @@ fn bench_woff2_encoder_compare(c: &mut Criterion) {
         )
         .unwrap();
         let ttf = serialized_ttf_uncached(&tables);
+        if size == 600 {
+            assert_eq!(
+                woff::version2::compress(&ttf, "", 10, true).unwrap(),
+                internal_transformed_woff2(&tables, 10).unwrap()
+            );
+        }
 
         for quality in 0..=11_u8 {
-            group.bench_function(format!("native/{size}/quality_{quality}"), |b| {
-                b.iter(|| {
-                    black_box(
-                        woff::version2::compress(black_box(&ttf), "", usize::from(quality), false)
+            group.bench_function(
+                format!("native_no_transform/{size}/quality_{quality}"),
+                |b| {
+                    b.iter(|| {
+                        black_box(
+                            woff::version2::compress(
+                                black_box(&ttf),
+                                "",
+                                usize::from(quality),
+                                false,
+                            )
                             .unwrap(),
-                    )
-                })
-            });
-            group.bench_function(format!("internal/{size}/quality_{quality}"), |b| {
-                b.iter(|| {
-                    black_box(internal_no_transform_woff2(black_box(&tables), quality).unwrap())
-                })
-            });
+                        )
+                    })
+                },
+            );
+            group.bench_function(
+                format!("internal_no_transform/{size}/quality_{quality}"),
+                |b| {
+                    b.iter(|| {
+                        black_box(internal_no_transform_woff2(black_box(&tables), quality).unwrap())
+                    })
+                },
+            );
+            group.bench_function(
+                format!("native_transformed/{size}/quality_{quality}"),
+                |b| {
+                    b.iter(|| {
+                        black_box(
+                            woff::version2::compress(
+                                black_box(&ttf),
+                                "",
+                                usize::from(quality),
+                                true,
+                            )
+                            .unwrap(),
+                        )
+                    })
+                },
+            );
+            group.bench_function(
+                format!("internal_transformed/{size}/quality_{quality}"),
+                |b| {
+                    b.iter(|| {
+                        black_box(internal_transformed_woff2(black_box(&tables), quality).unwrap())
+                    })
+                },
+            );
         }
 
         if size > 1 {
@@ -559,21 +602,26 @@ fn bench_woff2_encoder_compare(c: &mut Criterion) {
                 b.iter_batched(
                     BenchWoff2TransformCache::default,
                     |mut cache| {
-                        black_box(prepare_internal_woff2(black_box(&tables), &mut cache).unwrap())
+                        black_box(
+                            prepare_internal_transformed_woff2(black_box(&tables), &mut cache)
+                                .unwrap(),
+                        )
                     },
                     BatchSize::SmallInput,
                 )
             });
 
             let mut cache = BenchWoff2TransformCache::default();
-            prepare_internal_woff2(&tables, &mut cache).unwrap();
+            prepare_internal_transformed_woff2(&tables, &mut cache).unwrap();
             group.bench_function(format!("internal_prepare_warm/{size}"), |b| {
                 b.iter(|| {
-                    black_box(prepare_internal_woff2(black_box(&tables), &mut cache).unwrap())
+                    black_box(
+                        prepare_internal_transformed_woff2(black_box(&tables), &mut cache).unwrap(),
+                    )
                 })
             });
 
-            let prepared = prepare_internal_woff2(&tables, &mut cache).unwrap();
+            let prepared = prepare_internal_transformed_woff2(&tables, &mut cache).unwrap();
             group.bench_function(format!("internal_brotli_quality_10/{size}"), |b| {
                 b.iter(|| black_box(compress_prepared_internal_woff2(&prepared, 10).unwrap()))
             });

@@ -4,10 +4,19 @@ use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
 use crate::sfnt::{SerializedFontTables, SerializedTable};
-use crate::ttf::Woff2TransformCache;
+use crate::ttf::{Woff2TransformCache, Woff2TransformPayload};
 use rustc_hash::FxHasher;
+use write_fonts::read::tables::compute_checksum;
+use write_fonts::read::tables::glyf::{Glyf, Glyph, PointFlags, SimpleGlyph};
+use write_fonts::read::tables::head::Head;
+use write_fonts::read::tables::loca::Loca;
+use write_fonts::read::tables::maxp::Maxp;
+use write_fonts::read::types::{GlyphId, Point};
+use write_fonts::read::{FontData, FontRead};
 
 const HEADER_SIZE: usize = 48;
+const GLYF_ENCODER_VERSION: u8 = 1;
+const GLYF_TRANSFORM_HEADER_SIZE: usize = 36;
 const KNOWN_TAGS: [[u8; 4]; 63] = [
     *b"cmap", *b"head", *b"hhea", *b"hmtx", *b"maxp", *b"name", *b"OS/2", *b"post", *b"cvt ",
     *b"fpgm", *b"glyf", *b"loca", *b"prep", *b"CFF ", *b"VORG", *b"EBDT", *b"EBLC", *b"gasp",
@@ -43,6 +52,17 @@ pub(super) fn encode(tables: &SerializedFontTables, quality: u8) -> Result<Vec<u
     assemble(&prepared, &compressed)
 }
 
+#[cfg_attr(not(test), allow(dead_code))]
+pub(super) fn encode_transformed(
+    tables: &SerializedFontTables,
+    quality: u8,
+    cache: Option<&mut Woff2TransformCache>,
+) -> Result<Vec<u8>, Error> {
+    let prepared = prepare_transformed(tables, cache)?;
+    let compressed = compress(&prepared, quality)?;
+    assemble(&prepared, &compressed)
+}
+
 pub(super) fn prepare(
     tables: &SerializedFontTables,
     cache: Option<&mut Woff2TransformCache>,
@@ -65,10 +85,7 @@ pub(super) fn prepare(
         if table.tag == *b"head" {
             let mut head = table.bytes.clone();
             if head.len() < 18 {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    "head table is too short",
-                ));
+                return Err(invalid_data("head table is too short"));
             }
             let flags = u16::from_be_bytes(head[16..18].try_into().unwrap()) | (1 << 11);
             head[16..18].copy_from_slice(&flags.to_be_bytes());
@@ -96,6 +113,590 @@ pub(super) fn prepare(
         table_count: ordered.len() as u16,
         total_sfnt_size,
     })
+}
+
+#[cfg_attr(not(test), allow(dead_code))]
+pub(super) fn prepare_transformed(
+    tables: &SerializedFontTables,
+    mut cache: Option<&mut Woff2TransformCache>,
+) -> Result<PreparedWoff2, Error> {
+    let mut ordered = tables
+        .tables()
+        .iter()
+        .filter(|table| table.tag != *b"DSIG")
+        .collect::<Vec<_>>();
+    if ordered.is_empty() {
+        return Err(Error::new(ErrorKind::InvalidInput, "WOFF2 requires tables"));
+    }
+    ordered.sort_unstable_by_key(|table| table.tag);
+    move_loca_after_glyf(&mut ordered);
+
+    let glyf = required_table(&ordered, *b"glyf")?;
+    let loca = required_table(&ordered, *b"loca")?;
+    let head = required_table(&ordered, *b"head")?;
+    let maxp = required_table(&ordered, *b"maxp")?;
+    let head_table =
+        Head::read(FontData::new(&head.bytes)).map_err(|_| invalid_data("invalid head table"))?;
+    let maxp_table =
+        Maxp::read(FontData::new(&maxp.bytes)).map_err(|_| invalid_data("invalid maxp table"))?;
+    let index_format = head_table.index_to_loc_format();
+    if !matches!(index_format, 0 | 1) {
+        return Err(invalid_data("head indexToLocFormat must be 0 or 1"));
+    }
+    let num_glyphs = maxp_table.num_glyphs();
+    let expected_loca_len = (usize::from(num_glyphs) + 1) * if index_format == 0 { 2 } else { 4 };
+    if loca.bytes.len() != expected_loca_len {
+        return Err(invalid_data("maxp numGlyphs does not match loca length"));
+    }
+
+    let key = transform_cache_key(
+        *b"glyf",
+        GLYF_ENCODER_VERSION,
+        &[
+            b"woff2-glyf-loca",
+            &glyf.bytes,
+            &loca.bytes,
+            &index_format.to_be_bytes(),
+            &num_glyphs.to_be_bytes(),
+        ],
+    );
+    let payload = if let Some(hit) = cache.as_deref().and_then(|cache| cache.transformed(&key)) {
+        hit
+    } else {
+        let transformed = transform_glyf(glyf, loca, index_format, num_glyphs)?;
+        let normalized = normalized_glyf_loca(glyf, loca, index_format, num_glyphs)?;
+        let payload = Woff2TransformPayload {
+            transformed,
+            normalized_glyf_len: normalized.glyf_len,
+            normalized_glyf_checksum: normalized.glyf_checksum,
+            normalized_loca_checksum: normalized.loca_checksum,
+        };
+        if let Some(cache) = cache.as_deref_mut() {
+            cache.insert(key, payload.clone());
+        }
+        payload
+    };
+    if let Some(cache) = cache {
+        cache.retain(&HashSet::from([key]));
+    }
+
+    let normalized = NormalizedGlyfLoca {
+        glyf_len: payload.normalized_glyf_len,
+        glyf_checksum: payload.normalized_glyf_checksum,
+        loca_checksum: payload.normalized_loca_checksum,
+    };
+    let normalized_head = normalized_head(&ordered, &normalized)?;
+    let mut directory = Vec::new();
+    let mut stream = Vec::new();
+    for table in &ordered {
+        write_transformed_directory_entry(
+            &mut directory,
+            table,
+            payload.transformed.len(),
+            normalized.glyf_len,
+        )?;
+        match &table.tag {
+            b"glyf" => stream.extend_from_slice(&payload.transformed),
+            b"loca" => {}
+            b"head" => stream.extend_from_slice(&normalized_head),
+            _ => stream.extend_from_slice(&table.bytes),
+        }
+    }
+
+    Ok(PreparedWoff2 {
+        directory,
+        stream,
+        table_count: u16::try_from(ordered.len())
+            .map_err(|_| invalid_data("WOFF2 table count exceeds u16"))?,
+        total_sfnt_size: total_sfnt_size(&ordered, Some(normalized.glyf_len))?,
+    })
+}
+
+fn required_table<'a>(
+    tables: &[&'a SerializedTable],
+    tag: [u8; 4],
+) -> Result<&'a SerializedTable, Error> {
+    let mut matches = tables.iter().copied().filter(|table| table.tag == tag);
+    let table = matches
+        .next()
+        .ok_or_else(|| invalid_data("transformed WOFF2 requires head, maxp, glyf, and loca"))?;
+    if matches.next().is_some() {
+        return Err(invalid_data("duplicate required WOFF2 table"));
+    }
+    Ok(table)
+}
+
+fn total_sfnt_size(
+    tables: &[&SerializedTable],
+    normalized_glyf_len: Option<usize>,
+) -> Result<u32, Error> {
+    12_usize
+        .checked_add(16 * tables.len())
+        .and_then(|size| {
+            tables.iter().try_fold(size, |size, table| {
+                let length = if table.tag == *b"glyf" {
+                    normalized_glyf_len.unwrap_or(table.bytes.len())
+                } else {
+                    table.bytes.len()
+                };
+                size.checked_add((length + 3) & !3)
+            })
+        })
+        .and_then(|size| u32::try_from(size).ok())
+        .ok_or_else(|| invalid_data("SFNT size exceeds u32"))
+}
+
+struct NormalizedGlyfLoca {
+    glyf_len: usize,
+    glyf_checksum: u32,
+    loca_checksum: u32,
+}
+
+fn normalized_glyf_loca(
+    glyf: &SerializedTable,
+    loca: &SerializedTable,
+    index_format: i16,
+    num_glyphs: u16,
+) -> Result<NormalizedGlyfLoca, Error> {
+    let loca_table = Loca::read(FontData::new(&loca.bytes), index_format == 1)
+        .map_err(|_| invalid_data("invalid loca table"))?;
+    let glyf_table =
+        Glyf::read(FontData::new(&glyf.bytes)).map_err(|_| invalid_data("invalid glyf table"))?;
+    let mut normalized_glyf = Vec::new();
+    let mut normalized_loca = Vec::with_capacity(loca.bytes.len());
+    for glyph_id in 0..=num_glyphs {
+        let offset = normalized_glyf.len();
+        if index_format == 0 {
+            let short_offset = u16::try_from(offset / 2)
+                .map_err(|_| invalid_data("normalized glyf requires long loca offsets"))?;
+            normalized_loca.extend_from_slice(&short_offset.to_be_bytes());
+        } else {
+            normalized_loca.extend_from_slice(
+                &u32::try_from(offset)
+                    .map_err(|_| invalid_data("normalized glyf size exceeds u32"))?
+                    .to_be_bytes(),
+            );
+        }
+        if glyph_id == num_glyphs {
+            break;
+        }
+        let glyph = loca_table
+            .get_glyf(GlyphId::new(u32::from(glyph_id)), &glyf_table)
+            .map_err(|_| invalid_data("invalid glyph record"))?;
+        if let Some(glyph) = glyph {
+            let Glyph::Simple(glyph) = glyph else {
+                return Err(invalid_data("composite glyphs are not supported"));
+            };
+            write_normalized_simple_glyph(&glyph, &mut normalized_glyf)?;
+        }
+        normalized_glyf.resize((normalized_glyf.len() + 3) & !3, 0);
+    }
+    Ok(NormalizedGlyfLoca {
+        glyf_len: normalized_glyf.len(),
+        glyf_checksum: compute_checksum(&normalized_glyf),
+        loca_checksum: compute_checksum(&normalized_loca),
+    })
+}
+
+fn write_normalized_simple_glyph(
+    glyph: &SimpleGlyph<'_>,
+    output: &mut Vec<u8>,
+) -> Result<(), Error> {
+    let contour_count = glyph.number_of_contours();
+    if contour_count <= 0 {
+        return Err(invalid_data("non-empty zero-contour glyph is malformed"));
+    }
+    let point_count = glyph.num_points();
+    let mut points = vec![Point::<i32>::default(); point_count];
+    let mut source_flags = vec![PointFlags::default(); point_count];
+    glyph
+        .read_points_fast(&mut points, &mut source_flags)
+        .map_err(|_| invalid_data("invalid simple glyph coordinates"))?;
+
+    output.extend_from_slice(&contour_count.to_be_bytes());
+    for value in [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()] {
+        output.extend_from_slice(&value.to_be_bytes());
+    }
+    for end_point in glyph.end_pts_of_contours() {
+        output.extend_from_slice(&end_point.get().to_be_bytes());
+    }
+    output.extend_from_slice(&glyph.instruction_length().to_be_bytes());
+    output.extend_from_slice(glyph.instructions());
+
+    let mut flags = Vec::with_capacity(point_count);
+    let mut x_coordinates = Vec::new();
+    let mut y_coordinates = Vec::new();
+    let mut last_x = 0_i32;
+    let mut last_y = 0_i32;
+    for (index, (point, source_flag)) in points.iter().zip(&source_flags).enumerate() {
+        let dx = point.x - last_x;
+        let dy = point.y - last_y;
+        let mut flag = u8::from(source_flag.is_on_curve());
+        if index == 0 && glyph.has_overlapping_contours() {
+            flag |= 1 << 6;
+        }
+        write_normalized_coordinate(dx, 1 << 1, 1 << 4, &mut flag, &mut x_coordinates)?;
+        write_normalized_coordinate(dy, 1 << 2, 1 << 5, &mut flag, &mut y_coordinates)?;
+        flags.push(flag);
+        last_x = point.x;
+        last_y = point.y;
+    }
+    let mut index = 0;
+    while index < flags.len() {
+        let flag = flags[index];
+        let run_len = flags[index..]
+            .iter()
+            .take(256)
+            .take_while(|next| **next == flag)
+            .count();
+        output.push(flag | u8::from(run_len > 1) << 3);
+        if run_len > 1 {
+            output.push((run_len - 1) as u8);
+        }
+        index += run_len;
+    }
+    output.extend_from_slice(&x_coordinates);
+    output.extend_from_slice(&y_coordinates);
+    Ok(())
+}
+
+fn write_normalized_coordinate(
+    delta: i32,
+    short_bit: u8,
+    same_or_positive_bit: u8,
+    flag: &mut u8,
+    output: &mut Vec<u8>,
+) -> Result<(), Error> {
+    if delta == 0 {
+        *flag |= same_or_positive_bit;
+    } else if (-255..=255).contains(&delta) {
+        *flag |= short_bit;
+        if delta > 0 {
+            *flag |= same_or_positive_bit;
+        }
+        output.push(delta.unsigned_abs() as u8);
+    } else {
+        output.extend_from_slice(
+            &i16::try_from(delta)
+                .map_err(|_| invalid_data("simple glyph coordinate delta exceeds i16"))?
+                .to_be_bytes(),
+        );
+    }
+    Ok(())
+}
+
+fn normalized_head(
+    tables: &[&SerializedTable],
+    normalized: &NormalizedGlyfLoca,
+) -> Result<Vec<u8>, Error> {
+    let head = tables
+        .iter()
+        .find(|table| table.tag == *b"head")
+        .ok_or_else(|| invalid_data("WOFF2 requires a head table"))?;
+    if head.bytes.len() < 18 {
+        return Err(invalid_data("head table is too short"));
+    }
+
+    let mut bytes = head.bytes.clone();
+    bytes[8..12].fill(0);
+    let flags = u16::from_be_bytes(bytes[16..18].try_into().unwrap()) | (1 << 11);
+    bytes[16..18].copy_from_slice(&flags.to_be_bytes());
+    let head_checksum = compute_checksum(&bytes);
+
+    let table_count =
+        u32::try_from(tables.len()).map_err(|_| invalid_data("WOFF2 table count exceeds u32"))?;
+    let max_power = if table_count == 0 {
+        0
+    } else {
+        1 << table_count.ilog2()
+    };
+    let search_range = max_power * 16;
+    let entry_selector = if table_count == 0 {
+        0
+    } else {
+        table_count.ilog2()
+    };
+    let range_shift = table_count * 16 - search_range;
+    let mut checksum = 0x0001_0000_u32
+        .wrapping_add((table_count << 16).wrapping_add(search_range))
+        .wrapping_add((entry_selector << 16).wrapping_add(range_shift));
+    let mut offset = 12_usize
+        .checked_add(
+            16_usize
+                .checked_mul(tables.len())
+                .ok_or_else(|| invalid_data("SFNT size overflow"))?,
+        )
+        .ok_or_else(|| invalid_data("SFNT size overflow"))?;
+    for table in tables {
+        let (table_checksum, table_len) = match &table.tag {
+            b"head" => (head_checksum, table.bytes.len()),
+            b"glyf" => (normalized.glyf_checksum, normalized.glyf_len),
+            b"loca" => (normalized.loca_checksum, table.bytes.len()),
+            _ => (table.checksum, table.bytes.len()),
+        };
+        checksum = checksum
+            .wrapping_add(u32::from_be_bytes(table.tag))
+            .wrapping_add(table_checksum)
+            .wrapping_add(
+                u32::try_from(offset).map_err(|_| invalid_data("SFNT offset exceeds u32"))?,
+            )
+            .wrapping_add(
+                u32::try_from(table_len).map_err(|_| invalid_data("table size exceeds u32"))?,
+            )
+            .wrapping_add(table_checksum);
+        offset = offset
+            .checked_add((table_len + 3) & !3)
+            .ok_or_else(|| invalid_data("SFNT size overflow"))?;
+    }
+    bytes[8..12].copy_from_slice(&0xb1b0_afba_u32.wrapping_sub(checksum).to_be_bytes());
+    Ok(bytes)
+}
+
+#[derive(Default)]
+struct GlyfStreams {
+    contours: Vec<u8>,
+    points: Vec<u8>,
+    flags: Vec<u8>,
+    glyphs: Vec<u8>,
+    composites: Vec<u8>,
+    bbox_bitmap: Vec<u8>,
+    bboxes: Vec<u8>,
+    instructions: Vec<u8>,
+    overlap_bitmap: Vec<u8>,
+}
+
+fn transform_glyf(
+    glyf_table: &SerializedTable,
+    loca_table: &SerializedTable,
+    index_format: i16,
+    num_glyphs: u16,
+) -> Result<Vec<u8>, Error> {
+    let glyf = Glyf::read(FontData::new(&glyf_table.bytes))
+        .map_err(|_| invalid_data("invalid glyf table"))?;
+    let loca = Loca::read(FontData::new(&loca_table.bytes), index_format == 1)
+        .map_err(|_| invalid_data("invalid loca table"))?;
+    if loca.len() != usize::from(num_glyphs) {
+        return Err(invalid_data("maxp numGlyphs does not match loca length"));
+    }
+    if !loca.all_offsets_are_ascending()
+        || loca.get_raw(usize::from(num_glyphs)).unwrap_or(u32::MAX) as usize
+            > glyf_table.bytes.len()
+    {
+        return Err(invalid_data(
+            "loca offsets must be ascending and within glyf",
+        ));
+    }
+
+    let mut streams = GlyfStreams {
+        bbox_bitmap: vec![0; usize::from(num_glyphs).div_ceil(32) * 4],
+        ..Default::default()
+    };
+    for glyph_id in 0..num_glyphs {
+        let glyph = loca
+            .get_glyf(GlyphId::new(u32::from(glyph_id)), &glyf)
+            .map_err(|_| invalid_data("invalid glyph record"))?;
+        let Some(glyph) = glyph else {
+            streams.contours.extend_from_slice(&0_u16.to_be_bytes());
+            continue;
+        };
+        let Glyph::Simple(glyph) = glyph else {
+            return Err(invalid_data("composite glyphs are not supported"));
+        };
+        let contour_count = glyph.number_of_contours();
+        if contour_count <= 0 {
+            return Err(invalid_data("non-empty zero-contour glyph is malformed"));
+        }
+        let end_points = glyph.end_pts_of_contours();
+        if end_points.len() != contour_count as usize
+            || end_points
+                .windows(2)
+                .any(|pair| pair[0].get() >= pair[1].get())
+        {
+            return Err(invalid_data("invalid simple glyph contour endpoints"));
+        }
+        let point_count = glyph.num_points();
+        let mut points = vec![Point::<i32>::default(); point_count];
+        let mut flags = vec![PointFlags::default(); point_count];
+        glyph
+            .read_points_fast(&mut points, &mut flags)
+            .map_err(|_| invalid_data("invalid simple glyph coordinates"))?;
+
+        streams
+            .contours
+            .extend_from_slice(&(contour_count as u16).to_be_bytes());
+        let mut contour_start = 0_usize;
+        for end in end_points {
+            let contour_end = usize::from(end.get()) + 1;
+            write_255_u16(
+                u16::try_from(contour_end - contour_start)
+                    .map_err(|_| invalid_data("simple glyph contour is too large"))?,
+                &mut streams.points,
+            );
+            contour_start = contour_end;
+        }
+
+        let mut last_x = 0;
+        let mut last_y = 0;
+        for (point, flag) in points.iter().zip(&flags) {
+            write_triplet(
+                flag.is_on_curve(),
+                point.x - last_x,
+                point.y - last_y,
+                &mut streams.flags,
+                &mut streams.glyphs,
+            );
+            last_x = point.x;
+            last_y = point.y;
+        }
+        write_255_u16(glyph.instruction_length(), &mut streams.glyphs);
+        streams.instructions.extend_from_slice(glyph.instructions());
+
+        if glyph.has_overlapping_contours() {
+            if streams.overlap_bitmap.is_empty() {
+                streams
+                    .overlap_bitmap
+                    .resize(usize::from(num_glyphs).div_ceil(8), 0);
+            }
+            set_bitmap_bit(&mut streams.overlap_bitmap, usize::from(glyph_id));
+        }
+        let computed_bbox = points.iter().fold(
+            (points[0].x, points[0].y, points[0].x, points[0].y),
+            |(x_min, y_min, x_max, y_max), point| {
+                (
+                    x_min.min(point.x),
+                    y_min.min(point.y),
+                    x_max.max(point.x),
+                    y_max.max(point.y),
+                )
+            },
+        );
+        if computed_bbox
+            != (
+                i32::from(glyph.x_min()),
+                i32::from(glyph.y_min()),
+                i32::from(glyph.x_max()),
+                i32::from(glyph.y_max()),
+            )
+        {
+            set_bitmap_bit(&mut streams.bbox_bitmap, usize::from(glyph_id));
+            for value in [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()] {
+                streams.bboxes.extend_from_slice(&value.to_be_bytes());
+            }
+        }
+    }
+
+    let bbox_len = streams
+        .bbox_bitmap
+        .len()
+        .checked_add(streams.bboxes.len())
+        .ok_or_else(|| invalid_data("transformed glyf size overflow"))?;
+    let lengths = [
+        streams.contours.len(),
+        streams.points.len(),
+        streams.flags.len(),
+        streams.glyphs.len(),
+        streams.composites.len(),
+        bbox_len,
+        streams.instructions.len(),
+    ];
+    let payload_len = lengths
+        .iter()
+        .try_fold(GLYF_TRANSFORM_HEADER_SIZE, |size, length| {
+            size.checked_add(*length)
+        })
+        .and_then(|size| size.checked_add(streams.overlap_bitmap.len()))
+        .ok_or_else(|| invalid_data("transformed glyf size overflow"))?;
+    let mut output = Vec::with_capacity(payload_len);
+    output.extend_from_slice(&0_u16.to_be_bytes());
+    output.extend_from_slice(&u16::from(!streams.overlap_bitmap.is_empty()).to_be_bytes());
+    output.extend_from_slice(&num_glyphs.to_be_bytes());
+    output.extend_from_slice(&(index_format as u16).to_be_bytes());
+    for length in lengths {
+        output.extend_from_slice(
+            &u32::try_from(length)
+                .map_err(|_| invalid_data("transformed glyf stream exceeds u32"))?
+                .to_be_bytes(),
+        );
+    }
+    output.extend_from_slice(&streams.contours);
+    output.extend_from_slice(&streams.points);
+    output.extend_from_slice(&streams.flags);
+    output.extend_from_slice(&streams.glyphs);
+    output.extend_from_slice(&streams.composites);
+    output.extend_from_slice(&streams.bbox_bitmap);
+    output.extend_from_slice(&streams.bboxes);
+    output.extend_from_slice(&streams.instructions);
+    output.extend_from_slice(&streams.overlap_bitmap);
+    Ok(output)
+}
+
+fn set_bitmap_bit(bitmap: &mut [u8], glyph_id: usize) {
+    bitmap[glyph_id >> 3] |= 0x80 >> (glyph_id & 7);
+}
+
+fn write_255_u16(value: u16, output: &mut Vec<u8>) {
+    match value {
+        0..=252 => output.push(value as u8),
+        253..=505 => output.extend_from_slice(&[255, (value - 253) as u8]),
+        506..=761 => output.extend_from_slice(&[254, (value - 506) as u8]),
+        _ => {
+            output.push(253);
+            output.extend_from_slice(&value.to_be_bytes());
+        }
+    }
+}
+
+fn write_triplet(on_curve: bool, x: i32, y: i32, flags: &mut Vec<u8>, glyphs: &mut Vec<u8>) {
+    let abs_x = x.unsigned_abs();
+    let abs_y = y.unsigned_abs();
+    let on_curve_bit = if on_curve { 0 } else { 128 };
+    let x_sign_bit = u8::from(x >= 0);
+    let y_sign_bit = u8::from(y >= 0);
+    let signs = x_sign_bit + 2 * y_sign_bit;
+    if x == 0 && abs_y < 1280 {
+        flags.push(on_curve_bit + ((abs_y & 0xf00) >> 7) as u8 + y_sign_bit);
+        glyphs.push(abs_y as u8);
+    } else if y == 0 && abs_x < 1280 {
+        flags.push(on_curve_bit + 10 + ((abs_x & 0xf00) >> 7) as u8 + x_sign_bit);
+        glyphs.push(abs_x as u8);
+    } else if abs_x < 65 && abs_y < 65 {
+        flags.push(
+            on_curve_bit
+                + 20
+                + ((abs_x.wrapping_sub(1) & 0x30) as u8)
+                + (((abs_y.wrapping_sub(1) & 0x30) >> 2) as u8)
+                + signs,
+        );
+        glyphs.push((((abs_x.wrapping_sub(1) & 0xf) << 4) | (abs_y.wrapping_sub(1) & 0xf)) as u8);
+    } else if abs_x < 769 && abs_y < 769 {
+        flags.push(
+            on_curve_bit
+                + 84
+                + (12 * ((abs_x.wrapping_sub(1) & 0x300) >> 8)) as u8
+                + ((abs_y.wrapping_sub(1) & 0x300) >> 6) as u8
+                + signs,
+        );
+        glyphs.extend_from_slice(&[abs_x.wrapping_sub(1) as u8, abs_y.wrapping_sub(1) as u8]);
+    } else if abs_x < 4096 && abs_y < 4096 {
+        flags.push(on_curve_bit + 120 + signs);
+        glyphs.extend_from_slice(&[
+            (abs_x >> 4) as u8,
+            (((abs_x & 0xf) << 4) | (abs_y >> 8)) as u8,
+            abs_y as u8,
+        ]);
+    } else {
+        flags.push(on_curve_bit + 124 + signs);
+        glyphs.extend_from_slice(&[
+            (abs_x >> 8) as u8,
+            abs_x as u8,
+            (abs_y >> 8) as u8,
+            abs_y as u8,
+        ]);
+    }
+}
+
+fn invalid_data(message: &'static str) -> Error {
+    Error::new(ErrorKind::InvalidData, message)
 }
 
 pub(super) fn compress(prepared: &PreparedWoff2, quality: u8) -> Result<Vec<u8>, Error> {
@@ -170,6 +771,38 @@ fn write_directory_entry(output: &mut Vec<u8>, table: &SerializedTable) -> Resul
     Ok(())
 }
 
+fn write_transformed_directory_entry(
+    output: &mut Vec<u8>,
+    table: &SerializedTable,
+    transformed_glyf_len: usize,
+    normalized_glyf_len: usize,
+) -> Result<(), Error> {
+    let index = KNOWN_TAGS.iter().position(|tag| tag == &table.tag);
+    output.push(index.unwrap_or(63) as u8);
+    if index.is_none() {
+        output.extend_from_slice(&table.tag);
+    }
+    write_base128(
+        u32::try_from(if table.tag == *b"glyf" {
+            normalized_glyf_len
+        } else {
+            table.bytes.len()
+        })
+        .map_err(|_| invalid_data("table size exceeds u32"))?,
+        output,
+    );
+    if table.tag == *b"glyf" {
+        write_base128(
+            u32::try_from(transformed_glyf_len)
+                .map_err(|_| invalid_data("transformed glyf size exceeds u32"))?,
+            output,
+        );
+    } else if table.tag == *b"loca" {
+        write_base128(0, output);
+    }
+    Ok(())
+}
+
 fn write_base128(value: u32, output: &mut Vec<u8>) {
     let bits = (32 - value.leading_zeros()).max(1);
     let groups = bits.div_ceil(7);
@@ -233,6 +866,48 @@ mod tests {
     }
 
     #[test]
+    fn writes_canonical_255_u16_boundaries() {
+        for (value, expected) in [
+            (0, &[0][..]),
+            (252, &[252]),
+            (253, &[255, 0]),
+            (505, &[255, 252]),
+            (506, &[254, 0]),
+            (761, &[254, 255]),
+            (762, &[253, 2, 250]),
+            (u16::MAX, &[253, 255, 255]),
+        ] {
+            let mut actual = Vec::new();
+            write_255_u16(value, &mut actual);
+            assert_eq!(actual, expected);
+        }
+    }
+
+    #[test]
+    fn triplets_cover_google_branch_boundaries_signs_and_curve_flag() {
+        for (on_curve, x, y, encoded_len) in [
+            (true, 0, 1279, 1),
+            (true, 0, 1280, 3),
+            (true, 1279, 0, 1),
+            (true, 1280, 0, 3),
+            (true, 64, 64, 1),
+            (true, 65, 65, 2),
+            (true, 768, 768, 2),
+            (true, 769, 769, 3),
+            (true, 4095, 4095, 3),
+            (true, 4096, 4096, 4),
+            (false, -64, 64, 1),
+            (false, 64, -64, 1),
+        ] {
+            let mut flags = Vec::new();
+            let mut glyphs = Vec::new();
+            write_triplet(on_curve, x, y, &mut flags, &mut glyphs);
+            assert_eq!(glyphs.len(), encoded_len);
+            assert_eq!(decode_triplet(flags[0], &glyphs), (on_curve, x, y));
+        }
+    }
+
+    #[test]
     fn writes_known_and_unknown_directory_entries() {
         for (tag, expected_flag) in [(*b"glyf", 0xca), (*b"loca", 0xcb)] {
             let mut output = Vec::new();
@@ -281,14 +956,14 @@ mod tests {
     #[test]
     fn transform_cache_hits_and_prunes_unused_entries() {
         let mut cache = Woff2TransformCache::default();
-        cache.insert(1, vec![1]);
-        cache.insert(2, vec![2]);
-        assert_eq!(cache.transformed(&1), Some(vec![1]));
+        cache.insert(1, cached_payload(1));
+        cache.insert(2, cached_payload(2));
+        assert_eq!(cache.transformed(&1), Some(cached_payload(1)));
         assert_eq!(cache.compile_count, 2);
 
         cache.retain(&HashSet::from([2]));
         assert_eq!(cache.transformed(&1), None);
-        assert_eq!(cache.transformed(&2), Some(vec![2]));
+        assert_eq!(cache.transformed(&2), Some(cached_payload(2)));
     }
 
     #[test]
@@ -297,6 +972,68 @@ mod tests {
         prepare(&fixture_font_tables(), Some(&mut cache)).unwrap();
         assert_eq!(cache.compile_count, 0);
         assert_eq!(cache.transformed(&0), None);
+    }
+
+    #[test]
+    fn transformed_cache_hits_invalidates_and_prunes() {
+        let tables = fixture_font_tables();
+        let mut cache = Woff2TransformCache::default();
+        prepare_transformed(&tables, Some(&mut cache)).unwrap();
+        assert_eq!(cache.compile_count, 1);
+
+        cache.insert(99, cached_payload(99));
+        prepare_transformed(&tables, Some(&mut cache)).unwrap();
+        assert_eq!(cache.compile_count, 2);
+        assert_eq!(cache.transformed(&99), None);
+
+        let mut raw = raw_tables(&tables);
+        raw.iter_mut()
+            .find(|(tag, _)| tag == b"glyf")
+            .unwrap()
+            .1
+            .push(0);
+        let changed = SerializedFontTables::new(raw).unwrap();
+        prepare_transformed(&changed, Some(&mut cache)).unwrap();
+        assert_eq!(cache.compile_count, 3);
+    }
+
+    #[test]
+    fn transformed_path_rejects_malformed_required_tables() {
+        let tables = fixture_font_tables();
+
+        let mut missing_pair = raw_tables(&tables);
+        missing_pair.retain(|(tag, _)| tag != b"loca");
+        assert!(
+            prepare_transformed(&SerializedFontTables::new(missing_pair).unwrap(), None).is_err()
+        );
+
+        let mut invalid_format = raw_tables(&tables);
+        table_bytes_mut(&mut invalid_format, b"head")[50..52].copy_from_slice(&2_i16.to_be_bytes());
+        assert!(
+            prepare_transformed(&SerializedFontTables::new(invalid_format).unwrap(), None).is_err()
+        );
+
+        let mut wrong_count = raw_tables(&tables);
+        table_bytes_mut(&mut wrong_count, b"loca").truncate(2);
+        assert!(
+            prepare_transformed(&SerializedFontTables::new(wrong_count).unwrap(), None).is_err()
+        );
+    }
+
+    #[test]
+    fn transformed_path_rejects_composites_and_nonempty_zero_contours() {
+        for contour_count in [-1_i16, 0] {
+            let tables = fixture_font_tables();
+            let mut raw = raw_tables(&tables);
+            let head = table_bytes_mut(&mut raw, b"head").clone();
+            let loca = table_bytes_mut(&mut raw, b"loca").clone();
+            let offsets = loca_offsets(&loca, i16::from_be_bytes(head[50..52].try_into().unwrap()));
+            let start = offsets.windows(2).find(|pair| pair[0] != pair[1]).unwrap()[0];
+            table_bytes_mut(&mut raw, b"glyf")[start..start + 2]
+                .copy_from_slice(&contour_count.to_be_bytes());
+            let malformed = SerializedFontTables::new(raw).unwrap();
+            assert!(prepare_transformed(&malformed, None).is_err());
+        }
     }
 
     #[test]
@@ -327,6 +1064,30 @@ mod tests {
 
         let decoded = ::woff::version2::decompress(&output).expect("WOFF2 should decode");
         assert_same_semantics(tables.ttf(), &decoded);
+    }
+
+    #[test]
+    fn transformed_woff2_reference_decodes_semantically() {
+        let tables = fixture_font_tables();
+        let output = encode_transformed(&tables, 11, None).unwrap();
+        let decoded =
+            ::woff::version2::decompress(&output).expect("transformed WOFF2 should decode");
+        assert_same_semantics(tables.ttf(), &decoded);
+
+        let entries = directory_entries(&output);
+        let glyf = entries.iter().find(|entry| entry.0 == *b"glyf").unwrap();
+        let loca = entries.iter().find(|entry| entry.0 == *b"loca").unwrap();
+        assert_eq!(glyf.1, 0);
+        assert!(glyf.3.unwrap() > 0);
+        assert_eq!(loca.1, 0);
+        assert_eq!(loca.3, Some(0));
+        assert_eq!(
+            entries.iter().position(|entry| entry.0 == *b"loca"),
+            entries
+                .iter()
+                .position(|entry| entry.0 == *b"glyf")
+                .map(|index| index + 1)
+        );
     }
 
     #[test]
@@ -458,6 +1219,117 @@ mod tests {
                 return value;
             }
         }
+    }
+
+    fn decode_triplet(flag: u8, input: &[u8]) -> (bool, i32, i32) {
+        let on_curve = flag & 0x80 == 0;
+        let flag = flag & 0x7f;
+        let with_sign = |flag: u8, value: i32| if flag & 1 != 0 { value } else { -value };
+        let (x, y) = if flag < 10 {
+            (
+                0,
+                with_sign(flag, (i32::from(flag & 14) << 7) + i32::from(input[0])),
+            )
+        } else if flag < 20 {
+            (
+                with_sign(
+                    flag,
+                    (i32::from((flag - 10) & 14) << 7) + i32::from(input[0]),
+                ),
+                0,
+            )
+        } else if flag < 84 {
+            let b0 = flag - 20;
+            (
+                with_sign(flag, 1 + i32::from(b0 & 0x30) + i32::from(input[0] >> 4)),
+                with_sign(
+                    flag >> 1,
+                    1 + i32::from((b0 & 0x0c) << 2) + i32::from(input[0] & 0x0f),
+                ),
+            )
+        } else if flag < 120 {
+            let b0 = flag - 84;
+            (
+                with_sign(flag, 1 + i32::from(b0 / 12) * 256 + i32::from(input[0])),
+                with_sign(
+                    flag >> 1,
+                    1 + i32::from((b0 % 12) >> 2) * 256 + i32::from(input[1]),
+                ),
+            )
+        } else if flag < 124 {
+            (
+                with_sign(flag, i32::from(input[0]) * 16 + i32::from(input[1] >> 4)),
+                with_sign(
+                    flag >> 1,
+                    i32::from(input[1] & 0x0f) * 256 + i32::from(input[2]),
+                ),
+            )
+        } else {
+            (
+                with_sign(flag, i32::from(u16::from_be_bytes([input[0], input[1]]))),
+                with_sign(
+                    flag >> 1,
+                    i32::from(u16::from_be_bytes([input[2], input[3]])),
+                ),
+            )
+        };
+        (on_curve, x, y)
+    }
+
+    fn raw_tables(tables: &SerializedFontTables) -> Vec<([u8; 4], Vec<u8>)> {
+        tables
+            .tables()
+            .iter()
+            .map(|table| (table.tag, table.bytes.clone()))
+            .collect()
+    }
+
+    fn cached_payload(byte: u8) -> Woff2TransformPayload {
+        Woff2TransformPayload {
+            transformed: vec![byte],
+            normalized_glyf_len: usize::from(byte),
+            normalized_glyf_checksum: u32::from(byte),
+            normalized_loca_checksum: u32::from(byte),
+        }
+    }
+
+    fn table_bytes_mut<'a>(tables: &'a mut [([u8; 4], Vec<u8>)], tag: &[u8; 4]) -> &'a mut Vec<u8> {
+        &mut tables.iter_mut().find(|table| &table.0 == tag).unwrap().1
+    }
+
+    fn loca_offsets(loca: &[u8], format: i16) -> Vec<usize> {
+        if format == 0 {
+            loca.chunks_exact(2)
+                .map(|bytes| usize::from(u16::from_be_bytes(bytes.try_into().unwrap())) * 2)
+                .collect()
+        } else {
+            loca.chunks_exact(4)
+                .map(|bytes| u32::from_be_bytes(bytes.try_into().unwrap()) as usize)
+                .collect()
+        }
+    }
+
+    fn directory_entries(output: &[u8]) -> Vec<([u8; 4], u8, u32, Option<u32>)> {
+        let count = u16::from_be_bytes(output[12..14].try_into().unwrap()) as usize;
+        let mut offset = HEADER_SIZE;
+        (0..count)
+            .map(|_| {
+                let flags = output[offset];
+                offset += 1;
+                let index = usize::from(flags & 0x3f);
+                let tag = if index == 63 {
+                    let tag = output[offset..offset + 4].try_into().unwrap();
+                    offset += 4;
+                    tag
+                } else {
+                    KNOWN_TAGS[index]
+                };
+                let length = read_base128(output, &mut offset);
+                let transformed_length =
+                    matches!(&tag, b"glyf" | b"loca").then(|| read_base128(output, &mut offset));
+                (tag, flags >> 6, length, transformed_length)
+            })
+            .collect()
     }
 
     fn sfnt_table<'a>(sfnt: &'a [u8], wanted: &[u8; 4]) -> Option<&'a [u8]> {
