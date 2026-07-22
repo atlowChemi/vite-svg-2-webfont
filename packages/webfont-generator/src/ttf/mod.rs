@@ -170,6 +170,11 @@ impl TtfGlyphCache {
         self.woff1_payloads.compile_count
     }
 
+    #[cfg(test)]
+    pub(crate) fn woff2_transform_compile_count(&self) -> usize {
+        self.woff2_transforms.compile_count
+    }
+
     #[cfg(feature = "bench")]
     pub(crate) fn clear_woff1_payloads(&mut self) {
         self.woff1_payloads.clear_woff1_payloads();

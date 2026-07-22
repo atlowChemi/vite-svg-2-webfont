@@ -6,8 +6,8 @@ use crate::sfnt::{SerializedFontTables, SerializedTable};
 use crate::ttf::{Woff2TransformCache, Woff2TransformPayload};
 use brotli::enc::backward_references::BrotliEncoderMode;
 use brotli::enc::{
-    compress_multi, BrotliCompress, BrotliEncoderMaxCompressedSizeMulti, BrotliEncoderParams,
-    Owned, SendAlloc, SliceWrapper, StandardAlloc, UnionHasher,
+    BrotliCompress, BrotliEncoderMaxCompressedSizeMulti, BrotliEncoderParams, Owned, SendAlloc,
+    SliceWrapper, StandardAlloc, UnionHasher,
 };
 use rustc_hash::FxHasher;
 use write_fonts::read::tables::compute_checksum;
@@ -38,6 +38,7 @@ pub(super) struct PreparedWoff2 {
     total_sfnt_size: u32,
 }
 
+#[cfg(any(test, feature = "bench"))]
 pub(super) fn encode(tables: &SerializedFontTables, quality: u8) -> Result<Vec<u8>, Error> {
     let prepared = prepare(tables, None)?;
     let compressed = compress(&prepared, quality)?;
@@ -55,6 +56,7 @@ pub(super) fn encode_transformed(
     assemble(&prepared, &compressed)
 }
 
+#[cfg(any(test, feature = "bench"))]
 pub(super) fn prepare(
     tables: &SerializedFontTables,
     cache: Option<&mut Woff2TransformCache>,
@@ -748,6 +750,7 @@ fn move_loca_after_glyf(tables: &mut Vec<&SerializedTable>) {
     }
 }
 
+#[cfg(any(test, feature = "bench"))]
 fn write_directory_entry(output: &mut Vec<u8>, table: &SerializedTable) -> Result<(), Error> {
     let index = KNOWN_TAGS.iter().position(|tag| tag == &table.tag);
     let transform = u8::from(matches!(&table.tag, b"glyf" | b"loca")) * 3;
@@ -813,11 +816,13 @@ impl SliceWrapper<u8> for BrotliInput {
 }
 
 fn dropbox_brotli_compress(input: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
-    let mut params = BrotliEncoderParams::default();
-    params.mode = BrotliEncoderMode::BROTLI_MODE_FONT;
-    params.quality = i32::from(quality);
-    params.lgwin = 22;
-    params.size_hint = input.len();
+    let params = BrotliEncoderParams {
+        mode: BrotliEncoderMode::BROTLI_MODE_FONT,
+        quality: i32::from(quality),
+        lgwin: 22,
+        size_hint: input.len(),
+        ..Default::default()
+    };
 
     if quality < 10 {
         let mut output = Vec::new();
@@ -830,7 +835,7 @@ fn dropbox_brotli_compress(input: &[u8], quality: u8) -> Result<Vec<u8>, Error> 
     let mut allocators = (0..THREADS)
         .map(|_| SendAlloc::new(StandardAlloc::default(), UnionHasher::Uninit))
         .collect::<Vec<_>>();
-    let length = compress_multi(
+    let length = brotli::enc::compress_multi(
         &params,
         &mut Owned::new(BrotliInput(input.to_vec())),
         &mut output,

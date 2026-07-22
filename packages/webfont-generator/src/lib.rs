@@ -739,9 +739,8 @@ fn build_font_outputs(
             .unwrap_or(11);
 
         let ttf_tables = Arc::new(ttf_tables);
-        let raw_ttf = (wants_ttf || wants_woff2).then(|| ttf_tables.ttf_arc());
-        let ttf_font = wants_ttf.then(|| Arc::clone(raw_ttf.as_ref().unwrap()));
-        let (woff1_cache, _woff2_cache) = match ttf_cache {
+        let ttf_font = wants_ttf.then(|| ttf_tables.ttf_arc());
+        let (woff1_cache, woff2_cache) = match ttf_cache {
             Some(cache) => {
                 let (woff1, woff2) = cache.output_caches();
                 (Some(woff1), Some(woff2))
@@ -766,7 +765,12 @@ fn build_font_outputs(
                 join(
                     || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_woff2 {
-                            woff::ttf_to_woff2(raw_ttf.as_ref().unwrap(), woff2_quality).map(Some)
+                            woff::tables_to_woff2_transformed(
+                                &ttf_tables,
+                                woff2_quality,
+                                woff2_cache,
+                            )
+                            .map(Some)
                         } else {
                             Ok(None)
                         }

@@ -2,14 +2,11 @@ use std::hash::Hasher;
 use std::io::{Error, ErrorKind, Write};
 
 use crate::sfnt::SerializedFontTables;
-use crate::ttf::Woff1PayloadCache;
-#[cfg(any(test, feature = "bench"))]
-use crate::ttf::Woff2TransformCache;
+use crate::ttf::{Woff1PayloadCache, Woff2TransformCache};
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
 use rustc_hash::FxHasher;
 
-#[cfg(any(test, feature = "bench"))]
 mod woff2;
 
 const WOFF_HEADER_SIZE: usize = 44;
@@ -43,8 +40,7 @@ pub(crate) fn tables_to_woff1_cached(
     Ok(woff_buf)
 }
 
-/// Encodes `ttf` as WOFF2. `quality` is the Brotli compression quality (0–11); callers
-/// are expected to have validated the range (see `validate_generate_webfonts_options`).
+#[cfg(test)]
 pub(crate) fn ttf_to_woff2(ttf: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
     ::woff::version2::compress(ttf, "", quality.min(11) as usize, true)
         .ok_or_else(|| Error::new(ErrorKind::InvalidData, "WOFF2 compression failed"))
@@ -58,7 +54,6 @@ pub(crate) fn tables_to_woff2_no_transform(
     woff2::encode(tables, quality)
 }
 
-#[cfg(any(test, feature = "bench"))]
 pub(crate) fn tables_to_woff2_transformed(
     tables: &SerializedFontTables,
     quality: u8,

@@ -5,10 +5,10 @@ use serde_json::{Map, Value};
 
 use crate::test_helpers::write_temp_template;
 use crate::types::{FontType, GenerateWebfontsResult, GlyphChange, LoadedSvgFile};
-use crate::{FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
 use crate::{
     finalize_generate_webfonts_options, generate_webfonts_sync, resolve_generate_webfonts_options,
 };
+use crate::{FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
 
 const D1: &str = "M2 2 L22 2 L22 22 Z";
 const D2: &str = "M2 2 L22 2 L12 22 Z";
@@ -136,6 +136,11 @@ fn regenerate_reuses_compiled_ttf_glyphs_for_stable_metrics() {
     let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
     let processed_before = result.glyph_cache.as_ref().unwrap().process_count;
     let before = result.ttf_cache.as_ref().unwrap().compile_count;
+    let woff2_before = result
+        .ttf_cache
+        .as_ref()
+        .unwrap()
+        .woff2_transform_compile_count();
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
@@ -150,6 +155,14 @@ fn regenerate_reuses_compiled_ttf_glyphs_for_stable_metrics() {
         processed_before + 1
     );
     assert_eq!(result.ttf_cache.as_ref().unwrap().compile_count, before + 1);
+    assert_eq!(
+        result
+            .ttf_cache
+            .as_ref()
+            .unwrap()
+            .woff2_transform_compile_count(),
+        woff2_before + 1
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -167,6 +180,11 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
         .as_ref()
         .unwrap()
         .woff1_payload_compile_count();
+    let woff2_before = result
+        .ttf_cache
+        .as_ref()
+        .unwrap()
+        .woff2_transform_compile_count();
     result
         .regenerate(
             &[a.clone(), b.clone(), c.clone()],
@@ -190,6 +208,14 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
             .unwrap()
             .woff1_payload_compile_count(),
         woff_before + 2
+    );
+    assert_eq!(
+        result
+            .ttf_cache
+            .as_ref()
+            .unwrap()
+            .woff2_transform_compile_count(),
+        woff2_before
     );
     std::fs::remove_dir_all(&dir).ok();
 }

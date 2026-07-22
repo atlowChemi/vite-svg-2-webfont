@@ -2,7 +2,6 @@ use std::hint::black_box;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use criterion::{criterion_group, criterion_main};
 use criterion::{BatchSize, Criterion};
 use webfont_generator::bench_support::{
     build_outputs_only, build_serialized_ttf_tables, compress_prepared_internal_woff2,
@@ -10,7 +9,9 @@ use webfont_generator::bench_support::{
     parse_svg_only, prepare_internal_transformed_woff2, rewrap_serialized_ttf_tables,
     serialized_ttf_uncached,
 };
-use webfont_generator::bench_support::{BenchSvgSource, BenchWoff2TransformCache};
+
+type BenchSvgSource = webfont_generator::bench_support::BenchSvgSource;
+type BenchWoff2TransformCache = webfont_generator::bench_support::BenchWoff2TransformCache;
 
 mod support;
 
@@ -624,7 +625,7 @@ fn bench_woff2_encoder_compare(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(
+criterion::criterion_group!(
     benches,
     bench_pipeline_slices,
     bench_pipeline_stages,
@@ -635,4 +636,4 @@ criterion_group!(
     bench_sfnt_assembly_compare,
     bench_woff2_encoder_compare
 );
-criterion_main!(benches);
+criterion::criterion_main!(benches);
