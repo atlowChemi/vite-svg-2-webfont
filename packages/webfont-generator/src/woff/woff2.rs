@@ -1,10 +1,14 @@
 use std::collections::HashSet;
-use std::ffi::c_int;
 use std::hash::Hasher;
-use std::io::{Error, ErrorKind};
+use std::io::{Cursor, Error, ErrorKind};
 
 use crate::sfnt::{SerializedFontTables, SerializedTable};
 use crate::ttf::{Woff2TransformCache, Woff2TransformPayload};
+use brotli::enc::backward_references::BrotliEncoderMode;
+use brotli::enc::{
+    compress_multi, BrotliCompress, BrotliEncoderMaxCompressedSizeMulti, BrotliEncoderParams,
+    Owned, SendAlloc, SliceWrapper, StandardAlloc, UnionHasher,
+};
 use rustc_hash::FxHasher;
 use write_fonts::read::tables::compute_checksum;
 use write_fonts::read::tables::glyf::{Glyf, Glyph, PointFlags, SimpleGlyph};
@@ -26,18 +30,6 @@ const KNOWN_TAGS: [[u8; 4]; 63] = [
     *b"feat", *b"fmtx", *b"fvar", *b"gvar", *b"hsty", *b"just", *b"lcar", *b"mort", *b"morx",
     *b"opbd", *b"prop", *b"trak", *b"Zapf", *b"Silf", *b"Glat", *b"Gloc", *b"Feat", *b"Sill",
 ];
-
-unsafe extern "C" {
-    fn BrotliEncoderCompress(
-        quality: c_int,
-        lgwin: c_int,
-        mode: c_int,
-        input_size: usize,
-        input: *const u8,
-        encoded_size: *mut usize,
-        encoded: *mut u8,
-    ) -> c_int;
-}
 
 pub(super) struct PreparedWoff2 {
     directory: Vec<u8>,
@@ -700,7 +692,7 @@ fn invalid_data(message: &'static str) -> Error {
 }
 
 pub(super) fn compress(prepared: &PreparedWoff2, quality: u8) -> Result<Vec<u8>, Error> {
-    google_brotli_compress(&prepared.stream, quality.min(11))
+    dropbox_brotli_compress(&prepared.stream, quality.min(11))
 }
 
 fn assemble(prepared: &PreparedWoff2, compressed: &[u8]) -> Result<Vec<u8>, Error> {
@@ -812,33 +804,40 @@ fn write_base128(value: u32, output: &mut Vec<u8>) {
     }
 }
 
-fn google_brotli_compress(input: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
-    let capacity = input
-        .len()
-        .checked_add(input.len() / 5)
-        .and_then(|size| size.checked_add(10_240))
-        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "Brotli input is too large"))?;
-    let mut output = vec![0; capacity];
-    let mut encoded_size = output.len();
-    // `woff` links this temporary adapter's Google Brotli implementation.
-    let success = unsafe {
-        BrotliEncoderCompress(
-            quality.into(),
-            22,
-            2,
-            input.len(),
-            input.as_ptr(),
-            &mut encoded_size,
-            output.as_mut_ptr(),
-        )
-    };
-    if success == 0 {
-        return Err(Error::new(
-            ErrorKind::InvalidData,
-            "Brotli compression failed",
-        ));
+struct BrotliInput(Vec<u8>);
+
+impl SliceWrapper<u8> for BrotliInput {
+    fn slice(&self) -> &[u8] {
+        &self.0
     }
-    output.truncate(encoded_size);
+}
+
+fn dropbox_brotli_compress(input: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
+    let mut params = BrotliEncoderParams::default();
+    params.mode = BrotliEncoderMode::BROTLI_MODE_FONT;
+    params.quality = i32::from(quality);
+    params.lgwin = 22;
+    params.size_hint = input.len();
+
+    if quality < 10 {
+        let mut output = Vec::new();
+        BrotliCompress(&mut Cursor::new(input), &mut output, &params)?;
+        return Ok(output);
+    }
+
+    const THREADS: usize = 2;
+    let mut output = vec![0; BrotliEncoderMaxCompressedSizeMulti(input.len(), THREADS)];
+    let mut allocators = (0..THREADS)
+        .map(|_| SendAlloc::new(StandardAlloc::default(), UnionHasher::Uninit))
+        .collect::<Vec<_>>();
+    let length = compress_multi(
+        &params,
+        &mut Owned::new(BrotliInput(input.to_vec())),
+        &mut output,
+        &mut allocators,
+    )
+    .map_err(|_| invalid_data("Brotli compression failed"))?;
+    output.truncate(length);
     Ok(output)
 }
 

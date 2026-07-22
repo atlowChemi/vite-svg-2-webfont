@@ -417,7 +417,7 @@ mod tests {
     }
 
     #[test]
-    fn internal_transformed_woff2_matches_native_for_curves() {
+    fn internal_transformed_woff2_is_deterministic_for_curves() {
         let tables = font_tables(vec![glyph(
             0,
             "curve",
@@ -426,16 +426,13 @@ mod tests {
             16.0,
         )]);
         for quality in WOFF2_QUALITIES {
+            let output = tables_to_woff2_transformed(&tables, quality, None).unwrap();
             assert_eq!(
-                tables_to_woff2_transformed(&tables, quality, None).unwrap(),
-                ::woff::version2::compress(
-                    tables.ttf(),
-                    "",
-                    usize::from(quality),
-                    true,
-                )
-                .unwrap()
+                output,
+                tables_to_woff2_transformed(&tables, quality, None).unwrap()
             );
+            let decoded = ::woff::version2::decompress(&output).unwrap();
+            assert_semantically_equal(tables.ttf(), &decoded);
         }
     }
 
@@ -534,10 +531,6 @@ mod tests {
             let decoded = ::woff::version2::decompress(&output)
                 .expect("internal transformed WOFF2 should decode");
             assert_semantically_equal(tables.ttf(), &decoded);
-            assert_eq!(
-                output,
-                ::woff::version2::compress(tables.ttf(), "", usize::from(quality), true).unwrap()
-            );
         }
         assert_eq!(cache.compile_count, 1);
     }

@@ -539,12 +539,6 @@ fn bench_woff2_encoder_compare(c: &mut Criterion) {
         )
         .unwrap();
         let ttf = serialized_ttf_uncached(&tables);
-        if size == 600 {
-            assert_eq!(
-                woff::version2::compress(&ttf, "", 10, true).unwrap(),
-                internal_transformed_woff2(&tables, 10).unwrap()
-            );
-        }
 
         for quality in 0..=11_u8 {
             group.bench_function(
