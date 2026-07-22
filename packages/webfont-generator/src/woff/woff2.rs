@@ -19,7 +19,7 @@ use write_fonts::read::types::{GlyphId, Point};
 use write_fonts::read::{FontData, FontRead};
 
 const HEADER_SIZE: usize = 48;
-const GLYF_ENCODER_VERSION: u8 = 1;
+const GLYF_ENCODER_VERSION: u8 = 2;
 const GLYF_TRANSFORM_HEADER_SIZE: usize = 36;
 const KNOWN_TAGS: [[u8; 4]; 63] = [
     *b"cmap", *b"head", *b"hhea", *b"hmtx", *b"maxp", *b"name", *b"OS/2", *b"post", *b"cvt ",
@@ -157,12 +157,15 @@ pub(super) fn prepare_transformed(
     let payload = if let Some(hit) = cache.as_deref().and_then(|cache| cache.transformed(&key)) {
         hit
     } else {
-        let transformed = transform_glyf(glyf, loca, index_format, num_glyphs)?;
         let normalized = normalized_glyf_loca(glyf, loca, index_format, num_glyphs)?;
+        let transformed =
+            transform_glyf(glyf, loca, index_format, normalized.loca_format, num_glyphs)?;
         let payload = Woff2TransformPayload {
             transformed,
             normalized_glyf_len: normalized.glyf_len,
             normalized_glyf_checksum: normalized.glyf_checksum,
+            normalized_loca_format: normalized.loca_format,
+            normalized_loca_len: normalized.loca_len,
             normalized_loca_checksum: normalized.loca_checksum,
         };
         if let Some(cache) = cache.as_deref_mut() {
@@ -177,6 +180,8 @@ pub(super) fn prepare_transformed(
     let normalized = NormalizedGlyfLoca {
         glyf_len: payload.normalized_glyf_len,
         glyf_checksum: payload.normalized_glyf_checksum,
+        loca_format: payload.normalized_loca_format,
+        loca_len: payload.normalized_loca_len,
         loca_checksum: payload.normalized_loca_checksum,
     };
     let normalized_head = normalized_head(&ordered, &normalized)?;
@@ -188,6 +193,7 @@ pub(super) fn prepare_transformed(
             table,
             payload.transformed.len(),
             normalized.glyf_len,
+            normalized.loca_len,
         )?;
         match &table.tag {
             b"glyf" => stream.extend_from_slice(&payload.transformed),
@@ -202,7 +208,7 @@ pub(super) fn prepare_transformed(
         stream,
         table_count: u16::try_from(ordered.len())
             .map_err(|_| invalid_data("WOFF2 table count exceeds u16"))?,
-        total_sfnt_size: total_sfnt_size(&ordered, Some(normalized.glyf_len))?,
+        total_sfnt_size: total_sfnt_size(&ordered, &normalized)?,
     })
 }
 
@@ -222,16 +228,16 @@ fn required_table<'a>(
 
 fn total_sfnt_size(
     tables: &[&SerializedTable],
-    normalized_glyf_len: Option<usize>,
+    normalized: &NormalizedGlyfLoca,
 ) -> Result<u32, Error> {
     12_usize
         .checked_add(16 * tables.len())
         .and_then(|size| {
             tables.iter().try_fold(size, |size, table| {
-                let length = if table.tag == *b"glyf" {
-                    normalized_glyf_len.unwrap_or(table.bytes.len())
-                } else {
-                    table.bytes.len()
+                let length = match &table.tag {
+                    b"glyf" => normalized.glyf_len,
+                    b"loca" => normalized.loca_len,
+                    _ => table.bytes.len(),
                 };
                 size.checked_add((length + 3) & !3)
             })
@@ -243,6 +249,8 @@ fn total_sfnt_size(
 struct NormalizedGlyfLoca {
     glyf_len: usize,
     glyf_checksum: u32,
+    loca_format: i16,
+    loca_len: usize,
     loca_checksum: u32,
 }
 
@@ -257,20 +265,9 @@ fn normalized_glyf_loca(
     let glyf_table =
         Glyf::read(FontData::new(&glyf.bytes)).map_err(|_| invalid_data("invalid glyf table"))?;
     let mut normalized_glyf = Vec::new();
-    let mut normalized_loca = Vec::with_capacity(loca.bytes.len());
+    let mut offsets = Vec::with_capacity(usize::from(num_glyphs) + 1);
     for glyph_id in 0..=num_glyphs {
-        let offset = normalized_glyf.len();
-        if index_format == 0 {
-            let short_offset = u16::try_from(offset / 2)
-                .map_err(|_| invalid_data("normalized glyf requires long loca offsets"))?;
-            normalized_loca.extend_from_slice(&short_offset.to_be_bytes());
-        } else {
-            normalized_loca.extend_from_slice(
-                &u32::try_from(offset)
-                    .map_err(|_| invalid_data("normalized glyf size exceeds u32"))?
-                    .to_be_bytes(),
-            );
-        }
+        offsets.push(normalized_glyf.len());
         if glyph_id == num_glyphs {
             break;
         }
@@ -285,9 +282,26 @@ fn normalized_glyf_loca(
         }
         normalized_glyf.resize((normalized_glyf.len() + 3) & !3, 0);
     }
+    let loca_format =
+        i16::from(index_format == 1 || normalized_glyf.len() / 2 > usize::from(u16::MAX));
+    let mut normalized_loca =
+        Vec::with_capacity(offsets.len() * if loca_format == 0 { 2 } else { 4 });
+    for offset in offsets {
+        if loca_format == 0 {
+            normalized_loca.extend_from_slice(&((offset / 2) as u16).to_be_bytes());
+        } else {
+            normalized_loca.extend_from_slice(
+                &u32::try_from(offset)
+                    .map_err(|_| invalid_data("normalized glyf size exceeds u32"))?
+                    .to_be_bytes(),
+            );
+        }
+    }
     Ok(NormalizedGlyfLoca {
         glyf_len: normalized_glyf.len(),
         glyf_checksum: compute_checksum(&normalized_glyf),
+        loca_format,
+        loca_len: normalized_loca.len(),
         loca_checksum: compute_checksum(&normalized_loca),
     })
 }
@@ -387,7 +401,7 @@ fn normalized_head(
         .iter()
         .find(|table| table.tag == *b"head")
         .ok_or_else(|| invalid_data("WOFF2 requires a head table"))?;
-    if head.bytes.len() < 18 {
+    if head.bytes.len() < 52 {
         return Err(invalid_data("head table is too short"));
     }
 
@@ -395,6 +409,7 @@ fn normalized_head(
     bytes[8..12].fill(0);
     let flags = u16::from_be_bytes(bytes[16..18].try_into().unwrap()) | (1 << 11);
     bytes[16..18].copy_from_slice(&flags.to_be_bytes());
+    bytes[50..52].copy_from_slice(&normalized.loca_format.to_be_bytes());
     let head_checksum = compute_checksum(&bytes);
 
     let table_count =
@@ -425,7 +440,7 @@ fn normalized_head(
         let (table_checksum, table_len) = match &table.tag {
             b"head" => (head_checksum, table.bytes.len()),
             b"glyf" => (normalized.glyf_checksum, normalized.glyf_len),
-            b"loca" => (normalized.loca_checksum, table.bytes.len()),
+            b"loca" => (normalized.loca_checksum, normalized.loca_len),
             _ => (table.checksum, table.bytes.len()),
         };
         checksum = checksum
@@ -462,12 +477,13 @@ struct GlyfStreams {
 fn transform_glyf(
     glyf_table: &SerializedTable,
     loca_table: &SerializedTable,
-    index_format: i16,
+    source_index_format: i16,
+    transformed_index_format: i16,
     num_glyphs: u16,
 ) -> Result<Vec<u8>, Error> {
     let glyf = Glyf::read(FontData::new(&glyf_table.bytes))
         .map_err(|_| invalid_data("invalid glyf table"))?;
-    let loca = Loca::read(FontData::new(&loca_table.bytes), index_format == 1)
+    let loca = Loca::read(FontData::new(&loca_table.bytes), source_index_format == 1)
         .map_err(|_| invalid_data("invalid loca table"))?;
     if loca.len() != usize::from(num_glyphs) {
         return Err(invalid_data("maxp numGlyphs does not match loca length"));
@@ -604,7 +620,7 @@ fn transform_glyf(
     output.extend_from_slice(&0_u16.to_be_bytes());
     output.extend_from_slice(&u16::from(!streams.overlap_bitmap.is_empty()).to_be_bytes());
     output.extend_from_slice(&num_glyphs.to_be_bytes());
-    output.extend_from_slice(&(index_format as u16).to_be_bytes());
+    output.extend_from_slice(&(transformed_index_format as u16).to_be_bytes());
     for length in lengths {
         output.extend_from_slice(
             &u32::try_from(length)
@@ -771,6 +787,7 @@ fn write_transformed_directory_entry(
     table: &SerializedTable,
     transformed_glyf_len: usize,
     normalized_glyf_len: usize,
+    normalized_loca_len: usize,
 ) -> Result<(), Error> {
     let index = KNOWN_TAGS.iter().position(|tag| tag == &table.tag);
     output.push(index.unwrap_or(63) as u8);
@@ -778,10 +795,10 @@ fn write_transformed_directory_entry(
         output.extend_from_slice(&table.tag);
     }
     write_base128(
-        u32::try_from(if table.tag == *b"glyf" {
-            normalized_glyf_len
-        } else {
-            table.bytes.len()
+        u32::try_from(match &table.tag {
+            b"glyf" => normalized_glyf_len,
+            b"loca" => normalized_loca_len,
+            _ => table.bytes.len(),
         })
         .map_err(|_| invalid_data("table size exceeds u32"))?,
         output,
@@ -1095,6 +1112,35 @@ mod tests {
     }
 
     #[test]
+    fn transformed_path_promotes_short_loca_when_normalization_overflows() {
+        const GLYPH_COUNT: u16 = 6_554;
+        const GLYPH_SIZE: usize = 18;
+
+        let mut glyph = vec![0, 1];
+        glyph.extend_from_slice(&[0; 8]);
+        glyph.extend_from_slice(&[0, 0, 0, 2, 0, 0, 0x31, 0]);
+        assert_eq!(glyph.len(), GLYPH_SIZE);
+
+        let tables = fixture_font_tables();
+        let mut raw = raw_tables(&tables);
+        table_bytes_mut(&mut raw, b"head")[50..52].copy_from_slice(&0_i16.to_be_bytes());
+        table_bytes_mut(&mut raw, b"maxp")[4..6].copy_from_slice(&GLYPH_COUNT.to_be_bytes());
+        *table_bytes_mut(&mut raw, b"glyf") = glyph.repeat(usize::from(GLYPH_COUNT));
+        *table_bytes_mut(&mut raw, b"loca") = (0..=GLYPH_COUNT)
+            .flat_map(|index| ((usize::from(index) * GLYPH_SIZE / 2) as u16).to_be_bytes())
+            .collect();
+        let tables = SerializedFontTables::new(raw).unwrap();
+
+        let output = encode_transformed(&tables, 0, None).unwrap();
+        let decoded =
+            ::woff::version2::decompress(&output).expect("transformed WOFF2 should decode");
+        let head = sfnt_table(&decoded, b"head").unwrap();
+        let loca = sfnt_table(&decoded, b"loca").unwrap();
+        assert_eq!(i16::from_be_bytes(head[50..52].try_into().unwrap()), 1);
+        assert_eq!(loca.len(), (usize::from(GLYPH_COUNT) + 1) * 4);
+    }
+
+    #[test]
     fn removes_dsig_and_marks_the_font_as_transformed() {
         let tables = fixture_font_tables();
         let mut raw_tables = tables
@@ -1293,6 +1339,8 @@ mod tests {
             transformed: vec![byte],
             normalized_glyf_len: usize::from(byte),
             normalized_glyf_checksum: u32::from(byte),
+            normalized_loca_format: 0,
+            normalized_loca_len: usize::from(byte),
             normalized_loca_checksum: u32::from(byte),
         }
     }

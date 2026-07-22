@@ -113,6 +113,8 @@ pub(crate) struct Woff2TransformPayload {
     pub transformed: Vec<u8>,
     pub normalized_glyf_len: usize,
     pub normalized_glyf_checksum: u32,
+    pub normalized_loca_format: i16,
+    pub normalized_loca_len: usize,
     pub normalized_loca_checksum: u32,
 }
 
