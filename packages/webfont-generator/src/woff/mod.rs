@@ -46,39 +46,23 @@ pub(crate) fn ttf_to_woff2(ttf: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
         .ok_or_else(|| Error::new(ErrorKind::InvalidData, "WOFF2 compression failed"))
 }
 
-#[cfg(feature = "bench")]
-pub(crate) fn tables_to_woff2_no_transform(
-    tables: &SerializedFontTables,
-    quality: u8,
-) -> Result<Vec<u8>, Error> {
-    woff2::encode(tables, quality)
-}
-
-pub(crate) fn tables_to_woff2_transformed(
+pub(crate) fn tables_to_woff2(
     tables: &SerializedFontTables,
     quality: u8,
     cache: Option<&mut Woff2TransformCache>,
 ) -> Result<Vec<u8>, Error> {
-    woff2::encode_transformed(tables, quality, cache)
+    woff2::encode(tables, quality, cache)
 }
 
 #[cfg(feature = "bench")]
 pub(crate) struct PreparedWoff2(woff2::PreparedWoff2);
 
 #[cfg(feature = "bench")]
-pub(crate) fn prepare_woff2_no_transform(
+pub(crate) fn prepare_woff2(
     tables: &SerializedFontTables,
     cache: &mut Woff2TransformCache,
 ) -> Result<PreparedWoff2, Error> {
     woff2::prepare(tables, Some(cache)).map(PreparedWoff2)
-}
-
-#[cfg(feature = "bench")]
-pub(crate) fn prepare_woff2_transformed(
-    tables: &SerializedFontTables,
-    cache: &mut Woff2TransformCache,
-) -> Result<PreparedWoff2, Error> {
-    woff2::prepare_transformed(tables, Some(cache)).map(PreparedWoff2)
 }
 
 #[cfg(feature = "bench")]
@@ -372,47 +356,27 @@ mod tests {
     }
 
     #[test]
-    fn internal_no_transform_woff2_acceptance_1_glyph() {
-        assert_internal_no_transform_woff2(1);
+    fn internal_woff2_acceptance_1_glyph() {
+        assert_internal_woff2(1);
     }
 
     #[test]
-    fn internal_no_transform_woff2_acceptance_100_glyphs() {
-        assert_internal_no_transform_woff2(100);
+    fn internal_woff2_acceptance_100_glyphs() {
+        assert_internal_woff2(100);
     }
 
     #[test]
-    fn internal_no_transform_woff2_acceptance_300_glyphs() {
-        assert_internal_no_transform_woff2(300);
+    fn internal_woff2_acceptance_300_glyphs() {
+        assert_internal_woff2(300);
     }
 
     #[test]
-    fn internal_no_transform_woff2_acceptance_600_glyphs() {
-        assert_internal_no_transform_woff2(600);
+    fn internal_woff2_acceptance_600_glyphs() {
+        assert_internal_woff2(600);
     }
 
     #[test]
-    fn internal_transformed_woff2_acceptance_1_glyph() {
-        assert_internal_transformed_woff2(1);
-    }
-
-    #[test]
-    fn internal_transformed_woff2_acceptance_100_glyphs() {
-        assert_internal_transformed_woff2(100);
-    }
-
-    #[test]
-    fn internal_transformed_woff2_acceptance_300_glyphs() {
-        assert_internal_transformed_woff2(300);
-    }
-
-    #[test]
-    fn internal_transformed_woff2_acceptance_600_glyphs() {
-        assert_internal_transformed_woff2(600);
-    }
-
-    #[test]
-    fn internal_transformed_woff2_is_deterministic_for_curves() {
+    fn internal_woff2_is_deterministic_for_curves() {
         let tables = font_tables(vec![glyph(
             0,
             "curve",
@@ -421,11 +385,8 @@ mod tests {
             16.0,
         )]);
         for quality in WOFF2_QUALITIES {
-            let output = tables_to_woff2_transformed(&tables, quality, None).unwrap();
-            assert_eq!(
-                output,
-                tables_to_woff2_transformed(&tables, quality, None).unwrap()
-            );
+            let output = tables_to_woff2(&tables, quality, None).unwrap();
+            assert_eq!(output, tables_to_woff2(&tables, quality, None).unwrap());
             let decoded = ::woff::version2::decompress(&output).unwrap();
             assert_semantically_equal(tables.ttf(), &decoded);
         }
@@ -503,25 +464,14 @@ mod tests {
         }
     }
 
-    fn assert_internal_no_transform_woff2(glyph_count: usize) {
-        let tables = acceptance_font_tables(glyph_count);
-        for quality in WOFF2_QUALITIES {
-            let output = super::woff2::encode(&tables, quality).unwrap();
-            assert_eq!(output, super::woff2::encode(&tables, quality).unwrap());
-            let decoded = ::woff::version2::decompress(&output)
-                .expect("internal no-transform WOFF2 should decode");
-            assert_semantically_equal(tables.ttf(), &decoded);
-        }
-    }
-
-    fn assert_internal_transformed_woff2(glyph_count: usize) {
+    fn assert_internal_woff2(glyph_count: usize) {
         let tables = acceptance_font_tables(glyph_count);
         let mut cache = crate::ttf::Woff2TransformCache::default();
         for quality in WOFF2_QUALITIES {
-            let output = tables_to_woff2_transformed(&tables, quality, Some(&mut cache)).unwrap();
+            let output = tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap();
             assert_eq!(
                 output,
-                tables_to_woff2_transformed(&tables, quality, Some(&mut cache)).unwrap()
+                tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap()
             );
             let decoded = ::woff::version2::decompress(&output)
                 .expect("internal transformed WOFF2 should decode");

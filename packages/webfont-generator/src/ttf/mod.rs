@@ -142,12 +142,10 @@ impl Woff1PayloadCache {
 }
 
 impl Woff2TransformCache {
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn transformed(&self, key: &u64) -> Option<Woff2TransformPayload> {
         self.entries.get(key).cloned()
     }
 
-    #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn insert(&mut self, key: u64, payload: Woff2TransformPayload) {
         #[cfg(test)]
         {
@@ -156,7 +154,6 @@ impl Woff2TransformCache {
         self.entries.insert(key, payload);
     }
 
-    #[cfg_attr(not(any(test, feature = "bench")), allow(dead_code))]
     pub(crate) fn retain(&mut self, used_keys: &HashSet<u64>) {
         self.entries.retain(|key, _| used_keys.contains(key));
     }

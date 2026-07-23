@@ -255,36 +255,17 @@ pub mod bench_support {
         tables.0.uncached_ttf()
     }
 
-    /// Encode serialized tables with the internal no-transform WOFF2 encoder.
-    pub fn internal_no_transform_woff2(
-        tables: &BenchSerializedFontTables,
-        quality: u8,
-    ) -> io::Result<Vec<u8>> {
-        crate::woff::tables_to_woff2_no_transform(&tables.0, quality)
+    /// Encode serialized tables with the internal WOFF2 encoder.
+    pub fn internal_woff2(tables: &BenchSerializedFontTables, quality: u8) -> io::Result<Vec<u8>> {
+        crate::woff::tables_to_woff2(&tables.0, quality, None)
     }
 
-    /// Encode serialized tables with the internal transformed WOFF2 encoder.
-    pub fn internal_transformed_woff2(
-        tables: &BenchSerializedFontTables,
-        quality: u8,
-    ) -> io::Result<Vec<u8>> {
-        crate::woff::tables_to_woff2_transformed(&tables.0, quality, None)
-    }
-
-    /// Prepare the internal WOFF2 directory and table stream without Brotli compression.
+    /// Prepare the internal WOFF2 stream without Brotli compression.
     pub fn prepare_internal_woff2(
         tables: &BenchSerializedFontTables,
         cache: &mut BenchWoff2TransformCache,
     ) -> io::Result<BenchPreparedWoff2> {
-        crate::woff::prepare_woff2_no_transform(&tables.0, &mut cache.0).map(BenchPreparedWoff2)
-    }
-
-    /// Prepare the internal transformed WOFF2 stream without Brotli compression.
-    pub fn prepare_internal_transformed_woff2(
-        tables: &BenchSerializedFontTables,
-        cache: &mut BenchWoff2TransformCache,
-    ) -> io::Result<BenchPreparedWoff2> {
-        crate::woff::prepare_woff2_transformed(&tables.0, &mut cache.0).map(BenchPreparedWoff2)
+        crate::woff::prepare_woff2(&tables.0, &mut cache.0).map(BenchPreparedWoff2)
     }
 
     /// Brotli-compress an already prepared internal WOFF2 stream and return its byte length.
@@ -765,12 +746,7 @@ fn build_font_outputs(
                 join(
                     || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_woff2 {
-                            woff::tables_to_woff2_transformed(
-                                &ttf_tables,
-                                woff2_quality,
-                                woff2_cache,
-                            )
-                            .map(Some)
+                            woff::tables_to_woff2(&ttf_tables, woff2_quality, woff2_cache).map(Some)
                         } else {
                             Ok(None)
                         }

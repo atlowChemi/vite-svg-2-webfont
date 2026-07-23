@@ -38,97 +38,51 @@ pub(super) struct PreparedWoff2 {
     total_sfnt_size: u32,
 }
 
-#[cfg(any(test, feature = "bench"))]
-pub(super) fn encode(tables: &SerializedFontTables, quality: u8) -> Result<Vec<u8>, Error> {
-    let prepared = prepare(tables, None)?;
-    let compressed = compress(&prepared, quality)?;
-    assemble(&prepared, &compressed)
-}
-
-#[cfg_attr(not(test), allow(dead_code))]
-pub(super) fn encode_transformed(
+pub(super) fn encode(
     tables: &SerializedFontTables,
     quality: u8,
     cache: Option<&mut Woff2TransformCache>,
 ) -> Result<Vec<u8>, Error> {
-    let prepared = prepare_transformed(tables, cache)?;
+    let prepared = prepare(tables, cache)?;
     let compressed = compress(&prepared, quality)?;
     assemble(&prepared, &compressed)
 }
 
-#[cfg(any(test, feature = "bench"))]
 pub(super) fn prepare(
-    tables: &SerializedFontTables,
-    cache: Option<&mut Woff2TransformCache>,
-) -> Result<PreparedWoff2, Error> {
-    let mut ordered = tables
-        .tables()
-        .iter()
-        .filter(|table| table.tag != *b"DSIG")
-        .collect::<Vec<_>>();
-    if ordered.is_empty() {
-        return Err(Error::new(ErrorKind::InvalidInput, "WOFF2 requires tables"));
-    }
-    ordered.sort_unstable_by_key(|table| table.tag);
-    move_loca_after_glyf(&mut ordered);
-
-    let mut directory = Vec::new();
-    let mut stream = Vec::new();
-    for table in &ordered {
-        write_directory_entry(&mut directory, table)?;
-        if table.tag == *b"head" {
-            let mut head = table.bytes.clone();
-            if head.len() < 18 {
-                return Err(invalid_data("head table is too short"));
-            }
-            let flags = u16::from_be_bytes(head[16..18].try_into().unwrap()) | (1 << 11);
-            head[16..18].copy_from_slice(&flags.to_be_bytes());
-            stream.extend_from_slice(&head);
-        } else {
-            stream.extend_from_slice(&table.bytes);
-        }
-    }
-
-    let total_sfnt_size = 12_usize
-        .checked_add(16 * ordered.len())
-        .and_then(|size| {
-            ordered.iter().try_fold(size, |size, table| {
-                size.checked_add((table.bytes.len() + 3) & !3)
-            })
-        })
-        .and_then(|size| u32::try_from(size).ok())
-        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "SFNT size exceeds u32"))?;
-    if let Some(cache) = cache {
-        cache.retain(&HashSet::new());
-    }
-    Ok(PreparedWoff2 {
-        directory,
-        stream,
-        table_count: ordered.len() as u16,
-        total_sfnt_size,
-    })
-}
-
-#[cfg_attr(not(test), allow(dead_code))]
-pub(super) fn prepare_transformed(
     tables: &SerializedFontTables,
     mut cache: Option<&mut Woff2TransformCache>,
 ) -> Result<PreparedWoff2, Error> {
-    let mut ordered = tables
-        .tables()
-        .iter()
-        .filter(|table| table.tag != *b"DSIG")
-        .collect::<Vec<_>>();
+    let mut ordered = Vec::with_capacity(tables.tables().len());
+    let mut glyf = None;
+    let mut loca = None;
+    let mut head = None;
+    let mut maxp = None;
+    for table in tables.tables() {
+        let required = match &table.tag {
+            b"glyf" => Some(&mut glyf),
+            b"loca" => Some(&mut loca),
+            b"head" => Some(&mut head),
+            b"maxp" => Some(&mut maxp),
+            b"DSIG" => continue,
+            _ => None,
+        };
+        if let Some(required) = required
+            && required.replace(table).is_some()
+        {
+            return Err(invalid_data("duplicate required WOFF2 table"));
+        }
+        ordered.push(table);
+    }
     if ordered.is_empty() {
         return Err(Error::new(ErrorKind::InvalidInput, "WOFF2 requires tables"));
     }
+    let (Some(glyf), Some(loca), Some(head), Some(maxp)) = (glyf, loca, head, maxp) else {
+        return Err(invalid_data(
+            "transformed WOFF2 requires head, maxp, glyf, and loca",
+        ));
+    };
     ordered.sort_unstable_by_key(|table| table.tag);
     move_loca_after_glyf(&mut ordered);
-
-    let glyf = required_table(&ordered, *b"glyf")?;
-    let loca = required_table(&ordered, *b"loca")?;
-    let head = required_table(&ordered, *b"head")?;
-    let maxp = required_table(&ordered, *b"maxp")?;
     let head_table =
         Head::read(FontData::new(&head.bytes)).map_err(|_| invalid_data("invalid head table"))?;
     let maxp_table =
@@ -157,17 +111,7 @@ pub(super) fn prepare_transformed(
     let payload = if let Some(hit) = cache.as_deref().and_then(|cache| cache.transformed(&key)) {
         hit
     } else {
-        let normalized = normalized_glyf_loca(glyf, loca, index_format, num_glyphs)?;
-        let transformed =
-            transform_glyf(glyf, loca, index_format, normalized.loca_format, num_glyphs)?;
-        let payload = Woff2TransformPayload {
-            transformed,
-            normalized_glyf_len: normalized.glyf_len,
-            normalized_glyf_checksum: normalized.glyf_checksum,
-            normalized_loca_format: normalized.loca_format,
-            normalized_loca_len: normalized.loca_len,
-            normalized_loca_checksum: normalized.loca_checksum,
-        };
+        let payload = transform_glyf_loca(glyf, loca, index_format, num_glyphs)?;
         if let Some(cache) = cache.as_deref_mut() {
             cache.insert(key, payload.clone());
         }
@@ -188,7 +132,7 @@ pub(super) fn prepare_transformed(
     let mut directory = Vec::new();
     let mut stream = Vec::new();
     for table in &ordered {
-        write_transformed_directory_entry(
+        write_directory_entry(
             &mut directory,
             table,
             payload.transformed.len(),
@@ -210,20 +154,6 @@ pub(super) fn prepare_transformed(
             .map_err(|_| invalid_data("WOFF2 table count exceeds u16"))?,
         total_sfnt_size: total_sfnt_size(&ordered, &normalized)?,
     })
-}
-
-fn required_table<'a>(
-    tables: &[&'a SerializedTable],
-    tag: [u8; 4],
-) -> Result<&'a SerializedTable, Error> {
-    let mut matches = tables.iter().copied().filter(|table| table.tag == tag);
-    let table = matches
-        .next()
-        .ok_or_else(|| invalid_data("transformed WOFF2 requires head, maxp, glyf, and loca"))?;
-    if matches.next().is_some() {
-        return Err(invalid_data("duplicate required WOFF2 table"));
-    }
-    Ok(table)
 }
 
 fn total_sfnt_size(
@@ -254,36 +184,136 @@ struct NormalizedGlyfLoca {
     loca_checksum: u32,
 }
 
-fn normalized_glyf_loca(
-    glyf: &SerializedTable,
-    loca: &SerializedTable,
-    index_format: i16,
+fn transform_glyf_loca(
+    glyf_table: &SerializedTable,
+    loca_table: &SerializedTable,
+    source_index_format: i16,
     num_glyphs: u16,
-) -> Result<NormalizedGlyfLoca, Error> {
-    let loca_table = Loca::read(FontData::new(&loca.bytes), index_format == 1)
+) -> Result<Woff2TransformPayload, Error> {
+    let glyf = Glyf::read(FontData::new(&glyf_table.bytes))
+        .map_err(|_| invalid_data("invalid glyf table"))?;
+    let loca = Loca::read(FontData::new(&loca_table.bytes), source_index_format == 1)
         .map_err(|_| invalid_data("invalid loca table"))?;
-    let glyf_table =
-        Glyf::read(FontData::new(&glyf.bytes)).map_err(|_| invalid_data("invalid glyf table"))?;
+    if loca.len() != usize::from(num_glyphs) {
+        return Err(invalid_data("maxp numGlyphs does not match loca length"));
+    }
+    if !loca.all_offsets_are_ascending()
+        || loca.get_raw(usize::from(num_glyphs)).unwrap_or(u32::MAX) as usize
+            > glyf_table.bytes.len()
+    {
+        return Err(invalid_data(
+            "loca offsets must be ascending and within glyf",
+        ));
+    }
+
     let mut normalized_glyf = Vec::new();
     let mut offsets = Vec::with_capacity(usize::from(num_glyphs) + 1);
-    for glyph_id in 0..=num_glyphs {
+    let mut streams = GlyfStreams {
+        bbox_bitmap: vec![0; usize::from(num_glyphs).div_ceil(32) * 4],
+        ..Default::default()
+    };
+    let mut points = Vec::new();
+    let mut flags = Vec::new();
+    for glyph_id in 0..num_glyphs {
         offsets.push(normalized_glyf.len());
-        if glyph_id == num_glyphs {
-            break;
-        }
-        let glyph = loca_table
-            .get_glyf(GlyphId::new(u32::from(glyph_id)), &glyf_table)
+        let glyph = loca
+            .get_glyf(GlyphId::new(u32::from(glyph_id)), &glyf)
             .map_err(|_| invalid_data("invalid glyph record"))?;
-        if let Some(glyph) = glyph {
-            let Glyph::Simple(glyph) = glyph else {
-                return Err(invalid_data("composite glyphs are not supported"));
-            };
-            write_normalized_simple_glyph(&glyph, &mut normalized_glyf)?;
+        let Some(glyph) = glyph else {
+            streams.contours.extend_from_slice(&0_u16.to_be_bytes());
+            continue;
+        };
+        let Glyph::Simple(glyph) = glyph else {
+            return Err(invalid_data("composite glyphs are not supported"));
+        };
+        let contour_count = glyph.number_of_contours();
+        if contour_count <= 0 {
+            return Err(invalid_data("non-empty zero-contour glyph is malformed"));
         }
+        let end_points = glyph.end_pts_of_contours();
+        if end_points.len() != contour_count as usize
+            || end_points
+                .windows(2)
+                .any(|pair| pair[0].get() >= pair[1].get())
+        {
+            return Err(invalid_data("invalid simple glyph contour endpoints"));
+        }
+        let point_count = glyph.num_points();
+        points.resize(point_count, Point::<i32>::default());
+        flags.resize(point_count, PointFlags::default());
+        glyph
+            .read_points_fast(&mut points, &mut flags)
+            .map_err(|_| invalid_data("invalid simple glyph coordinates"))?;
+
+        write_normalized_simple_glyph(&glyph, &points, &flags, &mut normalized_glyf)?;
         normalized_glyf.resize((normalized_glyf.len() + 3) & !3, 0);
+
+        streams
+            .contours
+            .extend_from_slice(&(contour_count as u16).to_be_bytes());
+        let mut contour_start = 0_usize;
+        for end in end_points {
+            let contour_end = usize::from(end.get()) + 1;
+            write_255_u16(
+                u16::try_from(contour_end - contour_start)
+                    .map_err(|_| invalid_data("simple glyph contour is too large"))?,
+                &mut streams.points,
+            );
+            contour_start = contour_end;
+        }
+
+        let mut last_x = 0;
+        let mut last_y = 0;
+        for (point, flag) in points.iter().zip(&flags) {
+            write_triplet(
+                flag.is_on_curve(),
+                point.x - last_x,
+                point.y - last_y,
+                &mut streams.flags,
+                &mut streams.glyphs,
+            );
+            last_x = point.x;
+            last_y = point.y;
+        }
+        write_255_u16(glyph.instruction_length(), &mut streams.glyphs);
+        streams.instructions.extend_from_slice(glyph.instructions());
+
+        if glyph.has_overlapping_contours() {
+            if streams.overlap_bitmap.is_empty() {
+                streams
+                    .overlap_bitmap
+                    .resize(usize::from(num_glyphs).div_ceil(8), 0);
+            }
+            set_bitmap_bit(&mut streams.overlap_bitmap, usize::from(glyph_id));
+        }
+        let computed_bbox = points.iter().fold(
+            (points[0].x, points[0].y, points[0].x, points[0].y),
+            |(x_min, y_min, x_max, y_max), point| {
+                (
+                    x_min.min(point.x),
+                    y_min.min(point.y),
+                    x_max.max(point.x),
+                    y_max.max(point.y),
+                )
+            },
+        );
+        if computed_bbox
+            != (
+                i32::from(glyph.x_min()),
+                i32::from(glyph.y_min()),
+                i32::from(glyph.x_max()),
+                i32::from(glyph.y_max()),
+            )
+        {
+            set_bitmap_bit(&mut streams.bbox_bitmap, usize::from(glyph_id));
+            for value in [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()] {
+                streams.bboxes.extend_from_slice(&value.to_be_bytes());
+            }
+        }
     }
+    offsets.push(normalized_glyf.len());
     let loca_format =
-        i16::from(index_format == 1 || normalized_glyf.len() / 2 > usize::from(u16::MAX));
+        i16::from(source_index_format == 1 || normalized_glyf.len() / 2 > usize::from(u16::MAX));
     let mut normalized_loca =
         Vec::with_capacity(offsets.len() * if loca_format == 0 { 2 } else { 4 });
     for offset in offsets {
@@ -297,30 +327,26 @@ fn normalized_glyf_loca(
             );
         }
     }
-    Ok(NormalizedGlyfLoca {
-        glyf_len: normalized_glyf.len(),
-        glyf_checksum: compute_checksum(&normalized_glyf),
-        loca_format,
-        loca_len: normalized_loca.len(),
-        loca_checksum: compute_checksum(&normalized_loca),
+    Ok(Woff2TransformPayload {
+        transformed: finish_glyf_transform(streams, num_glyphs, loca_format)?,
+        normalized_glyf_len: normalized_glyf.len(),
+        normalized_glyf_checksum: compute_checksum(&normalized_glyf),
+        normalized_loca_format: loca_format,
+        normalized_loca_len: normalized_loca.len(),
+        normalized_loca_checksum: compute_checksum(&normalized_loca),
     })
 }
 
 fn write_normalized_simple_glyph(
     glyph: &SimpleGlyph<'_>,
+    points: &[Point<i32>],
+    source_flags: &[PointFlags],
     output: &mut Vec<u8>,
 ) -> Result<(), Error> {
     let contour_count = glyph.number_of_contours();
     if contour_count <= 0 {
         return Err(invalid_data("non-empty zero-contour glyph is malformed"));
     }
-    let point_count = glyph.num_points();
-    let mut points = vec![Point::<i32>::default(); point_count];
-    let mut source_flags = vec![PointFlags::default(); point_count];
-    glyph
-        .read_points_fast(&mut points, &mut source_flags)
-        .map_err(|_| invalid_data("invalid simple glyph coordinates"))?;
-
     output.extend_from_slice(&contour_count.to_be_bytes());
     for value in [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()] {
         output.extend_from_slice(&value.to_be_bytes());
@@ -331,12 +357,12 @@ fn write_normalized_simple_glyph(
     output.extend_from_slice(&glyph.instruction_length().to_be_bytes());
     output.extend_from_slice(glyph.instructions());
 
-    let mut flags = Vec::with_capacity(point_count);
+    let mut flags = Vec::with_capacity(points.len());
     let mut x_coordinates = Vec::new();
     let mut y_coordinates = Vec::new();
     let mut last_x = 0_i32;
     let mut last_y = 0_i32;
-    for (index, (point, source_flag)) in points.iter().zip(&source_flags).enumerate() {
+    for (index, (point, source_flag)) in points.iter().zip(source_flags).enumerate() {
         let dx = point.x - last_x;
         let dy = point.y - last_y;
         let mut flag = u8::from(source_flag.is_on_curve());
@@ -474,127 +500,11 @@ struct GlyfStreams {
     overlap_bitmap: Vec<u8>,
 }
 
-fn transform_glyf(
-    glyf_table: &SerializedTable,
-    loca_table: &SerializedTable,
-    source_index_format: i16,
-    transformed_index_format: i16,
+fn finish_glyf_transform(
+    streams: GlyfStreams,
     num_glyphs: u16,
+    transformed_index_format: i16,
 ) -> Result<Vec<u8>, Error> {
-    let glyf = Glyf::read(FontData::new(&glyf_table.bytes))
-        .map_err(|_| invalid_data("invalid glyf table"))?;
-    let loca = Loca::read(FontData::new(&loca_table.bytes), source_index_format == 1)
-        .map_err(|_| invalid_data("invalid loca table"))?;
-    if loca.len() != usize::from(num_glyphs) {
-        return Err(invalid_data("maxp numGlyphs does not match loca length"));
-    }
-    if !loca.all_offsets_are_ascending()
-        || loca.get_raw(usize::from(num_glyphs)).unwrap_or(u32::MAX) as usize
-            > glyf_table.bytes.len()
-    {
-        return Err(invalid_data(
-            "loca offsets must be ascending and within glyf",
-        ));
-    }
-
-    let mut streams = GlyfStreams {
-        bbox_bitmap: vec![0; usize::from(num_glyphs).div_ceil(32) * 4],
-        ..Default::default()
-    };
-    for glyph_id in 0..num_glyphs {
-        let glyph = loca
-            .get_glyf(GlyphId::new(u32::from(glyph_id)), &glyf)
-            .map_err(|_| invalid_data("invalid glyph record"))?;
-        let Some(glyph) = glyph else {
-            streams.contours.extend_from_slice(&0_u16.to_be_bytes());
-            continue;
-        };
-        let Glyph::Simple(glyph) = glyph else {
-            return Err(invalid_data("composite glyphs are not supported"));
-        };
-        let contour_count = glyph.number_of_contours();
-        if contour_count <= 0 {
-            return Err(invalid_data("non-empty zero-contour glyph is malformed"));
-        }
-        let end_points = glyph.end_pts_of_contours();
-        if end_points.len() != contour_count as usize
-            || end_points
-                .windows(2)
-                .any(|pair| pair[0].get() >= pair[1].get())
-        {
-            return Err(invalid_data("invalid simple glyph contour endpoints"));
-        }
-        let point_count = glyph.num_points();
-        let mut points = vec![Point::<i32>::default(); point_count];
-        let mut flags = vec![PointFlags::default(); point_count];
-        glyph
-            .read_points_fast(&mut points, &mut flags)
-            .map_err(|_| invalid_data("invalid simple glyph coordinates"))?;
-
-        streams
-            .contours
-            .extend_from_slice(&(contour_count as u16).to_be_bytes());
-        let mut contour_start = 0_usize;
-        for end in end_points {
-            let contour_end = usize::from(end.get()) + 1;
-            write_255_u16(
-                u16::try_from(contour_end - contour_start)
-                    .map_err(|_| invalid_data("simple glyph contour is too large"))?,
-                &mut streams.points,
-            );
-            contour_start = contour_end;
-        }
-
-        let mut last_x = 0;
-        let mut last_y = 0;
-        for (point, flag) in points.iter().zip(&flags) {
-            write_triplet(
-                flag.is_on_curve(),
-                point.x - last_x,
-                point.y - last_y,
-                &mut streams.flags,
-                &mut streams.glyphs,
-            );
-            last_x = point.x;
-            last_y = point.y;
-        }
-        write_255_u16(glyph.instruction_length(), &mut streams.glyphs);
-        streams.instructions.extend_from_slice(glyph.instructions());
-
-        if glyph.has_overlapping_contours() {
-            if streams.overlap_bitmap.is_empty() {
-                streams
-                    .overlap_bitmap
-                    .resize(usize::from(num_glyphs).div_ceil(8), 0);
-            }
-            set_bitmap_bit(&mut streams.overlap_bitmap, usize::from(glyph_id));
-        }
-        let computed_bbox = points.iter().fold(
-            (points[0].x, points[0].y, points[0].x, points[0].y),
-            |(x_min, y_min, x_max, y_max), point| {
-                (
-                    x_min.min(point.x),
-                    y_min.min(point.y),
-                    x_max.max(point.x),
-                    y_max.max(point.y),
-                )
-            },
-        );
-        if computed_bbox
-            != (
-                i32::from(glyph.x_min()),
-                i32::from(glyph.y_min()),
-                i32::from(glyph.x_max()),
-                i32::from(glyph.y_max()),
-            )
-        {
-            set_bitmap_bit(&mut streams.bbox_bitmap, usize::from(glyph_id));
-            for value in [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()] {
-                streams.bboxes.extend_from_slice(&value.to_be_bytes());
-            }
-        }
-    }
-
     let bbox_len = streams
         .bbox_bitmap
         .len()
@@ -743,7 +653,6 @@ fn assemble(prepared: &PreparedWoff2, compressed: &[u8]) -> Result<Vec<u8>, Erro
     Ok(output)
 }
 
-#[cfg_attr(not(test), allow(dead_code))]
 fn transform_cache_key(tag: [u8; 4], transform_version: u8, inputs: &[&[u8]]) -> u64 {
     let mut hasher = FxHasher::default();
     hasher.write(&tag);
@@ -755,34 +664,19 @@ fn transform_cache_key(tag: [u8; 4], transform_version: u8, inputs: &[&[u8]]) ->
 }
 
 fn move_loca_after_glyf(tables: &mut Vec<&SerializedTable>) {
-    let Some(loca_index) = tables.iter().position(|table| table.tag == *b"loca") else {
-        return;
-    };
+    let loca_index = tables
+        .iter()
+        .position(|table| table.tag == *b"loca")
+        .expect("required loca table must be present");
     let loca = tables.remove(loca_index);
-    if let Some(glyf_index) = tables.iter().position(|table| table.tag == *b"glyf") {
-        tables.insert(glyf_index + 1, loca);
-    } else {
-        tables.insert(loca_index.min(tables.len()), loca);
-    }
+    let glyf_index = tables
+        .iter()
+        .position(|table| table.tag == *b"glyf")
+        .expect("required glyf table must be present");
+    tables.insert(glyf_index + 1, loca);
 }
 
-#[cfg(any(test, feature = "bench"))]
-fn write_directory_entry(output: &mut Vec<u8>, table: &SerializedTable) -> Result<(), Error> {
-    let index = KNOWN_TAGS.iter().position(|tag| tag == &table.tag);
-    let transform = u8::from(matches!(&table.tag, b"glyf" | b"loca")) * 3;
-    output.push(index.unwrap_or(63) as u8 | transform << 6);
-    if index.is_none() {
-        output.extend_from_slice(&table.tag);
-    }
-    write_base128(
-        u32::try_from(table.bytes.len())
-            .map_err(|_| Error::new(ErrorKind::InvalidData, "table size exceeds u32"))?,
-        output,
-    );
-    Ok(())
-}
-
-fn write_transformed_directory_entry(
+fn write_directory_entry(
     output: &mut Vec<u8>,
     table: &SerializedTable,
     transformed_glyf_len: usize,
@@ -930,7 +824,10 @@ mod tests {
 
     #[test]
     fn writes_known_and_unknown_directory_entries() {
-        for (tag, expected_flag) in [(*b"glyf", 0xca), (*b"loca", 0xcb)] {
+        for (tag, expected) in [
+            (*b"glyf", &[10, 127, 64][..]),
+            (*b"loca", &[11, 127, 0][..]),
+        ] {
             let mut output = Vec::new();
             write_directory_entry(
                 &mut output,
@@ -939,9 +836,12 @@ mod tests {
                     checksum: 0,
                     bytes: vec![0; 127],
                 },
+                64,
+                127,
+                127,
             )
             .unwrap();
-            assert_eq!(output, [expected_flag, 127]);
+            assert_eq!(output, expected);
         }
 
         let mut output = Vec::new();
@@ -952,6 +852,9 @@ mod tests {
                 checksum: 0,
                 bytes: vec![0; 128],
             },
+            64,
+            127,
+            127,
         )
         .unwrap();
         assert_eq!(output, [63, b'T', b'E', b'S', b'T', 0x81, 0]);
@@ -988,22 +891,14 @@ mod tests {
     }
 
     #[test]
-    fn identity_preparation_does_not_populate_the_transform_cache() {
-        let mut cache = Woff2TransformCache::default();
-        prepare(&fixture_font_tables(), Some(&mut cache)).unwrap();
-        assert_eq!(cache.compile_count, 0);
-        assert_eq!(cache.transformed(&0), None);
-    }
-
-    #[test]
-    fn transformed_cache_hits_invalidates_and_prunes() {
+    fn cache_hits_invalidates_and_prunes() {
         let tables = fixture_font_tables();
         let mut cache = Woff2TransformCache::default();
-        prepare_transformed(&tables, Some(&mut cache)).unwrap();
+        prepare(&tables, Some(&mut cache)).unwrap();
         assert_eq!(cache.compile_count, 1);
 
         cache.insert(99, cached_payload(99));
-        prepare_transformed(&tables, Some(&mut cache)).unwrap();
+        prepare(&tables, Some(&mut cache)).unwrap();
         assert_eq!(cache.compile_count, 2);
         assert_eq!(cache.transformed(&99), None);
 
@@ -1014,35 +909,39 @@ mod tests {
             .1
             .push(0);
         let changed = SerializedFontTables::new(raw).unwrap();
-        prepare_transformed(&changed, Some(&mut cache)).unwrap();
+        prepare(&changed, Some(&mut cache)).unwrap();
         assert_eq!(cache.compile_count, 3);
     }
 
     #[test]
-    fn transformed_path_rejects_malformed_required_tables() {
+    fn rejects_malformed_required_tables() {
         let tables = fixture_font_tables();
 
         let mut missing_pair = raw_tables(&tables);
         missing_pair.retain(|(tag, _)| tag != b"loca");
-        assert!(
-            prepare_transformed(&SerializedFontTables::new(missing_pair).unwrap(), None).is_err()
-        );
+        assert!(prepare(&SerializedFontTables::new(missing_pair).unwrap(), None).is_err());
 
         let mut invalid_format = raw_tables(&tables);
         table_bytes_mut(&mut invalid_format, b"head")[50..52].copy_from_slice(&2_i16.to_be_bytes());
-        assert!(
-            prepare_transformed(&SerializedFontTables::new(invalid_format).unwrap(), None).is_err()
-        );
+        assert!(prepare(&SerializedFontTables::new(invalid_format).unwrap(), None).is_err());
 
         let mut wrong_count = raw_tables(&tables);
         table_bytes_mut(&mut wrong_count, b"loca").truncate(2);
-        assert!(
-            prepare_transformed(&SerializedFontTables::new(wrong_count).unwrap(), None).is_err()
-        );
+        assert!(prepare(&SerializedFontTables::new(wrong_count).unwrap(), None).is_err());
+
+        let mut duplicate = raw_tables(&tables);
+        let head = duplicate
+            .iter()
+            .find(|(tag, _)| tag == b"head")
+            .unwrap()
+            .1
+            .clone();
+        duplicate.push((*b"head", head));
+        assert!(prepare(&SerializedFontTables::new(duplicate).unwrap(), None).is_err());
     }
 
     #[test]
-    fn transformed_path_rejects_composites_and_nonempty_zero_contours() {
+    fn rejects_composites_and_nonempty_zero_contours() {
         for contour_count in [-1_i16, 0] {
             let tables = fixture_font_tables();
             let mut raw = raw_tables(&tables);
@@ -1053,7 +952,7 @@ mod tests {
             table_bytes_mut(&mut raw, b"glyf")[start..start + 2]
                 .copy_from_slice(&contour_count.to_be_bytes());
             let malformed = SerializedFontTables::new(raw).unwrap();
-            assert!(prepare_transformed(&malformed, None).is_err());
+            assert!(prepare(&malformed, None).is_err());
         }
     }
 
@@ -1064,33 +963,14 @@ mod tests {
         let compressed = compress(&prepared, 11).unwrap();
         assert_eq!(
             assemble(&prepared, &compressed).unwrap(),
-            encode(&tables, 11).unwrap()
+            encode(&tables, 11, None).unwrap()
         );
     }
 
     #[test]
-    fn no_transform_woff2_round_trips() {
+    fn woff2_reference_decodes_semantically() {
         let tables = fixture_font_tables();
-        let output = encode(&tables, 11).unwrap();
-        assert_eq!(&output[..4], b"wOF2");
-        assert_eq!(
-            u32::from_be_bytes(output[8..12].try_into().unwrap()),
-            output.len() as u32
-        );
-        assert_eq!(
-            u16::from_be_bytes(output[12..14].try_into().unwrap()) as usize,
-            tables.tables().len()
-        );
-        assert_directory(&output, &tables);
-
-        let decoded = ::woff::version2::decompress(&output).expect("WOFF2 should decode");
-        assert_same_semantics(tables.ttf(), &decoded);
-    }
-
-    #[test]
-    fn transformed_woff2_reference_decodes_semantically() {
-        let tables = fixture_font_tables();
-        let output = encode_transformed(&tables, 11, None).unwrap();
+        let output = encode(&tables, 11, None).unwrap();
         let decoded =
             ::woff::version2::decompress(&output).expect("transformed WOFF2 should decode");
         assert_same_semantics(tables.ttf(), &decoded);
@@ -1112,7 +992,7 @@ mod tests {
     }
 
     #[test]
-    fn transformed_path_promotes_short_loca_when_normalization_overflows() {
+    fn promotes_short_loca_when_normalization_overflows() {
         const GLYPH_COUNT: u16 = 6_554;
         const GLYPH_SIZE: usize = 18;
 
@@ -1131,7 +1011,7 @@ mod tests {
             .collect();
         let tables = SerializedFontTables::new(raw).unwrap();
 
-        let output = encode_transformed(&tables, 0, None).unwrap();
+        let output = encode(&tables, 0, None).unwrap();
         let decoded =
             ::woff::version2::decompress(&output).expect("transformed WOFF2 should decode");
         let head = sfnt_table(&decoded, b"head").unwrap();
@@ -1151,7 +1031,7 @@ mod tests {
         raw_tables.push((*b"DSIG", vec![0; 8]));
         let tables = SerializedFontTables::new(raw_tables).unwrap();
 
-        let output = encode(&tables, 11).unwrap();
+        let output = encode(&tables, 11, None).unwrap();
         assert_eq!(
             u16::from_be_bytes(output[12..14].try_into().unwrap()) as usize,
             tables.tables().len() - 1
@@ -1163,18 +1043,6 @@ mod tests {
             u16::from_be_bytes(head[16..18].try_into().unwrap()) & (1 << 11),
             0
         );
-    }
-
-    #[test]
-    fn no_transform_woff2_is_deterministic_and_matches_native_semantics() {
-        let tables = fixture_font_tables();
-        let internal = encode(&tables, 11).unwrap();
-        assert_eq!(internal, encode(&tables, 11).unwrap());
-        let native = ::woff::version2::compress(tables.ttf(), "", 11, false).unwrap();
-        let internal = ::woff::version2::decompress(&internal).unwrap();
-        let native = ::woff::version2::decompress(&native).unwrap();
-        assert_same_semantics(tables.ttf(), &internal);
-        assert_same_semantics(tables.ttf(), &native);
     }
 
     fn assert_same_semantics(source: &[u8], decoded: &[u8]) {
@@ -1195,67 +1063,6 @@ mod tests {
         assert_eq!(
             source.name().unwrap().offset_data().as_bytes(),
             decoded.name().unwrap().offset_data().as_bytes()
-        );
-    }
-
-    fn assert_directory(output: &[u8], tables: &SerializedFontTables) {
-        let count = u16::from_be_bytes(output[12..14].try_into().unwrap()) as usize;
-        let mut offset = HEADER_SIZE;
-        let mut entries = Vec::with_capacity(count);
-        for _ in 0..count {
-            let flags = output[offset];
-            offset += 1;
-            let index = usize::from(flags & 0x3f);
-            let tag = if index == 63 {
-                let tag = output[offset..offset + 4].try_into().unwrap();
-                offset += 4;
-                tag
-            } else {
-                KNOWN_TAGS[index]
-            };
-            let length = read_base128(output, &mut offset);
-            entries.push((tag, flags >> 6, length));
-        }
-
-        let mut expected = tables
-            .tables()
-            .iter()
-            .filter(|table| table.tag != *b"DSIG")
-            .collect::<Vec<_>>();
-        expected.sort_unstable_by_key(|table| table.tag);
-        move_loca_after_glyf(&mut expected);
-        assert_eq!(
-            entries,
-            expected
-                .iter()
-                .map(|table| {
-                    (
-                        table.tag,
-                        if matches!(&table.tag, b"glyf" | b"loca") {
-                            3
-                        } else {
-                            0
-                        },
-                        table.bytes.len() as u32,
-                    )
-                })
-                .collect::<Vec<_>>()
-        );
-
-        let compressed_size = u32::from_be_bytes(output[20..24].try_into().unwrap()) as usize;
-        let stream_end = offset + compressed_size;
-        assert!(stream_end <= output.len());
-        assert!(output.len() - stream_end < 4);
-        assert!(output[stream_end..].iter().all(|byte| *byte == 0));
-        let expected_sfnt_size = 12
-            + 16 * expected.len()
-            + expected
-                .iter()
-                .map(|table| (table.bytes.len() + 3) & !3)
-                .sum::<usize>();
-        assert_eq!(
-            u32::from_be_bytes(output[16..20].try_into().unwrap()) as usize,
-            expected_sfnt_size
         );
     }
 
