@@ -86,35 +86,97 @@ struct CachedCompiledGlyph {
 pub(crate) struct TtfGlyphCache {
     entries: HashMap<u64, CachedCompiledGlyph>,
     tables: HashMap<u64, ([u8; 4], Vec<u8>)>,
-    woff1_payloads: HashMap<u64, Vec<u8>>,
+    woff1_payloads: Woff1PayloadCache,
+    woff2_transforms: Woff2TransformCache,
     #[cfg(test)]
     pub compile_count: usize,
     #[cfg(test)]
     pub table_compile_count: usize,
-    #[cfg(test)]
-    pub woff1_payload_compile_count: usize,
 }
 
-impl TtfGlyphCache {
+#[derive(Clone, Default)]
+pub(crate) struct Woff1PayloadCache {
+    entries: HashMap<u64, Vec<u8>>,
+    #[cfg(test)]
+    compile_count: usize,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct Woff2TransformCache {
+    entries: HashMap<u64, Woff2TransformPayload>,
+    #[cfg(test)]
+    pub compile_count: usize,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Woff2TransformPayload {
+    pub transformed: Vec<u8>,
+    pub normalized_glyf_len: usize,
+    pub normalized_glyf_checksum: u32,
+    pub normalized_loca_format: i16,
+    pub normalized_loca_len: usize,
+    pub normalized_loca_checksum: u32,
+}
+
+impl Woff1PayloadCache {
     pub(crate) fn woff1_payload(&self, key: &u64) -> Option<Vec<u8>> {
-        self.woff1_payloads.get(key).cloned()
+        self.entries.get(key).cloned()
     }
 
     pub(crate) fn insert_woff1_payload(&mut self, key: u64, payload: Vec<u8>) {
         #[cfg(test)]
         {
-            self.woff1_payload_compile_count += 1;
+            self.compile_count += 1;
         }
-        self.woff1_payloads.insert(key, payload);
+        self.entries.insert(key, payload);
     }
 
     pub(crate) fn retain_woff1_payloads(&mut self, used_keys: &HashSet<u64>) {
-        self.woff1_payloads.retain(|key, _| used_keys.contains(key));
+        self.entries.retain(|key, _| used_keys.contains(key));
     }
 
     #[cfg(feature = "bench")]
     pub(crate) fn clear_woff1_payloads(&mut self) {
-        self.woff1_payloads.clear();
+        self.entries.clear();
+    }
+}
+
+impl Woff2TransformCache {
+    pub(crate) fn transformed(&self, key: &u64) -> Option<Woff2TransformPayload> {
+        self.entries.get(key).cloned()
+    }
+
+    pub(crate) fn insert(&mut self, key: u64, payload: Woff2TransformPayload) {
+        #[cfg(test)]
+        {
+            self.compile_count += 1;
+        }
+        self.entries.insert(key, payload);
+    }
+
+    pub(crate) fn retain(&mut self, used_keys: &HashSet<u64>) {
+        self.entries.retain(|key, _| used_keys.contains(key));
+    }
+}
+
+impl TtfGlyphCache {
+    pub(crate) fn output_caches(&mut self) -> (&mut Woff1PayloadCache, &mut Woff2TransformCache) {
+        (&mut self.woff1_payloads, &mut self.woff2_transforms)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn woff1_payload_compile_count(&self) -> usize {
+        self.woff1_payloads.compile_count
+    }
+
+    #[cfg(test)]
+    pub(crate) fn woff2_transform_compile_count(&self) -> usize {
+        self.woff2_transforms.compile_count
+    }
+
+    #[cfg(feature = "bench")]
+    pub(crate) fn clear_woff1_payloads(&mut self) {
+        self.woff1_payloads.clear_woff1_payloads();
     }
 }
 

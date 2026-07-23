@@ -123,7 +123,7 @@ pub mod bench_support {
     use crate::sfnt::SerializedFontTables;
     use crate::svg::types::ParsedGlyph;
     use crate::svg::{finalize_glyphs, parse_glyphs};
-    use crate::ttf;
+    use crate::ttf::{self, Woff2TransformCache};
     use write_fonts::FontBuilder;
     use write_fonts::types::Tag;
 
@@ -150,6 +150,13 @@ pub mod bench_support {
     /// Opaque serialized TTF table set used to isolate SFNT assembly costs.
     #[derive(Clone)]
     pub struct BenchSerializedFontTables(SerializedFontTables);
+
+    /// Opaque WOFF2 transform cache used by preparation benchmarks.
+    #[derive(Clone, Default)]
+    pub struct BenchWoff2TransformCache(Woff2TransformCache);
+
+    /// Opaque prepared WOFF2 directory and table stream.
+    pub struct BenchPreparedWoff2(crate::woff::PreparedWoff2);
 
     fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgFile> {
         sources
@@ -246,6 +253,27 @@ pub mod bench_support {
     /// Assemble final TTF bytes with the current serialized-table SFNT writer, without cache reuse.
     pub fn serialized_ttf_uncached(tables: &BenchSerializedFontTables) -> Vec<u8> {
         tables.0.uncached_ttf()
+    }
+
+    /// Encode serialized tables with the internal WOFF2 encoder.
+    pub fn internal_woff2(tables: &BenchSerializedFontTables, quality: u8) -> io::Result<Vec<u8>> {
+        crate::woff::tables_to_woff2(&tables.0, quality, None)
+    }
+
+    /// Prepare the internal WOFF2 stream without Brotli compression.
+    pub fn prepare_internal_woff2(
+        tables: &BenchSerializedFontTables,
+        cache: &mut BenchWoff2TransformCache,
+    ) -> io::Result<BenchPreparedWoff2> {
+        crate::woff::prepare_woff2(&tables.0, &mut cache.0).map(BenchPreparedWoff2)
+    }
+
+    /// Brotli-compress an already prepared internal WOFF2 stream and return its byte length.
+    pub fn compress_prepared_internal_woff2(
+        prepared: &BenchPreparedWoff2,
+        quality: u8,
+    ) -> io::Result<usize> {
+        crate::woff::compress_prepared_woff2(&prepared.0, quality)
     }
 
     /// Assemble final TTF bytes with write-fonts FontBuilder from the same serialized tables.
@@ -692,12 +720,18 @@ fn build_font_outputs(
             .unwrap_or(11);
 
         let ttf_tables = Arc::new(ttf_tables);
-        let raw_ttf = (wants_ttf || wants_woff2).then(|| ttf_tables.ttf_arc());
-        let ttf_font = wants_ttf.then(|| Arc::clone(raw_ttf.as_ref().unwrap()));
+        let ttf_font = wants_ttf.then(|| ttf_tables.ttf_arc());
+        let (woff1_cache, woff2_cache) = match ttf_cache {
+            Some(cache) => {
+                let (woff1, woff2) = cache.output_caches();
+                (Some(woff1), Some(woff2))
+            }
+            None => (None, None),
+        };
         let (woff_font, (woff2_font, eot_font)) = join(
             || -> std::io::Result<Option<Vec<u8>>> {
                 if wants_woff {
-                    match ttf_cache {
+                    match woff1_cache {
                         Some(cache) => {
                             woff::tables_to_woff1_cached(&ttf_tables, woff_metadata, cache)
                         }
@@ -712,7 +746,7 @@ fn build_font_outputs(
                 join(
                     || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_woff2 {
-                            woff::ttf_to_woff2(raw_ttf.as_ref().unwrap(), woff2_quality).map(Some)
+                            woff::tables_to_woff2(&ttf_tables, woff2_quality, woff2_cache).map(Some)
                         } else {
                             Ok(None)
                         }

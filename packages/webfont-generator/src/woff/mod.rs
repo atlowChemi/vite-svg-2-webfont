@@ -2,10 +2,12 @@ use std::hash::Hasher;
 use std::io::{Error, ErrorKind, Write};
 
 use crate::sfnt::SerializedFontTables;
-use crate::ttf::TtfGlyphCache;
+use crate::ttf::{Woff1PayloadCache, Woff2TransformCache};
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
 use rustc_hash::FxHasher;
+
+mod woff2;
 
 const WOFF_HEADER_SIZE: usize = 44;
 const WOFF_TABLE_ENTRY_SIZE: usize = 20;
@@ -29,7 +31,7 @@ pub(crate) fn tables_to_woff1(
 pub(crate) fn tables_to_woff1_cached(
     tables: &SerializedFontTables,
     metadata: Option<&str>,
-    cache: &mut TtfGlyphCache,
+    cache: &mut Woff1PayloadCache,
 ) -> Result<Vec<u8>, Error> {
     let mut woff_buf = encode_woff1(tables, Some(cache))?;
     if let Some(metadata) = metadata {
@@ -38,11 +40,37 @@ pub(crate) fn tables_to_woff1_cached(
     Ok(woff_buf)
 }
 
-/// Encodes `ttf` as WOFF2. `quality` is the Brotli compression quality (0–11); callers
-/// are expected to have validated the range (see `validate_generate_webfonts_options`).
+#[cfg(test)]
 pub(crate) fn ttf_to_woff2(ttf: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
     ::woff::version2::compress(ttf, "", quality.min(11) as usize, true)
         .ok_or_else(|| Error::new(ErrorKind::InvalidData, "WOFF2 compression failed"))
+}
+
+pub(crate) fn tables_to_woff2(
+    tables: &SerializedFontTables,
+    quality: u8,
+    cache: Option<&mut Woff2TransformCache>,
+) -> Result<Vec<u8>, Error> {
+    woff2::encode(tables, quality, cache)
+}
+
+#[cfg(feature = "bench")]
+pub(crate) struct PreparedWoff2(woff2::PreparedWoff2);
+
+#[cfg(feature = "bench")]
+pub(crate) fn prepare_woff2(
+    tables: &SerializedFontTables,
+    cache: &mut Woff2TransformCache,
+) -> Result<PreparedWoff2, Error> {
+    woff2::prepare(tables, Some(cache)).map(PreparedWoff2)
+}
+
+#[cfg(feature = "bench")]
+pub(crate) fn compress_prepared_woff2(
+    prepared: &PreparedWoff2,
+    quality: u8,
+) -> Result<usize, Error> {
+    woff2::compress(&prepared.0, quality).map(|compressed| compressed.len())
 }
 
 fn inject_woff_metadata(woff: &mut Vec<u8>, metadata: &str) -> Result<(), Error> {
@@ -77,7 +105,7 @@ fn inject_woff_metadata(woff: &mut Vec<u8>, metadata: &str) -> Result<(), Error>
 
 fn encode_woff1(
     tables: &SerializedFontTables,
-    mut cache: Option<&mut TtfGlyphCache>,
+    mut cache: Option<&mut Woff1PayloadCache>,
 ) -> Result<Vec<u8>, Error> {
     let table_count = tables.tables().len();
     let mut used_cache_keys = std::collections::HashSet::new();
@@ -328,6 +356,43 @@ mod tests {
     }
 
     #[test]
+    fn internal_woff2_acceptance_1_glyph() {
+        assert_internal_woff2(1);
+    }
+
+    #[test]
+    fn internal_woff2_acceptance_100_glyphs() {
+        assert_internal_woff2(100);
+    }
+
+    #[test]
+    fn internal_woff2_acceptance_300_glyphs() {
+        assert_internal_woff2(300);
+    }
+
+    #[test]
+    fn internal_woff2_acceptance_600_glyphs() {
+        assert_internal_woff2(600);
+    }
+
+    #[test]
+    fn internal_woff2_is_deterministic_for_curves() {
+        let tables = font_tables(vec![glyph(
+            0,
+            "curve",
+            "M0,0 C4,16 12,-8 16,16 Z",
+            16.0,
+            16.0,
+        )]);
+        for quality in WOFF2_QUALITIES {
+            let output = tables_to_woff2(&tables, quality, None).unwrap();
+            assert_eq!(output, tables_to_woff2(&tables, quality, None).unwrap());
+            let decoded = ::woff::version2::decompress(&output).unwrap();
+            assert_semantically_equal(tables.ttf(), &decoded);
+        }
+    }
+
+    #[test]
     fn woff2_round_trips_an_empty_glyph() {
         assert_woff2_roundtrip(&font_tables(vec![
             glyph(0, "empty", "", 16.0, 16.0),
@@ -397,6 +462,22 @@ mod tests {
                 "WOFF2 baseline changed for {glyph_count} glyphs; inspect it and rerun with UPDATE_WOFF2_FIXTURES=1 to accept it",
             );
         }
+    }
+
+    fn assert_internal_woff2(glyph_count: usize) {
+        let tables = acceptance_font_tables(glyph_count);
+        let mut cache = crate::ttf::Woff2TransformCache::default();
+        for quality in WOFF2_QUALITIES {
+            let output = tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap();
+            assert_eq!(
+                output,
+                tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap()
+            );
+            let decoded = ::woff::version2::decompress(&output)
+                .expect("internal transformed WOFF2 should decode");
+            assert_semantically_equal(tables.ttf(), &decoded);
+        }
+        assert_eq!(cache.compile_count, 1);
     }
 
     fn acceptance_font_tables(glyph_count: usize) -> SerializedFontTables {
