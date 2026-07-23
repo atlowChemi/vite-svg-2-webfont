@@ -1,5 +1,15 @@
 # Changelog
 
+## [8.1.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.1.0...vite-svg-2-webfont-v8.1.1) (2026-07-23)
+
+### Performance Improvements
+
+- **webfont-generator:** make 300-glyph WOFF2-only generation approximately 44.5% faster ([9800712](https://github.com/atlowChemi/vite-svg-2-webfont/commit/980071209ffa22c50fcc12a9d1743f77add2aab7))
+- **webfont-generator:** make incremental WOFF2 content edits approximately 38-41% faster ([9800712](https://github.com/atlowChemi/vite-svg-2-webfont/commit/980071209ffa22c50fcc12a9d1743f77add2aab7))
+- **webfont-generator:** reduce cold WOFF2 transform preparation from 0.944 ms to 0.306 ms at 300 glyphs by decoding each glyph once ([9800712](https://github.com/atlowChemi/vite-svg-2-webfont/commit/980071209ffa22c50fcc12a9d1743f77add2aab7))
+- **webfont-generator:** reduce integrated quality-11 generation from 14.082 ms to 7.248 ms at 100 glyphs, 61.065 ms to 24.830 ms at 300 glyphs, and 122.880 ms to 45.813 ms at 600 glyphs ([9800712](https://github.com/atlowChemi/vite-svg-2-webfont/commit/980071209ffa22c50fcc12a9d1743f77add2aab7))
+- **webfont-generator:** speed up WOFF2 encoding with an internal transformed encoder ([#272](https://github.com/atlowChemi/vite-svg-2-webfont/issues/272)) ([9800712](https://github.com/atlowChemi/vite-svg-2-webfont/commit/980071209ffa22c50fcc12a9d1743f77add2aab7))
+
 ## [8.1.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.0.0...vite-svg-2-webfont-v8.1.0) (2026-07-09)
 
 ### Features
