@@ -648,33 +648,38 @@ fn bench_incremental_write_content_edit(c: &mut Criterion) {
 
 fn bench_specialized_incremental_paths(c: &mut Criterion) {
     let mut group = c.benchmark_group("specialized_incremental_paths");
-    let size = 300;
-    group.bench_function("rename_only/300", |b| {
-        b.iter_batched(
-            || {
-                let fixture = fixtures(size);
-                let result =
-                    webfont_generator::generate_sync(options(fixture.paths.clone(), true), None)
-                        .unwrap();
-                let changed = fixture.paths[size / 2].clone();
-                (fixture, result, changed)
-            },
-            |(fixture, mut result, changed)| {
-                result
-                    .regenerate(
-                        &fixture.paths,
-                        &[(
-                            changed,
-                            GlyphChange::Changed {
-                                name: Some("renamed-glyph".to_owned()),
-                            },
-                        )],
+    for size in SIZES {
+        group.bench_function(format!("rename_only/{size}"), |b| {
+            b.iter_batched(
+                || {
+                    let fixture = fixtures(size);
+                    let result = webfont_generator::generate_sync(
+                        options(fixture.paths.clone(), true),
+                        None,
                     )
-                    .unwrap()
-            },
-            BatchSize::SmallInput,
-        )
-    });
+                    .unwrap();
+                    let changed = fixture.paths[size / 2].clone();
+                    (fixture, result, changed)
+                },
+                |(fixture, mut result, changed)| {
+                    result
+                        .regenerate(
+                            &fixture.paths,
+                            &[(
+                                changed,
+                                GlyphChange::Changed {
+                                    name: Some("renamed-glyph".to_owned()),
+                                },
+                            )],
+                        )
+                        .unwrap()
+                },
+                BatchSize::SmallInput,
+            )
+        });
+    }
+
+    let size = 300;
     group.bench_function("rename_only_woff/300", |b| {
         b.iter_batched(
             || {
@@ -732,30 +737,34 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
             BatchSize::SmallInput,
         )
     });
-    group.bench_function("duplicate_content_add/300", |b| {
-        b.iter_batched(
-            || {
-                let mut fixture = fixtures(size);
-                let duplicate = fixture.dir.join("duplicate-added.svg");
-                std::fs::copy(&fixture.paths[0], &duplicate).unwrap();
-                let duplicate = duplicate.to_string_lossy().into_owned();
-                let result =
-                    webfont_generator::generate_sync(options(fixture.paths.clone(), true), None)
-                        .unwrap();
-                fixture.paths.push(duplicate.clone());
-                (fixture, result, duplicate)
-            },
-            |(fixture, mut result, duplicate)| {
-                result
-                    .regenerate(
-                        &fixture.paths,
-                        &[(duplicate, GlyphChange::Added { name: None })],
+    for size in SIZES {
+        group.bench_function(format!("duplicate_content_add/{size}"), |b| {
+            b.iter_batched(
+                || {
+                    let mut fixture = fixtures(size);
+                    let duplicate = fixture.dir.join("duplicate-added.svg");
+                    std::fs::copy(&fixture.paths[0], &duplicate).unwrap();
+                    let duplicate = duplicate.to_string_lossy().into_owned();
+                    let result = webfont_generator::generate_sync(
+                        options(fixture.paths.clone(), true),
+                        None,
                     )
-                    .unwrap()
-            },
-            BatchSize::SmallInput,
-        )
-    });
+                    .unwrap();
+                    fixture.paths.push(duplicate.clone());
+                    (fixture, result, duplicate)
+                },
+                |(fixture, mut result, duplicate)| {
+                    result
+                        .regenerate(
+                            &fixture.paths,
+                            &[(duplicate, GlyphChange::Added { name: None })],
+                        )
+                        .unwrap()
+                },
+                BatchSize::SmallInput,
+            )
+        });
+    }
     group.finish();
 }
 
