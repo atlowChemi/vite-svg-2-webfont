@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use webfont_generator::bench_support::{
-    clear_woff1_payload_cache, prepare_svg_full, prepare_svg_incremental, BenchGlyphCache,
-    BenchSvgSource,
+    BenchGlyphCache, BenchSvgSource, clear_woff1_payload_cache, prepare_svg_full,
+    prepare_svg_incremental,
 };
 
 mod support;
