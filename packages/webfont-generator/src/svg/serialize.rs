@@ -140,17 +140,15 @@ fn round_to_string(value: f64, round: f64) -> String {
 }
 
 pub(crate) fn optimize_path_data(path_data: &str) -> String {
-    use oxvg_path::{Path, convert::run as optimize_path, parser::Parse as _};
+    use oxvg_path::{Path, geometry::Tolerance, optimize::Options, parser::Parse as _};
 
     let mut path = match Path::parse_string(path_data) {
         Ok(p) => p,
         Err(_) => return path_data.to_owned(),
     };
-    optimize_path(
-        &mut path,
-        &oxvg_path::convert::Options::default(),
-        &oxvg_path::convert::StyleInfo::default(),
-    );
+    let options = Options::all()
+        .difference(Options::CloseSegments | Options::RemoveCloseLine | Options::UniteSegments);
+    path = path.optimize(options, &Tolerance::default());
     path.to_string()
 }
 
