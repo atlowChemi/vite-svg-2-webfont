@@ -38,7 +38,7 @@ iconNames.forEach((name, i) => {
     // the pipeline a non-uniform set so the normalize/global-metric recomputation is realistic.
     const vbW = w + (i % 5) * Math.round(w / 2); // cycles e.g. 24, 36, 48, 60, 72
     const vbH = h + ((i * 3) % 7) * Math.round(h / 3); // independent spread → mixed aspect ratios
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${vbW} ${vbH}">${icon.body}</svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${vbW} ${vbH}">${icon.body}</svg>`;
     const path = join(bulkFixtureDir, `icon-${String(i).padStart(3, '0')}.svg`);
     fileWritePromises.push(writeFile(path, svg));
     bulkFiles.push(path);
@@ -330,6 +330,17 @@ await Promise.all(
         incrementalResults.set(numGlyphs, result);
     }),
 );
+
+describe.each([100, 300, 600])('repeated output getters — %i glyphs', numGlyphs => {
+    const result = incrementalResults.get(numGlyphs)!;
+    const benchOpts: BenchOptions = { time: 1_000, warmupTime: 100, warmupIterations: 20 };
+
+    bench('svg', () => expect(result.svg).toBeDefined(), benchOpts);
+    bench('ttf', () => expect(result.ttf).toBeDefined(), benchOpts);
+    bench('eot', () => expect(result.eot).toBeDefined(), benchOpts);
+    bench('woff', () => expect(result.woff).toBeDefined(), benchOpts);
+    bench('woff2', () => expect(result.woff2).toBeDefined(), benchOpts);
+});
 
 describe.each([100, 300, 600])('changed event with unchanged contents — %i glyphs', numGlyphs => {
     const files = bulkFiles.slice(0, numGlyphs);
