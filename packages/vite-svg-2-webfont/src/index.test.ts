@@ -629,7 +629,7 @@ describe('serve - memoizes generated font outputs', () => {
             if (!watcherHandler) {
                 throw new Error('Watcher not initialized');
             }
-            await watcherHandler([{ path: fileURLToNormalizedPath(svgUrl), kind: 'added' }]);
+            await watcherHandler([{ path: pathJoin(webfontFolder, filename), kind: 'added' }]);
 
             const after = await fetchBufferContent(server, '/iconfont.woff2');
             expect(after).not.toStrictEqual(before);
