@@ -6,7 +6,7 @@ import { setTimeout } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
 import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite';
 import { build, createServer, normalizePath, preview } from 'vite';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
+import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from 'vite-plus/test';
 import { viteSvgToWebfont } from './index';
 import type { IconPluginOptions } from './optionParser';
 import type { AddressInfo } from 'node:net';
@@ -574,6 +574,108 @@ describe('build font write ordering', () => {
                 .map(({ type }) => type)
                 .toSorted(),
         ).toEqual(['ttf', 'woff2']);
+    });
+
+    it('reads each generated font getter once', async () => {
+        const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
+        let getterSpy: MockInstance | undefined;
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            const result = await realGen(options);
+            getterSpy = vi.spyOn(result, 'woff2', 'get');
+            return result;
+        });
+
+        await build({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            build: { assetsInlineLimit: 0, write: false },
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+
+        expect(getterSpy).toHaveBeenCalledOnce();
+    });
+});
+
+describe('serve - memoizes generated font outputs', () => {
+    it('reads the getter once per successful watch generation', async () => {
+        const filename = '__memoized-font-test__.svg';
+        const svgUrl = new URL(`webfont-test/svg/${filename}`, root);
+        let watcherHandler: Parameters<typeof setupWatcherMock>[2] | undefined;
+        let getterSpy: MockInstance | undefined;
+        setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
+            watcherHandler = handler;
+        });
+        const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            const result = await realGen(options);
+            getterSpy = vi.spyOn(result, 'woff2', 'get');
+            return result;
+        });
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+        const server = await created.listen();
+
+        try {
+            const before = await fetchBufferContent(server, '/iconfont.woff2');
+            expect(await fetchBufferContent(server, '/iconfont.woff2')).toStrictEqual(before);
+            expect(getterSpy).toHaveBeenCalledOnce();
+
+            await writeFile(svgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>');
+            if (!watcherHandler) {
+                throw new Error('Watcher not initialized');
+            }
+            await watcherHandler([{ path: fileURLToNormalizedPath(svgUrl), kind: 'added' }]);
+
+            const after = await fetchBufferContent(server, '/iconfont.woff2');
+            expect(after).not.toStrictEqual(before);
+            expect(await fetchBufferContent(server, '/iconfont.woff2')).toStrictEqual(after);
+            expect(getterSpy).toHaveBeenCalledTimes(2);
+        } finally {
+            await Promise.all([server.close(), rm(svgUrl, { force: true })]);
+        }
+    });
+
+    it('keeps the previous output cached when regeneration fails', async () => {
+        let watcherHandler: Parameters<typeof setupWatcherMock>[2] | undefined;
+        let getterSpy: MockInstance | undefined;
+        setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
+            watcherHandler = handler;
+        });
+        const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            const result = await realGen(options);
+            result.regenerate = () => {
+                throw new Error('incremental regeneration failed');
+            };
+            getterSpy = vi.spyOn(result, 'woff2', 'get');
+            return result;
+        });
+        generateWebfontsMock.mockRejectedValueOnce(new Error('fallback generation failed'));
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+        const server = await created.listen();
+
+        try {
+            const before = await fetchBufferContent(server, '/iconfont.woff2');
+            expect(await fetchBufferContent(server, '/iconfont.woff2')).toStrictEqual(before);
+            if (!watcherHandler) {
+                throw new Error('Watcher not initialized');
+            }
+            await expect(watcherHandler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }])).rejects.toThrow('fallback generation failed');
+            expect(await fetchBufferContent(server, '/iconfont.woff2')).toStrictEqual(before);
+            expect(getterSpy).toHaveBeenCalledOnce();
+        } finally {
+            await server.close();
+        }
     });
 });
 

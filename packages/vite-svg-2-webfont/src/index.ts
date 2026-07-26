@@ -47,10 +47,25 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     let _moduleGraph: ModuleGraph | undefined;
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
     let generatedFonts: GenerateWebfontsResult<T> | undefined;
+    const generatedFontBuffers = new Map<T, Buffer>();
     const generatedWebfonts: GeneratedWebfont[] = [];
     const moduleId = options.moduleId ?? DEFAULT_MODULE_ID;
     const virtualModuleId = getVirtualModuleId(moduleId);
     const resolvedVirtualModuleId = getResolvedVirtualModuleId(virtualModuleId);
+
+    const getGeneratedFont = (type: T) => {
+        const cached = generatedFontBuffers.get(type);
+        if (cached) {
+            return cached;
+        }
+        const value = generatedFonts?.[type];
+        if (!value) {
+            return undefined;
+        }
+        const font = Buffer.from(value);
+        generatedFontBuffers.set(type, font);
+        return font;
+    };
 
     const resolveGeneratedWebfonts = (bundle: OutputBundle) => {
         const resolvedWebfonts = new Map<T, string>();
@@ -82,8 +97,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             return css;
         }
         return css?.replace(/url\(".*?\.([^?]+)\?[^"]+"\)/g, (_, type: T) => {
-            const value = generatedFonts![type]!;
-            const font = Buffer.from(value);
+            const font = getGeneratedFont(type)!;
             return `url("data:${MIME_TYPES[type]};charset=utf-8;base64,${font.toString('base64')}")`;
         }) as U;
     };
@@ -130,6 +144,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
         const generateWebfonts = await getGenerateWebfonts();
         generatedFonts = await generateWebfonts(processedOptions);
+        generatedFontBuffers.clear();
         await writeDevFiles();
         if (updateFiles) {
             reloadVirtualModule();
@@ -152,6 +167,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             const orderedFiles = parseFiles(options);
             processedOptions.files = orderedFiles;
             generatedFonts.regenerate(orderedFiles, changes.map(toGlyphChange));
+            generatedFontBuffers.clear();
         } catch {
             await generate(true);
             return;
@@ -243,11 +259,11 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             if (isBuild && !options.inline) {
                 const emitted = await Promise.all(
                     processedOptions.types.map(async (type): Promise<[T, string]> => {
-                        if (!generatedFonts?.[type]) {
+                        const fileContents = getGeneratedFont(type);
+                        if (!fileContents) {
                             throw new Error(`Failed to generate font of type ${type}`);
                         }
 
-                        const fileContents = Buffer.from(generatedFonts[type]);
                         const hash = getBufferHash(fileContents);
                         const filePath = pathJoin(tmpDir, `${processedOptions.fontName}-${hash}.${type}`);
                         // Await the write: Vite reads these temp files when it resolves the
@@ -278,7 +294,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                         res.statusCode = 404;
                         return res.end();
                     }
-                    const font = generatedFonts[fontType];
+                    const font = getGeneratedFont(fontType);
                     res.setHeader('content-type', MIME_TYPES[fontType]);
                     res.setHeader('content-length', font!.length);
                     res.statusCode = 200;
@@ -290,6 +306,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             ac.abort();
             rmDir(tmpDir);
             generatedFonts = undefined;
+            generatedFontBuffers.clear();
             fileRefs = undefined;
             _moduleGraph = undefined;
             _reloadModule = undefined;
