@@ -783,6 +783,102 @@ fn regenerate_reuses_provided_url_css_on_content_edit() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+#[cfg(feature = "napi")]
+#[test]
+fn async_snapshot_carries_reusable_render_cache() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let template = write_temp_template("css-static-async", ".icon { font-family: {{fontName}}; }");
+    let result = generate_with_templates(vec![a.clone(), b.clone()], true, Some(template), None);
+    result.generate_css_pure(None).unwrap();
+
+    let state = result.take_regeneration_state().unwrap();
+    let mut replacement = result.snapshot_for_regeneration(state);
+    write_icon(&dir, "b", D_CHANGED);
+    replacement
+        .regenerate(&[a, b.clone()], &[(b, GlyphChange::Changed { name: None })])
+        .unwrap();
+
+    assert!(replacement.has_carried_css_no_urls_for_test());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[cfg(feature = "napi")]
+#[test]
+fn consecutive_async_snapshots_invalidate_codepoint_dependent_css() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let template = write_temp_template(
+        "css-codepoints-async",
+        "{{#each codepoints}}{{this}}{{/each}}",
+    );
+    let result = generate_with_templates(vec![a.clone(), b.clone()], true, Some(template), None);
+    result.generate_css_pure(None).unwrap();
+
+    let state = result.take_regeneration_state().unwrap();
+    let mut first = result.snapshot_for_regeneration(state);
+    write_icon(&dir, "b", D_CHANGED);
+    first
+        .regenerate(
+            &[a.clone(), b.clone()],
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
+        .unwrap();
+    assert!(first.has_carried_css_no_urls_for_test());
+
+    let state = first.take_regeneration_state().unwrap();
+    let mut second = first.snapshot_for_regeneration(state);
+    let c = write_icon(&dir, "c", D3);
+    second
+        .regenerate(
+            &[a, b, c.clone()],
+            &[(c, GlyphChange::Added { name: None })],
+        )
+        .unwrap();
+    assert!(!second.has_carried_css_no_urls_for_test());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[cfg(feature = "napi")]
+#[test]
+fn consecutive_async_snapshots_invalidate_name_dependent_html() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let template = write_temp_template("html-names-async", "{{#each names}}{{this}}{{/each}}");
+    let result = generate_with_templates(vec![a.clone(), b.clone()], true, None, Some(template));
+    result.generate_html_pure(None).unwrap();
+
+    let state = result.take_regeneration_state().unwrap();
+    let mut first = result.snapshot_for_regeneration(state);
+    write_icon(&dir, "b", D_CHANGED);
+    first
+        .regenerate(
+            &[a.clone(), b.clone()],
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
+        .unwrap();
+    assert!(first.has_carried_html_no_urls_for_test());
+
+    let state = first.take_regeneration_state().unwrap();
+    let mut second = first.snapshot_for_regeneration(state);
+    second
+        .regenerate(
+            &[a, b.clone()],
+            &[(
+                b,
+                GlyphChange::Changed {
+                    name: Some("renamed".to_owned()),
+                },
+            )],
+        )
+        .unwrap();
+    assert!(!second.has_carried_html_no_urls_for_test());
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 #[test]
 fn regenerate_rerenders_default_css_on_content_edit() {
     let dir = temp_dir();

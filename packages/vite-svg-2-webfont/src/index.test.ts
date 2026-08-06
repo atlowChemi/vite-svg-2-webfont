@@ -1167,6 +1167,50 @@ describe('serve - releases retained watch state on close', () => {
         expect(rmDirMock.mock.calls.length).toBe(rmDirCallsBefore + 1);
     });
 
+    it('waits for an in-flight watch rebuild before releasing state', async () => {
+        const startFlush = Promise.withResolvers<void>();
+        const regenerationStarted = Promise.withResolvers<void>();
+        const finishRegeneration = Promise.withResolvers<void>();
+        let watchSignal: AbortSignal | undefined;
+        setupWatcherMock.mockImplementationOnce(async (_path, signal, handler) => {
+            watchSignal = signal;
+            await startFlush.promise;
+            await handler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
+        });
+        const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            const result = await realGen(options);
+            const regenerateAsync = result.regenerateAsync.bind(result);
+            result.regenerateAsync = async (...args) => {
+                regenerationStarted.resolve();
+                await finishRegeneration.promise;
+                return regenerateAsync(...args);
+            };
+            return result;
+        });
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+        const server = await created.listen();
+
+        startFlush.resolve();
+        await regenerationStarted.promise;
+        let closed = false;
+        const close = server.close().then(() => {
+            closed = true;
+            return undefined;
+        });
+        await vi.waitFor(() => expect(watchSignal?.aborted).toBe(true));
+        expect(closed).toBe(false);
+
+        finishRegeneration.resolve();
+        await close;
+        expect(closed).toBe(true);
+    });
+
     it('does not fail server startup when watcher setup rejects', async () => {
         setupWatcherMock.mockRejectedValueOnce(new Error('intentional watcher setup failure'));
 

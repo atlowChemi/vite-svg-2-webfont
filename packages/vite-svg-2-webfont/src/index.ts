@@ -47,6 +47,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     let _moduleGraph: ModuleGraph | undefined;
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
     let generatedFonts: GenerateWebfontsResult<T> | undefined;
+    let watcherTask: Promise<void> | undefined;
     const generatedFontBuffers = new Map<T, Buffer>();
     const generatedWebfonts: GeneratedWebfont[] = [];
     const moduleId = options.moduleId ?? DEFAULT_MODULE_ID;
@@ -143,10 +144,14 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             processedOptions.writeFiles = false;
         }
         const generateWebfonts = await getGenerateWebfonts();
-        generatedFonts = await generateWebfonts(processedOptions);
+        const replacement = await generateWebfonts(processedOptions);
+        if (updateFiles && ac.signal.aborted) {
+            return;
+        }
+        generatedFonts = replacement;
         generatedFontBuffers.clear();
         await writeDevFiles();
-        if (updateFiles) {
+        if (updateFiles && !ac.signal.aborted) {
             reloadVirtualModule();
         }
     };
@@ -166,13 +171,23 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         try {
             const orderedFiles = parseFiles(options);
             processedOptions.files = orderedFiles;
-            generatedFonts = await generatedFonts.regenerateAsync(orderedFiles, changes.map(toGlyphChange));
+            const replacement = await generatedFonts.regenerateAsync(orderedFiles, changes.map(toGlyphChange));
+            if (ac.signal.aborted) {
+                return;
+            }
+            generatedFonts = replacement;
             generatedFontBuffers.clear();
         } catch {
+            if (ac.signal.aborted) {
+                return;
+            }
             await generate(true);
             return;
         }
         await writeDevFiles();
+        if (ac.signal.aborted) {
+            return;
+        }
         reloadVirtualModule();
     };
     return {
@@ -253,7 +268,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         async buildStart() {
             if (!isBuild) {
-                setupWatcher(options.context, ac.signal, changes => regenerateFromWatch(changes)).catch(() => null);
+                watcherTask = setupWatcher(options.context, ac.signal, changes => regenerateFromWatch(changes)).catch(() => undefined);
             }
             await generate();
             if (isBuild && !options.inline) {
@@ -302,8 +317,10 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                 });
             }
         },
-        buildEnd() {
+        async buildEnd() {
             ac.abort();
+            await watcherTask;
+            watcherTask = undefined;
             rmDir(tmpDir);
             generatedFonts = undefined;
             generatedFontBuffers.clear();

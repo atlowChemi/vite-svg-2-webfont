@@ -384,6 +384,13 @@ pub(crate) struct RenderCache {
     html_last_result: Option<String>,
 }
 
+#[derive(Clone)]
+pub(crate) struct CarriedRenderCache {
+    cache: RenderCache,
+    css_dependencies: TemplateDependencies,
+    html_dependencies: TemplateDependencies,
+}
+
 pub(crate) struct CachedTemplateData {
     pub shared: SharedTemplateData,
     pub css_context: Map<String, Value>,
@@ -502,7 +509,7 @@ pub struct GenerateWebfontsResult {
     /// Render-cache entries carried across an incremental `regenerate` to seed the rebuilt
     /// [`CachedTemplateData`], so CSS/HTML that
     /// doesn't depend on what changed isn't re-rendered. `None` for a normal build.
-    pub(crate) carried_render: Option<RenderCache>,
+    pub(crate) carried_render: Option<CarriedRenderCache>,
     pub(crate) css_context: Option<Map<String, Value>>,
     pub(crate) fonts: FontOutputs,
     pub(crate) html_context: Option<Map<String, Value>>,
@@ -514,10 +521,10 @@ pub struct GenerateWebfontsResult {
 // Pure Rust getters (always available)
 impl GenerateWebfontsResult {
     #[cfg(any(feature = "napi", feature = "bench"))]
-    fn snapshot_for_regeneration(&self, state: RegenerationState) -> Self {
+    pub(crate) fn snapshot_for_regeneration(&self, state: RegenerationState) -> Self {
         Self {
             cached: OnceLock::new(),
-            carried_render: None,
+            carried_render: self.render_cache_source(),
             css_context: self.css_context.clone(),
             fonts: self.fonts.clone(),
             html_context: self.html_context.clone(),
@@ -589,14 +596,14 @@ impl GenerateWebfontsResult {
     pub(crate) fn has_carried_css_no_urls_for_test(&self) -> bool {
         self.carried_render
             .as_ref()
-            .is_some_and(|cache| cache.css_no_urls.is_some())
+            .is_some_and(|carried| carried.cache.css_no_urls.is_some())
     }
 
     #[cfg(test)]
     pub(crate) fn has_carried_html_no_urls_for_test(&self) -> bool {
         self.carried_render
             .as_ref()
-            .is_some_and(|cache| cache.html_no_urls.is_some())
+            .is_some_and(|carried| carried.cache.html_no_urls.is_some())
     }
 
     /// Returns the EOT font bytes, if generated.
@@ -658,7 +665,12 @@ impl GenerateWebfontsResult {
                     html_registry,
                     // Seed with entries carried across a regenerate;
                     // these are renders that don't depend on what changed, so reusing them is safe.
-                    render_cache: Mutex::new(self.carried_render.clone().unwrap_or_default()),
+                    render_cache: Mutex::new(
+                        self.carried_render
+                            .as_ref()
+                            .map(|carried| carried.cache.clone())
+                            .unwrap_or_default(),
+                    ),
                 })
             })
             .as_ref()
@@ -669,29 +681,29 @@ impl GenerateWebfontsResult {
         &self,
         names_unchanged: bool,
         codepoints_unchanged: bool,
-    ) -> Option<RenderCache> {
-        self.cached
-            .get()
-            .and_then(|cached| cached.as_ref().ok())
-            .map(|cached| {
-                let css_deps = cached.shared.css_template_dependencies;
-                let css_no_urls_unchanged =
-                    css_deps.can_reuse_css_no_urls(names_unchanged, codepoints_unchanged);
-                let css_with_urls_unchanged =
-                    css_deps.can_reuse_css_with_urls(names_unchanged, codepoints_unchanged);
-                let html_no_urls_unchanged = cached.html_template_dependencies.can_reuse_html(
-                    names_unchanged,
-                    codepoints_unchanged,
-                    css_no_urls_unchanged,
-                );
-                let html_with_urls_unchanged = cached.html_template_dependencies.can_reuse_html(
-                    names_unchanged,
-                    codepoints_unchanged,
-                    css_with_urls_unchanged,
-                );
+    ) -> Option<CarriedRenderCache> {
+        self.render_cache_source().map(|carried| {
+            let css_deps = carried.css_dependencies;
+            let css_no_urls_unchanged =
+                css_deps.can_reuse_css_no_urls(names_unchanged, codepoints_unchanged);
+            let css_with_urls_unchanged =
+                css_deps.can_reuse_css_with_urls(names_unchanged, codepoints_unchanged);
+            let html_no_urls_unchanged = carried.html_dependencies.can_reuse_html(
+                names_unchanged,
+                codepoints_unchanged,
+                css_no_urls_unchanged,
+            );
+            let html_with_urls_unchanged = carried.html_dependencies.can_reuse_html(
+                names_unchanged,
+                codepoints_unchanged,
+                css_with_urls_unchanged,
+            );
 
-                let rc = cached.render_cache.lock().unwrap();
-                RenderCache {
+            let rc = carried.cache;
+            CarriedRenderCache {
+                css_dependencies: carried.css_dependencies,
+                html_dependencies: carried.html_dependencies,
+                cache: RenderCache {
                     css_no_urls: css_no_urls_unchanged
                         .then(|| rc.css_no_urls.clone())
                         .flatten(),
@@ -710,8 +722,21 @@ impl GenerateWebfontsResult {
                     html_last_result: html_with_urls_unchanged
                         .then(|| rc.html_last_result.clone())
                         .flatten(),
-                }
+                },
+            }
+        })
+    }
+
+    fn render_cache_source(&self) -> Option<CarriedRenderCache> {
+        self.cached
+            .get()
+            .and_then(|cached| cached.as_ref().ok())
+            .map(|cached| CarriedRenderCache {
+                cache: cached.render_cache.lock().unwrap().clone(),
+                css_dependencies: cached.shared.css_template_dependencies,
+                html_dependencies: cached.html_template_dependencies,
             })
+            .or_else(|| self.carried_render.clone())
     }
 
     /// Generate a CSS string for this webfont result.
