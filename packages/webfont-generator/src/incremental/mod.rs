@@ -6,7 +6,9 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use crate::svg::{prepare_svg_font_incremental, source_content_hash, svg_options_from_options};
-use crate::types::{GenerateWebfontsResult, GlyphChange, LoadedSvgFile};
+use crate::types::{
+    GenerateWebfontsResult, GlyphChange, LoadedSvgFile, RegenerateError, RegenerationState,
+};
 use crate::write::write_generate_webfonts_result_sync;
 use crate::{build_font_outputs, finalize_generate_webfonts_options, validate_glyph_names};
 
@@ -69,14 +71,57 @@ impl GenerateWebfontsResult {
             ));
         }
 
-        let mut cache = self.glyph_cache.clone().ok_or_else(|| {
-            std::io::Error::new(
-                ErrorKind::InvalidInput,
-                "regenerate requires the font to be generated with `incremental` enabled.",
-            )
-        })?;
-        let mut source_files = self.source_files.clone();
-        let mut options = self.options.clone();
+        let mut state = self.take_regeneration_state_lease()?;
+        let result = self.regenerate_with_state(ordered_paths, changes, state.state_mut());
+        if result.is_ok() {
+            state.commit();
+        }
+        result
+    }
+
+    /// Asynchronously rebuild on Tokio's blocking pool and return the next result generation.
+    /// This consumes `self`, so Rust prevents reuse of a stale result after success. On ordinary
+    /// failure, [`RegenerateError::into_result`] returns the input result for retry. This future is
+    /// not cancellation-safe: dropping it lets already-started blocking work finish and drops the
+    /// consumed result; filesystem writes may continue.
+    ///
+    /// ```rust,no_run
+    /// use webfont_generator::{generate_sync, GenerateWebfontsOptions, GlyphChange};
+    ///
+    /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    /// let files = vec!["icons/add.svg".to_owned()];
+    /// let result = generate_sync(GenerateWebfontsOptions {
+    ///     files: files.clone(),
+    ///     dest: "dist".to_owned(),
+    ///     incremental: Some(true),
+    ///     ..Default::default()
+    /// }, None)?;
+    /// let result = result.regenerate_async(
+    ///     files.clone(),
+    ///     vec![(files[0].clone(), GlyphChange::Changed { name: None })],
+    /// ).await?;
+    /// # let _ = result;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn regenerate_async(
+        self,
+        ordered_paths: Vec<String>,
+        changes: Vec<(String, GlyphChange)>,
+    ) -> Result<Self, RegenerateError> {
+        self.regenerate_in_background(ordered_paths, Some(changes))
+            .await
+    }
+
+    fn regenerate_with_state(
+        &mut self,
+        ordered_paths: &[String],
+        changes: &[(String, GlyphChange)],
+        state: &mut RegenerationState,
+    ) -> std::io::Result<()> {
+        let cache = &mut state.glyph_cache;
+        let mut source_files = self.source_files.as_ref().clone();
+        let mut options = self.options.as_ref().clone();
 
         // Snapshot the inputs the CSS/HTML templates depend on (glyph names + codepoints) so we
         // can tell, after rebuilding, whether the rendered output could have changed.
@@ -97,6 +142,7 @@ impl GenerateWebfontsResult {
         for (path, change) in changes {
             match change {
                 GlyphChange::Removed => {
+                    state.caches_dirty = true;
                     let before = source_files.len();
                     source_files.retain(|file| &file.path != path);
                     cache.entries.remove(path);
@@ -106,6 +152,7 @@ impl GenerateWebfontsResult {
                 }
                 GlyphChange::Added { name } => {
                     let contents = std::fs::read_to_string(path)?;
+                    state.caches_dirty = true;
                     let hash = source_content_hash(&contents);
                     upsert_source_file(&mut source_files, path, contents, name.clone());
                     // Reuse identical SVG geometry if another path already parsed these bytes;
@@ -137,6 +184,7 @@ impl GenerateWebfontsResult {
 
                     upsert_source_file(&mut source_files, path, contents, name.clone());
                     if content_changed {
+                        state.caches_dirty = true;
                         if let Some(cached) = cache.by_content_hash.get(&hash) {
                             cache.entries.insert(path.clone(), cached.clone());
                             cache.content_hashes.insert(path.clone(), hash);
@@ -181,26 +229,42 @@ impl GenerateWebfontsResult {
         finalize_generate_webfonts_options(&mut options, &source_files)?;
 
         let svg_options = svg_options_from_options(&options);
-        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
-        let fonts = build_font_outputs(&options, &svg_options, &prepared, self.ttf_cache.as_mut())?;
+        state.caches_dirty = true;
+        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, cache)?;
+        let fonts =
+            build_font_outputs(&options, &svg_options, &prepared, state.ttf_cache.as_mut())?;
 
         // Rebuild the template data fresh (the font hash changed), but keep the rendered CSS/HTML
         // that can't have changed: only when the glyph names and codepoints the templates read are
-        // unchanged (e.g. a pure content edit). reset_render_cache carries the safe entries.
+        // unchanged (e.g. a pure content edit). Carry those safe entries into the new result.
         let names_unchanged = source_files
             .iter()
             .map(|file| file.glyph_name.as_str())
             .eq(prev_names.iter().map(String::as_str));
         let codepoints_unchanged = options.codepoints == prev_codepoints;
-        self.source_files = source_files;
-        self.options = options;
-        self.fonts = fonts;
-        self.glyph_cache = Some(cache);
-        self.reset_render_cache(names_unchanged, codepoints_unchanged);
+        let carried = self.reusable_render_cache(names_unchanged, codepoints_unchanged);
+        let previous_source_files =
+            std::mem::replace(&mut self.source_files, std::sync::Arc::new(source_files));
+        let previous_options = std::mem::replace(&mut self.options, std::sync::Arc::new(options));
+        let previous_fonts = std::mem::replace(&mut self.fonts, fonts);
+        let previous_cached = std::mem::take(&mut self.cached);
+        let previous_carried = std::mem::replace(&mut self.carried_render, carried);
+        let previous_css_context = self.css_context.take();
+        let previous_html_context = self.html_context.take();
 
         // Match `generate`'s write behavior: refresh font files, and skip unchanged CSS/HTML.
-        if self.options.write_files {
-            write_generate_webfonts_result_sync(self)?;
+        if self.options.write_files
+            && let Err(error) =
+                write_generate_webfonts_result_sync(self, &mut state.written_outputs)
+        {
+            self.source_files = previous_source_files;
+            self.options = previous_options;
+            self.fonts = previous_fonts;
+            self.cached = previous_cached;
+            self.carried_render = previous_carried;
+            self.css_context = previous_css_context;
+            self.html_context = previous_html_context;
+            return Err(error);
         }
         Ok(())
     }
@@ -210,18 +274,44 @@ impl GenerateWebfontsResult {
     /// change batch: every current path is re-read and hashed, missing prior paths are treated as
     /// removed, new paths as added, and paths whose content hash changed as changed. Existing glyph
     /// names are preserved; added paths derive their glyph name from the file stem.
+    ///
+    /// ```rust,no_run
+    /// use webfont_generator::{generate_sync, GenerateWebfontsOptions};
+    ///
+    /// # fn run() -> std::io::Result<()> {
+    /// let files = vec!["icons/add.svg".to_owned()];
+    /// let mut result = generate_sync(GenerateWebfontsOptions {
+    ///     files: files.clone(),
+    ///     dest: "dist".to_owned(),
+    ///     incremental: Some(true),
+    ///     ..Default::default()
+    /// }, None)?;
+    /// result.regenerate_all(&files)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn regenerate_all(&mut self, ordered_paths: &[String]) -> std::io::Result<()> {
-        let cache = self.glyph_cache.as_ref().ok_or_else(|| {
-            std::io::Error::new(
+        if !self.options.incremental {
+            return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,
                 "regenerate requires the font to be generated with `incremental` enabled.",
-            )
-        })?;
+            ));
+        }
+        let state = self.regeneration_state.lock().unwrap();
+        let cache = &state
+            .as_ref()
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    ErrorKind::WouldBlock,
+                    "This result is already regenerating or has been replaced.",
+                )
+            })?
+            .glyph_cache;
         let ordered_set: HashSet<&str> = ordered_paths.iter().map(String::as_str).collect();
         let mut previous_paths = HashSet::with_capacity(self.source_files.len());
         let mut changes = Vec::new();
 
-        for source_file in &self.source_files {
+        for source_file in self.source_files.iter() {
             previous_paths.insert(source_file.path.as_str());
             if !ordered_set.contains(source_file.path.as_str()) {
                 changes.push((source_file.path.clone(), GlyphChange::Removed));
@@ -241,7 +331,60 @@ impl GenerateWebfontsResult {
             }
         }
 
+        drop(state);
         self.regenerate(ordered_paths, &changes)
+    }
+
+    /// Asynchronously re-diff and rebuild on Tokio's blocking pool, consuming the old result and
+    /// returning the next result generation. This future is not cancellation-safe: dropping it
+    /// lets already-started blocking work finish and drops the consumed result.
+    ///
+    /// ```rust,no_run
+    /// use webfont_generator::{generate_sync, GenerateWebfontsOptions};
+    ///
+    /// # async fn run() -> Result<(), Box<dyn std::error::Error>> {
+    /// let files = vec!["icons/add.svg".to_owned()];
+    /// let result = generate_sync(GenerateWebfontsOptions {
+    ///     files: files.clone(),
+    ///     dest: "dist".to_owned(),
+    ///     incremental: Some(true),
+    ///     ..Default::default()
+    /// }, None)?;
+    /// let result = result.regenerate_all_async(files).await?;
+    /// # let _ = result;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn regenerate_all_async(
+        self,
+        ordered_paths: Vec<String>,
+    ) -> Result<Self, RegenerateError> {
+        self.regenerate_in_background(ordered_paths, None).await
+    }
+
+    async fn regenerate_in_background(
+        mut self,
+        ordered_paths: Vec<String>,
+        changes: Option<Vec<(String, GlyphChange)>>,
+    ) -> Result<Self, RegenerateError> {
+        let task = tokio::task::spawn_blocking(move || {
+            let outcome = match changes {
+                Some(changes) => self.regenerate(&ordered_paths, &changes),
+                None => self.regenerate_all(&ordered_paths),
+            };
+            match outcome {
+                Ok(()) => Ok(self),
+                Err(source) => Err(RegenerateError::new(Some(self), source)),
+            }
+        });
+        match task.await {
+            Ok(result) => result,
+            Err(error) if error.is_panic() => std::panic::resume_unwind(error.into_panic()),
+            Err(error) => Err(RegenerateError::new(
+                None,
+                std::io::Error::other(format!("asynchronous regeneration task failed: {error}")),
+            )),
+        }
     }
 }
 

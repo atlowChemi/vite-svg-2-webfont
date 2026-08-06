@@ -81,7 +81,9 @@ type FontValue<F extends FontType> = F extends 'svg' ? string : Uint8Array;
  */
 export type GenerateWebfontsResult<T extends FontType = FontType> = {
     [F in FontType]: F extends T ? FontValue<F> : null;
-} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml' | 'regenerate'>;
+} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml' | 'regenerate'> & {
+        regenerateAsync(files: string[], changes?: GlyphChangeEntry[] | null): Promise<GenerateWebfontsResult<T>>;
+    };
 
 /**
  * Generate a webfont from a set of SVG files.

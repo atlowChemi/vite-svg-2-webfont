@@ -157,7 +157,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             return;
         }
         // Reuse cached glyphs, handing the engine the fresh glob order so additions land in their
-        // correct position (byte-identical to a fresh build). When `writeFiles` is set, `regenerate`
+        // correct position (byte-identical to a fresh build). When `writeFiles` is set, regeneration
         // refreshes the on-disk fonts itself; otherwise `writeDevFiles` handles the CSS/HTML below.
         if (!generatedFonts || !processedOptions.incremental) {
             await generate(true);
@@ -166,7 +166,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         try {
             const orderedFiles = parseFiles(options);
             processedOptions.files = orderedFiles;
-            generatedFonts.regenerate(orderedFiles, changes.map(toGlyphChange));
+            generatedFonts = await generatedFonts.regenerateAsync(orderedFiles, changes.map(toGlyphChange));
             generatedFontBuffers.clear();
         } catch {
             await generate(true);
@@ -186,9 +186,9 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         configResolved(_config) {
             isBuild = _config.command === 'build';
             if (!isBuild) {
-                // Retain parsed glyphs so watch rebuilds can reuse them via `result.regenerate(...)`.
-                // cssContext runs in JS during generation; regenerate is sync, so skip the
-                // incremental path when callbacks would need to be replayed after a rebuild.
+                // Retain parsed glyphs so watch rebuilds can reuse them via `result.regenerateAsync(...)`.
+                // cssContext runs in JS during generation, so skip the incremental path when
+                // callbacks would need to be replayed after a rebuild.
                 if (!processedOptions.cssContext) {
                     processedOptions.incremental = true;
                 }

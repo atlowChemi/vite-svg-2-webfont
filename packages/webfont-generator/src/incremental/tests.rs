@@ -4,7 +4,9 @@ use std::path::Path;
 use serde_json::{Map, Value};
 
 use crate::test_helpers::write_temp_template;
-use crate::types::{FontType, GenerateWebfontsResult, GlyphChange, LoadedSvgFile};
+use crate::types::{
+    FontType, GenerateWebfontsResult, GlyphChange, LoadedSvgFile, RegenerationState,
+};
 use crate::{FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
 use crate::{
     finalize_generate_webfonts_options, generate_webfonts_sync, resolve_generate_webfonts_options,
@@ -15,6 +17,14 @@ const D2: &str = "M2 2 L22 2 L12 22 Z";
 const D3: &str = "M4 4 L20 4 L20 20 L4 20 Z";
 const D_CHANGED: &str = "M0 0 L24 0 L24 24 Z";
 const TEST_TTF_TIMESTAMP: i64 = 1_700_000_000;
+
+fn with_regeneration_state<T>(
+    result: &GenerateWebfontsResult,
+    read: impl FnOnce(&RegenerationState) -> T,
+) -> T {
+    let state = result.regeneration_state.lock().unwrap();
+    read(state.as_ref().unwrap())
+}
 
 fn stable_format_options() -> FormatOptions {
     FormatOptions {
@@ -126,6 +136,56 @@ fn regenerate_after_content_change_matches_fresh() {
     std::fs::remove_dir_all(&dir).ok();
 }
 
+#[tokio::test]
+async fn regenerate_async_matches_fresh_and_recovers_after_failure() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let files = vec![a.clone(), b.clone()];
+    let result = generate(files.clone(), true);
+
+    std::fs::remove_file(&b).unwrap();
+    let error = match result
+        .regenerate_async(
+            files.clone(),
+            vec![(b.clone(), GlyphChange::Changed { name: None })],
+        )
+        .await
+    {
+        Err(error) => error,
+        Ok(_) => panic!("missing changed file should fail"),
+    };
+    let result = error
+        .into_result()
+        .expect("ordinary failures are recoverable");
+
+    write_icon(&dir, "b", D_CHANGED);
+    let result = result
+        .regenerate_async(
+            files.clone(),
+            vec![(b, GlyphChange::Changed { name: None })],
+        )
+        .await
+        .unwrap();
+    assert_same(&result, &generate(files, false));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[tokio::test]
+async fn regenerate_all_async_matches_fresh() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let files = vec![a.clone(), b.clone()];
+    let result = generate(files.clone(), true);
+
+    write_icon(&dir, "b", D_CHANGED);
+    let result = result.regenerate_all_async(files.clone()).await.unwrap();
+
+    assert_same(&result, &generate(files, false));
+    std::fs::remove_dir_all(&dir).ok();
+}
+
 #[test]
 fn regenerate_reuses_compiled_ttf_glyphs_for_stable_metrics() {
     let dir = temp_dir();
@@ -134,13 +194,14 @@ fn regenerate_reuses_compiled_ttf_glyphs_for_stable_metrics() {
     let c = write_icon(&dir, "c", D3);
 
     let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
-    let processed_before = result.glyph_cache.as_ref().unwrap().process_count;
-    let before = result.ttf_cache.as_ref().unwrap().compile_count;
-    let woff2_before = result
-        .ttf_cache
-        .as_ref()
-        .unwrap()
-        .woff2_transform_compile_count();
+    let (processed_before, before, woff2_before) = with_regeneration_state(&result, |state| {
+        let ttf = state.ttf_cache.as_ref().unwrap();
+        (
+            state.glyph_cache.process_count,
+            ttf.compile_count,
+            ttf.woff2_transform_compile_count(),
+        )
+    });
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
@@ -151,16 +212,23 @@ fn regenerate_reuses_compiled_ttf_glyphs_for_stable_metrics() {
 
     assert_same(&result, &generate(vec![a, b, c], false));
     assert_eq!(
-        result.glyph_cache.as_ref().unwrap().process_count,
+        with_regeneration_state(&result, |state| state.glyph_cache.process_count),
         processed_before + 1
     );
-    assert_eq!(result.ttf_cache.as_ref().unwrap().compile_count, before + 1);
     assert_eq!(
-        result
+        with_regeneration_state(&result, |state| state
             .ttf_cache
             .as_ref()
             .unwrap()
-            .woff2_transform_compile_count(),
+            .compile_count),
+        before + 1
+    );
+    assert_eq!(
+        with_regeneration_state(&result, |state| state
+            .ttf_cache
+            .as_ref()
+            .unwrap()
+            .woff2_transform_compile_count()),
         woff2_before + 1
     );
     std::fs::remove_dir_all(&dir).ok();
@@ -174,17 +242,14 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
     let c = write_icon(&dir, "c", D3);
 
     let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
-    let before = result.ttf_cache.as_ref().unwrap().table_compile_count;
-    let woff_before = result
-        .ttf_cache
-        .as_ref()
-        .unwrap()
-        .woff1_payload_compile_count();
-    let woff2_before = result
-        .ttf_cache
-        .as_ref()
-        .unwrap()
-        .woff2_transform_compile_count();
+    let (before, woff_before, woff2_before) = with_regeneration_state(&result, |state| {
+        let ttf = state.ttf_cache.as_ref().unwrap();
+        (
+            ttf.table_compile_count,
+            ttf.woff1_payload_compile_count(),
+            ttf.woff2_transform_compile_count(),
+        )
+    });
     result
         .regenerate(
             &[a.clone(), b.clone(), c.clone()],
@@ -198,23 +263,27 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
         .unwrap();
 
     assert_eq!(
-        result.ttf_cache.as_ref().unwrap().table_compile_count,
+        with_regeneration_state(&result, |state| state
+            .ttf_cache
+            .as_ref()
+            .unwrap()
+            .table_compile_count),
         before + 1
     );
     assert_eq!(
-        result
+        with_regeneration_state(&result, |state| state
             .ttf_cache
             .as_ref()
             .unwrap()
-            .woff1_payload_compile_count(),
+            .woff1_payload_compile_count()),
         woff_before + 2
     );
     assert_eq!(
-        result
+        with_regeneration_state(&result, |state| state
             .ttf_cache
             .as_ref()
             .unwrap()
-            .woff2_transform_compile_count(),
+            .woff2_transform_compile_count()),
         woff2_before
     );
     std::fs::remove_dir_all(&dir).ok();
@@ -228,8 +297,12 @@ fn regenerate_recompiles_compiled_ttf_glyphs_after_metric_shift() {
     let c = write_icon(&dir, "c", D3);
 
     let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
-    let processed_before = result.glyph_cache.as_ref().unwrap().process_count;
-    let before = result.ttf_cache.as_ref().unwrap().compile_count;
+    let (processed_before, before) = with_regeneration_state(&result, |state| {
+        (
+            state.glyph_cache.process_count,
+            state.ttf_cache.as_ref().unwrap().compile_count,
+        )
+    });
     write_icon_with_viewbox(&dir, "b", 24, 48, D_CHANGED);
     result
         .regenerate(
@@ -240,10 +313,17 @@ fn regenerate_recompiles_compiled_ttf_glyphs_after_metric_shift() {
 
     assert_same(&result, &generate(vec![a, b, c], false));
     assert_eq!(
-        result.glyph_cache.as_ref().unwrap().process_count,
+        with_regeneration_state(&result, |state| state.glyph_cache.process_count),
         processed_before + 3
     );
-    assert_eq!(result.ttf_cache.as_ref().unwrap().compile_count, before + 3);
+    assert_eq!(
+        with_regeneration_state(&result, |state| state
+            .ttf_cache
+            .as_ref()
+            .unwrap()
+            .compile_count),
+        before + 3
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -343,11 +423,14 @@ fn regenerate_all_noop_returns_before_parsing() {
     let a = write_icon(&dir, "a", D1);
     let b = write_icon(&dir, "b", D2);
     let mut result = generate(vec![a.clone(), b.clone()], true);
-    let before = result.glyph_cache.as_ref().unwrap().parse_count;
+    let before = with_regeneration_state(&result, |state| state.glyph_cache.parse_count);
 
     result.regenerate_all(&[a, b]).unwrap();
 
-    assert_eq!(result.glyph_cache.as_ref().unwrap().parse_count, before);
+    assert_eq!(
+        with_regeneration_state(&result, |state| state.glyph_cache.parse_count),
+        before
+    );
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -382,7 +465,7 @@ fn non_incremental_results_do_not_retain_glyph_cache() {
     let result = generate(vec![a], false);
 
     assert!(
-        result.glyph_cache.is_none(),
+        result.regeneration_state.lock().unwrap().is_none(),
         "one-shot builds must not retain parsed glyph geometry"
     );
     std::fs::remove_dir_all(&dir).ok();
@@ -394,11 +477,11 @@ fn incremental_results_seed_glyph_cache_for_active_files() {
     let a = write_icon(&dir, "a", D1);
     let b = write_icon(&dir, "b", D2);
     let result = generate(vec![a, b], true);
-    let cache = result.glyph_cache.as_ref().unwrap();
-
-    assert_eq!(cache.entries.len(), 2);
-    assert_eq!(cache.content_hashes.len(), 2);
-    assert_eq!(cache.by_content_hash.len(), 2);
+    with_regeneration_state(&result, |state| {
+        assert_eq!(state.glyph_cache.entries.len(), 2);
+        assert_eq!(state.glyph_cache.content_hashes.len(), 2);
+        assert_eq!(state.glyph_cache.by_content_hash.len(), 2);
+    });
     std::fs::remove_dir_all(&dir).ok();
 }
 
@@ -408,7 +491,7 @@ fn regenerate_noop_changed_event_returns_before_parsing() {
     let a = write_icon(&dir, "a", D1);
     let b = write_icon(&dir, "b", D2);
     let mut result = generate(vec![a.clone(), b.clone()], true);
-    let before = result.glyph_cache.as_ref().unwrap().parse_count;
+    let before = with_regeneration_state(&result, |state| state.glyph_cache.parse_count);
 
     result
         .regenerate(
@@ -418,7 +501,7 @@ fn regenerate_noop_changed_event_returns_before_parsing() {
         .unwrap();
 
     assert_eq!(
-        result.glyph_cache.as_ref().unwrap().parse_count,
+        with_regeneration_state(&result, |state| state.glyph_cache.parse_count),
         before,
         "unchanged watcher events should return before SVG parsing"
     );
@@ -432,7 +515,7 @@ fn regenerate_added_duplicate_reuses_content_addressed_cache() {
     let b = write_icon(&dir, "b", D2);
     let mut result = generate(vec![a.clone(), b.clone()], true);
     let c = write_icon(&dir, "c", D1);
-    let before = result.glyph_cache.as_ref().unwrap().parse_count;
+    let before = with_regeneration_state(&result, |state| state.glyph_cache.parse_count);
 
     result
         .regenerate(
@@ -447,7 +530,7 @@ fn regenerate_added_duplicate_reuses_content_addressed_cache() {
         .unwrap();
 
     assert_eq!(
-        result.glyph_cache.as_ref().unwrap().parse_count,
+        with_regeneration_state(&result, |state| state.glyph_cache.parse_count),
         before,
         "added files with SVG bytes already in the cache should not be parsed again"
     );
@@ -467,12 +550,13 @@ fn regenerate_remove_prunes_inactive_cache_entries() {
         .regenerate(&[a.clone(), c.clone()], &[(b, GlyphChange::Removed)])
         .unwrap();
 
-    let cache = result.glyph_cache.as_ref().unwrap();
-    assert_eq!(cache.entries.len(), 2);
-    assert_eq!(cache.content_hashes.len(), 2);
-    assert_eq!(cache.by_content_hash.len(), 2);
-    assert!(cache.entries.contains_key(&a));
-    assert!(cache.entries.contains_key(&c));
+    with_regeneration_state(&result, |state| {
+        assert_eq!(state.glyph_cache.entries.len(), 2);
+        assert_eq!(state.glyph_cache.content_hashes.len(), 2);
+        assert_eq!(state.glyph_cache.by_content_hash.len(), 2);
+        assert!(state.glyph_cache.entries.contains_key(&a));
+        assert!(state.glyph_cache.entries.contains_key(&c));
+    });
     assert_same(&result, &generate(vec![a, c], false));
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -496,21 +580,23 @@ fn regenerate_add_remove_cycles_do_not_grow_cache() {
             )
             .unwrap();
 
-        let cache = result.glyph_cache.as_ref().unwrap();
-        assert_eq!(cache.entries.len(), 3);
-        assert_eq!(cache.content_hashes.len(), 3);
-        assert_eq!(cache.by_content_hash.len(), 3);
+        with_regeneration_state(&result, |state| {
+            assert_eq!(state.glyph_cache.entries.len(), 3);
+            assert_eq!(state.glyph_cache.content_hashes.len(), 3);
+            assert_eq!(state.glyph_cache.by_content_hash.len(), 3);
+        });
 
         result
             .regenerate(&[a.clone(), b.clone()], &[(extra, GlyphChange::Removed)])
             .unwrap();
 
-        let cache = result.glyph_cache.as_ref().unwrap();
-        assert_eq!(cache.entries.len(), 2);
-        assert_eq!(cache.content_hashes.len(), 2);
-        assert_eq!(cache.by_content_hash.len(), 2);
-        assert!(cache.entries.contains_key(&a));
-        assert!(cache.entries.contains_key(&b));
+        with_regeneration_state(&result, |state| {
+            assert_eq!(state.glyph_cache.entries.len(), 2);
+            assert_eq!(state.glyph_cache.content_hashes.len(), 2);
+            assert_eq!(state.glyph_cache.by_content_hash.len(), 2);
+            assert!(state.glyph_cache.entries.contains_key(&a));
+            assert!(state.glyph_cache.entries.contains_key(&b));
+        });
     }
 
     assert_same(&result, &generate(vec![a, b], false));
@@ -541,6 +627,7 @@ fn regenerate_failure_preserves_incremental_state_for_retry() {
     let c = dir.join("c.svg").to_string_lossy().into_owned();
     let mut result = generate(vec![a.clone(), b.clone()], true);
     let before = result.svg_string().unwrap().to_owned();
+    let parse_count = with_regeneration_state(&result, |state| state.glyph_cache.parse_count);
 
     let error = result
         .regenerate(
@@ -555,10 +642,15 @@ fn regenerate_failure_preserves_incremental_state_for_retry() {
         .expect_err("missing added file should fail");
     assert_eq!(error.kind(), std::io::ErrorKind::NotFound);
     assert!(
-        result.glyph_cache.is_some(),
+        result.regeneration_state.lock().unwrap().is_some(),
         "failed regenerate must leave the incremental cache available"
     );
     assert_eq!(result.svg_string().unwrap(), before);
+    assert_eq!(
+        with_regeneration_state(&result, |state| state.glyph_cache.parse_count),
+        parse_count,
+        "failure before cache mutation should preserve the warm cache"
+    );
 
     write_icon(&dir, "c", D3);
     result
@@ -599,7 +691,7 @@ fn regenerate_rejects_duplicate_glyph_names() {
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     assert!(error.to_string().contains("must be unique"));
-    assert!(result.glyph_cache.is_some());
+    assert!(result.regeneration_state.lock().unwrap().is_some());
     assert_eq!(result.svg_string().unwrap(), before);
     std::fs::remove_dir_all(&dir).ok();
 }
@@ -1117,6 +1209,31 @@ fn regenerate_writes_changed_outputs_and_skips_unchanged() {
         "an unchanged output must not be rewritten"
     );
 
+    std::fs::remove_dir_all(&dir).ok();
+}
+
+#[test]
+fn regenerate_write_failure_restores_published_output() {
+    let dir = temp_dir();
+    let dest = dir.join("blocked-output");
+    let a = write_icon(&dir, "a", D1);
+    let b = write_icon(&dir, "b", D2);
+    let files = vec![a.clone(), b.clone()];
+    let mut result = generate_writing(files.clone(), &dest);
+    let before = result.woff2_bytes().unwrap().to_vec();
+
+    std::fs::write(&dest, "not a directory").unwrap();
+    write_icon(&dir, "b", D_CHANGED);
+    result
+        .regenerate(&files, &[(b.clone(), GlyphChange::Changed { name: None })])
+        .expect_err("writing below a file must fail");
+    assert_eq!(result.woff2_bytes().unwrap(), before);
+
+    std::fs::remove_file(&dest).unwrap();
+    result
+        .regenerate(&files, &[(b, GlyphChange::Changed { name: None })])
+        .unwrap();
+    assert_same(&result, &generate_with_css(files, false));
     std::fs::remove_dir_all(&dir).ok();
 }
 

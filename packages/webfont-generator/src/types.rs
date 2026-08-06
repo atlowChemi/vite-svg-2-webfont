@@ -398,7 +398,7 @@ pub(crate) struct CachedTemplateData {
 /// Rendered bytes for each requested output format. Held by [`GenerateWebfontsResult`] and
 /// produced by the generator's format pipeline; grouping them lets an incremental regenerate
 /// refresh every format in a single assignment.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct FontOutputs {
     pub(crate) svg_font: Option<Arc<String>>,
     pub(crate) ttf_font: Option<Arc<Vec<u8>>>,
@@ -407,34 +407,184 @@ pub(crate) struct FontOutputs {
     pub(crate) eot_font: Option<Arc<Vec<u8>>>,
 }
 
+pub(crate) struct RegenerationState {
+    pub(crate) caches_dirty: bool,
+    pub(crate) glyph_cache: GlyphCache,
+    pub(crate) ttf_cache: Option<TtfGlyphCache>,
+    pub(crate) written_outputs: HashMap<String, [u8; 16]>,
+}
+
+pub(crate) struct RegenerationStateLease {
+    slot: Arc<Mutex<Option<RegenerationState>>>,
+    state: Option<RegenerationState>,
+    keep_caches: bool,
+}
+
+/// Failure from asynchronous regeneration. Ordinary regeneration errors retain the input result
+/// so callers can recover it with [`RegenerateError::into_result`] and retry.
+pub struct RegenerateError {
+    result: Option<Box<GenerateWebfontsResult>>,
+    source: std::io::Error,
+}
+
+impl RegenerateError {
+    pub(crate) fn new(result: Option<GenerateWebfontsResult>, source: std::io::Error) -> Self {
+        Self {
+            result: result.map(Box::new),
+            source,
+        }
+    }
+
+    /// Return the result that was consumed by the failed operation. This is `None` only if the
+    /// blocking task was cancelled by the runtime before it could return the result.
+    pub fn into_result(self) -> Option<GenerateWebfontsResult> {
+        self.result.map(|result| *result)
+    }
+
+    /// Return both the recoverable result and the underlying I/O error.
+    pub fn into_parts(self) -> (Option<GenerateWebfontsResult>, std::io::Error) {
+        (self.result.map(|result| *result), self.source)
+    }
+}
+
+impl std::fmt::Debug for RegenerateError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("RegenerateError")
+            .field("recoverable", &self.result.is_some())
+            .field("source", &self.source)
+            .finish()
+    }
+}
+
+impl std::fmt::Display for RegenerateError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.source.fmt(formatter)
+    }
+}
+
+impl std::error::Error for RegenerateError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.source)
+    }
+}
+
+impl RegenerationStateLease {
+    pub(crate) fn state_mut(&mut self) -> &mut RegenerationState {
+        self.state.as_mut().unwrap()
+    }
+
+    pub(crate) fn commit(mut self) {
+        self.keep_caches = true;
+    }
+}
+
+impl Drop for RegenerationStateLease {
+    fn drop(&mut self) {
+        let mut state = self.state.take().unwrap();
+        if !self.keep_caches && state.caches_dirty {
+            state.glyph_cache = GlyphCache::default();
+            if state.ttf_cache.is_some() {
+                state.ttf_cache = Some(TtfGlyphCache::default());
+            }
+        }
+        state.caches_dirty = false;
+        *self.slot.lock().unwrap() = Some(state);
+    }
+}
+
 /// Result of a successful `generateWebfonts` call. Exposes the generated
 /// font bytes (or `null` for formats that were not requested) and methods to
 /// render the CSS and HTML preview.
 #[cfg_attr(feature = "napi", napi)]
 pub struct GenerateWebfontsResult {
     pub(crate) cached: OnceLock<Result<CachedTemplateData, String>>,
-    /// Render-cache entries carried across an incremental `regenerate` (set by
-    /// [`reset_render_cache`]) to seed the rebuilt [`CachedTemplateData`], so CSS/HTML that
+    /// Render-cache entries carried across an incremental `regenerate` to seed the rebuilt
+    /// [`CachedTemplateData`], so CSS/HTML that
     /// doesn't depend on what changed isn't re-rendered. `None` for a normal build.
     pub(crate) carried_render: Option<RenderCache>,
     pub(crate) css_context: Option<Map<String, Value>>,
     pub(crate) fonts: FontOutputs,
-    /// Parsed-glyph cache for incremental `regenerate`; `Some` only when `incremental` is set.
-    pub(crate) glyph_cache: Option<GlyphCache>,
     pub(crate) html_context: Option<Map<String, Value>>,
-    pub(crate) options: ResolvedGenerateWebfontsOptions,
-    pub(crate) source_files: Vec<LoadedSvgFile>,
-    /// Compiled TTF outline cache for incremental TTF-derived output rebuilds.
-    pub(crate) ttf_cache: Option<TtfGlyphCache>,
-    /// Hash per CSS/HTML output path of what was last written to disk. Seeded by the initial write
-    /// when `write_files` is enabled, then updated by incremental `regenerate` writes so unchanged
-    /// rendered companion files are not rewritten. Font outputs are written directly after real
-    /// rebuilds because they almost always change and hashing them is slower than writing them.
-    pub(crate) written_outputs: HashMap<String, [u8; 16]>,
+    pub(crate) options: Arc<ResolvedGenerateWebfontsOptions>,
+    pub(crate) regeneration_state: Arc<Mutex<Option<RegenerationState>>>,
+    pub(crate) source_files: Arc<Vec<LoadedSvgFile>>,
 }
 
 // Pure Rust getters (always available)
 impl GenerateWebfontsResult {
+    #[cfg(any(feature = "napi", feature = "bench"))]
+    fn snapshot_for_regeneration(&self, state: RegenerationState) -> Self {
+        Self {
+            cached: OnceLock::new(),
+            carried_render: None,
+            css_context: self.css_context.clone(),
+            fonts: self.fonts.clone(),
+            html_context: self.html_context.clone(),
+            options: self.options.clone(),
+            regeneration_state: Arc::new(Mutex::new(Some(state))),
+            source_files: self.source_files.clone(),
+        }
+    }
+
+    pub(crate) fn take_regeneration_state(&self) -> std::io::Result<RegenerationState> {
+        if !self.options.incremental {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "regenerate requires the font to be generated with `incremental` enabled.",
+            ));
+        }
+        self.regeneration_state
+            .lock()
+            .unwrap()
+            .take()
+            .ok_or_else(|| {
+                std::io::Error::new(
+                    std::io::ErrorKind::WouldBlock,
+                    "This result is already regenerating or has been replaced.",
+                )
+            })
+    }
+
+    pub(crate) fn take_regeneration_state_lease(&self) -> std::io::Result<RegenerationStateLease> {
+        Ok(RegenerationStateLease {
+            slot: Arc::clone(&self.regeneration_state),
+            state: Some(self.take_regeneration_state()?),
+            keep_caches: false,
+        })
+    }
+
+    #[cfg(feature = "bench")]
+    pub(crate) fn restore_regeneration_state(&self, state: RegenerationState) {
+        *self.regeneration_state.lock().unwrap() = Some(state);
+    }
+
+    pub(crate) fn seed_written_outputs(&self, written_outputs: HashMap<String, [u8; 16]>) {
+        if let Some(state) = self.regeneration_state.lock().unwrap().as_mut() {
+            state.written_outputs = written_outputs;
+        }
+    }
+
+    #[doc(hidden)]
+    #[cfg(feature = "bench")]
+    pub fn regenerate_owned_for_bench(
+        &self,
+        files: &[String],
+        changes: &[(String, GlyphChange)],
+    ) -> std::io::Result<Self> {
+        let state = self.take_regeneration_state()?;
+        let mut replacement = self.snapshot_for_regeneration(state);
+        match replacement.regenerate(files, changes) {
+            Ok(()) => Ok(replacement),
+            Err(error) => {
+                if let Ok(state) = replacement.take_regeneration_state() {
+                    self.restore_regeneration_state(state);
+                }
+                Err(error)
+            }
+        }
+    }
+
     #[cfg(test)]
     pub(crate) fn has_carried_css_no_urls_for_test(&self) -> bool {
         self.carried_render
@@ -506,7 +656,7 @@ impl GenerateWebfontsResult {
                     html_hbs_context: Mutex::new(html_hbs_context),
                     html_template_dependencies,
                     html_registry,
-                    // Seed with any entries carried across a regenerate (see reset_render_cache);
+                    // Seed with entries carried across a regenerate;
                     // these are renders that don't depend on what changed, so reusing them is safe.
                     render_cache: Mutex::new(self.carried_render.clone().unwrap_or_default()),
                 })
@@ -515,12 +665,12 @@ impl GenerateWebfontsResult {
             .map_err(to_io_err)
     }
 
-    /// Reset the lazily-built template/render cache after an incremental `regenerate`. Template
-    /// data (font hash, `src`, contexts) is rebuilt fresh, but rendered strings that provably do
-    /// not depend on changed template inputs are carried forward into the next cache.
-    pub(crate) fn reset_render_cache(&mut self, names_unchanged: bool, codepoints_unchanged: bool) {
-        let carried = self
-            .cached
+    pub(crate) fn reusable_render_cache(
+        &self,
+        names_unchanged: bool,
+        codepoints_unchanged: bool,
+    ) -> Option<RenderCache> {
+        self.cached
             .get()
             .and_then(|cached| cached.as_ref().ok())
             .map(|cached| {
@@ -561,11 +711,7 @@ impl GenerateWebfontsResult {
                         .then(|| rc.html_last_result.clone())
                         .flatten(),
                 }
-            });
-        self.cached = OnceLock::new();
-        self.css_context = None;
-        self.html_context = None;
-        self.carried_render = carried;
+            })
     }
 
     /// Generate a CSS string for this webfont result.
@@ -776,30 +922,83 @@ impl GenerateWebfontsResult {
         files: Vec<String>,
         changes: Option<Vec<GlyphChangeEntry>>,
     ) -> napi::Result<()> {
-        let Some(changes) = changes else {
-            return self
-                .regenerate_all(&files)
-                .map_err(crate::util::to_napi_err);
-        };
-        let changes = changes
-            .into_iter()
-            .map(|entry| {
-                let change = match entry.change_type.as_str() {
-                    "added" => GlyphChange::Added { name: entry.name },
-                    "changed" => GlyphChange::Changed { name: entry.name },
-                    "removed" => GlyphChange::Removed,
-                    other => {
-                        return Err(napi::Error::from_reason(format!(
-                            "Unknown changeType '{other}'; expected 'added', 'changed', or 'removed'."
-                        )));
-                    }
-                };
-                Ok((entry.path, change))
-            })
-            .collect::<napi::Result<Vec<_>>>()?;
-        self.regenerate(&files, &changes)
-            .map_err(crate::util::to_napi_err)
+        let changes = parse_glyph_changes(changes)?;
+        match changes {
+            Some(changes) => self.regenerate(&files, &changes),
+            None => self.regenerate_all(&files),
+        }
+        .map_err(crate::util::to_napi_err)
     }
+
+    /// Rebuild off the Node.js event loop and resolve with a replacement result. The receiver
+    /// remains readable and unchanged while regeneration runs and after failure. Assign the
+    /// resolved result before starting another regeneration. Overlapping calls on the same result
+    /// lineage are rejected, and disk writes remain non-transactional.
+    #[napi(js_name = "regenerateAsync")]
+    pub async fn regenerate_async_from_js(
+        &self,
+        files: Vec<String>,
+        changes: Option<Vec<GlyphChangeEntry>>,
+    ) -> napi::Result<GenerateWebfontsResult> {
+        let changes = parse_glyph_changes(changes)?;
+        let state = self
+            .take_regeneration_state()
+            .map_err(crate::util::to_napi_err)?;
+        let original_state = Arc::clone(&self.regeneration_state);
+        let mut replacement = self.snapshot_for_regeneration(state);
+        tokio::task::spawn_blocking(move || -> std::io::Result<GenerateWebfontsResult> {
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| match changes {
+                Some(changes) => replacement.regenerate(&files, &changes),
+                None => replacement.regenerate_all(&files),
+            }));
+            match result {
+                Ok(Ok(())) => Ok(replacement),
+                Ok(Err(error)) => {
+                    if let Ok(state) = replacement.take_regeneration_state() {
+                        *original_state.lock().unwrap() = Some(state);
+                    }
+                    Err(error)
+                }
+                Err(payload) => {
+                    if let Ok(state) = replacement.take_regeneration_state() {
+                        *original_state.lock().unwrap() = Some(state);
+                    }
+                    std::panic::resume_unwind(payload)
+                }
+            }
+        })
+        .await
+        .map_err(|error| {
+            napi::Error::from_reason(format!("Native webfont regeneration task failed: {error}"))
+        })?
+        .map_err(crate::util::to_napi_err)
+    }
+}
+
+#[cfg(feature = "napi")]
+fn parse_glyph_changes(
+    changes: Option<Vec<GlyphChangeEntry>>,
+) -> napi::Result<Option<Vec<(String, GlyphChange)>>> {
+    changes
+        .map(|changes| {
+            changes
+                .into_iter()
+                .map(|entry| {
+                    let change = match entry.change_type.as_str() {
+                        "added" => GlyphChange::Added { name: entry.name },
+                        "changed" => GlyphChange::Changed { name: entry.name },
+                        "removed" => GlyphChange::Removed,
+                        other => {
+                            return Err(napi::Error::from_reason(format!(
+                                "Unknown changeType '{other}'; expected 'added', 'changed', or 'removed'."
+                            )));
+                        }
+                    };
+                    Ok((entry.path, change))
+                })
+                .collect()
+        })
+        .transpose()
 }
 
 #[cfg(feature = "napi")]
@@ -884,12 +1083,10 @@ mod tests {
             carried_render: None,
             css_context: None,
             fonts: FontOutputs::default(),
-            glyph_cache: None,
             html_context: None,
-            options: resolved,
-            source_files,
-            ttf_cache: None,
-            written_outputs: Default::default(),
+            options: Arc::new(resolved),
+            regeneration_state: Arc::new(Mutex::new(None)),
+            source_files: Arc::new(source_files),
         };
 
         if let Some(dir) = cleanup_dir {
@@ -1157,12 +1354,10 @@ mod tests {
             carried_render: None,
             css_context: None,
             fonts: FontOutputs::default(),
-            glyph_cache: None,
             html_context: None,
-            options: resolved,
-            source_files,
-            ttf_cache: None,
-            written_outputs: Default::default(),
+            options: Arc::new(resolved),
+            regeneration_state: Arc::new(Mutex::new(None)),
+            source_files: Arc::new(source_files),
         }
     }
 
