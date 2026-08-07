@@ -810,10 +810,7 @@ fn consecutive_async_snapshots_invalidate_codepoint_dependent_css() {
     let dir = temp_dir();
     let a = write_icon(&dir, "a", D1);
     let b = write_icon(&dir, "b", D2);
-    let template = write_temp_template(
-        "css-codepoints-async",
-        "{{#each codepoints}}{{this}}{{/each}}",
-    );
+    let template = write_temp_template("css-codepoints-async", "{{codepoints.a}}");
     let result = generate_with_templates(vec![a.clone(), b.clone()], true, Some(template), None);
     result.generate_css_pure(None).unwrap();
 
@@ -847,7 +844,7 @@ fn consecutive_async_snapshots_invalidate_name_dependent_html() {
     let dir = temp_dir();
     let a = write_icon(&dir, "a", D1);
     let b = write_icon(&dir, "b", D2);
-    let template = write_temp_template("html-names-async", "{{#each names}}{{this}}{{/each}}");
+    let template = write_temp_template("html-names-async", "{{names.0}}");
     let result = generate_with_templates(vec![a.clone(), b.clone()], true, None, Some(template));
     result.generate_html_pure(None).unwrap();
 
