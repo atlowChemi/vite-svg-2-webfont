@@ -178,7 +178,7 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 
 - Type: `boolean`
 - Default: `false`
-- Description: Retain parsed glyph data on the result so [`regenerate()`](#regeneratefiles-changes) can rebuild after file changes without re-parsing the glyphs that didn't change. Enable for watch/dev; leave it off for one-shot builds so the parsed geometry isn't held in memory.
+- Description: Retain parsed glyph data on the result so [`regenerateAsync()`](#regenerateasyncfiles-changes) or [`regenerate()`](#regeneratefiles-changes) can rebuild after file changes without re-parsing the glyphs that didn't change. Enable for watch/dev; leave it off for one-shot builds so the parsed geometry isn't held in memory.
 
 ### `fixedWidth`
 
@@ -344,6 +344,18 @@ interface GlyphChangeEntry {
     // the file stem; changed files default to the current name; removed files ignore it.
     name?: string;
 }
+```
+
+### `regenerateAsync(files, changes?)`
+
+- Type: `(files: string[], changes?: GlyphChangeEntry[] | null) => Promise<GenerateWebfontsResult>`
+- Requires: the result was produced with [`incremental: true`](#incremental) (rejects otherwise).
+- Description: Performs the same rebuild as [`regenerate()`](#regeneratefiles-changes) off the Node.js event loop and resolves with a replacement result. The receiver remains readable and unchanged while the rebuild runs and after failure. Assign the replacement before starting another rebuild; overlapping calls from the same result lineage reject. In-memory state is replaced only on success, but writes made with [`writeFiles: true`](#writefiles) are not transactional.
+
+```ts
+let files = ['/icons/add.svg', '/icons/search.svg'];
+let result = await generateWebfonts({ files, dest, incremental: true });
+result = await result.regenerateAsync(files, [{ path: '/icons/add.svg', changeType: 'changed' }]);
 ```
 
 ## Templates

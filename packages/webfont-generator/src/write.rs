@@ -165,14 +165,14 @@ fn output_hash(bytes: &[u8]) -> [u8; 16] {
 /// Font outputs are written directly after a real rebuild; only CSS/HTML are hash-checked because
 /// they often remain byte-identical after a geometry-only edit.
 pub(crate) fn write_generate_webfonts_result_sync(
-    result: &mut GenerateWebfontsResult,
+    result: &GenerateWebfontsResult,
+    written: &mut HashMap<String, [u8; 16]>,
 ) -> std::io::Result<()> {
     let outputs = collect_write_outputs(result)?;
 
     // Write everything, updating `written_outputs` in place. Updating in place (rather than
     // taking the map and restoring it at the end) means a mid-write failure keeps the hashes of the
     // outputs already written, so a retry doesn't needlessly rewrite them.
-    let written = &mut result.written_outputs;
     for output in outputs {
         if output.skip_unchanged {
             write_output_file_if_changed(written, output.path, output.contents.as_bytes())?;

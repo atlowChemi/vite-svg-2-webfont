@@ -708,3 +708,91 @@ describe('regenerate (incremental)', () => {
         expect(() => result.regenerate([a], [{ path: a, changeType: 'changed' }])).toThrow(/incremental/);
     });
 });
+
+describe('regenerateAsync (incremental)', () => {
+    it('is byte-identical to synchronous regeneration', async () => {
+        const dir = await createTempDir('regen-async-parity-');
+        const [a, b] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b')]);
+        const options = { ...regenBaseOpts(dir, [a, b]), incremental: true };
+        const [syncResult, asyncSource] = await Promise.all([generateWebfonts(options), generateWebfonts(options)]);
+
+        await writeFile(b, regenIcon(REGEN_PATHS.changed));
+        const changes = [{ path: b, changeType: 'changed' as const }];
+        syncResult.regenerate([a, b], changes);
+        const asyncResult = await asyncSource.regenerateAsync([a, b], changes);
+
+        expect(asyncResult).toEqualFont(syncResult);
+        expect(asyncResult).toEqualCss(syncResult);
+        expect(asyncResult.generateHtml()).toBe(syncResult.generateHtml());
+    });
+
+    it('returns a replacement while leaving the original unchanged', async () => {
+        const dir = await createTempDir('regen-async-');
+        const [a, b] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b')]);
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b]), incremental: true });
+        const before = result.svg;
+
+        await writeFile(b, regenIcon(REGEN_PATHS.changed));
+        const replacement = await result.regenerateAsync([a, b], [{ path: b, changeType: 'changed' }]);
+
+        expect(result.svg).toBe(before);
+        expect(replacement.svg).not.toBe(before);
+        expect(replacement).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a, b])));
+        await expect(result.regenerateAsync([a, b])).rejects.toThrow(/replaced/);
+    });
+
+    it('keeps the original readable after a failed rebuild', async () => {
+        const dir = await createTempDir('regen-async-fail-');
+        const a = await writeRegenIcon(dir, 'a', 'a');
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a]), incremental: true });
+        const before = result.svg;
+
+        await rm(a);
+        await expect(result.regenerateAsync([a], [{ path: a, changeType: 'changed' }])).rejects.toThrow(/No such file|ENOENT/);
+        expect(result.svg).toBe(before);
+
+        await writeRegenIcon(dir, 'a', 'a');
+        const replacement = await result.regenerateAsync([a], [{ path: a, changeType: 'changed' }]);
+        expect(replacement).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a])));
+    });
+
+    it('rejects overlapping rebuilds on the same result lineage', async () => {
+        const dir = await createTempDir('regen-async-overlap-');
+        const a = await writeRegenIcon(dir, 'a', 'a');
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, [a]), incremental: true });
+        const replacement = await result.regenerateAsync([a]);
+
+        const first = replacement.regenerateAsync([a]);
+        await expect(replacement.regenerateAsync([a])).rejects.toThrow(/regenerating|replaced/);
+        await first;
+    });
+
+    it('does not block the event loop during a rebuild', async () => {
+        const dir = await createTempDir('regen-async-responsive-');
+        const files = await Promise.all(Array.from({ length: 64 }, (_, index) => writeRegenIcon(dir, `icon-${index}`, 'a')));
+        const result = await generateWebfonts({ ...regenBaseOpts(dir, files), incremental: true });
+
+        await writeFile(files[0], regenIcon(REGEN_PATHS.changed));
+        const regeneration = result.regenerateAsync(files, [{ path: files[0], changeType: 'changed' }]);
+        const published = {
+            svg: result.svg,
+            ttf: result.ttf,
+            eot: result.eot,
+            woff: result.woff,
+            woff2: result.woff2,
+            css: result.generateCss(),
+            html: result.generateHtml(),
+        };
+        expect(result.svg).toBe(published.svg);
+        expect(result.ttf).toEqual(published.ttf);
+        expect(result.eot).toEqual(published.eot);
+        expect(result.woff).toEqual(published.woff);
+        expect(result.woff2).toEqual(published.woff2);
+        expect(result.generateCss()).toBe(published.css);
+        expect(result.generateHtml()).toBe(published.html);
+        const firstSettled = await Promise.race([regeneration.then(() => 'regeneration'), new Promise(resolve => setTimeout(() => resolve('timer'), 0))]);
+
+        expect(firstSettled).toBe('timer');
+        await regeneration;
+    });
+});

@@ -103,12 +103,12 @@ use write::write_generate_webfonts_result;
 
 pub use types::{
     CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult,
-    GlyphChange, GlyphChangeEntry, HtmlContext, SvgFormatOptions, TtfFormatOptions,
-    Woff2FormatOptions, WoffFormatOptions,
+    GlyphChange, GlyphChangeEntry, HtmlContext, RegenerateError, SvgFormatOptions,
+    TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
 use types::{
-    DEFAULT_FONT_ORDER, FontOutputs, LoadedSvgFile, ResolvedGenerateWebfontsOptions,
-    resolved_font_types,
+    DEFAULT_FONT_ORDER, FontOutputs, LoadedSvgFile, RegenerationState,
+    ResolvedGenerateWebfontsOptions, resolved_font_types,
 };
 
 #[cfg(feature = "bench")]
@@ -287,7 +287,9 @@ pub mod bench_support {
 
     /// Clear retained WOFF1 payloads so benchmarks can compare warm vs cold compression cache.
     pub fn clear_woff1_payload_cache(result: &mut GenerateWebfontsResult) {
-        if let Some(cache) = result.ttf_cache.as_mut() {
+        if let Some(state) = result.regeneration_state.lock().unwrap().as_mut()
+            && let Some(cache) = state.ttf_cache.as_mut()
+        {
             cache.clear_woff1_payloads();
         }
     }
@@ -417,7 +419,7 @@ pub async fn generate_webfonts(
         && let Some(written) = write_generate_webfonts_result(&result).await?
     {
         // Only incremental results can call `regenerate`, so only they need write-skip state.
-        result.written_outputs = written;
+        result.seed_written_outputs(written);
     }
 
     Ok(result)
@@ -438,7 +440,7 @@ pub async fn generate(
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
 
-    let mut result =
+    let result =
         tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
             .await
             .map_err(std::io::Error::other)??;
@@ -447,7 +449,7 @@ pub async fn generate(
         && let Some(written) = write_generate_webfonts_result(&result).await?
     {
         // Only incremental results can call `regenerate`, so only they need write-skip state.
-        result.written_outputs = written;
+        result.seed_written_outputs(written);
     }
 
     Ok(result)
@@ -646,18 +648,22 @@ fn generate_webfonts_sync(
         (prepare_svg_font(&svg_options, &source_files)?, None, None)
     };
     let fonts = build_font_outputs(&options, &svg_options, &prepared, ttf_cache.as_mut())?;
+    let regeneration_state = glyph_cache.map(|glyph_cache| RegenerationState {
+        caches_dirty: false,
+        glyph_cache,
+        ttf_cache,
+        written_outputs: std::collections::HashMap::new(),
+    });
 
     Ok(GenerateWebfontsResult {
         cached: std::sync::OnceLock::new(),
         carried_render: None,
         css_context: None,
         fonts,
-        glyph_cache,
         html_context: None,
-        options,
-        source_files,
-        ttf_cache,
-        written_outputs: std::collections::HashMap::new(),
+        options: std::sync::Arc::new(options),
+        regeneration_state: std::sync::Arc::new(std::sync::Mutex::new(regeneration_state)),
+        source_files: std::sync::Arc::new(source_files),
     })
 }
 

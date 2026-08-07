@@ -187,10 +187,12 @@ Both methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter
 
 ### Incremental rebuild
 
-| Method                               | Return type      | Description                                                          |
-| ------------------------------------ | ---------------- | -------------------------------------------------------------------- |
-| `regenerate(ordered_paths, changes)` | `io::Result<()>` | Rebuild after known file changes, reusing unchanged glyphs           |
-| `regenerate_all(ordered_paths)`      | `io::Result<()>` | Re-read/hash the full file set and infer added/changed/removed paths |
+| Method                                     | Return type                     | Description                                                          |
+| ------------------------------------------ | ------------------------------- | -------------------------------------------------------------------- |
+| `regenerate(ordered_paths, changes)`       | `io::Result<()>`                | Rebuild after known file changes, reusing unchanged glyphs           |
+| `regenerate_all(ordered_paths)`            | `io::Result<()>`                | Re-read/hash the full file set and infer added/changed/removed paths |
+| `regenerate_async(ordered_paths, changes)` | `Result<Self, RegenerateError>` | Consume the result and rebuild on Tokio's blocking pool              |
+| `regenerate_all_async(ordered_paths)`      | `Result<Self, RegenerateError>` | Consume the result, re-diff, and rebuild on Tokio's blocking pool    |
 
 Requires the result to have been generated with `incremental: Some(true)` (errors otherwise).
 `ordered_paths: &[String]` is the complete file set after the changes, in the order a fresh build
@@ -203,6 +205,19 @@ too, while unchanged CSS/HTML companion files are skipped. Rendered
 CSS/HTML is reused when glyph names and codepoints are unchanged. Use `regenerate_all` when you have
 the fresh ordered file set but no reliable watcher change batch; existing glyph names are preserved,
 and added paths derive their glyph name from the file stem.
+
+The async methods take owned `Vec` inputs and consume the result, so Rust rejects stale-result
+reuse after a successful rebuild. Assign the returned generation:
+
+```rust
+result = result.regenerate_async(files, changes).await?;
+```
+
+For ordinary regeneration failures, `RegenerateError::into_result()` returns the consumed result
+so it can be retried. It returns `None` only if Tokio cancelled the blocking task before the result
+could be returned. The consuming futures are not cancellation-safe: dropping one does not stop an
+already-started blocking task, filesystem writes may continue, and the consumed result cannot be
+recovered. Panics resume unwinding on the awaiting task.
 
 For Node.js results, `regenerate()` errors if the initial build used `cssContext` or `htmlContext`
 callbacks because the synchronous method cannot re-run JavaScript callbacks during the rebuild.
