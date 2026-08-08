@@ -1,5 +1,12 @@
 # Changelog
 
+## [8.1.2](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.1.1...vite-svg-2-webfont-v8.1.2) (2026-08-08)
+
+
+### Performance Improvements
+
+* **vite-svg-2-webfont:** memoize generated font buffers ([#290](https://github.com/atlowChemi/vite-svg-2-webfont/issues/290)) ([55e91df](https://github.com/atlowChemi/vite-svg-2-webfont/commit/55e91df6a90d2c994384db9e8df9cb0ed058ea24))
+
 ## [8.1.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.1.0...vite-svg-2-webfont-v8.1.1) (2026-07-23)
 
 ### Performance Improvements

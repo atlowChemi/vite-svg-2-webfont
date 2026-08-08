@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.5.2](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.5.1...webfont-generator-v0.5.2) (2026-08-08)
+
+
+### Bug Fixes
+
+* **deps:** update rust crate usvg to 0.48.0 ([#320](https://github.com/atlowChemi/vite-svg-2-webfont/issues/320)) ([0165125](https://github.com/atlowChemi/vite-svg-2-webfont/commit/0165125c7f7d02f550dc961266b326bedda5c108))
+* **deps:** update rust crate write-fonts to 0.51.0 ([#285](https://github.com/atlowChemi/vite-svg-2-webfont/issues/285)) ([193b1c9](https://github.com/atlowChemi/vite-svg-2-webfont/commit/193b1c9bf5d63ad399decb7ce602084c664c52af))
+
 ## [0.5.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.5.0...webfont-generator-v0.5.1) (2026-07-23)
 
 ### Bug Fixes
