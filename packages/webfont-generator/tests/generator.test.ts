@@ -748,7 +748,7 @@ describe('regenerateAsync (incremental)', () => {
         const before = result.svg;
 
         await rm(a);
-        await expect(result.regenerateAsync([a], [{ path: a, changeType: 'changed' }])).rejects.toThrow(/No such file|ENOENT/);
+        await expect(result.regenerateAsync([a], [{ path: a, changeType: 'changed' }])).rejects.toThrow(/No such file|ENOENT|cannot find the file/i);
         expect(result.svg).toBe(before);
 
         await writeRegenIcon(dir, 'a', 'a');
@@ -762,14 +762,17 @@ describe('regenerateAsync (incremental)', () => {
         const result = await generateWebfonts({ ...regenBaseOpts(dir, [a]), incremental: true });
         const replacement = await result.regenerateAsync([a]);
 
-        const first = replacement.regenerateAsync([a]);
-        await expect(replacement.regenerateAsync([a])).rejects.toThrow(/regenerating|replaced/);
-        await first;
+        const outcomes = await Promise.allSettled([replacement.regenerateAsync([a]), replacement.regenerateAsync([a])]);
+
+        expect(outcomes.filter(outcome => outcome.status === 'fulfilled')).toHaveLength(1);
+        expect(outcomes.filter(outcome => outcome.status === 'rejected')).toEqual([
+            expect.objectContaining({ reason: expect.objectContaining({ message: expect.stringMatching(/regenerating|replaced/) }) }),
+        ]);
     });
 
     it('does not block the event loop during a rebuild', async () => {
         const dir = await createTempDir('regen-async-responsive-');
-        const files = await Promise.all(Array.from({ length: 64 }, (_, index) => writeRegenIcon(dir, `icon-${index}`, 'a')));
+        const files = await Promise.all(Array.from({ length: 600 }, (_, index) => writeRegenIcon(dir, `icon-${index}`, 'a')));
         const result = await generateWebfonts({ ...regenBaseOpts(dir, files), incremental: true });
 
         await writeFile(files[0], regenIcon(REGEN_PATHS.changed));
