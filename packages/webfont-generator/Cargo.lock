@@ -930,6 +930,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nunny"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a917062db7bc4aacea810b261939fd1c7e21c1156a641e3d9faa07740e3c4fb2"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "once_cell"
 version = "1.21.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -955,14 +964,16 @@ checksum = "a89e6988e7b798b314e7ef5e0a8589ad464976bd2ff9054c0f37390bd636d6e5"
 
 [[package]]
 name = "oxvg_path"
-version = "0.0.5"
+version = "0.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fdff6083c950ef9268d9646efd268ab8839ca1f63970887062578879f32c4571"
+checksum = "d7d08f7898519147d2dd8b6e0cf4d9951505801d5dc7f110652b2a39bfb6e096"
 dependencies = [
  "bitflags",
  "itertools 0.14.0",
  "log",
+ "nunny",
  "oxvg_parse",
+ "robust",
  "ryu",
 ]
 
@@ -1162,6 +1173,12 @@ name = "regex-syntax"
 version = "0.8.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d6f6ff9a378485b298a5286656da665ba74413d36db0979633275d2e708145d4"
+
+[[package]]
+name = "robust"
+version = "1.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4e27ee8bb91ca0adcf0ecb116293afa12d393f9c2b9b9cd54d33e8078fe19839"
 
 [[package]]
 name = "roxmltree"
