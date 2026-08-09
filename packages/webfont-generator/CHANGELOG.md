@@ -2,22 +2,19 @@
 
 ## [0.6.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.5.1...webfont-generator-v0.6.0) (2026-08-09)
 
-
 ### Features
 
-* **webfont-generator:** add async regeneration ([#317](https://github.com/atlowChemi/vite-svg-2-webfont/issues/317)) ([a038107](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a038107209f502c240972e3dc30beeaf27d4f272))
-
+- **webfont-generator:** add async regeneration ([#317](https://github.com/atlowChemi/vite-svg-2-webfont/issues/317)) ([a038107](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a038107209f502c240972e3dc30beeaf27d4f272))
 
 ### Bug Fixes
 
-* **deps:** update rust crate usvg to 0.48.0 ([#320](https://github.com/atlowChemi/vite-svg-2-webfont/issues/320)) ([0165125](https://github.com/atlowChemi/vite-svg-2-webfont/commit/0165125c7f7d02f550dc961266b326bedda5c108))
-* **deps:** update rust crate write-fonts to 0.51.0 ([#285](https://github.com/atlowChemi/vite-svg-2-webfont/issues/285)) ([193b1c9](https://github.com/atlowChemi/vite-svg-2-webfont/commit/193b1c9bf5d63ad399decb7ce602084c664c52af))
-
+- **deps:** update rust crate usvg to 0.48.0 ([#320](https://github.com/atlowChemi/vite-svg-2-webfont/issues/320)) ([0165125](https://github.com/atlowChemi/vite-svg-2-webfont/commit/0165125c7f7d02f550dc961266b326bedda5c108))
+- **deps:** update rust crate write-fonts to 0.51.0 ([#285](https://github.com/atlowChemi/vite-svg-2-webfont/issues/285)) ([193b1c9](https://github.com/atlowChemi/vite-svg-2-webfont/commit/193b1c9bf5d63ad399decb7ce602084c664c52af))
 
 ### Performance Improvements
 
-* Move regeneration state instead of cloning glyph caches, making unchanged incremental rebuilds 2-3x faster with negligible async overhead. ([a038107](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a038107209f502c240972e3dc30beeaf27d4f272))
-* optimized font output is ~7% smaller and path optimization ~10% faster (thanks to oxvg_path 0.0.7) ([6b38435](https://github.com/atlowChemi/vite-svg-2-webfont/commit/6b38435e9550fe9c571a38ed1d01d94ff34fd03d))
+- Move regeneration state instead of cloning glyph caches, making unchanged incremental rebuilds 2-3x faster with negligible async overhead. ([a038107](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a038107209f502c240972e3dc30beeaf27d4f272))
+- optimized font output is ~7% smaller and path optimization ~10% faster (thanks to oxvg_path 0.0.7) ([6b38435](https://github.com/atlowChemi/vite-svg-2-webfont/commit/6b38435e9550fe9c571a38ed1d01d94ff34fd03d))
 
 ## [0.5.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.5.0...webfont-generator-v0.5.1) (2026-07-23)
 

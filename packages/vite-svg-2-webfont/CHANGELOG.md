@@ -2,16 +2,14 @@
 
 ## [8.2.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.1.1...vite-svg-2-webfont-v8.2.0) (2026-08-09)
 
-
 ### Features
 
-* **webfont-generator:** add async regeneration ([#317](https://github.com/atlowChemi/vite-svg-2-webfont/issues/317)) ([a038107](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a038107209f502c240972e3dc30beeaf27d4f272))
-
+- **webfont-generator:** add async regeneration ([#317](https://github.com/atlowChemi/vite-svg-2-webfont/issues/317)) ([a038107](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a038107209f502c240972e3dc30beeaf27d4f272))
 
 ### Performance Improvements
 
-* Move regeneration state instead of cloning glyph caches, making unchanged incremental rebuilds 2-3x faster with negligible async overhead. ([a038107](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a038107209f502c240972e3dc30beeaf27d4f272))
-* **vite-svg-2-webfont:** memoize generated font buffers ([#290](https://github.com/atlowChemi/vite-svg-2-webfont/issues/290)) ([55e91df](https://github.com/atlowChemi/vite-svg-2-webfont/commit/55e91df6a90d2c994384db9e8df9cb0ed058ea24))
+- Move regeneration state instead of cloning glyph caches, making unchanged incremental rebuilds 2-3x faster with negligible async overhead. ([a038107](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a038107209f502c240972e3dc30beeaf27d4f272))
+- **vite-svg-2-webfont:** memoize generated font buffers ([#290](https://github.com/atlowChemi/vite-svg-2-webfont/issues/290)) ([55e91df](https://github.com/atlowChemi/vite-svg-2-webfont/commit/55e91df6a90d2c994384db9e8df9cb0ed058ea24))
 
 ## [8.1.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.1.0...vite-svg-2-webfont-v8.1.1) (2026-07-23)
 
