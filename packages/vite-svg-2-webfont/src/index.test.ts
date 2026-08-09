@@ -602,15 +602,19 @@ describe('serve - memoizes generated font outputs', () => {
         const filename = '__memoized-font-test__.svg';
         const svgUrl = new URL(`webfont-test/svg/${filename}`, root);
         let watcherHandler: Parameters<typeof setupWatcherMock>[2] | undefined;
-        let getterSpy: MockInstance | undefined;
+        const getterSpies: MockInstance[] = [];
         setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
             watcherHandler = handler;
         });
         const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
         generateWebfontsMock.mockImplementationOnce(async options => {
-            const result = await realGen(options);
-            getterSpy = vi.spyOn(result, 'woff2', 'get');
-            return result;
+            const trackGetter = (result: Awaited<ReturnType<typeof realGen>>): Awaited<ReturnType<typeof realGen>> => {
+                getterSpies.push(vi.spyOn(result, 'woff2', 'get'));
+                const regenerateAsync = result.regenerateAsync.bind(result);
+                result.regenerateAsync = async (...args) => trackGetter(await regenerateAsync(...args));
+                return result;
+            };
+            return trackGetter(await realGen(options));
         });
         const created = await createServer({
             logLevel: 'silent',
@@ -623,7 +627,7 @@ describe('serve - memoizes generated font outputs', () => {
         try {
             const before = await fetchBufferContent(server, '/iconfont.woff2');
             expect(await fetchBufferContent(server, '/iconfont.woff2')).toStrictEqual(before);
-            expect(getterSpy).toHaveBeenCalledOnce();
+            expect(getterSpies.reduce((calls, spy) => calls + spy.mock.calls.length, 0)).toBe(1);
 
             await writeFile(svgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>');
             if (!watcherHandler) {
@@ -634,7 +638,7 @@ describe('serve - memoizes generated font outputs', () => {
             const after = await fetchBufferContent(server, '/iconfont.woff2');
             expect(after).not.toStrictEqual(before);
             expect(await fetchBufferContent(server, '/iconfont.woff2')).toStrictEqual(after);
-            expect(getterSpy).toHaveBeenCalledTimes(2);
+            expect(getterSpies.reduce((calls, spy) => calls + spy.mock.calls.length, 0)).toBe(2);
         } finally {
             await Promise.all([server.close(), rm(svgUrl, { force: true })]);
         }
@@ -649,9 +653,7 @@ describe('serve - memoizes generated font outputs', () => {
         const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
         generateWebfontsMock.mockImplementationOnce(async options => {
             const result = await realGen(options);
-            result.regenerate = () => {
-                throw new Error('incremental regeneration failed');
-            };
+            result.regenerateAsync = async () => Promise.reject(new Error('incremental regeneration failed'));
             getterSpy = vi.spyOn(result, 'woff2', 'get');
             return result;
         });
@@ -885,24 +887,26 @@ describe('serve - incrementally regenerates on a content edit', () => {
     const reloadedIds: string[] = [];
     const { promise: waitForCssReload, resolve: markCssReloaded } = Promise.withResolvers<void>();
     let watcherHandler: Parameters<typeof setupWatcherMock>[2];
-    const regenerateCalls: Array<Parameters<RegenResult['regenerate']>> = [];
+    const regenerateCalls: Array<Parameters<RegenResult['regenerateAsync']>> = [];
     let server: ViteDevServer;
 
     beforeAll(async () => {
         setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
             watcherHandler = handler;
         });
-        // Wrap the result's `regenerate` to prove the change goes through the incremental path
+        // Wrap the result's `regenerateAsync` to prove the change goes through the incremental path
         // (not the full-rebuild fallback) for a content edit, and to capture its arguments.
         const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
         generateWebfontsMock.mockImplementationOnce(async options => {
-            const result = await realGen(options);
-            const original = result.regenerate.bind(result);
-            result.regenerate = (...args: Parameters<RegenResult['regenerate']>) => {
-                regenerateCalls.push(args);
-                return original(...args);
+            const trackRegeneration = (result: RegenResult): RegenResult => {
+                const original = result.regenerateAsync.bind(result);
+                result.regenerateAsync = async (...args: Parameters<RegenResult['regenerateAsync']>) => {
+                    regenerateCalls.push(args);
+                    return trackRegeneration(await original(...args));
+                };
+                return result;
             };
-            return result;
+            return trackRegeneration(await realGen(options));
         });
         const created = await createServer({
             logLevel: 'silent',
@@ -1049,9 +1053,7 @@ describe('serve - falls back when regenerate throws', () => {
         const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
         generateWebfontsMock.mockImplementationOnce(async options => {
             const result = await realGen(options);
-            result.regenerate = () => {
-                throw new Error('intentional regenerate failure');
-            };
+            result.regenerateAsync = async () => Promise.reject(new Error('intentional regenerate failure'));
             return result;
         });
         const created = await createServer({
@@ -1163,6 +1165,50 @@ describe('serve - releases retained watch state on close', () => {
 
         expect(watchSignal?.aborted).toBe(true);
         expect(rmDirMock.mock.calls.length).toBe(rmDirCallsBefore + 1);
+    });
+
+    it('waits for an in-flight watch rebuild before releasing state', async () => {
+        const startFlush = Promise.withResolvers<void>();
+        const regenerationStarted = Promise.withResolvers<void>();
+        const finishRegeneration = Promise.withResolvers<void>();
+        let watchSignal: AbortSignal | undefined;
+        setupWatcherMock.mockImplementationOnce(async (_path, signal, handler) => {
+            watchSignal = signal;
+            await startFlush.promise;
+            await handler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
+        });
+        const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            const result = await realGen(options);
+            const regenerateAsync = result.regenerateAsync.bind(result);
+            result.regenerateAsync = async (...args) => {
+                regenerationStarted.resolve();
+                await finishRegeneration.promise;
+                return regenerateAsync(...args);
+            };
+            return result;
+        });
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
+        });
+        const server = await created.listen();
+
+        startFlush.resolve();
+        await regenerationStarted.promise;
+        let closed = false;
+        const close = server.close().then(() => {
+            closed = true;
+            return undefined;
+        });
+        await vi.waitFor(() => expect(watchSignal?.aborted).toBe(true));
+        expect(closed).toBe(false);
+
+        finishRegeneration.resolve();
+        await close;
+        expect(closed).toBe(true);
     });
 
     it('does not fail server startup when watcher setup rejects', async () => {

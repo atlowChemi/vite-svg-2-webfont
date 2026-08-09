@@ -299,6 +299,31 @@ fn bench_regenerate(c: &mut Criterion) {
             )
         });
 
+        group.bench_function(format!("owned_incremental_content_edit/{size}"), |b| {
+            b.iter_batched(
+                || {
+                    let fixture = fixtures(size);
+                    let result = webfont_generator::generate_sync(
+                        options(fixture.paths.clone(), true),
+                        None,
+                    )
+                    .unwrap();
+                    let changed = fixture.paths[size / 2].clone();
+                    std::fs::write(&changed, svg(&changed_path_data())).unwrap();
+                    (fixture, result, changed)
+                },
+                |(fixture, result, changed)| {
+                    result
+                        .regenerate_owned_for_bench(
+                            &fixture.paths,
+                            &[(changed, GlyphChange::Changed { name: None })],
+                        )
+                        .unwrap()
+                },
+                BatchSize::SmallInput,
+            )
+        });
+
         group.bench_function(format!("rediff_content_edit/{size}"), |b| {
             b.iter_batched(
                 || {

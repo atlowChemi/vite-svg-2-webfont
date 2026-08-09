@@ -43,6 +43,13 @@ export declare class GenerateWebfontsResult {
    * rendered bytes are unchanged since the last write.
    */
   regenerate(files: Array<string>, changes?: Array<GlyphChangeEntry> | undefined | null): void
+  /**
+   * Rebuild off the Node.js event loop and resolve with a replacement result. The receiver
+   * remains readable and unchanged while regeneration runs and after failure. Assign the
+   * resolved result before starting another regeneration. Overlapping calls on the same result
+   * lineage are rejected, and disk writes remain non-transactional.
+   */
+  regenerateAsync(files: Array<string>, changes?: Array<GlyphChangeEntry> | undefined | null): Promise<GenerateWebfontsResult>
 }
 
 /**
