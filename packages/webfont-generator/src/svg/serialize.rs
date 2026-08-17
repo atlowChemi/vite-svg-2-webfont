@@ -85,38 +85,38 @@ pub(crate) fn append_path(target: &mut String, path: &TinyPath, round: f64) {
                 let _ = write!(
                     target,
                     "M {} {} ",
-                    round_to_string(f64::from(point.x), round),
-                    round_to_string(f64::from(point.y), round)
+                    RoundedCoordinate::new(point.x, round),
+                    RoundedCoordinate::new(point.y, round)
                 );
             }
             PathSegment::LineTo(point) => {
                 let _ = write!(
                     target,
                     "L {} {} ",
-                    round_to_string(f64::from(point.x), round),
-                    round_to_string(f64::from(point.y), round)
+                    RoundedCoordinate::new(point.x, round),
+                    RoundedCoordinate::new(point.y, round)
                 );
             }
             PathSegment::QuadTo(control, point) => {
                 let _ = write!(
                     target,
                     "Q {} {} {} {} ",
-                    round_to_string(f64::from(control.x), round),
-                    round_to_string(f64::from(control.y), round),
-                    round_to_string(f64::from(point.x), round),
-                    round_to_string(f64::from(point.y), round)
+                    RoundedCoordinate::new(control.x, round),
+                    RoundedCoordinate::new(control.y, round),
+                    RoundedCoordinate::new(point.x, round),
+                    RoundedCoordinate::new(point.y, round)
                 );
             }
             PathSegment::CubicTo(control1, control2, point) => {
                 let _ = write!(
                     target,
                     "C {} {} {} {} {} {} ",
-                    round_to_string(f64::from(control1.x), round),
-                    round_to_string(f64::from(control1.y), round),
-                    round_to_string(f64::from(control2.x), round),
-                    round_to_string(f64::from(control2.y), round),
-                    round_to_string(f64::from(point.x), round),
-                    round_to_string(f64::from(point.y), round)
+                    RoundedCoordinate::new(control1.x, round),
+                    RoundedCoordinate::new(control1.y, round),
+                    RoundedCoordinate::new(control2.x, round),
+                    RoundedCoordinate::new(control2.y, round),
+                    RoundedCoordinate::new(point.x, round),
+                    RoundedCoordinate::new(point.y, round)
                 );
             }
             PathSegment::Close => target.push_str("Z "),
@@ -124,18 +124,27 @@ pub(crate) fn append_path(target: &mut String, path: &TinyPath, round: f64) {
     }
 }
 
-#[inline]
-fn round_to_string(value: f64, round: f64) -> String {
-    let precision = if round.is_finite() && round > 0.0 {
-        round
-    } else {
-        DEFAULT_ROUNDING_PRECISION
-    };
-    let rounded = (value * precision).round() / precision;
-    if rounded.fract() == 0.0 {
-        format!("{rounded:.0}")
-    } else {
-        rounded.to_string()
+struct RoundedCoordinate(f64);
+
+impl RoundedCoordinate {
+    #[inline]
+    fn new(value: f32, round: f64) -> Self {
+        let precision = if round.is_finite() && round > 0.0 {
+            round
+        } else {
+            DEFAULT_ROUNDING_PRECISION
+        };
+        Self((f64::from(value) * precision).round() / precision)
+    }
+}
+
+impl std::fmt::Display for RoundedCoordinate {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if self.0.fract() == 0.0 {
+            write!(formatter, "{:.0}", self.0)
+        } else {
+            self.0.fmt(formatter)
+        }
     }
 }
 
@@ -171,4 +180,61 @@ fn escape_xml(value: &str) -> String {
         }
     }
     result
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn rounded_coordinate_matches_allocating_formatter() {
+        let values = [
+            -0.0,
+            0.0,
+            -1.5,
+            0.004_999_999_9,
+            0.005_000_000_4,
+            1.234_567_8,
+            16_777_216.0,
+            f32::MAX,
+            f32::MIN_POSITIVE,
+        ];
+        let precisions = [
+            1.0,
+            10.0,
+            100.0,
+            1_000.0,
+            DEFAULT_ROUNDING_PRECISION,
+            10e12,
+            1e40,
+            0.0,
+            -1.0,
+            f64::NAN,
+            f64::INFINITY,
+        ];
+
+        for value in values {
+            for precision in precisions {
+                let expected = round_to_string(value, precision);
+                assert_eq!(
+                    RoundedCoordinate::new(value, precision).to_string(),
+                    expected
+                );
+            }
+        }
+    }
+
+    fn round_to_string(value: f32, round: f64) -> String {
+        let precision = if round.is_finite() && round > 0.0 {
+            round
+        } else {
+            DEFAULT_ROUNDING_PRECISION
+        };
+        let rounded = (f64::from(value) * precision).round() / precision;
+        if rounded.fract() == 0.0 {
+            format!("{rounded:.0}")
+        } else {
+            rounded.to_string()
+        }
+    }
 }
