@@ -22,7 +22,7 @@ if (!version) {
     exit(2);
 }
 
-if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(version) && version !== 'latest') {
+if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-.*)?$/.test(version) && version !== 'latest') {
     console.error(styleText('red', `Invalid version: ${version}. Expected a full semver version or "latest".`));
     exit(2);
 }
