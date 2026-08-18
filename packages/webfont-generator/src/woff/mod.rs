@@ -467,17 +467,36 @@ mod tests {
     fn assert_internal_woff2(glyph_count: usize) {
         let tables = acceptance_font_tables(glyph_count);
         let mut cache = crate::ttf::Woff2TransformCache::default();
-        for quality in WOFF2_QUALITIES {
-            let output = tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap();
-            assert_eq!(
-                output,
-                tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap()
-            );
-            let decoded = ::woff::version2::decompress(&output)
-                .expect("internal transformed WOFF2 should decode");
-            assert_semantically_equal(tables.ttf(), &decoded);
-        }
+        let outputs = WOFF2_QUALITIES
+            .map(|quality| {
+                let output = tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap();
+                assert_eq!(
+                    output,
+                    tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap()
+                );
+                let decoded = ::woff::version2::decompress(&output)
+                    .expect("internal transformed WOFF2 should decode");
+                assert_semantically_equal(tables.ttf(), &decoded);
+                output
+            })
+            .collect::<Vec<_>>();
         assert_eq!(cache.compile_count, 1);
+
+        let encoded = encode_baseline(&outputs);
+        let baseline_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/woff/fixtures")
+            .join(format!("{glyph_count}.internal-woff2-baseline"));
+        if std::env::var_os("UPDATE_WOFF2_FIXTURES").is_some_and(|value| value != "0") {
+            std::fs::write(&baseline_path, &encoded)
+                .expect("internal WOFF2 baseline should be written");
+        } else {
+            let baseline =
+                std::fs::read(&baseline_path).expect("internal WOFF2 baseline should exist");
+            assert_eq!(
+                encoded, baseline,
+                "internal WOFF2 baseline changed for {glyph_count} glyphs; inspect it and rerun with UPDATE_WOFF2_FIXTURES=1 to accept it",
+            );
+        }
     }
 
     fn acceptance_font_tables(glyph_count: usize) -> SerializedFontTables {
