@@ -43,8 +43,8 @@ pub(super) fn encode(
     quality: u8,
     cache: Option<&mut Woff2TransformCache>,
 ) -> Result<Vec<u8>, Error> {
-    let prepared = prepare(tables, cache)?;
-    let compressed = compress(&prepared, quality)?;
+    let mut prepared = prepare(tables, cache)?;
+    let compressed = compress_stream(std::mem::take(&mut prepared.stream), quality)?;
     assemble(&prepared, &compressed)
 }
 
@@ -129,8 +129,21 @@ pub(super) fn prepare(
         loca_checksum: payload.normalized_loca_checksum,
     };
     let normalized_head = normalized_head(&ordered, &normalized)?;
-    let mut directory = Vec::new();
-    let mut stream = Vec::new();
+    let table_count =
+        u16::try_from(ordered.len()).map_err(|_| invalid_data("WOFF2 table count exceeds u16"))?;
+    let stream_capacity = ordered.iter().try_fold(0_usize, |length, table| {
+        let table_length = match &table.tag {
+            b"glyf" => payload.transformed.len(),
+            b"loca" => 0,
+            b"head" => normalized_head.len(),
+            _ => table.bytes.len(),
+        };
+        length
+            .checked_add(table_length)
+            .ok_or_else(|| invalid_data("WOFF2 stream size overflow"))
+    })?;
+    let mut directory = Vec::with_capacity(usize::from(table_count) * 11);
+    let mut stream = Vec::with_capacity(stream_capacity);
     for table in &ordered {
         write_directory_entry(
             &mut directory,
@@ -150,8 +163,7 @@ pub(super) fn prepare(
     Ok(PreparedWoff2 {
         directory,
         stream,
-        table_count: u16::try_from(ordered.len())
-            .map_err(|_| invalid_data("WOFF2 table count exceeds u16"))?,
+        table_count,
         total_sfnt_size: total_sfnt_size(&ordered, &normalized)?,
     })
 }
@@ -619,8 +631,13 @@ fn invalid_data(message: &'static str) -> Error {
     Error::new(ErrorKind::InvalidData, message)
 }
 
+#[cfg(any(test, feature = "bench"))]
 pub(super) fn compress(prepared: &PreparedWoff2, quality: u8) -> Result<Vec<u8>, Error> {
-    dropbox_brotli_compress(&prepared.stream, quality.min(11))
+    compress_stream(prepared.stream.clone(), quality)
+}
+
+fn compress_stream(stream: Vec<u8>, quality: u8) -> Result<Vec<u8>, Error> {
+    dropbox_brotli_compress(stream, quality.min(11))
 }
 
 fn assemble(prepared: &PreparedWoff2, compressed: &[u8]) -> Result<Vec<u8>, Error> {
@@ -726,7 +743,7 @@ impl SliceWrapper<u8> for BrotliInput {
     }
 }
 
-fn dropbox_brotli_compress(input: &[u8], quality: u8) -> Result<Vec<u8>, Error> {
+fn dropbox_brotli_compress(input: Vec<u8>, quality: u8) -> Result<Vec<u8>, Error> {
     let params = BrotliEncoderParams {
         mode: BrotliEncoderMode::BROTLI_MODE_FONT,
         quality: i32::from(quality),
@@ -737,7 +754,7 @@ fn dropbox_brotli_compress(input: &[u8], quality: u8) -> Result<Vec<u8>, Error> 
 
     if quality < 10 {
         let mut output = Vec::new();
-        BrotliCompress(&mut Cursor::new(input), &mut output, &params)?;
+        BrotliCompress(&mut Cursor::new(&input), &mut output, &params)?;
         return Ok(output);
     }
 
@@ -748,7 +765,7 @@ fn dropbox_brotli_compress(input: &[u8], quality: u8) -> Result<Vec<u8>, Error> 
         .collect::<Vec<_>>();
     let length = brotli::enc::compress_multi(
         &params,
-        &mut Owned::new(BrotliInput(input.to_vec())),
+        &mut Owned::new(BrotliInput(input)),
         &mut output,
         &mut allocators,
     )
