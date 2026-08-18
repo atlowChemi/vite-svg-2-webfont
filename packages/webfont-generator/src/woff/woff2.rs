@@ -226,6 +226,7 @@ fn transform_glyf_loca(
     };
     let mut points = Vec::new();
     let mut flags = Vec::new();
+    let mut normalized_scratch = NormalizedGlyphScratch::default();
     for glyph_id in 0..num_glyphs {
         offsets.push(normalized_glyf.len());
         let glyph = loca
@@ -257,7 +258,13 @@ fn transform_glyf_loca(
             .read_points_fast(&mut points, &mut flags)
             .map_err(|_| invalid_data("invalid simple glyph coordinates"))?;
 
-        write_normalized_simple_glyph(&glyph, &points, &flags, &mut normalized_glyf)?;
+        write_normalized_simple_glyph(
+            &glyph,
+            &points,
+            &flags,
+            &mut normalized_scratch,
+            &mut normalized_glyf,
+        )?;
         normalized_glyf.resize((normalized_glyf.len() + 3) & !3, 0);
 
         streams
@@ -349,10 +356,18 @@ fn transform_glyf_loca(
     })
 }
 
+#[derive(Default)]
+struct NormalizedGlyphScratch {
+    flags: Vec<u8>,
+    x_coordinates: Vec<u8>,
+    y_coordinates: Vec<u8>,
+}
+
 fn write_normalized_simple_glyph(
     glyph: &SimpleGlyph<'_>,
     points: &[Point<i32>],
     source_flags: &[PointFlags],
+    scratch: &mut NormalizedGlyphScratch,
     output: &mut Vec<u8>,
 ) -> Result<(), Error> {
     let contour_count = glyph.number_of_contours();
@@ -369,9 +384,10 @@ fn write_normalized_simple_glyph(
     output.extend_from_slice(&glyph.instruction_length().to_be_bytes());
     output.extend_from_slice(glyph.instructions());
 
-    let mut flags = Vec::with_capacity(points.len());
-    let mut x_coordinates = Vec::new();
-    let mut y_coordinates = Vec::new();
+    scratch.flags.clear();
+    scratch.flags.reserve(points.len());
+    scratch.x_coordinates.clear();
+    scratch.y_coordinates.clear();
     let mut last_x = 0_i32;
     let mut last_y = 0_i32;
     for (index, (point, source_flag)) in points.iter().zip(source_flags).enumerate() {
@@ -381,16 +397,16 @@ fn write_normalized_simple_glyph(
         if index == 0 && glyph.has_overlapping_contours() {
             flag |= 1 << 6;
         }
-        write_normalized_coordinate(dx, 1 << 1, 1 << 4, &mut flag, &mut x_coordinates)?;
-        write_normalized_coordinate(dy, 1 << 2, 1 << 5, &mut flag, &mut y_coordinates)?;
-        flags.push(flag);
+        write_normalized_coordinate(dx, 1 << 1, 1 << 4, &mut flag, &mut scratch.x_coordinates)?;
+        write_normalized_coordinate(dy, 1 << 2, 1 << 5, &mut flag, &mut scratch.y_coordinates)?;
+        scratch.flags.push(flag);
         last_x = point.x;
         last_y = point.y;
     }
     let mut index = 0;
-    while index < flags.len() {
-        let flag = flags[index];
-        let run_len = flags[index..]
+    while index < scratch.flags.len() {
+        let flag = scratch.flags[index];
+        let run_len = scratch.flags[index..]
             .iter()
             .take(256)
             .take_while(|next| **next == flag)
@@ -401,8 +417,8 @@ fn write_normalized_simple_glyph(
         }
         index += run_len;
     }
-    output.extend_from_slice(&x_coordinates);
-    output.extend_from_slice(&y_coordinates);
+    output.extend_from_slice(&scratch.x_coordinates);
+    output.extend_from_slice(&scratch.y_coordinates);
     Ok(())
 }
 
