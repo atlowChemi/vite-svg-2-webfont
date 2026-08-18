@@ -90,6 +90,7 @@ pub(crate) fn parse_glyphs(
     }
 
     let preserve_aspect_ratio = options.preserve_aspect_ratio.unwrap_or(false);
+    let parser_options = usvg::Options::default();
 
     let mut work_items = Vec::with_capacity(source_files.len());
     for (index, source_file) in source_files.iter().enumerate() {
@@ -115,7 +116,7 @@ pub(crate) fn parse_glyphs(
 
     let mut glyphs = work_items
         .par_iter()
-        .map(|item| parse_svg_glyph(item, preserve_aspect_ratio))
+        .map(|item| parse_svg_glyph(item, preserve_aspect_ratio, &parser_options))
         .collect::<Result<Vec<_>, Error>>()
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
     glyphs.sort_by_key(|glyph| glyph.index);
@@ -296,6 +297,7 @@ fn parse_glyphs_incremental(
     }
 
     // Parse (in parallel) only files not already cached — a present entry is reused as-is.
+    let parser_options = usvg::Options::default();
     let parsed: Vec<(usize, ParsedGlyph)> = source_files
         .par_iter()
         .enumerate()
@@ -307,7 +309,8 @@ fn parse_glyphs_incremental(
                 name: &source_file.glyph_name,
                 source_file,
             };
-            parse_svg_glyph(&work, preserve_aspect_ratio).map(|glyph| (index, glyph))
+            parse_svg_glyph(&work, preserve_aspect_ratio, &parser_options)
+                .map(|glyph| (index, glyph))
         })
         .collect::<Result<Vec<_>, Error>>()
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;

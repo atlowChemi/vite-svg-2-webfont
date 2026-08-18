@@ -17,11 +17,12 @@ struct RootSvgMetrics {
 pub(crate) fn parse_svg_glyph(
     item: &GlyphWorkItem,
     preserve_aspect_ratio: bool,
+    options: &usvg::Options,
 ) -> Result<ParsedGlyph, Error> {
     let svg = item.source_file.contents.as_str();
-    let root_metrics = parse_root_svg_metrics(svg)?;
-    let options = usvg::Options::default();
-    let tree = usvg::Tree::from_str(svg, &options).map_err(|error| {
+    let document = parse_svg_document(svg)?;
+    let root_metrics = parse_root_svg_metrics(&document)?;
+    let tree = usvg::Tree::from_xmltree(&document, options).map_err(|error| {
         Error::new(
             ErrorKind::InvalidInput,
             format!(
@@ -111,8 +112,8 @@ fn collect_paths(
     Ok(())
 }
 
-fn parse_root_svg_metrics(svg: &str) -> Result<Option<RootSvgMetrics>, Error> {
-    let document = roxmltree::Document::parse_with_options(
+fn parse_svg_document(svg: &str) -> Result<roxmltree::Document<'_>, Error> {
+    roxmltree::Document::parse_with_options(
         svg,
         roxmltree::ParsingOptions {
             allow_dtd: true,
@@ -124,7 +125,12 @@ fn parse_root_svg_metrics(svg: &str) -> Result<Option<RootSvgMetrics>, Error> {
             ErrorKind::InvalidInput,
             format!("Failed to inspect SVG root element: {error}"),
         )
-    })?;
+    })
+}
+
+fn parse_root_svg_metrics(
+    document: &roxmltree::Document<'_>,
+) -> Result<Option<RootSvgMetrics>, Error> {
     let root = document.root_element();
     if !root.has_tag_name("svg") {
         return Ok(None);
