@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
 
 use parse::parse_svg_glyph;
-use process::{build_unicode_values, process_glyph};
+use process::process_glyph;
 pub(crate) use serialize::build_svg_font;
 use types::{
     CachedGlyph, CachedProcessedGlyph, GlyphCache, GlyphWorkItem, ParsedGlyph, PreparedSvgFont,
@@ -25,7 +25,6 @@ struct FinalizePlan {
     fixed_width: bool,
     center_horizontally: bool,
     center_vertically: bool,
-    ligature: bool,
     round: f64,
     max_glyph_height: f64,
     font_height: f64,
@@ -186,7 +185,6 @@ fn finalize_plan(options: &SvgOptions, glyphs: &[ParsedGlyph]) -> FinalizePlan {
         fixed_width: options.fixed_width.unwrap_or(false),
         center_horizontally: options.center_horizontally.unwrap_or(false),
         center_vertically: options.center_vertically.unwrap_or(false),
-        ligature: options.ligature,
         round: options.round.unwrap_or(10e12),
         max_glyph_height,
         font_height,
@@ -209,7 +207,6 @@ fn process_glyph_with_plan(
         plan.fixed_width,
         plan.center_horizontally,
         plan.center_vertically,
-        plan.ligature,
         plan.round,
         plan.max_glyph_height,
         plan.font_height,
@@ -451,11 +448,6 @@ fn finalize_glyphs_incremental(
                     index,
                     name: source_file.glyph_name.clone(),
                     path_data: cached.path_data.clone(),
-                    unicode_values: build_unicode_values(
-                        &source_file.glyph_name,
-                        codepoint,
-                        plan.ligature,
-                    ),
                     width: cached.width,
                 }
             }

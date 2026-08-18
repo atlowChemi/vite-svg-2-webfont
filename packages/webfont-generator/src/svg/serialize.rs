@@ -52,24 +52,29 @@ pub(crate) fn build_svg_font(options: &SvgOptions, prepared: &PreparedSvgFont) -
     svg_font.push_str(" />\n    <missing-glyph horiz-adv-x=\"0\" />\n");
 
     for glyph in processed_glyphs {
-        for (index, unicode) in glyph.unicode_values.iter().enumerate() {
-            if index == 0 {
-                _ = write!(
-                    svg_font,
-                    "    <glyph glyph-name=\"{}\"\n      unicode=\"{unicode}\"\n      horiz-adv-x=\"{}\" d=\"{}\" />\n",
-                    escape_xml(&glyph.name),
-                    glyph.width,
-                    escape_xml(&glyph.path_data),
-                );
-            } else {
-                _ = write!(
-                    svg_font,
-                    "    <glyph glyph-name=\"{}-{index}\"\n      unicode=\"{unicode}\"\n      horiz-adv-x=\"{}\" d=\"{}\" />\n",
-                    escape_xml(&glyph.name),
-                    glyph.width,
-                    escape_xml(&glyph.path_data),
-                );
+        _ = write!(
+            svg_font,
+            "    <glyph glyph-name=\"{}\"\n      unicode=\"&#x{:X};\"\n      horiz-adv-x=\"{}\" d=\"{}\" />\n",
+            escape_xml(&glyph.name),
+            glyph.codepoint,
+            glyph.width,
+            escape_xml(&glyph.path_data),
+        );
+        if options.ligature {
+            _ = write!(
+                svg_font,
+                "    <glyph glyph-name=\"{}-1\"\n      unicode=\"",
+                escape_xml(&glyph.name),
+            );
+            for character in glyph.name.chars() {
+                _ = write!(svg_font, "&#x{:X};", u32::from(character));
             }
+            _ = writeln!(
+                svg_font,
+                "\"\n      horiz-adv-x=\"{}\" d=\"{}\" />",
+                glyph.width,
+                escape_xml(&glyph.path_data),
+            );
         }
     }
 

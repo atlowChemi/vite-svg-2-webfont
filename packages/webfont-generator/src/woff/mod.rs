@@ -506,7 +506,6 @@ mod tests {
                             8 + shape % 17,
                         )
                     },
-                    unicode_values: Vec::new(),
                     width: 16.0 + (shape % 5) as f64,
                 }
             })
@@ -521,7 +520,6 @@ mod tests {
             index,
             name: name.to_owned(),
             path_data: path_data.to_owned(),
-            unicode_values: Vec::new(),
             width,
         }
     }

@@ -12,7 +12,6 @@ pub(crate) fn process_glyph(
     fixed_width: bool,
     center_horizontally: bool,
     center_vertically: bool,
-    ligature: bool,
     round: f64,
     max_glyph_height: f64,
     font_height: f64,
@@ -90,15 +89,12 @@ pub(crate) fn process_glyph(
         path_data
     };
 
-    let unicode_values = build_unicode_values(&glyph.name, glyph.codepoint, ligature);
-
     Ok(ProcessedGlyph {
         codepoint: glyph.codepoint,
         height: scaled_height,
         index: glyph.index,
         name: glyph.name,
         path_data,
-        unicode_values,
         width: scaled_width,
     })
 }
@@ -119,16 +115,4 @@ fn calculate_combined_bounds(paths: &[usvg::tiny_skia_path::Path]) -> Rect {
 
     Rect::from_ltrb(left, top, right, bottom)
         .unwrap_or_else(|| Rect::from_xywh(0.0, 0.0, 1.0, 1.0).expect("fallback rect"))
-}
-
-pub(crate) fn build_unicode_values(name: &str, codepoint: u32, ligature: bool) -> Vec<String> {
-    let mut values = vec![format!("&#x{:X};", codepoint)];
-    if ligature {
-        let ligature_value = name
-            .chars()
-            .map(|character| format!("&#x{:X};", u32::from(character)))
-            .collect::<String>();
-        values.push(ligature_value);
-    }
-    values
 }
