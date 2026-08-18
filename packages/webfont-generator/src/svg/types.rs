@@ -48,7 +48,6 @@ pub(crate) struct ProcessedGlyph {
     pub index: usize,
     pub name: String,
     pub path_data: String,
-    pub unicode_values: Vec<String>,
     pub width: f64,
 }
 
