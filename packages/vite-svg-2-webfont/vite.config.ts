@@ -8,7 +8,7 @@ const config: UserProjectConfigExport = defineProject({
         nodeProtocol: true,
         deps: {
             onlyBundle: false,
-            skipNodeModulesBundle: true,
+            neverBundle: true,
         },
         outputOptions: {
             exports: 'named',
