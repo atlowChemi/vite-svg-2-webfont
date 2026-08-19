@@ -9,6 +9,7 @@ mod winding;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
+use std::sync::Arc;
 
 use parse::parse_svg_glyph;
 use process::process_glyph;
@@ -324,11 +325,11 @@ fn parse_glyphs_incremental(
     for (index, glyph) in &parsed {
         let source_file = &source_files[*index];
         let hash = source_content_hash(&source_file.contents);
-        let cached = CachedGlyph {
+        let cached = Arc::new(CachedGlyph {
             height: glyph.height,
             paths: glyph.paths.clone(),
             width: glyph.width,
-        };
+        });
         cache.by_content_hash.insert(hash, cached.clone());
         cache.content_hashes.insert(source_file.path.clone(), hash);
         cache.entries.insert(source_file.path.clone(), cached);
