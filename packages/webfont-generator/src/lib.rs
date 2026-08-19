@@ -140,7 +140,7 @@ pub mod bench_support {
     pub struct BenchGlyphCache(GlyphCache);
 
     /// Opaque loaded sources and resolved options for incremental SVG preparation benchmarks.
-    pub struct BenchIncrementalSvgInput {
+    pub struct BenchSvgPrepareInput {
         options: super::ResolvedGenerateWebfontsOptions,
         sources: Vec<LoadedSvgFile>,
     }
@@ -185,14 +185,19 @@ pub mod bench_support {
     }
 
     /// Run the SVG parse+process preparation path and return the number of prepared glyphs.
-    pub fn prepare_svg_full(
+    pub fn svg_prepare_input(
         options: GenerateWebfontsOptions,
         sources: &[BenchSvgSource],
-    ) -> io::Result<usize> {
+    ) -> io::Result<BenchSvgPrepareInput> {
         let sources = load_sources(sources);
         let options = resolve(options, &sources)?;
-        let svg_options = svg_options_from_options(&options);
-        let prepared = prepare_svg_font(&svg_options, &sources)?;
+        Ok(BenchSvgPrepareInput { options, sources })
+    }
+
+    /// Run the full SVG preparation path and return the number of prepared glyphs.
+    pub fn prepare_svg_full(input: &BenchSvgPrepareInput) -> io::Result<usize> {
+        let svg_options = svg_options_from_options(&input.options);
+        let prepared = prepare_svg_font(&svg_options, &input.sources)?;
         Ok(prepared.processed_glyphs.len())
     }
 
@@ -300,19 +305,9 @@ pub mod bench_support {
         }
     }
 
-    /// Load sources and resolve options outside incremental SVG preparation measurements.
-    pub fn incremental_svg_input(
-        options: GenerateWebfontsOptions,
-        sources: &[BenchSvgSource],
-    ) -> io::Result<BenchIncrementalSvgInput> {
-        let sources = load_sources(sources);
-        let options = resolve(options, &sources)?;
-        Ok(BenchIncrementalSvgInput { options, sources })
-    }
-
     /// Run the incremental SVG preparation path and return the number of prepared glyphs.
     pub fn prepare_svg_incremental(
-        input: &BenchIncrementalSvgInput,
+        input: &BenchSvgPrepareInput,
         cache: &mut BenchGlyphCache,
     ) -> io::Result<usize> {
         let svg_options = svg_options_from_options(&input.options);
