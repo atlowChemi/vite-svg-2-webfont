@@ -15,7 +15,7 @@
 //! practice. Trade-off: a genuinely-intended *filled* nested region of the same paint (rare) would
 //! be turned into a hole. Validated visually across a large real icon set.
 
-use usvg::tiny_skia_path::{Path as TinyPath, PathBuilder, PathSegment, Point};
+use usvg::tiny_skia_path::{Path as TinyPath, PathBuilder, PathSegment, PathVerb, Point};
 
 // Curves are flattened only to decide nesting + winding sign, so a coarse subdivision is plenty.
 const FLATTEN_STEPS: usize = 6;
@@ -40,6 +40,17 @@ struct Contour {
 /// Reverse-wind contours so that nested ones alternate orientation (become holes under nonzero).
 /// Returns the input untouched when nothing needs flipping.
 pub(crate) fn normalize_winding(paths: Vec<TinyPath>) -> Vec<TinyPath> {
+    let single_contour = paths
+        .iter()
+        .flat_map(|path| path.verbs())
+        .filter(|verb| **verb == PathVerb::Move)
+        .take(2)
+        .count()
+        < 2;
+    if single_contour {
+        return paths;
+    }
+
     let mut contours: Vec<Contour> = Vec::new();
     for path in &paths {
         decompose(path, &mut contours);
@@ -465,6 +476,8 @@ mod tests {
 
     #[test]
     fn single_contour_is_untouched() {
+        assert!(normalize_winding(Vec::new()).is_empty());
+
         let mut b = PathBuilder::new();
         square(&mut b, 0.0, 0.0, 30.0);
         let input = b.finish().unwrap();
@@ -481,6 +494,14 @@ mod tests {
         // single contour
         let mut single = PathBuilder::new();
         square(&mut single, 0.0, 0.0, 30.0);
+        // open contour
+        let mut open = PathBuilder::new();
+        open.move_to(0.0, 0.0);
+        open.line_to(30.0, 30.0);
+        // move-only subpath followed by one real contour
+        let mut move_only = PathBuilder::new();
+        move_only.move_to(50.0, 50.0);
+        square(&mut move_only, 0.0, 0.0, 30.0);
         // overlapping, non-nested
         let mut overlap = PathBuilder::new();
         square(&mut overlap, 0.0, 0.0, 30.0);
@@ -500,6 +521,8 @@ mod tests {
 
         for input in [
             single.finish().unwrap(),
+            open.finish().unwrap(),
+            move_only.finish().unwrap(),
             overlap.finish().unwrap(),
             hole.finish().unwrap(),
         ] {
@@ -510,6 +533,21 @@ mod tests {
                 "a glyph needing no reversal must be returned byte-identical"
             );
         }
+    }
+
+    #[test]
+    fn nested_contours_across_paths_are_normalized() {
+        let mut outer = PathBuilder::new();
+        square(&mut outer, 0.0, 0.0, 30.0);
+        let mut inner = PathBuilder::new();
+        square(&mut inner, 10.0, 10.0, 10.0);
+
+        let signs = signs(&normalize_winding(vec![
+            outer.finish().unwrap(),
+            inner.finish().unwrap(),
+        ]));
+        assert_eq!(signs.len(), 2);
+        assert_ne!(signs[0], signs[1]);
     }
 
     // Containment is resolved past depth 1: four nested squares (same winding) must come out strictly
