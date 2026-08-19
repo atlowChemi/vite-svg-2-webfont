@@ -94,7 +94,7 @@ pub(crate) fn process_glyph(
         height: scaled_height,
         index: glyph.index,
         name: glyph.name,
-        path_data,
+        path_data: path_data.into(),
         width: scaled_width,
     })
 }
