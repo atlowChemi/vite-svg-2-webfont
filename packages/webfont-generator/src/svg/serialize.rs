@@ -15,12 +15,25 @@ pub(crate) fn build_svg_font(options: &SvgOptions, prepared: &PreparedSvgFont) -
         metadata,
         processed_glyphs,
     } = prepared;
-    let mut svg_font = String::from(
-        r#"<?xml version="1.0" standalone="no"?>
+    let header = r#"<?xml version="1.0" standalone="no"?>
 <!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd" >
 <svg xmlns="http://www.w3.org/2000/svg">
-"#,
-    );
+"#;
+    let estimated_capacity = header.len()
+        + metadata.len()
+        + 256
+        + processed_glyphs
+            .iter()
+            .map(|glyph| {
+                glyph.name.len()
+                    + glyph.path_data.len()
+                    + 96
+                    + usize::from(options.ligature)
+                        * (glyph.name.len() * 11 + glyph.path_data.len() + 96)
+            })
+            .sum::<usize>();
+    let mut svg_font = String::with_capacity(estimated_capacity);
+    svg_font.push_str(header);
     if !metadata.is_empty() {
         _ = writeln!(svg_font, "<metadata>{metadata}</metadata>");
     }
