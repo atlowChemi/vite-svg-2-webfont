@@ -66,7 +66,7 @@ fn load(paths: &[String]) -> Vec<LoadedSvgFile> {
     paths
         .iter()
         .map(|path| LoadedSvgFile {
-            contents: std::fs::read_to_string(path).unwrap(),
+            contents: std::fs::read_to_string(path).unwrap().into(),
             glyph_name: Path::new(path)
                 .file_stem()
                 .and_then(|stem| stem.to_str())

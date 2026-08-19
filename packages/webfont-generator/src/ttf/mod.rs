@@ -206,7 +206,7 @@ pub(crate) fn generate_ttf_font_bytes(options: GenerateWebfontsOptions) -> Resul
         .iter()
         .map(|path| {
             Ok(LoadedSvgFile {
-                contents: std::fs::read_to_string(path)?,
+                contents: std::fs::read_to_string(path)?.into(),
                 glyph_name: std::path::Path::new(path)
                     .file_stem()
                     .and_then(|stem| stem.to_str())

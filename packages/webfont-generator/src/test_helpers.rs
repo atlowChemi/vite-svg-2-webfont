@@ -22,7 +22,9 @@ pub fn write_temp_template(prefix: &str, contents: &str) -> String {
 
 pub fn fixture_source_files(options: &ResolvedGenerateWebfontsOptions) -> Vec<LoadedSvgFile> {
     vec![LoadedSvgFile {
-        contents: fs::read_to_string(&options.files[0]).expect("fixture should load"),
+        contents: fs::read_to_string(&options.files[0])
+            .expect("fixture should load")
+            .into(),
         glyph_name: Path::new(&options.files[0])
             .file_stem()
             .and_then(|s| s.to_str())

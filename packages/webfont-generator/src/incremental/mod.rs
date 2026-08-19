@@ -397,7 +397,7 @@ fn upsert_source_file(
     name: Option<String>,
 ) {
     if let Some(file) = source_files.iter_mut().find(|file| file.path == path) {
-        file.contents = contents;
+        file.contents = contents.into();
         if let Some(name) = name {
             file.glyph_name = name;
         }
@@ -410,7 +410,7 @@ fn upsert_source_file(
                 .to_owned()
         });
         source_files.push(LoadedSvgFile {
-            contents,
+            contents: contents.into(),
             glyph_name,
             path: path.to_owned(),
         });

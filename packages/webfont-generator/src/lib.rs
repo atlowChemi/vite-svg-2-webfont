@@ -168,7 +168,7 @@ pub mod bench_support {
         sources
             .iter()
             .map(|source| LoadedSvgFile {
-                contents: source.contents.clone(),
+                contents: source.contents.clone().into(),
                 glyph_name: source.glyph_name.clone(),
                 path: source.path.clone(),
             })
@@ -854,7 +854,7 @@ async fn load_svg_files(
         .map(|(path, contents)| {
             let glyph_name = util::glyph_name_from_path(&path, rename)?;
             Ok(LoadedSvgFile {
-                contents,
+                contents: contents.into(),
                 glyph_name,
                 path,
             })
@@ -883,7 +883,7 @@ async fn load_svg_files_napi(
             util::default_glyph_name_from_path(&path).map_err(to_napi_err)?
         };
         source_files.push(LoadedSvgFile {
-            contents,
+            contents: contents.into(),
             glyph_name,
             path,
         });

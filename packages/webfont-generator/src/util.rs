@@ -164,7 +164,7 @@ mod tests {
 
     fn loaded_svg_file(path: &str) -> LoadedSvgFile {
         LoadedSvgFile {
-            contents: "<svg />".to_owned(),
+            contents: "<svg />".into(),
             glyph_name: Path::new(path)
                 .file_stem()
                 .and_then(|stem| stem.to_str())
@@ -268,7 +268,7 @@ mod tests {
     #[test]
     fn errors_when_any_source_file_has_no_usable_file_stem() {
         let source_files = vec![LoadedSvgFile {
-            contents: "<svg />".to_owned(),
+            contents: "<svg />".into(),
             glyph_name: String::new(),
             path: "/tmp/icons/..".to_owned(),
         }];

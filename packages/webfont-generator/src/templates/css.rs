@@ -31,7 +31,7 @@ fn calc_hash(options: &ResolvedGenerateWebfontsOptions, source_files: &[LoadedSv
     let mut hash = Context::new();
 
     for source_file in source_files {
-        hash.consume(&source_file.contents);
+        hash.consume(source_file.contents.as_bytes());
     }
 
     let hashable = HashableGenerateWebfontsOptions::from(options);
@@ -812,7 +812,9 @@ mod tests {
 
         let options = resolve_options(options);
         let source_files = vec![LoadedSvgFile {
-            contents: fs::read_to_string(&options.files[0]).expect("fixture should load"),
+            contents: fs::read_to_string(&options.files[0])
+                .expect("fixture should load")
+                .into(),
             glyph_name: "add".to_owned(),
             path: options.files[0].clone(),
         }];
@@ -837,7 +839,9 @@ mod tests {
         };
         let options = resolve_options(options);
         let source_files = vec![LoadedSvgFile {
-            contents: fs::read_to_string(&options.files[0]).expect("fixture should load"),
+            contents: fs::read_to_string(&options.files[0])
+                .expect("fixture should load")
+                .into(),
             glyph_name: "add".to_owned(),
             path: options.files[0].clone(),
         }];
@@ -874,7 +878,9 @@ mod tests {
         };
         let options = resolve_options(options);
         let source_files = vec![LoadedSvgFile {
-            contents: fs::read_to_string(&options.files[0]).expect("fixture should load"),
+            contents: fs::read_to_string(&options.files[0])
+                .expect("fixture should load")
+                .into(),
             glyph_name: "add".to_owned(),
             path: options.files[0].clone(),
         }];
@@ -907,7 +913,9 @@ mod tests {
         };
         let options = resolve_options(options);
         let source_files = vec![LoadedSvgFile {
-            contents: fs::read_to_string(&options.files[0]).expect("fixture should load"),
+            contents: fs::read_to_string(&options.files[0])
+                .expect("fixture should load")
+                .into(),
             glyph_name: "add".to_owned(),
             path: options.files[0].clone(),
         }];
@@ -1075,7 +1083,9 @@ mod tests {
         };
         let options = resolve_options(options);
         let source_files = vec![LoadedSvgFile {
-            contents: fs::read_to_string(&options.files[0]).expect("fixture should load"),
+            contents: fs::read_to_string(&options.files[0])
+                .expect("fixture should load")
+                .into(),
             glyph_name: "add".to_owned(),
             path: options.files[0].clone(),
         }];

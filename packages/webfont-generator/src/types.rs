@@ -362,7 +362,7 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
 
 #[derive(Clone)]
 pub(crate) struct LoadedSvgFile {
-    pub contents: String,
+    pub contents: Arc<str>,
     pub glyph_name: String,
     pub path: String,
 }
@@ -1091,7 +1091,7 @@ mod tests {
             .files
             .iter()
             .map(|path| LoadedSvgFile {
-                contents: std::fs::read_to_string(path).unwrap(),
+                contents: std::fs::read_to_string(path).unwrap().into(),
                 glyph_name: std::path::Path::new(path)
                     .file_stem()
                     .unwrap()
@@ -1362,7 +1362,7 @@ mod tests {
             .files
             .iter()
             .map(|path| LoadedSvgFile {
-                contents: std::fs::read_to_string(path).unwrap(),
+                contents: std::fs::read_to_string(path).unwrap().into(),
                 glyph_name: std::path::Path::new(path)
                     .file_stem()
                     .unwrap()
