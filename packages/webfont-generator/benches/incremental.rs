@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
 use webfont_generator::bench_support::{
-    BenchGlyphCache, BenchSvgSource, clear_woff1_payload_cache, prepare_svg_full,
-    prepare_svg_incremental,
+    clear_woff1_payload_cache, incremental_svg_input, prepare_svg_full, prepare_svg_incremental,
+    BenchGlyphCache, BenchSvgSource,
 };
 
 mod support;
@@ -208,22 +208,12 @@ fn bench_svg_prepare(c: &mut Criterion) {
             })
         });
 
+        let input =
+            incremental_svg_input(options(fixture.paths.clone(), true), &fixture.sources).unwrap();
         let mut cache = BenchGlyphCache::default();
-        prepare_svg_incremental(
-            options(fixture.paths.clone(), true),
-            &fixture.sources,
-            &mut cache,
-        )
-        .unwrap();
+        prepare_svg_incremental(&input, &mut cache).unwrap();
         group.bench_function(format!("incremental_warm/{size}"), |b| {
-            b.iter(|| {
-                prepare_svg_incremental(
-                    options(fixture.paths.clone(), true),
-                    &fixture.sources,
-                    &mut cache,
-                )
-                .unwrap()
-            })
+            b.iter(|| prepare_svg_incremental(&input, &mut cache).unwrap())
         });
     }
     group.finish();
@@ -801,6 +791,10 @@ fn bench_regenerate_by_format(c: &mut Criterion) {
             ("ttf", vec![FontType::Ttf]),
             ("woff", vec![FontType::Woff]),
             ("woff2", vec![FontType::Woff2]),
+            (
+                "all_except_woff2",
+                vec![FontType::Svg, FontType::Ttf, FontType::Eot, FontType::Woff],
+            ),
             (
                 "all_formats",
                 vec![

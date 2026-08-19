@@ -139,6 +139,12 @@ pub mod bench_support {
     #[derive(Clone, Default)]
     pub struct BenchGlyphCache(GlyphCache);
 
+    /// Opaque loaded sources and resolved options for incremental SVG preparation benchmarks.
+    pub struct BenchIncrementalSvgInput {
+        options: super::ResolvedGenerateWebfontsOptions,
+        sources: Vec<LoadedSvgFile>,
+    }
+
     /// Opaque parsed glyph set used to isolate parse and finalize stages.
     #[derive(Clone)]
     pub struct BenchParsedGlyphs(Vec<ParsedGlyph>);
@@ -294,16 +300,23 @@ pub mod bench_support {
         }
     }
 
-    /// Run the incremental SVG preparation path and return the number of prepared glyphs.
-    pub fn prepare_svg_incremental(
+    /// Load sources and resolve options outside incremental SVG preparation measurements.
+    pub fn incremental_svg_input(
         options: GenerateWebfontsOptions,
         sources: &[BenchSvgSource],
-        cache: &mut BenchGlyphCache,
-    ) -> io::Result<usize> {
+    ) -> io::Result<BenchIncrementalSvgInput> {
         let sources = load_sources(sources);
         let options = resolve(options, &sources)?;
-        let svg_options = svg_options_from_options(&options);
-        let prepared = prepare_svg_font_incremental(&svg_options, &sources, &mut cache.0)?;
+        Ok(BenchIncrementalSvgInput { options, sources })
+    }
+
+    /// Run the incremental SVG preparation path and return the number of prepared glyphs.
+    pub fn prepare_svg_incremental(
+        input: &BenchIncrementalSvgInput,
+        cache: &mut BenchGlyphCache,
+    ) -> io::Result<usize> {
+        let svg_options = svg_options_from_options(&input.options);
+        let prepared = prepare_svg_font_incremental(&svg_options, &input.sources, &mut cache.0)?;
         Ok(prepared.processed_glyphs.len())
     }
 }
