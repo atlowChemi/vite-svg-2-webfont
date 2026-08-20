@@ -37,6 +37,51 @@ struct FinalizePlan {
     optimize_output: bool,
 }
 
+enum IncrementalGlyph {
+    Fresh(ParsedGlyph),
+    Cached {
+        codepoint: u32,
+        index: usize,
+        name: String,
+        glyph: Arc<CachedGlyph>,
+    },
+}
+
+impl IncrementalGlyph {
+    fn dimensions(&self) -> (f64, f64) {
+        match self {
+            Self::Fresh(glyph) => (glyph.height, glyph.width),
+            Self::Cached { glyph, .. } => (glyph.height, glyph.width),
+        }
+    }
+
+    fn index(&self) -> usize {
+        match self {
+            Self::Fresh(glyph) => glyph.index,
+            Self::Cached { index, .. } => *index,
+        }
+    }
+
+    fn into_parsed(self) -> ParsedGlyph {
+        match self {
+            Self::Fresh(glyph) => glyph,
+            Self::Cached {
+                codepoint,
+                index,
+                name,
+                glyph,
+            } => ParsedGlyph {
+                codepoint,
+                height: glyph.height,
+                index,
+                name,
+                paths: glyph.paths.clone(),
+                width: glyph.width,
+            },
+        }
+    }
+}
+
 pub(crate) fn svg_options_from_options(
     options: &ResolvedGenerateWebfontsOptions,
 ) -> SvgOptions<'_> {
@@ -132,7 +177,7 @@ pub(crate) fn finalize_glyphs(
     options: &SvgOptions,
     glyphs: Vec<ParsedGlyph>,
 ) -> Result<PreparedSvgFont, Error> {
-    let plan = finalize_plan(options, &glyphs);
+    let plan = finalize_plan(options, &glyphs, |glyph| glyph.height, |glyph| glyph.width);
 
     let mut processed_glyphs = glyphs
         .into_par_iter()
@@ -152,14 +197,19 @@ pub(crate) fn finalize_glyphs(
     })
 }
 
-fn finalize_plan(options: &SvgOptions, glyphs: &[ParsedGlyph]) -> FinalizePlan {
+fn finalize_plan<T>(
+    options: &SvgOptions,
+    glyphs: &[T],
+    height: impl Fn(&T) -> f64,
+    width: impl Fn(&T) -> f64,
+) -> FinalizePlan {
     let normalize = options.normalize;
     let max_glyph_height = glyphs
         .iter()
-        .fold(0.0_f64, |current, glyph| current.max(glyph.height));
+        .fold(0.0_f64, |current, glyph| current.max(height(glyph)));
     let max_glyph_width = glyphs
         .iter()
-        .fold(0.0_f64, |current, glyph| current.max(glyph.width));
+        .fold(0.0_f64, |current, glyph| current.max(width(glyph)));
     let font_height = options.font_height.unwrap_or(max_glyph_height.max(1.0));
     let descent = options.descent.unwrap_or(0.0);
     let mut font_width = if max_glyph_height > 0.0 {
@@ -171,10 +221,10 @@ fn finalize_plan(options: &SvgOptions, glyphs: &[ParsedGlyph]) -> FinalizePlan {
         font_width = glyphs
             .iter()
             .map(|glyph| {
-                if glyph.height > 0.0 {
-                    (font_height / glyph.height) * glyph.width
+                if height(glyph) > 0.0 {
+                    (font_height / height(glyph)) * width(glyph)
                 } else {
-                    glyph.width
+                    width(glyph)
                 }
             })
             .fold(0.0_f64, f64::max);
@@ -241,7 +291,7 @@ fn parse_glyphs_incremental(
     options: &SvgOptions,
     source_files: &[LoadedSvgFile],
     cache: &mut GlyphCache,
-) -> Result<Vec<ParsedGlyph>, Error> {
+) -> Result<Vec<IncrementalGlyph>, Error> {
     if source_files.is_empty() {
         return Err(Error::new(
             ErrorKind::InvalidInput,
@@ -340,30 +390,28 @@ fn parse_glyphs_incremental(
         .by_content_hash
         .retain(|hash, _| active_hashes.contains(hash));
 
-    // Assemble the full set: freshly-parsed glyphs by move, unchanged ones cloned from cache.
+    // Assemble the full set without cloning cached paths until processing actually needs them.
     let mut freshly_parsed: HashMap<usize, ParsedGlyph> = parsed.into_iter().collect();
     let mut glyphs = Vec::with_capacity(source_files.len());
     for (index, source_file) in source_files.iter().enumerate() {
         let glyph = match freshly_parsed.remove(&index) {
-            Some(glyph) => glyph,
+            Some(glyph) => IncrementalGlyph::Fresh(glyph),
             None => {
                 let cached = cache
                     .entries
                     .get(&source_file.path)
                     .expect("an unchanged file must have a cache entry");
-                ParsedGlyph {
+                IncrementalGlyph::Cached {
                     codepoint: codepoints[index],
-                    height: cached.height,
                     index,
                     name: source_file.glyph_name.clone(),
-                    paths: cached.paths.clone(),
-                    width: cached.width,
+                    glyph: Arc::clone(cached),
                 }
             }
         };
         glyphs.push(glyph);
     }
-    glyphs.sort_by_key(|glyph| glyph.index);
+    glyphs.sort_by_key(IncrementalGlyph::index);
     Ok(glyphs)
 }
 
@@ -390,11 +438,16 @@ fn processed_glyph_cache_signature(plan: &FinalizePlan) -> [u8; 16] {
 
 fn finalize_glyphs_incremental(
     options: &SvgOptions,
-    glyphs: Vec<ParsedGlyph>,
+    glyphs: Vec<IncrementalGlyph>,
     source_files: &[LoadedSvgFile],
     cache: &mut GlyphCache,
 ) -> Result<PreparedSvgFont, Error> {
-    let plan = finalize_plan(options, &glyphs);
+    let plan = finalize_plan(
+        options,
+        &glyphs,
+        |glyph| glyph.dimensions().0,
+        |glyph| glyph.dimensions().1,
+    );
     let signature = processed_glyph_cache_signature(&plan);
     if cache.processed_signature != Some(signature) {
         cache.processed_entries.clear();
@@ -407,11 +460,11 @@ fn finalize_glyphs_incremental(
         .filter(|(_, glyph)| {
             !cache
                 .processed_entries
-                .contains_key(&source_files[glyph.index].path)
+                .contains_key(&source_files[glyph.index()].path)
         })
         .map(|(_, glyph)| {
-            let path_index = glyph.index;
-            process_glyph_with_plan(glyph, &plan).map(|glyph| {
+            let path_index = glyph.index();
+            process_glyph_with_plan(glyph.into_parsed(), &plan).map(|glyph| {
                 let cached = CachedProcessedGlyph {
                     height: glyph.height,
                     path_data: glyph.path_data.clone(),
