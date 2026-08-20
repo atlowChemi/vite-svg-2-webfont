@@ -8,23 +8,32 @@ catalog:
     typescript: ^7.0.2
     vite: npm:@voidzero-dev/vite-plus-core@0.2.9
     vite-plus: 0.2.9
-    '@vitest/coverage-v8': 4.1.10
+    '@vitest/coverage-v8': 4.1.11
 
 configDependencies:
     '@pnpm/pacquet': 0.11.12
 
 minimumReleaseAgeExclude:
-    - '@voidzero-dev/vite-plus-core@0.2.9'
-    - '@voidzero-dev/vite-plus-darwin-arm64@0.2.9'
-    - '@voidzero-dev/vite-plus-darwin-x64@0.2.9'
-    - '@voidzero-dev/vite-plus-linux-arm64-gnu@0.2.9'
-    - '@voidzero-dev/vite-plus-linux-arm64-musl@0.2.9'
-    - '@voidzero-dev/vite-plus-linux-x64-gnu@0.2.9'
-    - '@voidzero-dev/vite-plus-linux-x64-musl@0.2.9'
-    - '@voidzero-dev/vite-plus-win32-arm64-msvc@0.2.9'
-    - '@voidzero-dev/vite-plus-win32-x64-msvc@0.2.9'
-    - vite-plus@0.2.9
-
+  - '@oxc-minify/binding-android-arm-eabi@0.146.0'
+  - '@oxc-minify/binding-android-arm64@0.146.0'
+  - '@oxc-minify/binding-darwin-arm64@0.146.0'
+  - '@oxc-minify/binding-darwin-x64@0.146.0'
+  - '@oxc-minify/binding-freebsd-x64@0.146.0'
+  - '@oxc-minify/binding-linux-arm-gnueabihf@0.146.0'
+  - '@oxc-minify/binding-linux-arm-musleabihf@0.146.0'
+  - '@oxc-minify/binding-linux-arm64-gnu@0.146.0'
+  - '@oxc-minify/binding-linux-arm64-musl@0.146.0'
+  - '@oxc-minify/binding-linux-ppc64-gnu@0.146.0'
+  - '@oxc-minify/binding-linux-riscv64-gnu@0.146.0'
+  - '@oxc-minify/binding-linux-riscv64-musl@0.146.0'
+  - '@oxc-minify/binding-linux-s390x-gnu@0.146.0'
+  - '@oxc-minify/binding-linux-x64-gnu@0.146.0'
+  - '@oxc-minify/binding-linux-x64-musl@0.146.0'
+  - '@oxc-minify/binding-openharmony-arm64@0.146.0'
+  - '@oxc-minify/binding-win32-arm64-msvc@0.146.0'
+  - '@oxc-minify/binding-win32-ia32-msvc@0.146.0'
+  - '@oxc-minify/binding-win32-x64-msvc@0.146.0'
+  - oxc-minify@0.146.0
 overrides:
     lodash@>=4.0.0 <=4.17.22: '^4.18.1'
     make-fetch-happen: 16.0.1
