@@ -19,7 +19,7 @@ pub(crate) fn parse_svg_glyph(
     preserve_aspect_ratio: bool,
     options: &usvg::Options,
 ) -> Result<ParsedGlyph, Error> {
-    let svg = item.source_file.contents.as_str();
+    let svg = item.source_file.contents.as_ref();
     let document = parse_svg_document(svg)?;
     let root_metrics = parse_root_svg_metrics(&document)?;
     let tree = usvg::Tree::from_xmltree(&document, options).map_err(|error| {

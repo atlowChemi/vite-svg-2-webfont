@@ -84,7 +84,8 @@ fn load_source_files(paths: &[String]) -> Vec<LoadedSvgFile> {
         .iter()
         .map(|path| LoadedSvgFile {
             contents: fs::read_to_string(path)
-                .unwrap_or_else(|error| panic!("failed to load source SVG '{}': {error}", path)),
+                .unwrap_or_else(|error| panic!("failed to load source SVG '{}': {error}", path))
+                .into(),
             glyph_name: Path::new(path)
                 .file_stem()
                 .and_then(|stem| stem.to_str())
