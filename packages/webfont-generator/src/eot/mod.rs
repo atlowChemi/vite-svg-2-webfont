@@ -170,7 +170,7 @@ fn strbuf(utf16be: &[u8]) -> Result<Vec<u8>, Error> {
     let mut output = vec![0_u8; utf16be.len() + 4];
     write_u16_le(&mut output, 0, utf16be.len() as u16)?;
 
-    for (index, chunk) in utf16be.chunks_exact(2).enumerate() {
+    for (index, chunk) in utf16be.as_chunks::<2>().0.iter().enumerate() {
         output[2 + index * 2] = chunk[1];
         output[2 + index * 2 + 1] = chunk[0];
     }

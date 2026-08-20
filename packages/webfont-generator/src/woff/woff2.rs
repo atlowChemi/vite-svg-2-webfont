@@ -1191,12 +1191,16 @@ mod tests {
 
     fn loca_offsets(loca: &[u8], format: i16) -> Vec<usize> {
         if format == 0 {
-            loca.chunks_exact(2)
-                .map(|bytes| usize::from(u16::from_be_bytes(bytes.try_into().unwrap())) * 2)
+            loca.as_chunks::<2>()
+                .0
+                .iter()
+                .map(|bytes| usize::from(u16::from_be_bytes(*bytes)) * 2)
                 .collect()
         } else {
-            loca.chunks_exact(4)
-                .map(|bytes| u32::from_be_bytes(bytes.try_into().unwrap()) as usize)
+            loca.as_chunks::<4>()
+                .0
+                .iter()
+                .map(|bytes| u32::from_be_bytes(*bytes) as usize)
                 .collect()
         }
     }
