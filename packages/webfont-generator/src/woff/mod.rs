@@ -514,7 +514,7 @@ mod tests {
                     } else {
                         format!("glyph-{index}")
                     },
-                    path_data: if empty {
+                    path_data: (if empty {
                         String::new()
                     } else {
                         let inset = shape % 5;
@@ -524,7 +524,8 @@ mod tests {
                             8 + shape % 13,
                             8 + shape % 17,
                         )
-                    },
+                    })
+                    .into(),
                     width: 16.0 + (shape % 5) as f64,
                 }
             })
@@ -538,7 +539,7 @@ mod tests {
             height,
             index,
             name: name.to_owned(),
-            path_data: path_data.to_owned(),
+            path_data: path_data.into(),
             width,
         }
     }

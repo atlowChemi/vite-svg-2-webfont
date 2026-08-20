@@ -688,7 +688,7 @@ fn winding_glyph_path_data(file: &str) -> String {
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
     let svg_options = svg_options_from_options(&resolved);
     let prepared = prepare_svg_font(&svg_options, &source_files).unwrap();
-    prepared.processed_glyphs[0].path_data.clone()
+    prepared.processed_glyphs[0].path_data.to_string()
 }
 
 /// Signed-area sign of each subpath in serialized path data (`M`/`L`/`Q`/`C`/`Z`, absolute coords),

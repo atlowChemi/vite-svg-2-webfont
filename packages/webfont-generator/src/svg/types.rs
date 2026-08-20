@@ -48,14 +48,14 @@ pub(crate) struct ProcessedGlyph {
     pub height: f64,
     pub index: usize,
     pub name: String,
-    pub path_data: String,
+    pub path_data: Arc<str>,
     pub width: f64,
 }
 
 #[derive(Clone)]
 pub(crate) struct CachedProcessedGlyph {
     pub height: f64,
-    pub path_data: String,
+    pub path_data: Arc<str>,
     pub width: f64,
 }
 
