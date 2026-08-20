@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use webfont_generator::bench_support::{
     BenchGlyphCache, BenchSvgSource, clear_woff1_payload_cache, prepare_svg_full,
-    prepare_svg_incremental,
+    prepare_svg_incremental, svg_prepare_input,
 };
 
 mod support;
@@ -202,28 +202,16 @@ fn bench_svg_prepare(c: &mut Criterion) {
     let mut group = c.benchmark_group("svg_prepare");
     for size in SIZES {
         let fixture = fixtures(size);
+        let input =
+            svg_prepare_input(options(fixture.paths.clone(), false), &fixture.sources).unwrap();
         group.bench_function(format!("full/{size}"), |b| {
-            b.iter(|| {
-                prepare_svg_full(options(fixture.paths.clone(), false), &fixture.sources).unwrap()
-            })
+            b.iter(|| prepare_svg_full(&input).unwrap())
         });
 
         let mut cache = BenchGlyphCache::default();
-        prepare_svg_incremental(
-            options(fixture.paths.clone(), true),
-            &fixture.sources,
-            &mut cache,
-        )
-        .unwrap();
+        prepare_svg_incremental(&input, &mut cache).unwrap();
         group.bench_function(format!("incremental_warm/{size}"), |b| {
-            b.iter(|| {
-                prepare_svg_incremental(
-                    options(fixture.paths.clone(), true),
-                    &fixture.sources,
-                    &mut cache,
-                )
-                .unwrap()
-            })
+            b.iter(|| prepare_svg_incremental(&input, &mut cache).unwrap())
         });
     }
     group.finish();
@@ -801,6 +789,10 @@ fn bench_regenerate_by_format(c: &mut Criterion) {
             ("ttf", vec![FontType::Ttf]),
             ("woff", vec![FontType::Woff]),
             ("woff2", vec![FontType::Woff2]),
+            (
+                "all_except_woff2",
+                vec![FontType::Svg, FontType::Ttf, FontType::Eot, FontType::Woff],
+            ),
             (
                 "all_formats",
                 vec![

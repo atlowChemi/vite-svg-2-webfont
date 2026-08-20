@@ -139,6 +139,12 @@ pub mod bench_support {
     #[derive(Clone, Default)]
     pub struct BenchGlyphCache(GlyphCache);
 
+    /// Opaque loaded sources and resolved options for incremental SVG preparation benchmarks.
+    pub struct BenchSvgPrepareInput {
+        options: super::ResolvedGenerateWebfontsOptions,
+        sources: Vec<LoadedSvgFile>,
+    }
+
     /// Opaque parsed glyph set used to isolate parse and finalize stages.
     #[derive(Clone)]
     pub struct BenchParsedGlyphs(Vec<ParsedGlyph>);
@@ -179,14 +185,19 @@ pub mod bench_support {
     }
 
     /// Run the SVG parse+process preparation path and return the number of prepared glyphs.
-    pub fn prepare_svg_full(
+    pub fn svg_prepare_input(
         options: GenerateWebfontsOptions,
         sources: &[BenchSvgSource],
-    ) -> io::Result<usize> {
+    ) -> io::Result<BenchSvgPrepareInput> {
         let sources = load_sources(sources);
         let options = resolve(options, &sources)?;
-        let svg_options = svg_options_from_options(&options);
-        let prepared = prepare_svg_font(&svg_options, &sources)?;
+        Ok(BenchSvgPrepareInput { options, sources })
+    }
+
+    /// Run the full SVG preparation path and return the number of prepared glyphs.
+    pub fn prepare_svg_full(input: &BenchSvgPrepareInput) -> io::Result<usize> {
+        let svg_options = svg_options_from_options(&input.options);
+        let prepared = prepare_svg_font(&svg_options, &input.sources)?;
         Ok(prepared.processed_glyphs.len())
     }
 
@@ -296,14 +307,11 @@ pub mod bench_support {
 
     /// Run the incremental SVG preparation path and return the number of prepared glyphs.
     pub fn prepare_svg_incremental(
-        options: GenerateWebfontsOptions,
-        sources: &[BenchSvgSource],
+        input: &BenchSvgPrepareInput,
         cache: &mut BenchGlyphCache,
     ) -> io::Result<usize> {
-        let sources = load_sources(sources);
-        let options = resolve(options, &sources)?;
-        let svg_options = svg_options_from_options(&options);
-        let prepared = prepare_svg_font_incremental(&svg_options, &sources, &mut cache.0)?;
+        let svg_options = svg_options_from_options(&input.options);
+        let prepared = prepare_svg_font_incremental(&svg_options, &input.sources, &mut cache.0)?;
         Ok(prepared.processed_glyphs.len())
     }
 }
