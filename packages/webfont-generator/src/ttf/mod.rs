@@ -2,6 +2,7 @@ use std::cmp::{max, min};
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use kurbo::{BezPath, CubicBez, PathEl, Point};
@@ -68,14 +69,27 @@ struct CompiledGlyph {
     advance_width: u16,
     bbox: write_fonts::tables::glyf::Bbox,
     codepoint: u32,
+    outline: CompiledGlyphOutline,
     left_side_bearing: i16,
     name: String,
     outline_key: Option<u64>,
-    simple_glyph: SimpleGlyph,
     source_index: usize,
 }
 
-#[derive(Clone)]
+enum CompiledGlyphOutline {
+    Inline(SimpleGlyph),
+    Shared(Arc<CachedCompiledGlyph>),
+}
+
+impl CompiledGlyph {
+    fn simple_glyph(&self) -> &SimpleGlyph {
+        match &self.outline {
+            CompiledGlyphOutline::Inline(glyph) => glyph,
+            CompiledGlyphOutline::Shared(glyph) => &glyph.simple_glyph,
+        }
+    }
+}
+
 struct CachedCompiledGlyph {
     advance_width: u16,
     bbox: write_fonts::tables::glyf::Bbox,
@@ -84,7 +98,7 @@ struct CachedCompiledGlyph {
 
 #[derive(Clone, Default)]
 pub(crate) struct TtfGlyphCache {
-    entries: HashMap<u64, CachedCompiledGlyph>,
+    entries: HashMap<u64, Arc<CachedCompiledGlyph>>,
     tables: HashMap<u64, ([u8; 4], Vec<u8>)>,
     woff1_payloads: Woff1PayloadCache,
     woff2_transforms: Woff2TransformCache,
@@ -361,7 +375,7 @@ fn compile_and_dedup_glyphs_cached(
     let mut compiled: Vec<CompiledGlyph> = Vec::with_capacity(glyphs.len());
     let mut aliases: Vec<(u32, usize)> = Vec::new();
     let mut seen: HashMap<(usize, u16), Vec<usize>> = HashMap::new();
-    let mut next_entries = HashMap::new();
+    let mut used_keys = HashSet::with_capacity(glyphs.len());
 
     for (i, glyph) in glyphs.iter().enumerate() {
         let advance_width = clamp_to_u16(glyph.width.round(), 0, u16::MAX);
@@ -376,23 +390,25 @@ fn compile_and_dedup_glyphs_cached(
             aliases.push((glyph.codepoint, first_idx));
         } else {
             let cache_key = compiled_glyph_cache_key(&glyph.path_data, advance_width);
-            let cached = cache.entries.get(&cache_key).cloned();
-            let cached = match cached {
-                Some(cached) => cached,
+            let cached = match cache.entries.get(&cache_key) {
+                Some(cached) => Arc::clone(cached),
                 None => {
                     #[cfg(test)]
                     {
                         cache.compile_count += 1;
                     }
-                    let compiled = compile_glyph(i, glyph)?;
-                    CachedCompiledGlyph {
-                        advance_width: compiled.advance_width,
-                        bbox: compiled.bbox,
-                        simple_glyph: compiled.simple_glyph,
-                    }
+                    let simple_glyph = compile_simple_glyph(glyph)?;
+                    let bbox = simple_glyph.bbox;
+                    let cached = Arc::new(CachedCompiledGlyph {
+                        advance_width,
+                        bbox,
+                        simple_glyph,
+                    });
+                    cache.entries.insert(cache_key, Arc::clone(&cached));
+                    cached
                 }
             };
-            next_entries.insert(cache_key, cached.clone());
+            used_keys.insert(cache_key);
             let idx = compiled.len();
             seen.entry(key).or_default().push(idx);
             compiled.push(CompiledGlyph {
@@ -402,13 +418,13 @@ fn compile_and_dedup_glyphs_cached(
                 left_side_bearing: cached.bbox.x_min,
                 name: glyph.name.clone(),
                 outline_key: Some(cache_key),
-                simple_glyph: cached.simple_glyph,
+                outline: CompiledGlyphOutline::Shared(cached),
                 source_index: i,
             });
         }
     }
 
-    cache.entries = next_entries;
+    cache.entries.retain(|key, _| used_keys.contains(key));
     Ok((compiled, aliases))
 }
 
@@ -429,7 +445,7 @@ fn build_glyf_table(
         .add_glyph(&Glyph::Empty)
         .map_err(|error| Error::other(format!("Failed to add .notdef glyph: {error}")))?;
     for glyph in compiled_glyphs {
-        builder.add_glyph(&glyph.simple_glyph).map_err(|error| {
+        builder.add_glyph(glyph.simple_glyph()).map_err(|error| {
             Error::other(format!("Failed to compile glyph '{}': {error}", glyph.name))
         })?;
     }
@@ -473,13 +489,13 @@ fn compute_glyph_metrics(glyphs: &[CompiledGlyph]) -> GlyphMetrics {
         bbox,
         max_contours: glyphs
             .iter()
-            .map(|g| g.simple_glyph.contours.len() as u16)
+            .map(|g| g.simple_glyph().contours.len() as u16)
             .max()
             .unwrap_or(0),
         max_points: glyphs
             .iter()
             .map(|g| {
-                g.simple_glyph
+                g.simple_glyph()
                     .contours
                     .iter()
                     .map(|c| c.len())
@@ -865,13 +881,7 @@ where
 
 fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<CompiledGlyph, Error> {
     let advance_width = clamp_to_u16(glyph.width.round(), 0, u16::MAX);
-    let path = quadratic_path_from_svg_path_data(&glyph.path_data)?;
-    let simple_glyph = SimpleGlyph::from_bezpath(&path).map_err(|error| {
-        Error::other(format!(
-            "Failed to convert glyph '{}' into a TrueType outline: {error:?}",
-            glyph.name
-        ))
-    })?;
+    let simple_glyph = compile_simple_glyph(glyph)?;
     let bbox = simple_glyph.bbox;
 
     Ok(CompiledGlyph {
@@ -880,9 +890,19 @@ fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<Compiled
         codepoint: glyph.codepoint,
         left_side_bearing: bbox.x_min,
         name: glyph.name.clone(),
+        outline: CompiledGlyphOutline::Inline(simple_glyph),
         outline_key: None,
-        simple_glyph,
         source_index,
+    })
+}
+
+fn compile_simple_glyph(glyph: &ProcessedGlyph) -> Result<SimpleGlyph, Error> {
+    let path = quadratic_path_from_svg_path_data(&glyph.path_data)?;
+    SimpleGlyph::from_bezpath(&path).map_err(|error| {
+        Error::other(format!(
+            "Failed to convert glyph '{}' into a TrueType outline: {error:?}",
+            glyph.name
+        ))
     })
 }
 
