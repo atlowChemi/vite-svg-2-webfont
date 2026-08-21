@@ -9,7 +9,9 @@
 
 ## Focused Commands
 
+- Never manually modify, stage, or restore `packages/webfont-generator/binding.{js,d.ts}` or platform `.node` artifacts unless the user explicitly authorizes generated-binding edits. Build and dependent tasks may regenerate them; leave their generated output untouched and report any changes.
 - `vp run @atlowchemi/webfont-generator#build` builds the Rust/NAPI binding and can update `packages/webfont-generator/binding.{js,d.ts}` and platform `.node` artifacts.
+- After changing Rust code, run `vp run @atlowchemi/webfont-generator#check`; it runs Clippy for the default, CLI, and NAPI feature sets and verifies `cargo fmt`.
 - `vp run @atlowchemi/webfont-generator#test` runs Rust checks/tests via the package task; workspace `vp run test` first depends on the NAPI build, then runs JS/Vitest tests.
 - `vp run @atlowchemi/webfont-generator#bench --no-run` is the compile-only check for Rust benchmark target changes; run targeted Criterion filters only when measured behavior changes.
 - `vp run @atlowchemi/vite-svg-webfont-docs#build` is the docs build task; it runs the docs `social-card` and `optimize-svg` dependencies.
@@ -25,6 +27,7 @@
 - Prefer verification subagents for long/noisy commands so logs stay out of the main context.
 - Use `vp-check` for `vp check`.
 - Use `fmt-runner` for isolated `vp fmt` runs.
+- Use `rust-check-runner` after changing Rust code.
 - Use `test-runner` for `vp run test`.
 - Use `coverage-runner` for `vp run coverage`.
 - Use `napi-build-runner` for `vp run @atlowchemi/webfont-generator#build`.
