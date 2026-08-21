@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.6.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.6.0...webfont-generator-v0.6.1) (2026-08-21)
+
+### Performance Improvements
+
+- **webfont-generator:** cut SVG parse-stage time by 10-13% ([#347](https://github.com/atlowChemi/vite-svg-2-webfont/issues/347)) ([497e5f1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/497e5f17a8166f4aa19034f8d2a021d383a3ad1b))
+- **webfont-generator:** cut SVG transient allocations by 64% ([#344](https://github.com/atlowChemi/vite-svg-2-webfont/issues/344)) ([4f0f70e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/4f0f70e8fda0d8e4ba8143f0b863cb447bfb18fc))
+- **webfont-generator:** defer cached SVG path clones ([#365](https://github.com/atlowChemi/vite-svg-2-webfont/issues/365)) ([1ee87c2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/1ee87c2b3eb45dc64b1c24c7375a101b25ba8a30))
+- **webfont-generator:** preallocate SVG font output ([#357](https://github.com/atlowChemi/vite-svg-2-webfont/issues/357)) ([d7a5868](https://github.com/atlowChemi/vite-svg-2-webfont/commit/d7a5868403c466cd831b6e27f80644becc0ff4cf))
+- **webfont-generator:** reduce WOFF2 transient allocations ([#349](https://github.com/atlowChemi/vite-svg-2-webfont/issues/349)) ([3bf52b1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3bf52b10d3d9c7662f790af9e5ca9320cdbcc355))
+- **webfont-generator:** remove two stored allocations per glyph ([#346](https://github.com/atlowChemi/vite-svg-2-webfont/issues/346)) ([82c07b6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/82c07b639598a45a9a56d8f17d08746432bda56c))
+- **webfont-generator:** reuse WOFF2 glyph scratch buffers ([#355](https://github.com/atlowChemi/vite-svg-2-webfont/issues/355)) ([3149c2e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3149c2e9b64514d6c119c78ca8d4fbd768c63f70))
+- **webfont-generator:** share compiled TTF glyphs ([#364](https://github.com/atlowChemi/vite-svg-2-webfont/issues/364)) ([b95abfe](https://github.com/atlowChemi/vite-svg-2-webfont/commit/b95abfece526b9ad65b1f98d245d366b5fbd7b06))
+- **webfont-generator:** share loaded SVG contents ([#360](https://github.com/atlowChemi/vite-svg-2-webfont/issues/360)) ([6315d75](https://github.com/atlowChemi/vite-svg-2-webfont/commit/6315d751e171ee875d650f1242392e8b30dec76b))
+- **webfont-generator:** share parsed glyph cache entries ([#358](https://github.com/atlowChemi/vite-svg-2-webfont/issues/358)) ([b41707f](https://github.com/atlowChemi/vite-svg-2-webfont/commit/b41707f591cd148100e2c0522b33fe6a970946b9))
+- **webfont-generator:** share processed SVG paths ([#362](https://github.com/atlowChemi/vite-svg-2-webfont/issues/362)) ([77ce975](https://github.com/atlowChemi/vite-svg-2-webfont/commit/77ce9750837f14c51ae5663b7624ef11236f6aa4))
+- **webfont-generator:** skip single-contour winding work ([#354](https://github.com/atlowChemi/vite-svg-2-webfont/issues/354)) ([4d7ed77](https://github.com/atlowChemi/vite-svg-2-webfont/commit/4d7ed775a252a52526fbc5d082175b40e9a91602))
+
 ## [0.6.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.5.1...webfont-generator-v0.6.0) (2026-08-09)
 
 ### Features
