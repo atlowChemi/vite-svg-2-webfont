@@ -1,9 +1,11 @@
 use std::io::Error;
+use std::sync::Arc;
 use usvg::tiny_skia_path::Rect;
 
 use crate::svg::serialize::{append_path, optimize_path_data};
 use crate::svg::types::{ParsedGlyph, ProcessedGlyph};
 use crate::svg::winding::normalize_winding;
+use crate::ttf::{bezpath_hash, rounded_bezpath_from_tiny_paths};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn process_glyph(
@@ -18,6 +20,8 @@ pub(crate) fn process_glyph(
     font_width: f64,
     descent: f64,
     optimize_output: bool,
+    serialize_path: bool,
+    structure_path: bool,
 ) -> Result<ProcessedGlyph, Error> {
     let ratio = if normalize {
         let base = glyph.width.max(glyph.height);
@@ -76,18 +80,23 @@ pub(crate) fn process_glyph(
     // Apply the monochrome icon-font containment heuristic: nested contours alternate winding so
     // foreground-on-background SVG layers become knockouts. No-op glyphs pass through byte-identical.
     let transformed_paths = normalize_winding(transformed_paths);
-    let mut path_data = String::new();
-    for path in &transformed_paths {
-        append_path(&mut path_data, path, round);
-    }
-    // Trim trailing whitespace in-place (append_path always adds trailing spaces)
-    let trimmed_len = path_data.trim_end().len();
-    path_data.truncate(trimmed_len);
-    let path_data = if optimize_output {
-        optimize_path_data(&path_data)
+    let path_data = if serialize_path {
+        let mut path_data = String::new();
+        for path in &transformed_paths {
+            append_path(&mut path_data, path, round);
+        }
+        path_data.truncate(path_data.trim_end().len());
+        if optimize_output {
+            optimize_path_data(&path_data)
+        } else {
+            path_data
+        }
     } else {
-        path_data
+        String::new()
     };
+    let ttf_path = structure_path
+        .then(|| Arc::new(rounded_bezpath_from_tiny_paths(&transformed_paths, round)));
+    let ttf_path_hash = ttf_path.as_deref().map(bezpath_hash);
 
     Ok(ProcessedGlyph {
         codepoint: glyph.codepoint,
@@ -95,6 +104,8 @@ pub(crate) fn process_glyph(
         index: glyph.index,
         name: glyph.name,
         path_data: path_data.into(),
+        ttf_path,
+        ttf_path_hash,
         width: scaled_width,
     })
 }

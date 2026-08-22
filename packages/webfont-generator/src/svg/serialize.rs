@@ -147,13 +147,17 @@ struct RoundedCoordinate(f64);
 impl RoundedCoordinate {
     #[inline]
     fn new(value: f32, round: f64) -> Self {
-        let precision = if round.is_finite() && round > 0.0 {
-            round
-        } else {
-            DEFAULT_ROUNDING_PRECISION
-        };
-        Self((f64::from(value) * precision).round() / precision)
+        Self(rounded_coordinate(value, round))
     }
+}
+
+pub(crate) fn rounded_coordinate(value: f32, round: f64) -> f64 {
+    let precision = if round.is_finite() && round > 0.0 {
+        round
+    } else {
+        DEFAULT_ROUNDING_PRECISION
+    };
+    (f64::from(value) * precision).round() / precision
 }
 
 impl std::fmt::Display for RoundedCoordinate {

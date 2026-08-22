@@ -70,6 +70,7 @@ impl SvgParityCase {
 fn generate_svg_font(options: GenerateWebfontsOptions) -> String {
     let mut resolved_options = resolve_generate_webfonts_options(options)
         .unwrap_or_else(|error| panic!("native options should resolve: {error}"));
+    resolved_options.types = vec![crate::FontType::Svg];
     let source_files = load_source_files(&resolved_options.files);
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)
         .unwrap_or_else(|error| panic!("native codepoints should resolve: {error}"));
@@ -684,6 +685,7 @@ fn winding_glyph_path_data(file: &str) -> String {
         ..Default::default()
     })
     .unwrap();
+    resolved.types = vec![crate::FontType::Svg];
     let source_files = load_source_files(&resolved.files);
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
     let svg_options = svg_options_from_options(&resolved);

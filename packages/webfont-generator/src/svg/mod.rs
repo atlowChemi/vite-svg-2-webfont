@@ -14,12 +14,13 @@ use std::sync::Arc;
 use parse::parse_svg_glyph;
 use process::process_glyph;
 pub(crate) use serialize::build_svg_font;
+pub(crate) use serialize::rounded_coordinate;
 use types::{
     CachedGlyph, CachedProcessedGlyph, GlyphCache, GlyphWorkItem, ParsedGlyph, PreparedSvgFont,
     ProcessedGlyph, SvgOptions,
 };
 
-use crate::types::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::types::{FontType, LoadedSvgFile, ResolvedGenerateWebfontsOptions};
 
 struct FinalizePlan {
     normalize: bool,
@@ -35,6 +36,8 @@ struct FinalizePlan {
     font_id: String,
     metadata: String,
     optimize_output: bool,
+    serialize_path: bool,
+    structure_path: bool,
 }
 
 enum IncrementalGlyph {
@@ -89,6 +92,12 @@ pub(crate) fn svg_options_from_options(
         .format_options
         .as_ref()
         .and_then(|value| value.svg.as_ref());
+    let optimize_output = options.optimize_output.unwrap_or(false);
+    let structure_path = !optimize_output
+        && options
+            .types
+            .iter()
+            .any(|font_type| *font_type != FontType::Svg);
 
     SvgOptions {
         ascent: options.ascent,
@@ -108,6 +117,8 @@ pub(crate) fn svg_options_from_options(
         optimize_output: options.optimize_output,
         preserve_aspect_ratio: options.preserve_aspect_ratio,
         round: options.round,
+        serialize_path: options.types.contains(&FontType::Svg) || !structure_path,
+        structure_path,
     }
 }
 
@@ -246,6 +257,8 @@ fn finalize_plan<T>(
         font_id: options.font_id.unwrap_or(options.font_name).to_owned(),
         metadata: options.metadata.unwrap_or_default().to_owned(),
         optimize_output: options.optimize_output.unwrap_or(false),
+        serialize_path: options.serialize_path,
+        structure_path: options.structure_path,
     }
 }
 
@@ -265,6 +278,8 @@ fn process_glyph_with_plan(
         plan.font_width,
         plan.descent,
         plan.optimize_output,
+        plan.serialize_path,
+        plan.structure_path,
     )
 }
 
@@ -416,13 +431,15 @@ fn parse_glyphs_incremental(
 }
 
 fn processed_glyph_cache_signature(plan: &FinalizePlan) -> [u8; 16] {
-    let mut bytes = Vec::with_capacity(8 * 5 + 5);
+    let mut bytes = Vec::with_capacity(8 * 5 + 7);
     bytes.extend_from_slice(&[
         plan.normalize as u8,
         plan.fixed_width as u8,
         plan.center_horizontally as u8,
         plan.center_vertically as u8,
         plan.optimize_output as u8,
+        plan.serialize_path as u8,
+        plan.structure_path as u8,
     ]);
     for value in [
         plan.round,
@@ -468,6 +485,8 @@ fn finalize_glyphs_incremental(
                 let cached = CachedProcessedGlyph {
                     height: glyph.height,
                     path_data: glyph.path_data.clone(),
+                    ttf_path: glyph.ttf_path.clone(),
+                    ttf_path_hash: glyph.ttf_path_hash,
                     width: glyph.width,
                 };
                 (path_index, glyph, cached)
@@ -505,6 +524,8 @@ fn finalize_glyphs_incremental(
                     index,
                     name: source_file.glyph_name.clone(),
                     path_data: cached.path_data.clone(),
+                    ttf_path: cached.ttf_path.clone(),
+                    ttf_path_hash: cached.ttf_path_hash,
                     width: cached.width,
                 }
             }
