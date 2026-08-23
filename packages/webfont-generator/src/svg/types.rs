@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
+use kurbo::BezPath;
 use usvg::tiny_skia_path::Path as TinyPath;
 
 use crate::types::LoadedSvgFile;
@@ -23,6 +24,8 @@ pub(crate) struct SvgOptions<'a> {
     pub optimize_output: Option<bool>,
     pub preserve_aspect_ratio: Option<bool>,
     pub round: Option<f64>,
+    pub serialize_path: bool,
+    pub structure_path: bool,
 }
 
 #[derive(Clone)]
@@ -49,6 +52,8 @@ pub(crate) struct ProcessedGlyph {
     pub index: usize,
     pub name: String,
     pub path_data: Arc<str>,
+    pub ttf_path: Option<Arc<BezPath>>,
+    pub ttf_path_hash: Option<u64>,
     pub width: f64,
 }
 
@@ -56,6 +61,8 @@ pub(crate) struct ProcessedGlyph {
 pub(crate) struct CachedProcessedGlyph {
     pub height: f64,
     pub path_data: Arc<str>,
+    pub ttf_path: Option<Arc<BezPath>>,
+    pub ttf_path_hash: Option<u64>,
     pub width: f64,
 }
 

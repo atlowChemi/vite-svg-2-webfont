@@ -526,6 +526,8 @@ mod tests {
                         )
                     })
                     .into(),
+                    ttf_path: None,
+                    ttf_path_hash: None,
                     width: 16.0 + (shape % 5) as f64,
                 }
             })
@@ -540,6 +542,8 @@ mod tests {
             index,
             name: name.to_owned(),
             path_data: path_data.into(),
+            ttf_path: None,
+            ttf_path_hash: None,
             width,
         }
     }

@@ -7,6 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 use kurbo::{BezPath, CubicBez, PathEl, Point};
 use rustc_hash::FxHasher;
+use usvg::tiny_skia_path::{Path as TinyPath, PathSegment};
 use write_fonts::read::TopLevelTable;
 use write_fonts::tables::cmap::Cmap;
 use write_fonts::tables::glyf::{GlyfLocaBuilder, Glyph, SimpleGlyph};
@@ -32,6 +33,7 @@ use write_fonts::{FontWrite, dump_table};
 #[cfg(test)]
 use crate::GenerateWebfontsOptions;
 use crate::sfnt::SerializedFontTables;
+use crate::svg::rounded_coordinate;
 use crate::svg::types::ProcessedGlyph;
 #[cfg(test)]
 use crate::svg::{prepare_svg_font, svg_options_from_options};
@@ -194,16 +196,20 @@ impl TtfGlyphCache {
     }
 }
 
-fn compiled_glyph_cache_key(path_data: &str, advance_width: u16) -> u64 {
+fn compiled_glyph_cache_key(glyph: &ProcessedGlyph, advance_width: u16) -> u64 {
     // ponytail: non-crypto FxHash for an in-process dedup key. u64 birthday
     // bound (~2^32 distinct keys) dwarfs any realistic glyph count; a collision
     // would silently reuse the wrong outline, but is astronomically unlikely
     // here. Not persisted across runs, so hasher stability across versions is
     // a non-concern.
     let mut hasher = FxHasher::default();
-    hasher.write(path_data.as_bytes());
+    hash_glyph_path(&mut hasher, glyph);
     hasher.write_u16(advance_width);
     hasher.finish()
+}
+
+fn glyph_path_bucket(glyph: &ProcessedGlyph) -> u64 {
+    glyph.ttf_path_hash.unwrap_or(glyph.path_data.len() as u64)
 }
 
 struct LigaturePlaceholderGlyph {
@@ -232,14 +238,36 @@ pub(crate) fn generate_ttf_font_bytes(options: GenerateWebfontsOptions) -> Resul
         .collect::<Result<Vec<_>, Error>>()?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)
         .map_err(|error| Error::new(ErrorKind::InvalidInput, error.to_string()))?;
+    if resolved_options.types == [crate::FontType::Ttf] {
+        let ttf_only = svg_options_from_options(&resolved_options);
+        if resolved_options.optimize_output.unwrap_or(false) {
+            assert!(!ttf_only.structure_path);
+            assert!(ttf_only.serialize_path);
+        } else {
+            assert!(ttf_only.structure_path);
+            assert!(!ttf_only.serialize_path);
+        }
+    }
+    if !resolved_options.types.contains(&crate::FontType::Svg) {
+        resolved_options.types.push(crate::FontType::Svg);
+    }
     let svg_options = svg_options_from_options(&resolved_options);
     let prepared = prepare_svg_font(&svg_options, &source_files)
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
-    generate_ttf_font_from_glyphs(
-        ttf_options_from_options(&resolved_options),
-        &prepared.processed_glyphs,
-    )
-    .map(|tables| tables.ttf().to_vec())
+    let mut direct_options = ttf_options_from_options(&resolved_options);
+    direct_options.ts = Some(direct_options.ts.unwrap_or_else(current_unix_timestamp));
+    let timestamp = direct_options.ts;
+    let direct = generate_ttf_font_from_glyphs(direct_options, &prepared.processed_glyphs)?;
+    let mut via_string = prepared.processed_glyphs.clone();
+    for glyph in &mut via_string {
+        glyph.ttf_path = None;
+        glyph.ttf_path_hash = None;
+    }
+    let mut string_options = ttf_options_from_options(&resolved_options);
+    string_options.ts = timestamp;
+    let via_string = generate_ttf_font_from_glyphs(string_options, &via_string)?;
+    assert_eq!(direct.ttf(), via_string.ttf());
+    Ok(direct.ttf().to_vec())
 }
 
 pub(crate) fn ttf_options_from_options(
@@ -345,15 +373,15 @@ fn compile_and_dedup_glyphs(
 ) -> Result<(Vec<CompiledGlyph>, CmapAliases), Error> {
     let mut compiled: Vec<CompiledGlyph> = Vec::with_capacity(glyphs.len());
     let mut aliases: Vec<(u32, usize)> = Vec::new();
-    let mut seen: HashMap<(usize, u16), Vec<usize>> = HashMap::new();
+    let mut seen: HashMap<(u64, u16), Vec<usize>> = HashMap::new();
 
     for (i, glyph) in glyphs.iter().enumerate() {
         let advance_width = clamp_to_u16(glyph.width.round(), 0, u16::MAX);
-        let key = (glyph.path_data.len(), advance_width);
+        let key = (glyph_path_bucket(glyph), advance_width);
         let duplicate_of = seen.get(&key).and_then(|indices| {
             indices
                 .iter()
-                .find(|&&idx| glyphs[compiled[idx].source_index].path_data == glyph.path_data)
+                .find(|&&idx| glyph_paths_equal(&glyphs[compiled[idx].source_index], glyph))
                 .copied()
         });
         if let Some(first_idx) = duplicate_of {
@@ -374,22 +402,22 @@ fn compile_and_dedup_glyphs_cached(
 ) -> Result<(Vec<CompiledGlyph>, CmapAliases), Error> {
     let mut compiled: Vec<CompiledGlyph> = Vec::with_capacity(glyphs.len());
     let mut aliases: Vec<(u32, usize)> = Vec::new();
-    let mut seen: HashMap<(usize, u16), Vec<usize>> = HashMap::new();
+    let mut seen: HashMap<(u64, u16), Vec<usize>> = HashMap::new();
     let mut used_keys = HashSet::with_capacity(glyphs.len());
 
     for (i, glyph) in glyphs.iter().enumerate() {
         let advance_width = clamp_to_u16(glyph.width.round(), 0, u16::MAX);
-        let key = (glyph.path_data.len(), advance_width);
+        let key = (glyph_path_bucket(glyph), advance_width);
         let duplicate_of = seen.get(&key).and_then(|indices| {
             indices
                 .iter()
-                .find(|&&idx| glyphs[compiled[idx].source_index].path_data == glyph.path_data)
+                .find(|&&idx| glyph_paths_equal(&glyphs[compiled[idx].source_index], glyph))
                 .copied()
         });
         if let Some(first_idx) = duplicate_of {
             aliases.push((glyph.codepoint, first_idx));
         } else {
-            let cache_key = compiled_glyph_cache_key(&glyph.path_data, advance_width);
+            let cache_key = compiled_glyph_cache_key(glyph, advance_width);
             let cached = match cache.entries.get(&cache_key) {
                 Some(cached) => Arc::clone(cached),
                 None => {
@@ -897,7 +925,10 @@ fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<Compiled
 }
 
 fn compile_simple_glyph(glyph: &ProcessedGlyph) -> Result<SimpleGlyph, Error> {
-    let path = quadratic_path_from_svg_path_data(&glyph.path_data)?;
+    let path = match &glyph.ttf_path {
+        Some(path) => quadratic_path(path)?,
+        None => quadratic_path_from_svg_path_data(&glyph.path_data)?,
+    };
     SimpleGlyph::from_bezpath(&path).map_err(|error| {
         Error::other(format!(
             "Failed to convert glyph '{}' into a TrueType outline: {error:?}",
@@ -953,6 +984,10 @@ fn quadratic_path_from_svg_path_data(path_data: &str) -> Result<BezPath, Error> 
         )
     })?;
 
+    quadratic_path(&path)
+}
+
+fn quadratic_path(path: &BezPath) -> Result<BezPath, Error> {
     let mut elements: Vec<PathEl> = Vec::with_capacity(path.elements().len());
     let mut current: Option<Point> = None;
     // `Some(start)` when the last pushed element is a `LineTo` in the current contour, so a
@@ -1009,6 +1044,85 @@ fn quadratic_path_from_svg_path_data(path_data: &str) -> Result<BezPath, Error> 
     }
 
     Ok(BezPath::from_vec(elements))
+}
+
+pub(crate) fn rounded_bezpath_from_tiny_paths(paths: &[TinyPath], round: f64) -> BezPath {
+    let point = |point: usvg::tiny_skia_path::Point| {
+        Point::new(
+            rounded_coordinate(point.x, round),
+            rounded_coordinate(point.y, round),
+        )
+    };
+    let mut result = BezPath::new();
+    for path in paths {
+        for segment in path.segments() {
+            match segment {
+                PathSegment::MoveTo(to) => result.move_to(point(to)),
+                PathSegment::LineTo(to) => result.line_to(point(to)),
+                PathSegment::QuadTo(control, to) => result.quad_to(point(control), point(to)),
+                PathSegment::CubicTo(control1, control2, to) => {
+                    result.curve_to(point(control1), point(control2), point(to));
+                }
+                PathSegment::Close => result.close_path(),
+            }
+        }
+    }
+    result
+}
+
+fn glyph_paths_equal(left: &ProcessedGlyph, right: &ProcessedGlyph) -> bool {
+    match (&left.ttf_path, &right.ttf_path) {
+        (Some(left), Some(right)) => left.elements() == right.elements(),
+        _ => left.path_data == right.path_data,
+    }
+}
+
+fn hash_glyph_path(hasher: &mut FxHasher, glyph: &ProcessedGlyph) {
+    if let Some(path) = &glyph.ttf_path {
+        for element in path.elements() {
+            hash_path_element(hasher, *element);
+        }
+    } else {
+        hasher.write(glyph.path_data.as_bytes());
+    }
+}
+
+pub(crate) fn bezpath_hash(path: &BezPath) -> u64 {
+    let mut hasher = FxHasher::default();
+    for element in path.elements() {
+        hash_path_element(&mut hasher, *element);
+    }
+    hasher.finish()
+}
+
+fn hash_path_element(hasher: &mut FxHasher, element: PathEl) {
+    match element {
+        PathEl::MoveTo(point) => {
+            hasher.write_u8(0);
+            hash_point(hasher, point);
+        }
+        PathEl::LineTo(point) => {
+            hasher.write_u8(1);
+            hash_point(hasher, point);
+        }
+        PathEl::QuadTo(control, point) => {
+            hasher.write_u8(2);
+            hash_point(hasher, control);
+            hash_point(hasher, point);
+        }
+        PathEl::CurveTo(control1, control2, point) => {
+            hasher.write_u8(3);
+            hash_point(hasher, control1);
+            hash_point(hasher, control2);
+            hash_point(hasher, point);
+        }
+        PathEl::ClosePath => hasher.write_u8(4),
+    }
+}
+
+fn hash_point(hasher: &mut FxHasher, point: Point) {
+    hasher.write_u64(point.x.to_bits());
+    hasher.write_u64(point.y.to_bits());
 }
 
 fn build_name_table(
@@ -1215,7 +1329,7 @@ mod tests {
     use std::path::PathBuf;
 
     use super::generate_ttf_font_bytes;
-    use crate::GenerateWebfontsOptions;
+    use crate::{FontType, GenerateWebfontsOptions};
     use write_fonts::read::{FontRef, TableProvider};
 
     #[test]
@@ -1232,12 +1346,30 @@ mod tests {
             font_name: Some("cleanicons".to_string()),
             ligature: Some(false),
             start_codepoint: Some(0xE001),
+            types: Some(vec![FontType::Ttf]),
             ..Default::default()
         })
         .expect("expected native ttf generation to succeed");
 
         assert_eq!(&result[..4], &[0x00, 0x01, 0x00, 0x00]);
         assert!(!result.is_empty());
+    }
+
+    #[test]
+    fn optimized_ttf_preserves_the_string_path_route() {
+        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("src/svg/fixtures/icons/cleanicons/plus.svg");
+        generate_ttf_font_bytes(GenerateWebfontsOptions {
+            css: Some(false),
+            dest: "artifacts".to_string(),
+            files: vec![fixture.display().to_string()],
+            html: Some(false),
+            font_name: Some("optimized".to_string()),
+            optimize_output: Some(true),
+            types: Some(vec![FontType::Ttf]),
+            ..Default::default()
+        })
+        .expect("expected optimized TTF generation to succeed");
     }
 
     #[test]
