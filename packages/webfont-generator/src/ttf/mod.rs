@@ -203,7 +203,10 @@ fn compiled_glyph_cache_key(glyph: &ProcessedGlyph, advance_width: u16) -> u64 {
     // here. Not persisted across runs, so hasher stability across versions is
     // a non-concern.
     let mut hasher = FxHasher::default();
-    hash_glyph_path(&mut hasher, glyph);
+    match glyph.ttf_path_hash {
+        Some(path_hash) => hasher.write_u64(path_hash),
+        None => hasher.write(glyph.path_data.as_bytes()),
+    }
     hasher.write_u16(advance_width);
     hasher.finish()
 }
@@ -1074,16 +1077,6 @@ fn glyph_paths_equal(left: &ProcessedGlyph, right: &ProcessedGlyph) -> bool {
     match (&left.ttf_path, &right.ttf_path) {
         (Some(left), Some(right)) => left.elements() == right.elements(),
         _ => left.path_data == right.path_data,
-    }
-}
-
-fn hash_glyph_path(hasher: &mut FxHasher, glyph: &ProcessedGlyph) {
-    if let Some(path) = &glyph.ttf_path {
-        for element in path.elements() {
-            hash_path_element(hasher, *element);
-        }
-    } else {
-        hasher.write(glyph.path_data.as_bytes());
     }
 }
 
