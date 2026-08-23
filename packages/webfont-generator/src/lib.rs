@@ -334,7 +334,7 @@ extern "C" fn napi_call_threadsafe_function(
 /// holding the font bytes and template-rendering methods.
 ///
 /// Optional callbacks:
-/// - `rename(path)` — derive a custom glyph name from each SVG file path.
+/// - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
 /// - `cssContext(ctx)` — mutate the Handlebars context before CSS rendering;
 ///   return the (possibly mutated) context.
 /// - `htmlContext(ctx)` — same, but for the HTML preview.
@@ -343,7 +343,7 @@ extern "C" fn napi_call_threadsafe_function(
 #[allow(clippy::type_complexity)] // NAPI proc macro requires the verbose ThreadsafeFunction type
 pub async fn generate_webfonts(
     options: GenerateWebfontsOptions,
-    rename: Option<ThreadsafeFunction<String, String, String, Status, false>>,
+    rename: Option<ThreadsafeFunction<Vec<String>, Vec<String>, Vec<String>, Status, false>>,
     css_context: Option<
         ThreadsafeFunction<
             serde_json::Map<String, serde_json::Value>,
@@ -867,27 +867,43 @@ async fn load_svg_files(
 
 /// NAPI version: resolve glyph names via async ThreadsafeFunction callback.
 #[cfg(feature = "napi")]
+#[allow(clippy::type_complexity)]
 async fn load_svg_files_napi(
     paths: &[String],
     rename: Option<
-        &napi::threadsafe_function::ThreadsafeFunction<String, String, String, Status, false>,
+        &napi::threadsafe_function::ThreadsafeFunction<
+            Vec<String>,
+            Vec<String>,
+            Vec<String>,
+            Status,
+            false,
+        >,
     >,
 ) -> napi::Result<Vec<LoadedSvgFile>> {
     let raw = load_svg_contents(paths).await.map_err(to_napi_err)?;
-    let mut source_files = Vec::with_capacity(raw.len());
-
-    for (path, contents) in raw {
-        let glyph_name = if let Some(rename) = rename {
-            rename.call_async(path.clone()).await?
-        } else {
-            util::default_glyph_name_from_path(&path).map_err(to_napi_err)?
-        };
-        source_files.push(LoadedSvgFile {
+    let glyph_names = if let Some(rename) = rename {
+        let glyph_names = rename.call_async_catch(paths.to_vec()).await?;
+        if glyph_names.len() != raw.len() {
+            return Err(NapiError::new(
+                Status::InvalidArg,
+                "rename callback returned an unexpected number of glyph names".to_owned(),
+            ));
+        }
+        glyph_names
+    } else {
+        raw.iter()
+            .map(|(path, _)| util::default_glyph_name_from_path(path).map_err(to_napi_err))
+            .collect::<napi::Result<_>>()?
+    };
+    let source_files = raw
+        .into_iter()
+        .zip(glyph_names)
+        .map(|((path, contents), glyph_name)| LoadedSvgFile {
             contents: contents.into(),
             glyph_name,
             path,
-        });
-    }
+        })
+        .collect::<Vec<_>>();
 
     validate_glyph_names(&source_files).map_err(to_napi_err)?;
     Ok(source_files)
