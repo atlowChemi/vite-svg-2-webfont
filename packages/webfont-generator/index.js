@@ -30,7 +30,14 @@ async function generateWebfonts(options) {
 
     return generateNativeBinding(
         nativeOptions,
-        rename,
+        rename
+            ? paths =>
+                  paths.map(path => {
+                      const name = rename(path);
+                      if (typeof name !== 'string') throw new TypeError('rename callback must return a string');
+                      return name;
+                  })
+            : undefined,
         cssContext
             ? context => {
                   cssContext(context);

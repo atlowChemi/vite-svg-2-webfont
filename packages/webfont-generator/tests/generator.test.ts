@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { afterEach, beforeAll, describe, expect, it } from 'vite-plus/test';
+import { generateWebfonts as generateNativeBinding } from '../binding.js';
 import { type FontType, generateWebfonts, type GenerateWebfontsInputOptions } from '../index.js';
 
 const fixturesRoot = join(import.meta.dirname, '..', 'src', 'svg', 'fixtures');
@@ -22,6 +23,84 @@ async function createTempDir(prefix: string) {
 }
 
 describe('generateWebfonts', () => {
+    const renameFiles = ['plus.svg', 'minus.svg', 'close.svg'].map(file => join(fixturesRoot, 'icons', 'cleanicons', file));
+    const renameOptions = {
+        css: false,
+        dest: tmpdir(),
+        files: renameFiles,
+        fontName: 'renamed',
+        html: false,
+        types: ['svg'] as FontType[],
+        writeFiles: false,
+    };
+
+    it('applies rename callbacks in file order', async () => {
+        const calls: string[] = [];
+        const result = await generateWebfonts({
+            ...renameOptions,
+            rename(path) {
+                calls.push(path);
+                return `renamed-${calls.length}`;
+            },
+        });
+
+        expect(calls).toEqual(renameFiles);
+        expect(
+            Buffer.from(result.svg)
+                .toString('utf8')
+                .match(/glyph-name="renamed-\d"/g),
+        ).toEqual(['glyph-name="renamed-1"', 'glyph-name="renamed-2"', 'glyph-name="renamed-3"']);
+    });
+
+    it('stops rename callbacks at the first exception', async () => {
+        const calls: string[] = [];
+        await expect(
+            generateWebfonts({
+                ...renameOptions,
+                rename(path) {
+                    calls.push(path);
+                    if (calls.length === 2) throw new Error('rename failed');
+                    return `renamed-${calls.length}`;
+                },
+            }),
+        ).rejects.toThrow('rename failed');
+        expect(calls).toEqual(renameFiles.slice(0, 2));
+    });
+
+    it('stops rename callbacks at the first invalid return', async () => {
+        const calls: string[] = [];
+        await expect(
+            generateWebfonts({
+                ...renameOptions,
+                rename(path) {
+                    calls.push(path);
+                    return undefined as never;
+                },
+            }),
+        ).rejects.toThrow('rename callback must return a string');
+        expect(calls).toEqual(renameFiles.slice(0, 1));
+    });
+
+    it('calls every rename callback before rejecting duplicate names', async () => {
+        const calls: string[] = [];
+        await expect(
+            generateWebfonts({
+                ...renameOptions,
+                rename(path) {
+                    calls.push(path);
+                    return 'duplicate';
+                },
+            }),
+        ).rejects.toThrow('The glyph name "duplicate" must be unique.');
+        expect(calls).toEqual(renameFiles);
+    });
+
+    it('rejects an invalid raw rename batch length', async () => {
+        await expect(generateNativeBinding({ ...renameOptions, types: undefined }, paths => paths.slice(1))).rejects.toThrow(
+            'rename callback returned an unexpected number of glyph names',
+        );
+    });
+
     it('generates a ttf font and writes it to disk when ttf is requested', async () => {
         const dest = await createTempDir('vite-ttf-native-');
         const result = await generateWebfonts({

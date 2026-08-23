@@ -122,12 +122,12 @@ export interface FormatOptions {
  * holding the font bytes and template-rendering methods.
  *
  * Optional callbacks:
- * - `rename(path)` — derive a custom glyph name from each SVG file path.
+ * - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
  * - `cssContext(ctx)` — mutate the Handlebars context before CSS rendering;
  *   return the (possibly mutated) context.
  * - `htmlContext(ctx)` — same, but for the HTML preview.
  */
-export declare function generateWebfonts(options: GenerateWebfontsOptions, rename?: (((arg: string) => string)) | undefined | null, cssContext?: (((arg: Record<string, any>) => Record<string, any>)) | undefined | null, htmlContext?: (((arg: Record<string, any>) => Record<string, any>)) | undefined | null): Promise<GenerateWebfontsResult>
+export declare function generateWebfonts(options: GenerateWebfontsOptions, rename?: (((arg: Array<string>) => Array<string>)) | undefined | null, cssContext?: (((arg: Record<string, any>) => Record<string, any>)) | undefined | null, htmlContext?: (((arg: Record<string, any>) => Record<string, any>)) | undefined | null): Promise<GenerateWebfontsResult>
 
 /**
  * Top-level options controlling webfont generation. Only `dest` and `files`
