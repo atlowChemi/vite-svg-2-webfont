@@ -92,12 +92,11 @@ pub(crate) fn svg_options_from_options(
         .format_options
         .as_ref()
         .and_then(|value| value.svg.as_ref());
-    let optimize_output = options.optimize_output.unwrap_or(false);
-    let structure_path = !optimize_output
-        && options
-            .types
-            .iter()
-            .any(|font_type| *font_type != FontType::Svg);
+    let wants_binary = options
+        .types
+        .iter()
+        .any(|font_type| *font_type != FontType::Svg);
+    let structure_path = wants_binary;
 
     SvgOptions {
         ascent: options.ascent,

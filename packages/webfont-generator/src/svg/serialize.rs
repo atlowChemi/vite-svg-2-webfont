@@ -170,17 +170,14 @@ impl std::fmt::Display for RoundedCoordinate {
     }
 }
 
-pub(crate) fn optimize_path_data(path_data: &str) -> String {
+pub(crate) fn optimize_path(path_data: &str) -> Option<oxvg_path::Path> {
     use oxvg_path::{Path, geometry::Tolerance, optimize::Options, parser::Parse as _};
 
-    let mut path = match Path::parse_string(path_data) {
-        Ok(p) => p,
-        Err(_) => return path_data.to_owned(),
-    };
+    let mut path = Path::parse_string(path_data).ok()?;
     let options = Options::all()
         .difference(Options::CloseSegments | Options::RemoveCloseLine | Options::UniteSegments);
     path = path.optimize(options, &Tolerance::default());
-    path.to_string()
+    Some(path)
 }
 
 fn escape_xml(value: &str) -> String {
