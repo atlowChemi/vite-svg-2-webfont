@@ -241,26 +241,24 @@ pub(crate) fn generate_ttf_font_bytes(options: GenerateWebfontsOptions) -> Resul
         .collect::<Result<Vec<_>, Error>>()?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)
         .map_err(|error| Error::new(ErrorKind::InvalidInput, error.to_string()))?;
+    let binary_options = svg_options_from_options(&resolved_options);
     if resolved_options.types == [crate::FontType::Ttf] {
-        let ttf_only = svg_options_from_options(&resolved_options);
-        if resolved_options.optimize_output.unwrap_or(false) {
-            assert!(!ttf_only.structure_path);
-            assert!(ttf_only.serialize_path);
-        } else {
-            assert!(ttf_only.structure_path);
-            assert!(!ttf_only.serialize_path);
-        }
+        assert!(binary_options.structure_path);
+        assert!(!binary_options.serialize_path);
     }
+    let binary_prepared = prepare_svg_font(&binary_options, &source_files)
+        .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
+    let mut direct_options = ttf_options_from_options(&resolved_options);
+    direct_options.ts = Some(direct_options.ts.unwrap_or_else(current_unix_timestamp));
+    let timestamp = direct_options.ts;
+    let direct = generate_ttf_font_from_glyphs(direct_options, &binary_prepared.processed_glyphs)?;
+
     if !resolved_options.types.contains(&crate::FontType::Svg) {
         resolved_options.types.push(crate::FontType::Svg);
     }
     let svg_options = svg_options_from_options(&resolved_options);
     let prepared = prepare_svg_font(&svg_options, &source_files)
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
-    let mut direct_options = ttf_options_from_options(&resolved_options);
-    direct_options.ts = Some(direct_options.ts.unwrap_or_else(current_unix_timestamp));
-    let timestamp = direct_options.ts;
-    let direct = generate_ttf_font_from_glyphs(direct_options, &prepared.processed_glyphs)?;
     let mut via_string = prepared.processed_glyphs.clone();
     for glyph in &mut via_string {
         glyph.ttf_path = None;
@@ -990,6 +988,172 @@ fn quadratic_path_from_svg_path_data(path_data: &str) -> Result<BezPath, Error> 
     quadratic_path(&path)
 }
 
+pub(crate) fn bezpath_from_oxvg_path(path: &oxvg_path::Path) -> BezPath {
+    let number = |value: f64| if value == 0.0 { 0.0 } else { value };
+    let point = |x: f64, y: f64| Point::new(number(x), number(y));
+    let relative = |from: Point, x: f64, y: f64| from + point(x, y).to_vec2();
+    let mut result = BezPath::new();
+    let mut current = Point::ORIGIN;
+    let mut subpath_start = Point::ORIGIN;
+    // Preserve Kurbo's family-agnostic smooth-control state for exact historical TTF bytes.
+    let mut last_ctrl = None;
+    let mut implicit_moveto = None;
+
+    for command in &path.0 {
+        let mut command = command;
+        while let oxvg_path::command::Data::Implicit(inner) = command {
+            command = inner;
+        }
+
+        if !matches!(
+            command,
+            oxvg_path::command::Data::MoveTo(_) | oxvg_path::command::Data::MoveBy(_)
+        ) && let Some(to) = implicit_moveto.take()
+        {
+            result.move_to(to);
+        }
+
+        use oxvg_path::command::Data;
+        match command {
+            Data::MoveTo([x, y]) => {
+                implicit_moveto = None;
+                current = point(*x, *y);
+                result.move_to(current);
+                subpath_start = current;
+                last_ctrl = Some(current);
+            }
+            Data::MoveBy([x, y]) => {
+                implicit_moveto = None;
+                current = relative(current, *x, *y);
+                result.move_to(current);
+                subpath_start = current;
+                last_ctrl = Some(current);
+            }
+            Data::ClosePath => {
+                result.close_path();
+                current = subpath_start;
+                implicit_moveto = Some(subpath_start);
+            }
+            Data::LineTo([x, y]) => {
+                current = point(*x, *y);
+                result.line_to(current);
+                last_ctrl = Some(current);
+            }
+            Data::LineBy([x, y]) => {
+                current = relative(current, *x, *y);
+                result.line_to(current);
+                last_ctrl = Some(current);
+            }
+            Data::HorizontalLineTo([x]) => {
+                current = Point::new(number(*x), current.y);
+                result.line_to(current);
+                last_ctrl = Some(current);
+            }
+            Data::HorizontalLineBy([x]) => {
+                current = Point::new(current.x + number(*x), current.y);
+                result.line_to(current);
+                last_ctrl = Some(current);
+            }
+            Data::VerticalLineTo([y]) => {
+                current = Point::new(current.x, number(*y));
+                result.line_to(current);
+                last_ctrl = Some(current);
+            }
+            Data::VerticalLineBy([y]) => {
+                current = Point::new(current.x, current.y + number(*y));
+                result.line_to(current);
+                last_ctrl = Some(current);
+            }
+            Data::CubicBezierTo([x1, y1, x2, y2, x, y]) => {
+                let control1 = point(*x1, *y1);
+                let control2 = point(*x2, *y2);
+                current = point(*x, *y);
+                result.curve_to(control1, control2, current);
+                last_ctrl = Some(control2);
+            }
+            Data::CubicBezierBy([x1, y1, x2, y2, x, y]) => {
+                let control1 = relative(current, *x1, *y1);
+                let control2 = relative(current, *x2, *y2);
+                current = relative(current, *x, *y);
+                result.curve_to(control1, control2, current);
+                last_ctrl = Some(control2);
+            }
+            Data::SmoothBezierTo([x2, y2, x, y]) => {
+                let control1 = last_ctrl
+                    .map(|control| (2.0 * current.to_vec2() - control.to_vec2()).to_point())
+                    .unwrap_or(current);
+                let control2 = point(*x2, *y2);
+                current = point(*x, *y);
+                result.curve_to(control1, control2, current);
+                last_ctrl = Some(control2);
+            }
+            Data::SmoothBezierBy([x2, y2, x, y]) => {
+                let control1 = last_ctrl
+                    .map(|control| (2.0 * current.to_vec2() - control.to_vec2()).to_point())
+                    .unwrap_or(current);
+                let control2 = relative(current, *x2, *y2);
+                current = relative(current, *x, *y);
+                result.curve_to(control1, control2, current);
+                last_ctrl = Some(control2);
+            }
+            Data::QuadraticBezierTo([x1, y1, x, y]) => {
+                let control = point(*x1, *y1);
+                current = point(*x, *y);
+                result.quad_to(control, current);
+                last_ctrl = Some(control);
+            }
+            Data::QuadraticBezierBy([x1, y1, x, y]) => {
+                let control = relative(current, *x1, *y1);
+                current = relative(current, *x, *y);
+                result.quad_to(control, current);
+                last_ctrl = Some(control);
+            }
+            Data::SmoothQuadraticBezierTo([x, y]) => {
+                let control = last_ctrl
+                    .map(|control| (2.0 * current.to_vec2() - control.to_vec2()).to_point())
+                    .unwrap_or(current);
+                current = point(*x, *y);
+                result.quad_to(control, current);
+                last_ctrl = Some(control);
+            }
+            Data::SmoothQuadraticBezierBy([x, y]) => {
+                let control = last_ctrl
+                    .map(|control| (2.0 * current.to_vec2() - control.to_vec2()).to_point())
+                    .unwrap_or(current);
+                current = relative(current, *x, *y);
+                result.quad_to(control, current);
+                last_ctrl = Some(control);
+            }
+            Data::ArcTo([rx, ry, rotation, large_arc, sweep, x, y])
+            | Data::ArcBy([rx, ry, rotation, large_arc, sweep, x, y]) => {
+                let to = if matches!(command, Data::ArcBy(_)) {
+                    relative(current, *x, *y)
+                } else {
+                    point(*x, *y)
+                };
+                let svg_arc = kurbo::SvgArc {
+                    from: current,
+                    to,
+                    radii: kurbo::Vec2::new(number(*rx), number(*ry)),
+                    x_rotation: number(*rotation).to_radians(),
+                    large_arc: number(*large_arc) == 1.0,
+                    sweep: number(*sweep) == 1.0,
+                };
+                if let Some(arc) = kurbo::Arc::from_svg_arc(&svg_arc) {
+                    arc.to_cubic_beziers(0.1, |p1, p2, p3| result.curve_to(p1, p2, p3));
+                } else {
+                    result.line_to(to);
+                }
+                current = to;
+                last_ctrl = Some(to);
+            }
+            Data::Implicit(_) => unreachable!(),
+        }
+    }
+
+    result
+}
+
 fn quadratic_path(path: &BezPath) -> Result<BezPath, Error> {
     let mut elements: Vec<PathEl> = Vec::with_capacity(path.elements().len());
     let mut current: Option<Point> = None;
@@ -1349,20 +1513,34 @@ mod tests {
     }
 
     #[test]
-    fn optimized_ttf_preserves_the_string_path_route() {
-        let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("src/svg/fixtures/icons/cleanicons/plus.svg");
+    fn optimized_direct_ttf_matches_the_string_path_route() {
+        let root =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/svg/fixtures/icons/cleanicons");
         generate_ttf_font_bytes(GenerateWebfontsOptions {
             css: Some(false),
             dest: "artifacts".to_string(),
-            files: vec![fixture.display().to_string()],
+            files: [
+                "account.svg",
+                "arrow-down.svg",
+                "arrow-left.svg",
+                "arrow-right.svg",
+                "arrow-up.svg",
+                "basket.svg",
+                "close.svg",
+                "minus.svg",
+                "plus.svg",
+                "search.svg",
+            ]
+            .into_iter()
+            .map(|file| root.join(file).display().to_string())
+            .collect(),
             html: Some(false),
-            font_name: Some("optimized".to_string()),
+            font_name: Some("optimized-direct".to_string()),
             optimize_output: Some(true),
             types: Some(vec![FontType::Ttf]),
             ..Default::default()
         })
-        .expect("expected optimized TTF generation to succeed");
+        .expect("expected direct optimized TTF generation to match the string route");
     }
 
     #[test]
@@ -1577,8 +1755,93 @@ mod tests {
         );
     }
 
-    use super::{SIMPLIFY_TOLERANCE, point_line_distance, quadratic_path_from_svg_path_data};
-    use kurbo::{PathEl, Point};
+    use super::{
+        SIMPLIFY_TOLERANCE, bezpath_from_oxvg_path, point_line_distance,
+        quadratic_path_from_svg_path_data,
+    };
+    use kurbo::{BezPath, PathEl, Point};
+    use oxvg_path::parser::Parse as _;
+
+    #[test]
+    fn oxvg_path_conversion_matches_kurbo_svg_parser() {
+        let cases = [
+            (
+                "absolute-relative-implicit-lines",
+                "M-0 1.125 2.375 3.625m4.125-5.125 6.125 7.125L20.25 21.375 22.5 23.625l2.125-3.25 4.5 5.625H30.125 31.25h2.375-1.125V40.5 41.625v2.75-1.5",
+                true,
+            ),
+            (
+                "curves-and-cross-family-controls",
+                "M10 20C11.125 12.25 13.375 14.5 15.625 16.75 17.875 18.125 19.25 20.375 21.5 22.625S23.75 24.875 25 26.125s1.25 2.375 3.5 4.625Q31.25 32.375 33.5 34.625 35.75 36.875 38 39.125T40.25 41.375t2.5 3.625S47 48.125 49.25 50.375T52.5 53.625c1.125 2.25 3.375 4.5 5.625 6.75q1.25 2.375 3.5 4.625",
+                false,
+            ),
+            (
+                "arcs-flags-rotation-relative-degenerate",
+                "M1.125 2.25A10.375 20.5 37.25 0 1 30.625 40.75a-12.875 8.25-45.5 1 0 15.125-9.375A0 5 0 0 1 50.25 60.375a5 0 90 1 1-2.125 3.25A4 6-0 0 0 48.125 63.625",
+                false,
+            ),
+            (
+                "negative-zero-and-three-decimals",
+                "M-0-0L.001-.002l-.003.004H-0v-0C.125-.25.375-.5.625-.75Q.875-.999 1.001-1.125",
+                false,
+            ),
+            (
+                "subpaths-close-and-drawing",
+                "M1 2Q2 3 3 4ZS5 6 7 8T9 10M20 21l2 3zL4 5Z",
+                false,
+            ),
+        ];
+
+        for (name, source, nest_implicit) in cases {
+            let mut path = oxvg_path::Path::parse_string(source).unwrap();
+            if nest_implicit {
+                let command = path
+                    .0
+                    .iter_mut()
+                    .find(|command| command.is_implicit())
+                    .unwrap();
+                *command = oxvg_path::command::Data::Implicit(Box::new(command.clone()));
+            }
+            let direct = bezpath_from_oxvg_path(&path);
+            let parsed = BezPath::from_svg(&path.to_string()).unwrap();
+            assert_eq!(
+                direct.elements().len(),
+                parsed.elements().len(),
+                "{name}: element count"
+            );
+
+            let assert_point = |index: usize, field: &str, direct: Point, parsed: Point| {
+                assert_eq!(
+                    [direct.x.to_bits(), direct.y.to_bits()],
+                    [parsed.x.to_bits(), parsed.y.to_bits()],
+                    "{name}: element {index} {field}"
+                );
+            };
+            for (index, (direct, parsed)) in
+                direct.elements().iter().zip(parsed.elements()).enumerate()
+            {
+                match (*direct, *parsed) {
+                    (PathEl::MoveTo(a), PathEl::MoveTo(b))
+                    | (PathEl::LineTo(a), PathEl::LineTo(b)) => {
+                        assert_point(index, "point", a, b);
+                    }
+                    (PathEl::QuadTo(a1, a2), PathEl::QuadTo(b1, b2)) => {
+                        assert_point(index, "control", a1, b1);
+                        assert_point(index, "point", a2, b2);
+                    }
+                    (PathEl::CurveTo(a1, a2, a3), PathEl::CurveTo(b1, b2, b3)) => {
+                        assert_point(index, "control1", a1, b1);
+                        assert_point(index, "control2", a2, b2);
+                        assert_point(index, "point", a3, b3);
+                    }
+                    (PathEl::ClosePath, PathEl::ClosePath) => {}
+                    (direct, parsed) => {
+                        panic!("{name}: element {index} variant differs: {direct:?} != {parsed:?}")
+                    }
+                }
+            }
+        }
+    }
 
     #[test]
     fn point_line_distance_measures_perpendicular_offset() {

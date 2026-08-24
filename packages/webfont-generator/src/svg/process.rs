@@ -2,10 +2,10 @@ use std::io::Error;
 use std::sync::Arc;
 use usvg::tiny_skia_path::Rect;
 
-use crate::svg::serialize::{append_path, optimize_path_data};
+use crate::svg::serialize::{append_path, optimize_path};
 use crate::svg::types::{ParsedGlyph, ProcessedGlyph};
 use crate::svg::winding::normalize_winding;
-use crate::ttf::{bezpath_hash, rounded_bezpath_from_tiny_paths};
+use crate::ttf::{bezpath_from_oxvg_path, bezpath_hash, rounded_bezpath_from_tiny_paths};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn process_glyph(
@@ -80,22 +80,32 @@ pub(crate) fn process_glyph(
     // Apply the monochrome icon-font containment heuristic: nested contours alternate winding so
     // foreground-on-background SVG layers become knockouts. No-op glyphs pass through byte-identical.
     let transformed_paths = normalize_winding(transformed_paths);
-    let path_data = if serialize_path {
+    let mut path_data = if serialize_path || optimize_output {
         let mut path_data = String::new();
         for path in &transformed_paths {
             append_path(&mut path_data, path, round);
         }
         path_data.truncate(path_data.trim_end().len());
-        if optimize_output {
-            optimize_path_data(&path_data)
-        } else {
-            path_data
-        }
+        path_data
     } else {
         String::new()
     };
-    let ttf_path = structure_path
-        .then(|| Arc::new(rounded_bezpath_from_tiny_paths(&transformed_paths, round)));
+    let ttf_path = if optimize_output {
+        match optimize_path(&path_data) {
+            Some(optimized) => {
+                let ttf_path = structure_path.then(|| Arc::new(bezpath_from_oxvg_path(&optimized)));
+                if serialize_path {
+                    path_data = optimized.to_string();
+                } else {
+                    path_data.clear();
+                }
+                ttf_path
+            }
+            None => None,
+        }
+    } else {
+        structure_path.then(|| Arc::new(rounded_bezpath_from_tiny_paths(&transformed_paths, round)))
+    };
     let ttf_path_hash = ttf_path.as_deref().map(bezpath_hash);
 
     Ok(ProcessedGlyph {
