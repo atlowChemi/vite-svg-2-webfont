@@ -59,6 +59,7 @@
 //!   Not enabled by default — use `cargo install webfont-generator --features cli`.
 //! - **`napi`**: Enables Node.js NAPI bindings for use as a native addon.
 
+mod byte_helpers;
 mod eot;
 mod incremental;
 mod sfnt;

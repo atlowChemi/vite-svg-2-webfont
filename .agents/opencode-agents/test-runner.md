@@ -7,6 +7,7 @@ permission:
     bash:
         '*': deny
         'vp run test*': allow
+        'vp run @atlowchemi/webfont-generator#test': allow
 ---
 
 Run `vp run test` from the repository root.

@@ -1,6 +1,7 @@
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind, Write};
 
+use crate::byte_helpers::BigEndian;
 use crate::sfnt::SerializedFontTables;
 use crate::ttf::{Woff1PayloadCache, Woff2TransformCache};
 use flate2::Compression;
@@ -94,11 +95,11 @@ fn inject_woff_metadata(woff: &mut Vec<u8>, metadata: &str) -> Result<(), Error>
 
     let total_length = woff.len() as u32;
 
-    woff[LENGTH_POS..LENGTH_POS + 4].copy_from_slice(&total_length.to_be_bytes());
-    woff[META_OFFSET_POS..META_OFFSET_POS + 4].copy_from_slice(&meta_offset.to_be_bytes());
-    woff[META_LENGTH_POS..META_LENGTH_POS + 4].copy_from_slice(&meta_length.to_be_bytes());
-    woff[META_ORIG_LENGTH_POS..META_ORIG_LENGTH_POS + 4]
-        .copy_from_slice(&meta_orig_length.to_be_bytes());
+    let mut writer = BigEndian::new(woff);
+    writer.write_u32_at(LENGTH_POS, total_length);
+    writer.write_u32_at(META_OFFSET_POS, meta_offset);
+    writer.write_u32_at(META_LENGTH_POS, meta_length);
+    writer.write_u32_at(META_ORIG_LENGTH_POS, meta_orig_length);
 
     Ok(())
 }
@@ -164,24 +165,28 @@ fn encode_woff1(
     let mut woff = Vec::with_capacity(total_length);
     woff.extend_from_slice(&WOFF_SIGNATURE);
     woff.extend_from_slice(&[0x00, 0x01, 0x00, 0x00]);
-    write_u32_be(&mut woff, total_length as u32);
-    write_u16_be(&mut woff, table_count as u16);
-    write_u16_be(&mut woff, 0);
-    write_u32_be(&mut woff, total_sfnt_size(tables));
-    write_u16_be(&mut woff, 1);
-    write_u16_be(&mut woff, 0);
-    write_u32_be(&mut woff, 0);
-    write_u32_be(&mut woff, 0);
-    write_u32_be(&mut woff, 0);
-    write_u32_be(&mut woff, 0);
-    write_u32_be(&mut woff, 0);
+    {
+        let mut woff_writer = BigEndian::new(&mut woff);
+        woff_writer.push_u32(total_length as u32);
+        woff_writer.push_u16(table_count as u16);
+        woff_writer.push_u16(0);
+        woff_writer.push_u32(total_sfnt_size(tables));
+        woff_writer.push_u16(1);
+        woff_writer.push_u16(0);
+        woff_writer.push_u32(0);
+        woff_writer.push_u32(0);
+        woff_writer.push_u32(0);
+        woff_writer.push_u32(0);
+        woff_writer.push_u32(0);
+    }
 
     for (tag, offset, comp_length, orig_length, checksum) in entries {
         woff.extend_from_slice(&tag);
-        write_u32_be(&mut woff, offset);
-        write_u32_be(&mut woff, comp_length);
-        write_u32_be(&mut woff, orig_length);
-        write_u32_be(&mut woff, checksum);
+        let mut woff_writer = BigEndian::new(&mut woff);
+        woff_writer.push_u32(offset);
+        woff_writer.push_u32(comp_length);
+        woff_writer.push_u32(orig_length);
+        woff_writer.push_u32(checksum);
     }
 
     align4(&mut woff);
@@ -223,14 +228,6 @@ fn align4(bytes: &mut Vec<u8>) {
 
 fn align4_len(len: usize) -> usize {
     (len + 3) & !3
-}
-
-fn write_u16_be(output: &mut Vec<u8>, value: u16) {
-    output.extend_from_slice(&value.to_be_bytes());
-}
-
-fn write_u32_be(output: &mut Vec<u8>, value: u32) {
-    output.extend_from_slice(&value.to_be_bytes());
 }
 
 #[cfg(test)]
