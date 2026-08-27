@@ -11,6 +11,12 @@ export default defineProject({
                 dependsOn: ['check'],
                 env: ['UPDATE_SVG_FIXTURES'],
             },
+            'test:coverage': {
+                command:
+                    'cargo llvm-cov clean --workspace && cargo llvm-cov --no-report && cargo llvm-cov --no-report --features cli && cargo llvm-cov --no-report --features napi && cargo llvm-cov report --lcov --output-path rust-lcov.info',
+                dependsOn: ['check'],
+                env: ['UPDATE_SVG_FIXTURES'],
+            },
             build: {
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts -- --features napi',
             },
