@@ -32,16 +32,16 @@ use write_fonts::{FontWrite, dump_table};
 
 #[cfg(test)]
 use crate::GenerateWebfontsOptions;
+#[cfg(test)]
+use crate::input::{
+    LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
+};
 use crate::sfnt::SerializedFontTables;
 use crate::svg::rounded_coordinate;
 use crate::svg::types::ProcessedGlyph;
 #[cfg(test)]
 use crate::svg::{prepare_svg_font, svg_options_from_options};
-#[cfg(test)]
-use crate::types::LoadedSvgFile;
 use crate::types::ResolvedGenerateWebfontsOptions;
-#[cfg(test)]
-use crate::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
 
 const QUAD_APPROXIMATION_ACCURACY: f64 = 0.25;
 // Max distance (in font units) a point may be from its neighbors' chord to be dropped as

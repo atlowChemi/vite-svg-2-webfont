@@ -8,10 +8,10 @@ use super::{
     svg_options_from_options,
 };
 
-use crate::{
-    FormatOptions, GenerateWebfontsOptions, LoadedSvgFile, SvgFormatOptions,
-    finalize_generate_webfonts_options, resolve_generate_webfonts_options,
+use crate::input::{
+    LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
 };
+use crate::{FormatOptions, GenerateWebfontsOptions, SvgFormatOptions};
 
 #[derive(Clone, Copy)]
 struct SvgParityCase {

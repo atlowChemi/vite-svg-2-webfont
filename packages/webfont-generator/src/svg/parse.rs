@@ -284,7 +284,7 @@ mod tests {
     use std::sync::Arc;
 
     use super::*;
-    use crate::types::LoadedSvgFile;
+    use crate::input::LoadedSvgFile;
 
     fn parse(svg: &str, preserve_aspect_ratio: bool) -> Result<ParsedGlyph, Error> {
         let source_file = LoadedSvgFile {

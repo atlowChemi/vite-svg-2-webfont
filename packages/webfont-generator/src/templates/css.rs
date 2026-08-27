@@ -9,7 +9,8 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 
 use crate::{
-    types::{FontType, LoadedSvgFile, ResolvedGenerateWebfontsOptions},
+    input::LoadedSvgFile,
+    types::{FontType, ResolvedGenerateWebfontsOptions},
     util::{join_url, to_io_err},
 };
 
@@ -744,9 +745,10 @@ mod tests {
         SharedTemplateData, build_css_context, calc_hash, make_ctx, make_src, make_urls,
         render_css_with_context, template_dependencies,
     };
+    use crate::input::LoadedSvgFile;
     use crate::{
-        FontType, FormatOptions, GenerateWebfontsOptions, LoadedSvgFile,
-        ResolvedGenerateWebfontsOptions, SvgFormatOptions, TtfFormatOptions, WoffFormatOptions,
+        FontType, FormatOptions, GenerateWebfontsOptions, ResolvedGenerateWebfontsOptions,
+        SvgFormatOptions, TtfFormatOptions, WoffFormatOptions,
     };
     use serde_json::{Map, Value};
     use std::collections::HashMap;

@@ -3,11 +3,12 @@ use std::fs;
 use std::io::Error;
 use std::path::Path;
 
+use crate::input::LoadedSvgFile;
 use crate::templates::css::{
     SharedTemplateData, TemplateDependencies, build_css_context_with_fonts_url,
     render_css_with_context, template_dependencies,
 };
-use crate::types::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::types::ResolvedGenerateWebfontsOptions;
 use crate::util::to_io_err;
 use handlebars::{
     Context, Handlebars, Helper, HelperDef, HelperResult, Output, RenderContext, RenderErrorReason,
@@ -209,11 +210,10 @@ mod tests {
     use std::path::Path;
 
     use super::{build_html_context, build_html_registry, render_html_with_context};
+    use crate::input::LoadedSvgFile;
     use crate::templates::SharedTemplateData;
     use crate::util::{path_to_slashes, relative_path};
-    use crate::{
-        FontType, GenerateWebfontsOptions, LoadedSvgFile, ResolvedGenerateWebfontsOptions,
-    };
+    use crate::{FontType, GenerateWebfontsOptions, ResolvedGenerateWebfontsOptions};
 
     use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};
 

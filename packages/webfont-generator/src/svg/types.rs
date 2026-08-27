@@ -4,7 +4,7 @@ use std::sync::Arc;
 use kurbo::BezPath;
 use usvg::tiny_skia_path::Path as TinyPath;
 
-use crate::types::LoadedSvgFile;
+use crate::input::LoadedSvgFile;
 
 pub(crate) struct SvgOptions<'a> {
     pub ascent: Option<f64>,
