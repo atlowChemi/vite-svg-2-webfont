@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::hash::Hasher;
 use std::io::{Cursor, Error, ErrorKind};
 
+use crate::byte_helpers::BigEndian;
 use crate::sfnt::{SerializedFontTables, SerializedTable};
 use crate::ttf::{Woff2TransformCache, Woff2TransformPayload};
 use brotli::enc::backward_references::BrotliEncoderMode;
@@ -325,8 +326,9 @@ fn transform_glyf_loca(
             )
         {
             set_bitmap_bit(&mut streams.bbox_bitmap, usize::from(glyph_id));
+            let mut writer = BigEndian::new(&mut streams.bboxes);
             for value in [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()] {
-                streams.bboxes.extend_from_slice(&value.to_be_bytes());
+                writer.push_i16(value);
             }
         }
     }
@@ -335,14 +337,14 @@ fn transform_glyf_loca(
         i16::from(source_index_format == 1 || normalized_glyf.len() / 2 > usize::from(u16::MAX));
     let mut normalized_loca =
         Vec::with_capacity(offsets.len() * if loca_format == 0 { 2 } else { 4 });
+    let mut writer = BigEndian::new(&mut normalized_loca);
     for offset in offsets {
         if loca_format == 0 {
-            normalized_loca.extend_from_slice(&((offset / 2) as u16).to_be_bytes());
+            writer.push_u16((offset / 2) as u16);
         } else {
-            normalized_loca.extend_from_slice(
-                &u32::try_from(offset)
-                    .map_err(|_| invalid_data("normalized glyf size exceeds u32"))?
-                    .to_be_bytes(),
+            writer.push_u32(
+                u32::try_from(offset)
+                    .map_err(|_| invalid_data("normalized glyf size exceeds u32"))?,
             );
         }
     }
@@ -374,14 +376,17 @@ fn write_normalized_simple_glyph(
     if contour_count <= 0 {
         return Err(invalid_data("non-empty zero-contour glyph is malformed"));
     }
-    output.extend_from_slice(&contour_count.to_be_bytes());
-    for value in [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()] {
-        output.extend_from_slice(&value.to_be_bytes());
+    {
+        let mut writer = BigEndian::new(&mut *output);
+        writer.push_i16(contour_count);
+        for value in [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()] {
+            writer.push_i16(value);
+        }
+        for end_point in glyph.end_pts_of_contours() {
+            writer.push_u16(end_point.get());
+        }
+        writer.push_u16(glyph.instruction_length());
     }
-    for end_point in glyph.end_pts_of_contours() {
-        output.extend_from_slice(&end_point.get().to_be_bytes());
-    }
-    output.extend_from_slice(&glyph.instruction_length().to_be_bytes());
     output.extend_from_slice(glyph.instructions());
 
     scratch.flags.clear();
@@ -438,10 +443,9 @@ fn write_normalized_coordinate(
         }
         output.push(delta.unsigned_abs() as u8);
     } else {
-        output.extend_from_slice(
-            &i16::try_from(delta)
-                .map_err(|_| invalid_data("simple glyph coordinate delta exceeds i16"))?
-                .to_be_bytes(),
+        BigEndian::new(output).push_i16(
+            i16::try_from(delta)
+                .map_err(|_| invalid_data("simple glyph coordinate delta exceeds i16"))?,
         );
     }
     Ok(())
@@ -462,8 +466,9 @@ fn normalized_head(
     let mut bytes = head.bytes.clone();
     bytes[8..12].fill(0);
     let flags = u16::from_be_bytes(bytes[16..18].try_into().unwrap()) | (1 << 11);
-    bytes[16..18].copy_from_slice(&flags.to_be_bytes());
-    bytes[50..52].copy_from_slice(&normalized.loca_format.to_be_bytes());
+    let mut writer = BigEndian::new(&mut bytes);
+    writer.write_u16_at(16, flags);
+    writer.write_i16_at(50, normalized.loca_format);
     let head_checksum = compute_checksum(&bytes);
 
     let table_count =
@@ -511,7 +516,7 @@ fn normalized_head(
             .checked_add((table_len + 3) & !3)
             .ok_or_else(|| invalid_data("SFNT size overflow"))?;
     }
-    bytes[8..12].copy_from_slice(&0xb1b0_afba_u32.wrapping_sub(checksum).to_be_bytes());
+    BigEndian::new(&mut bytes).write_u32_at(8, 0xb1b0_afba_u32.wrapping_sub(checksum));
     Ok(bytes)
 }
 
@@ -555,16 +560,18 @@ fn finish_glyf_transform(
         .and_then(|size| size.checked_add(streams.overlap_bitmap.len()))
         .ok_or_else(|| invalid_data("transformed glyf size overflow"))?;
     let mut output = Vec::with_capacity(payload_len);
-    output.extend_from_slice(&0_u16.to_be_bytes());
-    output.extend_from_slice(&u16::from(!streams.overlap_bitmap.is_empty()).to_be_bytes());
-    output.extend_from_slice(&num_glyphs.to_be_bytes());
-    output.extend_from_slice(&(transformed_index_format as u16).to_be_bytes());
-    for length in lengths {
-        output.extend_from_slice(
-            &u32::try_from(length)
-                .map_err(|_| invalid_data("transformed glyf stream exceeds u32"))?
-                .to_be_bytes(),
-        );
+    {
+        let mut writer = BigEndian::new(&mut output);
+        writer.push_u16(0);
+        writer.push_u16(u16::from(!streams.overlap_bitmap.is_empty()));
+        writer.push_u16(num_glyphs);
+        writer.push_i16(transformed_index_format);
+        for length in lengths {
+            writer.push_u32(
+                u32::try_from(length)
+                    .map_err(|_| invalid_data("transformed glyf stream exceeds u32"))?,
+            );
+        }
     }
     output.extend_from_slice(&streams.contours);
     output.extend_from_slice(&streams.points);
@@ -671,14 +678,17 @@ fn assemble(prepared: &PreparedWoff2, compressed: &[u8]) -> Result<Vec<u8>, Erro
 
     let mut output = Vec::with_capacity(length as usize);
     output.extend_from_slice(b"wOF2");
-    output.extend_from_slice(&0x0001_0000_u32.to_be_bytes());
-    output.extend_from_slice(&length.to_be_bytes());
-    output.extend_from_slice(&prepared.table_count.to_be_bytes());
-    output.extend_from_slice(&0_u16.to_be_bytes());
-    output.extend_from_slice(&prepared.total_sfnt_size.to_be_bytes());
-    output.extend_from_slice(&compressed_size.to_be_bytes());
-    output.extend_from_slice(&1_u16.to_be_bytes());
-    output.extend_from_slice(&0_u16.to_be_bytes());
+    {
+        let mut writer = BigEndian::new(&mut output);
+        writer.push_u32(0x0001_0000);
+        writer.push_u32(length);
+        writer.push_u16(prepared.table_count);
+        writer.push_u16(0);
+        writer.push_u32(prepared.total_sfnt_size);
+        writer.push_u32(compressed_size);
+        writer.push_u16(1);
+        writer.push_u16(0);
+    }
     output.extend_from_slice(&[0; 20]);
     output.extend_from_slice(&prepared.directory);
     output.extend_from_slice(compressed);

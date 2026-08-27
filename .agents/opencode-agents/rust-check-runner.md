@@ -6,7 +6,7 @@ permission:
     edit: deny
     bash:
         '*': deny
-        'vp run @atlowchemi/webfont-generator#check*': allow
+        'vp run @atlowchemi/webfont-generator#check': allow
 ---
 
 Run `vp run @atlowchemi/webfont-generator#check` from the repository root.

@@ -1,6 +1,7 @@
 use std::io::{Error, ErrorKind};
 use std::sync::{Arc, OnceLock};
 
+use crate::byte_helpers::BigEndian;
 use write_fonts::read::tables::compute_checksum;
 
 const CHECKSUM_ADJUSTMENT: u32 = 0xb1b0_afba;
@@ -111,8 +112,8 @@ fn apply_checksum_adjustment(tables: &mut [SerializedTable]) {
     if let Some(head) = tables.iter_mut().find(|table| table.tag == HEAD_TAG)
         && head.bytes.len() >= HEAD_CHECKSUM_ADJUSTMENT_OFFSET + 4
     {
-        head.bytes[HEAD_CHECKSUM_ADJUSTMENT_OFFSET..HEAD_CHECKSUM_ADJUSTMENT_OFFSET + 4]
-            .copy_from_slice(&checksum_adjustment.to_be_bytes());
+        BigEndian::new(&mut head.bytes)
+            .write_u32_at(HEAD_CHECKSUM_ADJUSTMENT_OFFSET, checksum_adjustment);
     }
 }
 
@@ -152,17 +153,21 @@ fn sfnt_directory(tables: &[SerializedTable]) -> Vec<u8> {
     let mut directory =
         Vec::with_capacity(SFNT_HEADER_SIZE + records.len() * SFNT_TABLE_ENTRY_SIZE);
     directory.extend_from_slice(&TT_SFNT_VERSION);
-    write_u16_be(&mut directory, tables.len() as u16);
-    let (search_range, entry_selector, range_shift) =
-        search_range(tables.len(), SFNT_TABLE_ENTRY_SIZE);
-    write_u16_be(&mut directory, search_range);
-    write_u16_be(&mut directory, entry_selector);
-    write_u16_be(&mut directory, range_shift);
+    {
+        let mut dir_writer = BigEndian::new(&mut directory);
+        dir_writer.push_u16(tables.len() as u16);
+        let (search_range, entry_selector, range_shift) =
+            search_range(tables.len(), SFNT_TABLE_ENTRY_SIZE);
+        dir_writer.push_u16(search_range);
+        dir_writer.push_u16(entry_selector);
+        dir_writer.push_u16(range_shift);
+    }
     for (tag, checksum, offset, length) in records {
         directory.extend_from_slice(&tag);
-        write_u32_be(&mut directory, checksum);
-        write_u32_be(&mut directory, offset as u32);
-        write_u32_be(&mut directory, length as u32);
+        let mut dir_writer = BigEndian::new(&mut directory);
+        dir_writer.push_u32(checksum);
+        dir_writer.push_u32(offset as u32);
+        dir_writer.push_u32(length as u32);
     }
     directory
 }
@@ -188,12 +193,4 @@ fn align4(bytes: &mut Vec<u8>) {
 
 fn align4_len(len: usize) -> usize {
     (len + 3) & !3
-}
-
-fn write_u16_be(output: &mut Vec<u8>, value: u16) {
-    output.extend_from_slice(&value.to_be_bytes());
-}
-
-fn write_u32_be(output: &mut Vec<u8>, value: u32) {
-    output.extend_from_slice(&value.to_be_bytes());
 }
