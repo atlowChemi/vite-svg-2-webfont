@@ -746,9 +746,10 @@ mod tests {
         render_css_with_context, template_dependencies,
     };
     use crate::input::LoadedSvgFile;
+    use crate::types::ResolvedGenerateWebfontsOptions;
     use crate::{
-        FontType, FormatOptions, GenerateWebfontsOptions, ResolvedGenerateWebfontsOptions,
-        SvgFormatOptions, TtfFormatOptions, WoffFormatOptions,
+        FontType, FormatOptions, GenerateWebfontsOptions, SvgFormatOptions, TtfFormatOptions,
+        WoffFormatOptions,
     };
     use serde_json::{Map, Value};
     use std::collections::HashMap;

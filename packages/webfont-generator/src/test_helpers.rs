@@ -57,7 +57,7 @@ pub fn fixture_font_tables() -> crate::sfnt::SerializedFontTables {
     let source_files = fixture_source_files(&options);
     finalize_generate_webfonts_options(&mut options, &source_files)
         .expect("expected options to finalize");
-    let svg_options = crate::svg_options_from_options(&options);
+    let svg_options = crate::svg::svg_options_from_options(&options);
     let prepared = crate::svg::prepare_svg_font(&svg_options, &source_files)
         .expect("expected svg preparation to succeed");
     crate::ttf::generate_ttf_font_from_glyphs(

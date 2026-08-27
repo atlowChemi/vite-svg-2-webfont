@@ -5,8 +5,8 @@ use std::collections::HashSet;
 use std::io::ErrorKind;
 use std::path::Path;
 
-use crate::build_font_outputs;
 use crate::input::{LoadedSvgFile, finalize_generate_webfonts_options, validate_glyph_names};
+use crate::pipeline::build_font_outputs;
 use crate::svg::{prepare_svg_font_incremental, source_content_hash, svg_options_from_options};
 use crate::types::{GenerateWebfontsResult, GlyphChange, RegenerateError, RegenerationState};
 use crate::write::write_generate_webfonts_result_sync;
