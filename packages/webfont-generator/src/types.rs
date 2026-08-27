@@ -9,14 +9,9 @@ use napi_derive::napi;
 use serde_json::{Map, Value};
 
 use crate::input::LoadedSvgFile;
+use crate::rendering::{CachedTemplateData, CarriedRenderCache};
 use crate::svg::types::GlyphCache;
-use crate::templates::{
-    SharedTemplateData, TemplateDependencies, build_css_context, build_html_context,
-    build_html_registry_and_dependencies, make_src, render_css_with_hbs_context,
-    render_css_with_src_mutate, render_default_html_with_styles, render_html_with_hbs_context,
-};
 use crate::ttf::TtfGlyphCache;
-use crate::util::to_io_err;
 
 /// What happened to a file, for [`GenerateWebfontsResult::regenerate`]. `name` is the
 /// caller-resolved glyph name (the `rename` callback, if any, is applied by the caller).
@@ -343,41 +338,6 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub write_files: bool,
 }
 
-/// Caches the last rendered CSS/HTML result for repeated calls with the same urls. Cloneable so
-/// an incremental `regenerate` can carry the still-valid entries (provided-URL renders, which
-/// don't depend on the font hash) forward into the rebuilt template data.
-#[derive(Clone, Default)]
-pub(crate) struct RenderCache {
-    /// Result of generateCss() with no urls (computed once).
-    css_no_urls: Option<String>,
-    /// Last generateCss(urls) result.
-    css_last_urls: Option<HashMap<FontType, String>>,
-    css_last_result: Option<String>,
-    /// Result of generateHtml() with no urls (computed once).
-    html_no_urls: Option<String>,
-    /// Last generateHtml(urls) result.
-    html_last_urls: Option<HashMap<FontType, String>>,
-    html_last_result: Option<String>,
-}
-
-#[derive(Clone)]
-pub(crate) struct CarriedRenderCache {
-    cache: RenderCache,
-    css_dependencies: TemplateDependencies,
-    html_dependencies: TemplateDependencies,
-}
-
-pub(crate) struct CachedTemplateData {
-    pub shared: SharedTemplateData,
-    pub css_context: Map<String, Value>,
-    pub css_hbs_context: Mutex<handlebars::Context>,
-    pub html_context: Map<String, Value>,
-    pub html_hbs_context: Mutex<handlebars::Context>,
-    pub html_template_dependencies: TemplateDependencies,
-    pub html_registry: Option<handlebars::Handlebars<'static>>,
-    pub(crate) render_cache: Mutex<RenderCache>,
-}
-
 /// Rendered bytes for each requested output format. Held by [`GenerateWebfontsResult`] and
 /// produced by the generator's format pipeline; grouping them lets an incremental regenerate
 /// refresh every format in a single assignment.
@@ -568,20 +528,6 @@ impl GenerateWebfontsResult {
         }
     }
 
-    #[cfg(test)]
-    pub(crate) fn has_carried_css_no_urls_for_test(&self) -> bool {
-        self.carried_render
-            .as_ref()
-            .is_some_and(|carried| carried.cache.css_no_urls.is_some())
-    }
-
-    #[cfg(test)]
-    pub(crate) fn has_carried_html_no_urls_for_test(&self) -> bool {
-        self.carried_render
-            .as_ref()
-            .is_some_and(|carried| carried.cache.html_no_urls.is_some())
-    }
-
     /// Returns the EOT font bytes, if generated.
     pub fn eot_bytes(&self) -> Option<&[u8]> {
         self.fonts.eot_font.as_ref().map(|v| v.as_ref().as_slice())
@@ -608,234 +554,6 @@ impl GenerateWebfontsResult {
             .woff2_font
             .as_ref()
             .map(|v| v.as_ref().as_slice())
-    }
-
-    pub(crate) fn get_cached_io(&self) -> std::io::Result<&CachedTemplateData> {
-        self.cached
-            .get_or_init(|| {
-                let shared = SharedTemplateData::new(&self.options, &self.source_files)
-                    .map_err(|e| e.to_string())?;
-                let css_context = match &self.css_context {
-                    Some(ctx) => ctx.clone(),
-                    None => build_css_context(&self.options, &shared),
-                };
-                let html_context = match &self.html_context {
-                    Some(ctx) => ctx.clone(),
-                    None => build_html_context(&self.options, &shared, &self.source_files, None)
-                        .map_err(|e| e.to_string())?,
-                };
-                let (html_registry, html_template_dependencies) =
-                    build_html_registry_and_dependencies(&self.options)
-                        .map_err(|e| e.to_string())?;
-                let css_hbs_context =
-                    handlebars::Context::wraps(&css_context).map_err(|e| e.to_string())?;
-                let html_hbs_context =
-                    handlebars::Context::wraps(&html_context).map_err(|e| e.to_string())?;
-                Ok(CachedTemplateData {
-                    shared,
-                    css_context,
-                    css_hbs_context: Mutex::new(css_hbs_context),
-                    html_context,
-                    html_hbs_context: Mutex::new(html_hbs_context),
-                    html_template_dependencies,
-                    html_registry,
-                    // Seed with entries carried across a regenerate;
-                    // these are renders that don't depend on what changed, so reusing them is safe.
-                    render_cache: Mutex::new(
-                        self.carried_render
-                            .as_ref()
-                            .map(|carried| carried.cache.clone())
-                            .unwrap_or_default(),
-                    ),
-                })
-            })
-            .as_ref()
-            .map_err(to_io_err)
-    }
-
-    pub(crate) fn reusable_render_cache(
-        &self,
-        names_unchanged: bool,
-        codepoints_unchanged: bool,
-    ) -> Option<CarriedRenderCache> {
-        self.render_cache_source().map(|carried| {
-            let css_deps = carried.css_dependencies;
-            let css_no_urls_unchanged =
-                css_deps.can_reuse_css_no_urls(names_unchanged, codepoints_unchanged);
-            let css_with_urls_unchanged =
-                css_deps.can_reuse_css_with_urls(names_unchanged, codepoints_unchanged);
-            let html_no_urls_unchanged = carried.html_dependencies.can_reuse_html(
-                names_unchanged,
-                codepoints_unchanged,
-                css_no_urls_unchanged,
-            );
-            let html_with_urls_unchanged = carried.html_dependencies.can_reuse_html(
-                names_unchanged,
-                codepoints_unchanged,
-                css_with_urls_unchanged,
-            );
-
-            let rc = carried.cache;
-            CarriedRenderCache {
-                css_dependencies: carried.css_dependencies,
-                html_dependencies: carried.html_dependencies,
-                cache: RenderCache {
-                    css_no_urls: css_no_urls_unchanged
-                        .then(|| rc.css_no_urls.clone())
-                        .flatten(),
-                    html_no_urls: html_no_urls_unchanged
-                        .then(|| rc.html_no_urls.clone())
-                        .flatten(),
-                    css_last_urls: css_with_urls_unchanged
-                        .then(|| rc.css_last_urls.clone())
-                        .flatten(),
-                    css_last_result: css_with_urls_unchanged
-                        .then(|| rc.css_last_result.clone())
-                        .flatten(),
-                    html_last_urls: html_with_urls_unchanged
-                        .then(|| rc.html_last_urls.clone())
-                        .flatten(),
-                    html_last_result: html_with_urls_unchanged
-                        .then(|| rc.html_last_result.clone())
-                        .flatten(),
-                },
-            }
-        })
-    }
-
-    fn render_cache_source(&self) -> Option<CarriedRenderCache> {
-        self.cached
-            .get()
-            .and_then(|cached| cached.as_ref().ok())
-            .map(|cached| CarriedRenderCache {
-                cache: cached.render_cache.lock().unwrap().clone(),
-                css_dependencies: cached.shared.css_template_dependencies,
-                html_dependencies: cached.html_template_dependencies,
-            })
-            .or_else(|| self.carried_render.clone())
-    }
-
-    /// Generate a CSS string for this webfont result.
-    ///
-    /// Pass `urls` to override the default font URLs in the CSS output.
-    pub fn generate_css_pure(
-        &self,
-        urls: Option<HashMap<FontType, String>>,
-    ) -> std::io::Result<String> {
-        let cached = self.get_cached_io()?;
-        let mut rc = cached.render_cache.lock().unwrap();
-
-        match &urls {
-            None => {
-                if let Some(result) = &rc.css_no_urls {
-                    return Ok(result.clone());
-                }
-                let ctx = cached.css_hbs_context.lock().unwrap();
-                let result =
-                    render_css_with_hbs_context(&cached.shared, &ctx, &cached.css_context)?;
-                rc.css_no_urls = Some(result.clone());
-                Ok(result)
-            }
-            Some(urls) => {
-                // If the template doesn't reference {{src}}, URLs don't affect output
-                if !cached.shared.css_template_uses_src {
-                    drop(rc);
-                    return self.generate_css_pure(None);
-                }
-                if rc.css_last_urls.as_ref() == Some(urls)
-                    && let Some(result) = &rc.css_last_result
-                {
-                    return Ok(result.clone());
-                }
-                let src = make_src(&self.options, urls);
-                let mut ctx = cached.css_hbs_context.lock().unwrap();
-                let result = render_css_with_src_mutate(
-                    &cached.shared,
-                    &mut ctx,
-                    &cached.css_context,
-                    &src,
-                )?;
-                rc.css_last_urls = Some(urls.clone());
-                rc.css_last_result = Some(result.clone());
-                Ok(result)
-            }
-        }
-    }
-
-    /// Generate an HTML string for this webfont result.
-    ///
-    /// Pass `urls` to override the default font URLs in the HTML output.
-    pub fn generate_html_pure(
-        &self,
-        urls: Option<HashMap<FontType, String>>,
-    ) -> std::io::Result<String> {
-        let cached = self.get_cached_io()?;
-        let mut rc = cached.render_cache.lock().unwrap();
-
-        match &urls {
-            None => {
-                if let Some(result) = &rc.html_no_urls {
-                    return Ok(result.clone());
-                }
-                let ctx = cached.html_hbs_context.lock().unwrap();
-                let result = render_html_with_hbs_context(
-                    cached.html_registry.as_ref(),
-                    &ctx,
-                    &cached.html_context,
-                )?;
-                rc.html_no_urls = Some(result.clone());
-                Ok(result)
-            }
-            Some(urls) => {
-                // If the CSS template doesn't reference {{src}}, URLs don't affect output
-                if !cached.shared.css_template_uses_src {
-                    drop(rc);
-                    return self.generate_html_pure(None);
-                }
-                if rc.html_last_urls.as_ref() == Some(urls)
-                    && let Some(result) = &rc.html_last_result
-                {
-                    return Ok(result.clone());
-                }
-                // Render CSS with the custom URLs (in-place src mutate, no clone)
-                let src = make_src(&self.options, urls);
-                let styles = {
-                    let mut css_ctx = cached.css_hbs_context.lock().unwrap();
-                    render_css_with_src_mutate(
-                        &cached.shared,
-                        &mut css_ctx,
-                        &cached.css_context,
-                        &src,
-                    )?
-                };
-                // Hot path: default HTML template -- inject styles directly, skip clone
-                if self.options.html_template.is_none() {
-                    let result = render_default_html_with_styles(&cached.html_context, &styles);
-                    rc.html_last_urls = Some(urls.clone());
-                    rc.html_last_result = Some(result.clone());
-                    return Ok(result);
-                }
-                // Custom HTML template: in-place styles mutate, no clone
-                let mut html_ctx = cached.html_hbs_context.lock().unwrap();
-                let registry = cached
-                    .html_registry
-                    .as_ref()
-                    .expect("HTML registry should exist for custom template");
-                let result = crate::util::render_with_field_swap(
-                    &mut html_ctx,
-                    "styles",
-                    serde_json::Value::String(styles),
-                    |ctx| {
-                        registry
-                            .render_with_context("html", ctx)
-                            .map_err(crate::util::to_io_err)
-                    },
-                )?;
-                rc.html_last_urls = Some(urls.clone());
-                rc.html_last_result = Some(result.clone());
-                Ok(result)
-            }
-        }
     }
 }
 
@@ -892,8 +610,7 @@ impl GenerateWebfontsResult {
     #[napi(ts_args_type = "urls?: Partial<Record<FontType, string>>")]
     pub fn generate_css(&self, urls: Option<HashMap<String, String>>) -> napi::Result<String> {
         let urls = urls.map(parse_native_urls).transpose()?;
-        self.generate_css_pure(urls)
-            .map_err(crate::util::to_napi_err)
+        self.generate_css_pure(urls).map_err(to_napi_err)
     }
 
     /// Render the HTML preview string for this result. Pass `urls` to
@@ -902,8 +619,7 @@ impl GenerateWebfontsResult {
     #[napi(ts_args_type = "urls?: Partial<Record<FontType, string>>")]
     pub fn generate_html(&self, urls: Option<HashMap<String, String>>) -> napi::Result<String> {
         let urls = urls.map(parse_native_urls).transpose()?;
-        self.generate_html_pure(urls)
-            .map_err(crate::util::to_napi_err)
+        self.generate_html_pure(urls).map_err(to_napi_err)
     }
 
     /// Rebuild the font after a batch of file changes, reusing cached glyph geometry for files
@@ -928,7 +644,7 @@ impl GenerateWebfontsResult {
             Some(changes) => self.regenerate(&files, &changes),
             None => self.regenerate_all(&files),
         }
-        .map_err(crate::util::to_napi_err)
+        .map_err(to_napi_err)
     }
 
     /// Rebuild off the Node.js event loop and resolve with a replacement result. The receiver
@@ -942,9 +658,7 @@ impl GenerateWebfontsResult {
         changes: Option<Vec<GlyphChangeEntry>>,
     ) -> napi::Result<GenerateWebfontsResult> {
         let changes = parse_glyph_changes(changes)?;
-        let state = self
-            .take_regeneration_state()
-            .map_err(crate::util::to_napi_err)?;
+        let state = self.take_regeneration_state().map_err(to_napi_err)?;
         let original_state = Arc::clone(&self.regeneration_state);
         let mut replacement = self.snapshot_for_regeneration(state);
         tokio::task::spawn_blocking(move || -> std::io::Result<GenerateWebfontsResult> {
@@ -972,8 +686,13 @@ impl GenerateWebfontsResult {
         .map_err(|error| {
             napi::Error::from_reason(format!("Native webfont regeneration task failed: {error}"))
         })?
-        .map_err(crate::util::to_napi_err)
+        .map_err(to_napi_err)
     }
+}
+
+#[cfg(feature = "napi")]
+fn to_napi_err(error: impl std::fmt::Display) -> napi::Error {
+    napi::Error::new(napi::Status::GenericFailure, error.to_string())
 }
 
 #[cfg(feature = "napi")]
@@ -1018,386 +737,4 @@ fn parse_native_urls(urls: HashMap<String, String>) -> napi::Result<HashMap<Font
             Some(Ok((font_type, url)))
         })
         .collect::<napi::Result<HashMap<FontType, String>>>()
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
-
-    fn build_result(template: Option<&str>) -> GenerateWebfontsResult {
-        let fixture = crate::test_helpers::webfont_fixture("add.svg");
-
-        let mut css_template = None;
-        let cleanup_dir;
-        if let Some(content) = template {
-            let tmp = std::env::temp_dir().join(format!(
-                "render-cache-test-{}",
-                std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_nanos()
-            ));
-            std::fs::create_dir_all(&tmp).unwrap();
-            let path = tmp.join("template.hbs");
-            std::fs::write(&path, content).unwrap();
-            css_template = Some(path.to_string_lossy().into_owned());
-            cleanup_dir = Some(tmp);
-        } else {
-            cleanup_dir = None;
-        }
-
-        let options = GenerateWebfontsOptions {
-            css: Some(true),
-            css_template,
-            codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
-            dest: "artifacts".to_owned(),
-            files: vec![fixture],
-            html: Some(false),
-            font_name: Some("iconfont".to_owned()),
-            ligature: Some(false),
-            order: Some(vec![FontType::Svg]),
-            start_codepoint: Some(0xE001),
-            types: Some(vec![FontType::Svg]),
-            ..Default::default()
-        };
-
-        let mut resolved = resolve_generate_webfonts_options(options).unwrap();
-        let source_files: Vec<LoadedSvgFile> = resolved
-            .files
-            .iter()
-            .map(|path| LoadedSvgFile {
-                contents: std::fs::read_to_string(path).unwrap().into(),
-                glyph_name: std::path::Path::new(path)
-                    .file_stem()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_owned(),
-                path: path.clone(),
-            })
-            .collect();
-        finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
-
-        let result = GenerateWebfontsResult {
-            cached: std::sync::OnceLock::new(),
-            carried_render: None,
-            css_context: None,
-            fonts: FontOutputs::default(),
-            html_context: None,
-            options: Arc::new(resolved),
-            regeneration_state: Arc::new(Mutex::new(None)),
-            source_files: Arc::new(source_files),
-        };
-
-        if let Some(dir) = cleanup_dir {
-            // Don't clean up yet -- template file needed for lazy compilation
-            std::mem::forget(dir);
-        }
-
-        result
-    }
-
-    #[test]
-    fn generate_css_returns_cached_result_on_repeated_calls_without_urls() {
-        let result = build_result(None);
-
-        let first = result.generate_css_pure(None).unwrap();
-        let second = result.generate_css_pure(None).unwrap();
-
-        assert_eq!(first, second);
-        assert!(!first.is_empty());
-    }
-
-    #[test]
-    fn generate_css_returns_cached_result_on_repeated_calls_with_same_urls() {
-        let result = build_result(None);
-        let urls = HashMap::from([(FontType::Svg, "/a.svg".to_owned())]);
-
-        let first = result.generate_css_pure(Some(urls.clone())).unwrap();
-        let second = result.generate_css_pure(Some(urls)).unwrap();
-
-        assert_eq!(first, second);
-        assert!(first.contains("/a.svg"));
-    }
-
-    #[test]
-    fn generate_css_returns_different_result_for_different_urls() {
-        let result = build_result(None);
-        let urls_a = HashMap::from([(FontType::Svg, "/a.svg".to_owned())]);
-        let urls_b = HashMap::from([(FontType::Svg, "/b.svg".to_owned())]);
-
-        let result_a = result.generate_css_pure(Some(urls_a)).unwrap();
-        let result_b = result.generate_css_pure(Some(urls_b)).unwrap();
-
-        assert_ne!(result_a, result_b);
-        assert!(result_a.contains("/a.svg"));
-        assert!(result_b.contains("/b.svg"));
-    }
-
-    #[test]
-    fn generate_css_cache_updates_when_urls_change() {
-        let result = build_result(None);
-        let urls_a = HashMap::from([(FontType::Svg, "/a.svg".to_owned())]);
-        let urls_b = HashMap::from([(FontType::Svg, "/b.svg".to_owned())]);
-
-        let first_a = result.generate_css_pure(Some(urls_a.clone())).unwrap();
-        let first_b = result.generate_css_pure(Some(urls_b)).unwrap();
-        let second_a = result.generate_css_pure(Some(urls_a)).unwrap();
-
-        assert_eq!(
-            first_a, second_a,
-            "returning to original urls should produce same result"
-        );
-        assert_ne!(first_a, first_b);
-    }
-
-    #[test]
-    fn generate_css_cache_works_with_custom_template() {
-        let result = build_result(Some("@font-face { src: {{{src}}}; }"));
-        let urls = HashMap::from([(FontType::Svg, "/cached.svg".to_owned())]);
-
-        let first = result.generate_css_pure(Some(urls.clone())).unwrap();
-        let second = result.generate_css_pure(Some(urls)).unwrap();
-
-        assert_eq!(first, second);
-        assert!(first.contains("/cached.svg"));
-    }
-
-    #[test]
-    fn generate_css_no_urls_and_with_urls_are_independent_caches() {
-        let result = build_result(None);
-        let urls = HashMap::from([(FontType::Svg, "/custom.svg".to_owned())]);
-
-        let no_urls = result.generate_css_pure(None).unwrap();
-        let with_urls = result.generate_css_pure(Some(urls)).unwrap();
-        let no_urls_again = result.generate_css_pure(None).unwrap();
-
-        assert_eq!(
-            no_urls, no_urls_again,
-            "no-urls cache should survive a with-urls call"
-        );
-        assert_ne!(no_urls, with_urls);
-    }
-
-    #[test]
-    fn generate_css_with_urls_returns_no_urls_result_when_template_does_not_use_src() {
-        let result = build_result(Some(".icon { font-family: {{fontName}}; }"));
-        let urls = HashMap::from([(FontType::Svg, "/should-not-appear.svg".to_owned())]);
-
-        let no_urls = result.generate_css_pure(None).unwrap();
-        let with_urls = result.generate_css_pure(Some(urls)).unwrap();
-
-        assert_eq!(
-            no_urls, with_urls,
-            "template without {{src}} should ignore urls"
-        );
-        assert!(!with_urls.contains("/should-not-appear.svg"));
-        assert!(
-            with_urls.contains("iconfont"),
-            "should still render the template"
-        );
-    }
-
-    #[test]
-    fn generate_html_with_urls_returns_no_urls_result_when_css_template_does_not_use_src() {
-        let result = build_result(Some(".icon { font-family: {{fontName}}; }"));
-        let urls = HashMap::from([(FontType::Svg, "/should-not-appear.svg".to_owned())]);
-
-        let no_urls = result.generate_html_pure(None).unwrap();
-        let with_urls = result.generate_html_pure(Some(urls)).unwrap();
-
-        assert_eq!(
-            no_urls, with_urls,
-            "CSS template without {{src}} means HTML is also unaffected by urls"
-        );
-    }
-
-    #[test]
-    fn generate_css_without_urls_produces_valid_css_using_css_fonts_url() {
-        let result = build_result(None);
-
-        let css = result.generate_css_pure(None).unwrap();
-
-        assert!(
-            css.contains("@font-face"),
-            "should contain @font-face declaration"
-        );
-        assert!(css.contains("font-family:"), "should contain font-family");
-        assert!(
-            css.contains("iconfont.svg?"),
-            "should use font name in URL with hash"
-        );
-        assert!(
-            css.contains("format(\"svg\")"),
-            "should contain format declaration"
-        );
-        assert!(
-            css.contains("content:"),
-            "should contain codepoint content rules"
-        );
-    }
-
-    #[test]
-    fn generate_css_with_urls_replaces_default_urls_in_src() {
-        let result = build_result(None);
-        let urls = HashMap::from([(FontType::Svg, "/cdn/icons.svg".to_owned())]);
-
-        let css = result.generate_css_pure(Some(urls)).unwrap();
-
-        assert!(
-            css.contains("/cdn/icons.svg"),
-            "custom URL should appear in output"
-        );
-        assert!(
-            !css.contains("iconfont.svg?"),
-            "default hash-based URL should not appear"
-        );
-        assert!(
-            css.contains("format(\"svg\")"),
-            "format should still be present"
-        );
-    }
-
-    #[test]
-    fn generate_html_without_urls_produces_valid_html() {
-        let result = build_result(None);
-
-        let html = result.generate_html_pure(None).unwrap();
-
-        assert!(
-            html.contains("<!DOCTYPE html>"),
-            "should be a full HTML document"
-        );
-        assert!(html.contains("iconfont"), "should contain font name");
-        assert!(html.contains("icon-add"), "should contain icon class name");
-    }
-
-    #[test]
-    fn generate_html_with_urls_embeds_css_using_custom_urls() {
-        let result = build_result(None);
-        let urls = HashMap::from([(FontType::Svg, "/cdn/icons.svg".to_owned())]);
-
-        let html = result.generate_html_pure(Some(urls)).unwrap();
-
-        assert!(
-            html.contains("/cdn/icons.svg"),
-            "custom URL should appear in embedded CSS"
-        );
-        assert!(
-            html.contains("icon-add"),
-            "should still contain icon class name"
-        );
-    }
-
-    #[test]
-    fn generate_html_cache_returns_same_result_for_same_urls() {
-        let result = build_result(None);
-        let urls = HashMap::from([(FontType::Svg, "/cached.svg".to_owned())]);
-
-        let first = result.generate_html_pure(Some(urls.clone())).unwrap();
-        let second = result.generate_html_pure(Some(urls)).unwrap();
-
-        assert_eq!(first, second);
-        assert!(first.contains("/cached.svg"));
-    }
-
-    #[test]
-    fn generate_html_cache_returns_different_result_for_different_urls() {
-        let result = build_result(None);
-        let urls_a = HashMap::from([(FontType::Svg, "/a.svg".to_owned())]);
-        let urls_b = HashMap::from([(FontType::Svg, "/b.svg".to_owned())]);
-
-        let result_a = result.generate_html_pure(Some(urls_a)).unwrap();
-        let result_b = result.generate_html_pure(Some(urls_b)).unwrap();
-
-        assert_ne!(result_a, result_b);
-        assert!(result_a.contains("/a.svg"));
-        assert!(result_b.contains("/b.svg"));
-    }
-
-    /// Build a result with multiple font types (svg + woff2) for testing partial URL overrides.
-    fn build_multi_type_result() -> GenerateWebfontsResult {
-        let fixture = crate::test_helpers::webfont_fixture("add.svg");
-        let options = GenerateWebfontsOptions {
-            css: Some(true),
-            codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
-            dest: "artifacts".to_owned(),
-            files: vec![fixture],
-            html: Some(true),
-            font_name: Some("iconfont".to_owned()),
-            ligature: Some(false),
-            order: Some(vec![FontType::Woff2, FontType::Svg]),
-            start_codepoint: Some(0xE001),
-            types: Some(vec![FontType::Svg, FontType::Woff2]),
-            ..Default::default()
-        };
-
-        let mut resolved = resolve_generate_webfonts_options(options).unwrap();
-        let source_files: Vec<LoadedSvgFile> = resolved
-            .files
-            .iter()
-            .map(|path| LoadedSvgFile {
-                contents: std::fs::read_to_string(path).unwrap().into(),
-                glyph_name: std::path::Path::new(path)
-                    .file_stem()
-                    .unwrap()
-                    .to_str()
-                    .unwrap()
-                    .to_owned(),
-                path: path.clone(),
-            })
-            .collect();
-        finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
-
-        GenerateWebfontsResult {
-            cached: std::sync::OnceLock::new(),
-            carried_render: None,
-            css_context: None,
-            fonts: FontOutputs::default(),
-            html_context: None,
-            options: Arc::new(resolved),
-            regeneration_state: Arc::new(Mutex::new(None)),
-            source_files: Arc::new(source_files),
-        }
-    }
-
-    #[test]
-    fn generate_css_partial_urls_uses_empty_string_for_missing_types() {
-        let result = build_multi_type_result();
-        // Override only woff2, leave svg un-provided -- matches upstream behavior
-        let urls = HashMap::from([(FontType::Woff2, "/cdn/font.woff2".to_owned())]);
-
-        let css = result.generate_css_pure(Some(urls)).unwrap();
-
-        assert!(
-            css.contains("/cdn/font.woff2"),
-            "overridden URL should appear"
-        );
-        assert!(
-            !css.contains("iconfont.svg?"),
-            "non-overridden type should not have default hash-based URL"
-        );
-        assert!(
-            css.contains("url(\"#iconfont\")"),
-            "non-overridden SVG type should produce empty base URL (upstream compat)"
-        );
-    }
-
-    #[test]
-    fn generate_html_partial_urls_uses_empty_string_for_missing_types() {
-        let result = build_multi_type_result();
-        let urls = HashMap::from([(FontType::Woff2, "/cdn/font.woff2".to_owned())]);
-
-        let html = result.generate_html_pure(Some(urls)).unwrap();
-
-        assert!(
-            html.contains("/cdn/font.woff2"),
-            "overridden URL should appear in HTML"
-        );
-        assert!(
-            !html.contains("iconfont.svg?"),
-            "non-overridden type should not have default hash-based URL in HTML"
-        );
-    }
 }
