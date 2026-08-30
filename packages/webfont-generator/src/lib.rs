@@ -73,7 +73,6 @@ mod svg;
 #[cfg(test)]
 mod test_helpers;
 mod types;
-mod woff;
 
 #[cfg(feature = "napi")]
 use napi::threadsafe_function::ThreadsafeFunction;

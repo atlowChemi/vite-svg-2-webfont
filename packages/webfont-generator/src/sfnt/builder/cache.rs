@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::hash::Hasher;
 use std::io::Error;
 
@@ -11,39 +11,6 @@ use write_fonts::validate::Validate;
 
 use crate::pipeline::TtfGlyphCache;
 use crate::svg::types::ProcessedGlyph;
-
-#[derive(Clone, Default)]
-pub(crate) struct Woff2TransformCache {
-    entries: HashMap<u64, Woff2TransformPayload>,
-    #[cfg(test)]
-    pub compile_count: usize,
-}
-
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Woff2TransformPayload {
-    pub transformed: Vec<u8>,
-    pub normalized_glyf_len: usize,
-    pub normalized_glyf_checksum: u32,
-    pub normalized_loca_format: i16,
-    pub normalized_loca_len: usize,
-    pub normalized_loca_checksum: u32,
-}
-
-impl Woff2TransformCache {
-    pub(crate) fn transformed(&self, key: &u64) -> Option<Woff2TransformPayload> {
-        self.entries.get(key).cloned()
-    }
-    pub(crate) fn insert(&mut self, key: u64, payload: Woff2TransformPayload) {
-        #[cfg(test)]
-        {
-            self.compile_count += 1;
-        }
-        self.entries.insert(key, payload);
-    }
-    pub(crate) fn retain(&mut self, used_keys: &HashSet<u64>) {
-        self.entries.retain(|key, _| used_keys.contains(key));
-    }
-}
 
 pub(super) fn compiled_glyph_cache_key(glyph: &ProcessedGlyph, advance_width: u16) -> u64 {
     let mut hasher = FxHasher::default();

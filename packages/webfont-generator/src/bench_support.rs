@@ -3,11 +3,12 @@ use std::io;
 use write_fonts::FontBuilder;
 use write_fonts::types::Tag;
 
+use crate::formats::woff2::Woff2TransformCache;
 use crate::input::{
     LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
 };
 use crate::pipeline::build_font_outputs;
-use crate::sfnt::{self, SerializedFontTables, Woff2TransformCache};
+use crate::sfnt::{self, SerializedFontTables};
 use crate::svg::types::{GlyphCache, ParsedGlyph, PreparedSvgFont};
 use crate::svg::{
     finalize_glyphs, parse_glyphs, prepare_svg_font, prepare_svg_font_incremental,
@@ -51,7 +52,7 @@ pub struct BenchSerializedFontTables(SerializedFontTables);
 pub struct BenchWoff2TransformCache(Woff2TransformCache);
 
 /// Opaque prepared WOFF2 directory and table stream.
-pub struct BenchPreparedWoff2(crate::woff::PreparedWoff2);
+pub struct BenchPreparedWoff2(crate::formats::woff2::PreparedWoff2);
 
 fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgFile> {
     sources
@@ -160,7 +161,7 @@ pub fn serialized_ttf_uncached(tables: &BenchSerializedFontTables) -> Vec<u8> {
 
 /// Encode serialized tables with the internal WOFF2 encoder.
 pub fn internal_woff2(tables: &BenchSerializedFontTables, quality: u8) -> io::Result<Vec<u8>> {
-    crate::woff::tables_to_woff2(&tables.0, quality, None)
+    crate::formats::woff2::tables_to_woff2(&tables.0, quality, None)
 }
 
 /// Prepare the internal WOFF2 stream without Brotli compression.
@@ -168,7 +169,7 @@ pub fn prepare_internal_woff2(
     tables: &BenchSerializedFontTables,
     cache: &mut BenchWoff2TransformCache,
 ) -> io::Result<BenchPreparedWoff2> {
-    crate::woff::prepare_woff2(&tables.0, &mut cache.0).map(BenchPreparedWoff2)
+    crate::formats::woff2::prepare_woff2(&tables.0, &mut cache.0).map(BenchPreparedWoff2)
 }
 
 /// Brotli-compress an already prepared internal WOFF2 stream and return its byte length.
@@ -176,7 +177,7 @@ pub fn compress_prepared_internal_woff2(
     prepared: &BenchPreparedWoff2,
     quality: u8,
 ) -> io::Result<usize> {
-    crate::woff::compress_prepared_woff2(&prepared.0, quality)
+    crate::formats::woff2::compress_prepared_woff2(&prepared.0, quality)
 }
 
 /// Assemble final TTF bytes with write-fonts FontBuilder from the same serialized tables.

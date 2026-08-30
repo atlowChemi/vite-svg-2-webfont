@@ -14,7 +14,6 @@ use crate::pipeline::TtfGlyphCache;
 use crate::svg::types::ProcessedGlyph;
 use crate::types::ResolvedGenerateWebfontsOptions;
 
-pub(crate) use cache::{Woff2TransformCache, Woff2TransformPayload};
 pub(crate) use types::{CachedCompiledGlyph, TtfOptions};
 
 use glyphs::{

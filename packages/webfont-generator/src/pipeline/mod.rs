@@ -1,15 +1,14 @@
-#[cfg(test)]
-mod tests;
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
 use rayon::join;
 
 use crate::formats::woff1::Woff1PayloadCache;
-use crate::formats::{eot, woff1};
+use crate::formats::woff2::Woff2TransformCache;
+use crate::formats::{eot, woff1, woff2};
 use crate::input::LoadedSvgFile;
-use crate::sfnt::{CachedCompiledGlyph, Woff2TransformCache};
+use crate::sfnt;
+use crate::sfnt::CachedCompiledGlyph;
 use crate::svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
 use crate::svg::{
     build_svg_font, prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options,
@@ -18,7 +17,6 @@ use crate::types::{
     FontOutputs, FontType, GenerateWebfontsResult, RegenerationState,
     ResolvedGenerateWebfontsOptions,
 };
-use crate::{sfnt, woff};
 
 #[derive(Clone, Default)]
 pub(crate) struct TtfGlyphCache {
@@ -152,7 +150,8 @@ pub(crate) fn build_font_outputs(
                 join(
                     || -> std::io::Result<Option<Vec<u8>>> {
                         if wants_woff2 {
-                            woff::tables_to_woff2(&ttf_tables, woff2_quality, woff2_cache).map(Some)
+                            woff2::tables_to_woff2(&ttf_tables, woff2_quality, woff2_cache)
+                                .map(Some)
                         } else {
                             Ok(None)
                         }
