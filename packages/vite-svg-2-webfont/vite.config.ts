@@ -1,4 +1,6 @@
+import { codecovRollupPlugin } from '@codecov/rollup-plugin';
 import { defineProject, type UserProjectConfigExport } from 'vite-plus';
+import { name } from './package.json' with { type: 'json' };
 
 const config: UserProjectConfigExport = defineProject({
     pack: {
@@ -13,6 +15,13 @@ const config: UserProjectConfigExport = defineProject({
         outputOptions: {
             exports: 'named',
         },
+        plugins: [
+            codecovRollupPlugin({
+                enableBundleAnalysis: Boolean(process.env.CODECOV_TOKEN) && process.env.ALLOW_BUNDLE_ANALYSIS === 'true',
+                bundleName: `${name}-bundle`,
+                uploadToken: process.env.CODECOV_TOKEN,
+            }),
+        ],
     },
     run: {
         tasks: {
