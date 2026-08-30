@@ -3,10 +3,10 @@ use std::path::Path;
 
 use serde_json::{Map, Value};
 
-use crate::generate_webfonts_sync;
 use crate::input::{
     LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
 };
+use crate::pipeline::generate_webfonts_sync;
 use crate::test_helpers::write_temp_template;
 use crate::types::{FontType, GenerateWebfontsResult, GlyphChange, RegenerationState};
 use crate::{FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};

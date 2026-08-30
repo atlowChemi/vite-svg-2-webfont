@@ -59,10 +59,13 @@
 //!   Not enabled by default — use `cargo install webfont-generator --features cli`.
 //! - **`napi`**: Enables Node.js NAPI bindings for use as a native addon.
 
+#[cfg(feature = "bench")]
+pub mod bench_support;
 mod byte_helpers;
 mod eot;
 mod incremental;
 mod input;
+mod pipeline;
 mod sfnt;
 mod svg;
 mod templates;
@@ -80,27 +83,21 @@ use napi::threadsafe_function::ThreadsafeFunction;
 use napi::{Error as NapiError, Status};
 #[cfg(feature = "napi")]
 use napi_derive::napi;
-use rayon::join;
-use std::sync::Arc;
 #[cfg(feature = "napi")]
 use std::sync::Mutex;
 
 #[cfg(feature = "napi")]
 use input::load_svg_files_napi;
 use input::{
-    LoadedSvgFile, finalize_generate_webfonts_options, load_svg_files,
-    resolve_generate_webfonts_options, validate_generate_webfonts_options,
+    finalize_generate_webfonts_options, load_svg_files, resolve_generate_webfonts_options,
+    validate_generate_webfonts_options,
 };
-use svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
-use svg::{
-    build_svg_font, prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options,
-};
+use pipeline::generate_webfonts_sync;
 #[cfg(feature = "napi")]
 use templates::{
     SharedTemplateData, apply_context_function, build_css_context, build_html_context,
     build_html_registry_and_dependencies,
 };
-use ttf::TtfGlyphCache;
 #[cfg(feature = "napi")]
 use util::to_napi_err;
 use write::write_generate_webfonts_result;
@@ -110,212 +107,6 @@ pub use types::{
     GlyphChange, GlyphChangeEntry, HtmlContext, RegenerateError, SvgFormatOptions,
     TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
-use types::{FontOutputs, RegenerationState, ResolvedGenerateWebfontsOptions};
-
-#[cfg(feature = "bench")]
-pub mod bench_support {
-    use std::io;
-
-    use super::{
-        GenerateWebfontsOptions, GenerateWebfontsResult, GlyphCache, LoadedSvgFile,
-        PreparedSvgFont, build_font_outputs, finalize_generate_webfonts_options, prepare_svg_font,
-        prepare_svg_font_incremental, resolve_generate_webfonts_options, svg_options_from_options,
-    };
-    use crate::sfnt::SerializedFontTables;
-    use crate::svg::types::ParsedGlyph;
-    use crate::svg::{finalize_glyphs, parse_glyphs};
-    use crate::ttf::{self, Woff2TransformCache};
-    use write_fonts::FontBuilder;
-    use write_fonts::types::Tag;
-
-    /// Source fixture used by Rust benchmarks without exposing generator internals.
-    #[derive(Clone)]
-    pub struct BenchSvgSource {
-        pub path: String,
-        pub glyph_name: String,
-        pub contents: String,
-    }
-
-    /// Opaque parsed-glyph cache used by incremental SVG prepare benchmarks.
-    #[derive(Clone, Default)]
-    pub struct BenchGlyphCache(GlyphCache);
-
-    /// Opaque loaded sources and resolved options for incremental SVG preparation benchmarks.
-    pub struct BenchSvgPrepareInput {
-        options: super::ResolvedGenerateWebfontsOptions,
-        sources: Vec<LoadedSvgFile>,
-    }
-
-    /// Opaque parsed glyph set used to isolate parse and finalize stages.
-    #[derive(Clone)]
-    pub struct BenchParsedGlyphs(Vec<ParsedGlyph>);
-
-    /// Opaque prepared SVG font used to isolate font-output generation stages.
-    #[derive(Clone)]
-    pub struct BenchPreparedSvgFont(PreparedSvgFont);
-
-    /// Opaque serialized TTF table set used to isolate SFNT assembly costs.
-    #[derive(Clone)]
-    pub struct BenchSerializedFontTables(SerializedFontTables);
-
-    /// Opaque WOFF2 transform cache used by preparation benchmarks.
-    #[derive(Clone, Default)]
-    pub struct BenchWoff2TransformCache(Woff2TransformCache);
-
-    /// Opaque prepared WOFF2 directory and table stream.
-    pub struct BenchPreparedWoff2(crate::woff::PreparedWoff2);
-
-    fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgFile> {
-        sources
-            .iter()
-            .map(|source| LoadedSvgFile {
-                contents: source.contents.clone().into(),
-                glyph_name: source.glyph_name.clone(),
-                path: source.path.clone(),
-            })
-            .collect()
-    }
-
-    fn resolve(
-        options: GenerateWebfontsOptions,
-        sources: &[LoadedSvgFile],
-    ) -> io::Result<super::ResolvedGenerateWebfontsOptions> {
-        let mut options = resolve_generate_webfonts_options(options)?;
-        finalize_generate_webfonts_options(&mut options, sources)?;
-        Ok(options)
-    }
-
-    /// Run the SVG parse+process preparation path and return the number of prepared glyphs.
-    pub fn svg_prepare_input(
-        options: GenerateWebfontsOptions,
-        sources: &[BenchSvgSource],
-    ) -> io::Result<BenchSvgPrepareInput> {
-        let sources = load_sources(sources);
-        let options = resolve(options, &sources)?;
-        Ok(BenchSvgPrepareInput { options, sources })
-    }
-
-    /// Run the full SVG preparation path and return the number of prepared glyphs.
-    pub fn prepare_svg_full(input: &BenchSvgPrepareInput) -> io::Result<usize> {
-        let svg_options = svg_options_from_options(&input.options);
-        let prepared = prepare_svg_font(&svg_options, &input.sources)?;
-        Ok(prepared.processed_glyphs.len())
-    }
-
-    /// Parse SVG glyph geometry without running set-wide finalization/processing.
-    pub fn parse_svg_only(
-        options: GenerateWebfontsOptions,
-        sources: &[BenchSvgSource],
-    ) -> io::Result<BenchParsedGlyphs> {
-        let sources = load_sources(sources);
-        let options = resolve(options, &sources)?;
-        let svg_options = svg_options_from_options(&options);
-        parse_glyphs(&svg_options, &sources).map(BenchParsedGlyphs)
-    }
-
-    /// Run set-wide SVG finalization/processing from already parsed glyph geometry.
-    pub fn finalize_svg_only(
-        options: GenerateWebfontsOptions,
-        sources: &[BenchSvgSource],
-        parsed: BenchParsedGlyphs,
-    ) -> io::Result<BenchPreparedSvgFont> {
-        let sources = load_sources(sources);
-        let options = resolve(options, &sources)?;
-        let svg_options = svg_options_from_options(&options);
-        finalize_glyphs(&svg_options, parsed.0).map(BenchPreparedSvgFont)
-    }
-
-    /// Build requested font outputs from an already prepared SVG font and return total output bytes.
-    pub fn build_outputs_only(
-        options: GenerateWebfontsOptions,
-        sources: &[BenchSvgSource],
-        prepared: &BenchPreparedSvgFont,
-    ) -> io::Result<usize> {
-        let sources = load_sources(sources);
-        let options = resolve(options, &sources)?;
-        let svg_options = svg_options_from_options(&options);
-        let fonts = build_font_outputs(&options, &svg_options, &prepared.0, None)?;
-        Ok(fonts.svg_font.as_ref().map_or(0, |v| v.len())
-            + fonts.ttf_font.as_ref().map_or(0, |v| v.len())
-            + fonts.woff_font.as_ref().map_or(0, |v| v.len())
-            + fonts.woff2_font.as_ref().map_or(0, |v| v.len())
-            + fonts.eot_font.as_ref().map_or(0, |v| v.len()))
-    }
-
-    /// Build serialized TTF tables from an already prepared SVG font.
-    pub fn build_serialized_ttf_tables(
-        options: GenerateWebfontsOptions,
-        sources: &[BenchSvgSource],
-        prepared: &BenchPreparedSvgFont,
-    ) -> io::Result<BenchSerializedFontTables> {
-        let sources = load_sources(sources);
-        let options = resolve(options, &sources)?;
-        let ttf_options = ttf::ttf_options_from_options(&options);
-        ttf::generate_ttf_font_from_glyphs(ttf_options, &prepared.0.processed_glyphs)
-            .map(BenchSerializedFontTables)
-    }
-
-    /// Rebuild serialized table metadata from already dumped table bytes.
-    pub fn rewrap_serialized_ttf_tables(
-        tables: &BenchSerializedFontTables,
-    ) -> io::Result<BenchSerializedFontTables> {
-        SerializedFontTables::new(tables.0.clone_raw_tables()).map(BenchSerializedFontTables)
-    }
-
-    /// Assemble final TTF bytes with the current serialized-table SFNT writer, without cache reuse.
-    pub fn serialized_ttf_uncached(tables: &BenchSerializedFontTables) -> Vec<u8> {
-        tables.0.uncached_ttf()
-    }
-
-    /// Encode serialized tables with the internal WOFF2 encoder.
-    pub fn internal_woff2(tables: &BenchSerializedFontTables, quality: u8) -> io::Result<Vec<u8>> {
-        crate::woff::tables_to_woff2(&tables.0, quality, None)
-    }
-
-    /// Prepare the internal WOFF2 stream without Brotli compression.
-    pub fn prepare_internal_woff2(
-        tables: &BenchSerializedFontTables,
-        cache: &mut BenchWoff2TransformCache,
-    ) -> io::Result<BenchPreparedWoff2> {
-        crate::woff::prepare_woff2(&tables.0, &mut cache.0).map(BenchPreparedWoff2)
-    }
-
-    /// Brotli-compress an already prepared internal WOFF2 stream and return its byte length.
-    pub fn compress_prepared_internal_woff2(
-        prepared: &BenchPreparedWoff2,
-        quality: u8,
-    ) -> io::Result<usize> {
-        crate::woff::compress_prepared_woff2(&prepared.0, quality)
-    }
-
-    /// Assemble final TTF bytes with write-fonts FontBuilder from the same serialized tables.
-    pub fn fontbuilder_ttf(tables: &BenchSerializedFontTables) -> Vec<u8> {
-        let mut builder = FontBuilder::new();
-        for table in tables.0.tables() {
-            builder.add_raw(Tag::new(&table.tag), table.bytes.as_slice());
-        }
-        builder.build()
-    }
-
-    /// Clear retained WOFF1 payloads so benchmarks can compare warm vs cold compression cache.
-    pub fn clear_woff1_payload_cache(result: &mut GenerateWebfontsResult) {
-        if let Some(state) = result.regeneration_state.lock().unwrap().as_mut()
-            && let Some(cache) = state.ttf_cache.as_mut()
-        {
-            cache.clear_woff1_payloads();
-        }
-    }
-
-    /// Run the incremental SVG preparation path and return the number of prepared glyphs.
-    pub fn prepare_svg_incremental(
-        input: &BenchSvgPrepareInput,
-        cache: &mut BenchGlyphCache,
-    ) -> io::Result<usize> {
-        let svg_options = svg_options_from_options(&input.options);
-        let prepared = prepare_svg_font_incremental(&svg_options, &input.sources, &mut cache.0)?;
-        Ok(prepared.processed_glyphs.len())
-    }
-}
 
 #[cfg(all(test, feature = "napi"))]
 #[unsafe(no_mangle)]
@@ -470,186 +261,4 @@ pub fn generate_sync(
     rename: Option<RenameFn>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     tokio::runtime::Runtime::new()?.block_on(generate(options, rename))
-}
-
-fn generate_webfonts_sync(
-    options: ResolvedGenerateWebfontsOptions,
-    source_files: Vec<LoadedSvgFile>,
-) -> std::io::Result<GenerateWebfontsResult> {
-    let svg_options = svg_options_from_options(&options);
-    // When incremental, retain the parsed-glyph cache so a later `regenerate` can reuse the
-    // glyphs whose source didn't change. Otherwise the geometry is dropped as soon as the font
-    // is built, so one-shot builds carry no extra memory.
-    let (prepared, glyph_cache, mut ttf_cache) = if options.incremental {
-        let mut cache = GlyphCache::default();
-        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
-        (prepared, Some(cache), Some(TtfGlyphCache::default()))
-    } else {
-        (prepare_svg_font(&svg_options, &source_files)?, None, None)
-    };
-    let fonts = build_font_outputs(&options, &svg_options, &prepared, ttf_cache.as_mut())?;
-    let regeneration_state = glyph_cache.map(|glyph_cache| RegenerationState {
-        caches_dirty: false,
-        glyph_cache,
-        ttf_cache,
-        written_outputs: std::collections::HashMap::new(),
-    });
-
-    Ok(GenerateWebfontsResult {
-        cached: std::sync::OnceLock::new(),
-        carried_render: None,
-        css_context: None,
-        fonts,
-        html_context: None,
-        options: std::sync::Arc::new(options),
-        regeneration_state: std::sync::Arc::new(std::sync::Mutex::new(regeneration_state)),
-        source_files: std::sync::Arc::new(source_files),
-    })
-}
-
-/// Build every requested output format from an already-prepared glyph set.
-fn build_font_outputs(
-    options: &ResolvedGenerateWebfontsOptions,
-    svg_options: &SvgOptions<'_>,
-    prepared: &PreparedSvgFont,
-    mut ttf_cache: Option<&mut TtfGlyphCache>,
-) -> std::io::Result<FontOutputs> {
-    let wants_svg = options.types.contains(&FontType::Svg);
-    let wants_ttf = options.types.contains(&FontType::Ttf);
-    let wants_woff = options.types.contains(&FontType::Woff);
-    let wants_woff2 = options.types.contains(&FontType::Woff2);
-    let wants_eot = options.types.contains(&FontType::Eot);
-
-    let (svg_font, ttf_tables) = join(
-        || -> std::io::Result<Option<String>> {
-            if wants_svg {
-                Ok(Some(build_svg_font(svg_options, prepared)))
-            } else {
-                Ok(None)
-            }
-        },
-        || -> std::io::Result<Option<sfnt::SerializedFontTables>> {
-            if wants_ttf || wants_woff || wants_woff2 || wants_eot {
-                let ttf_options = ttf::ttf_options_from_options(options);
-                match ttf_cache.as_deref_mut() {
-                    Some(cache) => ttf::generate_ttf_font_from_glyphs_cached(
-                        ttf_options,
-                        &prepared.processed_glyphs,
-                        cache,
-                    )
-                    .map(Some),
-                    None => {
-                        ttf::generate_ttf_font_from_glyphs(ttf_options, &prepared.processed_glyphs)
-                            .map(Some)
-                    }
-                }
-            } else {
-                Ok(None)
-            }
-        },
-    );
-
-    let svg_font = svg_font?.map(Arc::new);
-    let ttf_tables = ttf_tables?;
-
-    let (ttf_font, woff_font, woff2_font, eot_font) = if let Some(ttf_tables) = ttf_tables {
-        let woff_metadata = options
-            .format_options
-            .as_ref()
-            .and_then(|value| value.woff.as_ref())
-            .and_then(|value| value.metadata.as_deref());
-        let woff2_quality = options
-            .format_options
-            .as_ref()
-            .and_then(|value| value.woff2.as_ref())
-            .and_then(|value| value.compression_quality)
-            .unwrap_or(11);
-
-        let ttf_tables = Arc::new(ttf_tables);
-        let ttf_font = wants_ttf.then(|| ttf_tables.ttf_arc());
-        let (woff1_cache, woff2_cache) = match ttf_cache {
-            Some(cache) => {
-                let (woff1, woff2) = cache.output_caches();
-                (Some(woff1), Some(woff2))
-            }
-            None => (None, None),
-        };
-        let (woff_font, (woff2_font, eot_font)) = join(
-            || -> std::io::Result<Option<Vec<u8>>> {
-                if wants_woff {
-                    match woff1_cache {
-                        Some(cache) => {
-                            woff::tables_to_woff1_cached(&ttf_tables, woff_metadata, cache)
-                        }
-                        None => woff::tables_to_woff1(&ttf_tables, woff_metadata),
-                    }
-                    .map(Some)
-                } else {
-                    Ok(None)
-                }
-            },
-            || {
-                join(
-                    || -> std::io::Result<Option<Vec<u8>>> {
-                        if wants_woff2 {
-                            woff::tables_to_woff2(&ttf_tables, woff2_quality, woff2_cache).map(Some)
-                        } else {
-                            Ok(None)
-                        }
-                    },
-                    || -> std::io::Result<Option<Vec<u8>>> {
-                        if wants_eot {
-                            eot::tables_to_eot(&ttf_tables).map(Some)
-                        } else {
-                            Ok(None)
-                        }
-                    },
-                )
-            },
-        );
-
-        (
-            ttf_font,
-            woff_font?.map(Arc::new),
-            woff2_font?.map(Arc::new),
-            eot_font?.map(Arc::new),
-        )
-    } else {
-        (None, None, None, None)
-    };
-
-    Ok(FontOutputs {
-        svg_font,
-        ttf_font,
-        woff_font,
-        woff2_font,
-        eot_font,
-    })
-}
-
-#[cfg(test)]
-mod tests {
-    use super::woff;
-    use crate::{GenerateWebfontsOptions, ttf::generate_ttf_font_bytes};
-
-    #[test]
-    fn generates_woff2_font_with_expected_header() {
-        let ttf_result = generate_ttf_font_bytes(GenerateWebfontsOptions {
-            css: Some(false),
-            dest: "artifacts".to_owned(),
-            files: vec![format!(
-                "{}/../vite-svg-2-webfont/src/fixtures/webfont-test/svg/add.svg",
-                env!("CARGO_MANIFEST_DIR")
-            )],
-            html: Some(false),
-            font_name: Some("iconfont".to_owned()),
-            ligature: Some(false),
-            ..Default::default()
-        })
-        .expect("expected ttf generation to succeed");
-
-        let result = woff::ttf_to_woff2(&ttf_result, 10).expect("woff2 generation should succeed");
-
-        assert_eq!(&result[..4], b"wOF2");
-    }
 }
