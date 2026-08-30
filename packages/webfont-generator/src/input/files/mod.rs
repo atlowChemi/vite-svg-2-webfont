@@ -12,14 +12,16 @@ use napi::threadsafe_function::ThreadsafeFunction;
 use napi::{Error as NapiError, Status};
 use tokio::task::JoinSet;
 
-#[cfg(feature = "napi")]
-use crate::util::to_napi_err;
-
 #[derive(Clone)]
 pub(crate) struct LoadedSvgFile {
     pub contents: Arc<str>,
     pub glyph_name: String,
     pub path: String,
+}
+
+#[cfg(feature = "napi")]
+fn to_napi_err(error: impl std::fmt::Display) -> NapiError {
+    NapiError::new(Status::GenericFailure, error.to_string())
 }
 
 /// Load SVG file contents in parallel, preserving the original order.

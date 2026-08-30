@@ -65,17 +65,16 @@ mod byte_helpers;
 mod eot;
 mod incremental;
 mod input;
+mod output;
 mod pipeline;
+mod rendering;
 mod sfnt;
 mod svg;
-mod templates;
 #[cfg(test)]
 mod test_helpers;
 mod ttf;
 mod types;
-mod util;
 mod woff;
-mod write;
 
 #[cfg(feature = "napi")]
 use napi::threadsafe_function::ThreadsafeFunction;
@@ -92,21 +91,23 @@ use input::{
     finalize_generate_webfonts_options, load_svg_files, resolve_generate_webfonts_options,
     validate_generate_webfonts_options,
 };
+use output::write_generate_webfonts_result;
 use pipeline::generate_webfonts_sync;
 #[cfg(feature = "napi")]
-use templates::{
-    SharedTemplateData, apply_context_function, build_css_context, build_html_context,
-    build_html_registry_and_dependencies,
+use rendering::{
+    CachedTemplateData, SharedTemplateData, apply_context_function, build_css_context,
+    build_html_context, build_html_registry_and_dependencies,
 };
-#[cfg(feature = "napi")]
-use util::to_napi_err;
-use write::write_generate_webfonts_result;
-
 pub use types::{
     CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult,
     GlyphChange, GlyphChangeEntry, HtmlContext, RegenerateError, SvgFormatOptions,
     TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
+
+#[cfg(feature = "napi")]
+fn to_napi_err(error: impl std::fmt::Display) -> NapiError {
+    NapiError::new(Status::GenericFailure, error.to_string())
+}
 
 #[cfg(all(test, feature = "napi"))]
 #[unsafe(no_mangle)]
@@ -203,7 +204,7 @@ pub async fn generate_webfonts(
             build_html_registry_and_dependencies(&result.options).map_err(to_napi_err)?;
         let css_hbs_context = handlebars::Context::wraps(&css_ctx).map_err(to_napi_err)?;
         let html_hbs_context = handlebars::Context::wraps(&html_ctx).map_err(to_napi_err)?;
-        let _ = result.cached.set(Ok(types::CachedTemplateData {
+        let _ = result.cached.set(Ok(CachedTemplateData {
             shared,
             css_context: css_ctx,
             css_hbs_context: Mutex::new(css_hbs_context),
