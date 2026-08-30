@@ -201,7 +201,10 @@ jobs:
             - name: Verify binding
               run: ls packages/webfont-generator/*.node
             - name: Build plugin
-              run: vp run vite-svg-2-webfont#pack
+              run: vp run --ignore-depends-on vite-svg-2-webfont#pack
+              env:
+                  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+                  ALLOW_BUNDLE_ANALYSIS: ${{ matrix.primary }}
             - name: Verify vite version
               run: |
                   VITE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('node_modules/vite/package.json', 'utf8')).version")

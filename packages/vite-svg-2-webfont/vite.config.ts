@@ -1,3 +1,4 @@
+import { codecovRollupPlugin } from '@codecov/rollup-plugin';
 import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 
 const config: UserProjectConfigExport = defineProject({
@@ -13,6 +14,13 @@ const config: UserProjectConfigExport = defineProject({
         outputOptions: {
             exports: 'named',
         },
+        plugins: [
+            codecovRollupPlugin({
+                enableBundleAnalysis: Boolean(process.env.CODECOV_TOKEN) && process.env.ALLOW_BUNDLE_ANALYSIS === 'true',
+                bundleName: 'vite-svg-2-webfont-bundle',
+                uploadToken: process.env.CODECOV_TOKEN,
+            }),
+        ],
     },
     run: {
         tasks: {
