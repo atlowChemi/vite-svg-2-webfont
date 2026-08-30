@@ -20,7 +20,8 @@ use types::{
     ProcessedGlyph, SvgOptions,
 };
 
-use crate::types::{FontType, LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::input::LoadedSvgFile;
+use crate::types::{FontType, ResolvedGenerateWebfontsOptions};
 
 struct FinalizePlan {
     normalize: bool,

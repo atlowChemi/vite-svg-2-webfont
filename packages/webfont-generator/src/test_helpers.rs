@@ -2,8 +2,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::types::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
-use crate::{GenerateWebfontsOptions, resolve_generate_webfonts_options};
+use crate::GenerateWebfontsOptions;
+use crate::input::{
+    LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
+};
+use crate::types::ResolvedGenerateWebfontsOptions;
 
 pub fn resolve_options(options: GenerateWebfontsOptions) -> ResolvedGenerateWebfontsOptions {
     resolve_generate_webfonts_options(options)
@@ -52,7 +55,7 @@ pub fn fixture_font_tables() -> crate::sfnt::SerializedFontTables {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    crate::finalize_generate_webfonts_options(&mut options, &source_files)
+    finalize_generate_webfonts_options(&mut options, &source_files)
         .expect("expected options to finalize");
     let svg_options = crate::svg_options_from_options(&options);
     let prepared = crate::svg::prepare_svg_font(&svg_options, &source_files)

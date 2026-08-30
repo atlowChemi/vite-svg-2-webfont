@@ -8,6 +8,7 @@ use napi::bindgen_prelude::Uint8Array;
 use napi_derive::napi;
 use serde_json::{Map, Value};
 
+use crate::input::LoadedSvgFile;
 use crate::svg::types::GlyphCache;
 use crate::templates::{
     SharedTemplateData, TemplateDependencies, build_css_context, build_html_context,
@@ -302,24 +303,6 @@ pub struct GenerateWebfontsOptions {
     pub write_files: Option<bool>,
 }
 
-pub(crate) const DEFAULT_FONT_TYPES: [FontType; 3] =
-    [FontType::Eot, FontType::Woff, FontType::Woff2];
-
-pub(crate) const DEFAULT_FONT_ORDER: [FontType; 5] = [
-    FontType::Eot,
-    FontType::Woff2,
-    FontType::Woff,
-    FontType::Ttf,
-    FontType::Svg,
-];
-
-pub(crate) fn resolved_font_types(options: &GenerateWebfontsOptions) -> Vec<FontType> {
-    match &options.types {
-        Some(types) => types.clone(),
-        None => DEFAULT_FONT_TYPES.to_vec(),
-    }
-}
-
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub ascent: Option<f64>,
@@ -358,13 +341,6 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub template_options: Option<Map<String, Value>>,
     pub types: Vec<FontType>,
     pub write_files: bool,
-}
-
-#[derive(Clone)]
-pub(crate) struct LoadedSvgFile {
-    pub contents: Arc<str>,
-    pub glyph_name: String,
-    pub path: String,
 }
 
 /// Caches the last rendered CSS/HTML result for repeated calls with the same urls. Cloneable so
@@ -1047,7 +1023,7 @@ fn parse_native_urls(urls: HashMap<String, String>) -> napi::Result<HashMap<Font
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
+    use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
 
     fn build_result(template: Option<&str>) -> GenerateWebfontsResult {
         let fixture = crate::test_helpers::webfont_fixture("add.svg");

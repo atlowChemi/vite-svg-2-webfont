@@ -1,4 +1,3 @@
-use std::collections::{BTreeMap, HashSet};
 use std::io::{Error, ErrorKind};
 use std::path::{Component, Path, PathBuf};
 
@@ -6,8 +5,6 @@ use serde_json::Value;
 
 #[cfg(feature = "napi")]
 use napi::{Error as NapiError, Status};
-
-use crate::types::LoadedSvgFile;
 
 /// Convert any displayable error into a NAPI GenericFailure error.
 #[cfg(feature = "napi")]
@@ -102,130 +99,9 @@ pub(crate) fn path_to_slashes(path: PathBuf) -> String {
     path.to_string_lossy().replace('\\', "/")
 }
 
-pub(crate) fn default_glyph_name_from_path(path: &str) -> Result<String, Error> {
-    Path::new(path)
-        .file_stem()
-        .and_then(|stem| stem.to_str())
-        .map(str::to_owned)
-        .ok_or_else(|| {
-            Error::new(
-                ErrorKind::InvalidInput,
-                format!("Unable to derive glyph name from '{path}'."),
-            )
-        })
-}
-
-/// Resolve a glyph name from a file path, optionally applying a rename function.
-pub(crate) fn glyph_name_from_path(
-    path: &str,
-    rename: Option<&(dyn Fn(&str) -> String + Send + Sync)>,
-) -> Result<String, Error> {
-    match rename {
-        Some(rename) => Ok(rename(path)),
-        None => default_glyph_name_from_path(path),
-    }
-}
-
-pub(crate) fn resolve_codepoints(
-    source_files: &[LoadedSvgFile],
-    codepoints: &BTreeMap<String, u32>,
-    start_codepoint: u32,
-) -> Result<BTreeMap<String, u32>, Error> {
-    let mut resolved_codepoints = codepoints.clone();
-    let mut used_codepoints: HashSet<u32> = resolved_codepoints.values().copied().collect();
-    let mut next_codepoint = start_codepoint;
-
-    for source_file in source_files {
-        let name = source_file.glyph_name.clone();
-
-        if resolved_codepoints.contains_key(&name) {
-            continue;
-        }
-
-        while used_codepoints.contains(&next_codepoint) {
-            next_codepoint += 1;
-        }
-
-        resolved_codepoints.insert(name, next_codepoint);
-        used_codepoints.insert(next_codepoint);
-        next_codepoint += 1;
-    }
-
-    Ok(resolved_codepoints)
-}
-
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeMap;
-    use std::path::Path;
-
-    use super::{default_glyph_name_from_path, glyph_name_from_path, join_url, resolve_codepoints};
-    use crate::types::LoadedSvgFile;
-
-    fn loaded_svg_file(path: &str) -> LoadedSvgFile {
-        LoadedSvgFile {
-            contents: "<svg />".into(),
-            glyph_name: Path::new(path)
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .unwrap_or_default()
-                .to_owned(),
-            path: path.to_owned(),
-        }
-    }
-
-    #[test]
-    fn derives_glyph_name_from_path() {
-        let glyph_name = glyph_name_from_path("/tmp/icons/arrow-left.svg", None).unwrap();
-
-        assert_eq!(glyph_name, "arrow-left");
-    }
-
-    #[test]
-    fn errors_when_glyph_name_cannot_be_derived() {
-        let error = default_glyph_name_from_path("/tmp/icons/..").unwrap_err();
-
-        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
-        assert!(
-            error
-                .to_string()
-                .contains("Unable to derive glyph name from '/tmp/icons/..'.")
-        );
-    }
-
-    #[test]
-    fn resolves_missing_codepoints_in_source_file_order() {
-        let source_files = vec![
-            loaded_svg_file("/tmp/icons/arrow-left.svg"),
-            loaded_svg_file("/tmp/icons/arrow-right.svg"),
-        ];
-
-        let resolved_codepoints =
-            resolve_codepoints(&source_files, &BTreeMap::new(), 0xF101).unwrap();
-
-        assert_eq!(resolved_codepoints.get("arrow-left"), Some(&0xF101));
-        assert_eq!(resolved_codepoints.get("arrow-right"), Some(&0xF102));
-    }
-
-    #[test]
-    fn preserves_explicit_codepoints_and_skips_used_values() {
-        let source_files = vec![
-            loaded_svg_file("/tmp/icons/arrow-left.svg"),
-            loaded_svg_file("/tmp/icons/arrow-right.svg"),
-            loaded_svg_file("/tmp/icons/check.svg"),
-        ];
-        let explicit_codepoints = BTreeMap::from([
-            ("arrow-left".to_owned(), 0xF105),
-            ("check".to_owned(), 0xF101),
-        ]);
-
-        let resolved_codepoints =
-            resolve_codepoints(&source_files, &explicit_codepoints, 0xF101).unwrap();
-
-        assert_eq!(resolved_codepoints.get("arrow-left"), Some(&0xF105));
-        assert_eq!(resolved_codepoints.get("check"), Some(&0xF101));
-        assert_eq!(resolved_codepoints.get("arrow-right"), Some(&0xF102));
-    }
+    use super::join_url;
 
     #[test]
     fn join_url_returns_file_name_when_base_is_empty() {
@@ -263,18 +139,5 @@ mod tests {
             join_url("https://cdn.example.com/assets", "iconfont.woff2"),
             "https://cdn.example.com/assets/iconfont.woff2"
         );
-    }
-
-    #[test]
-    fn errors_when_any_source_file_has_no_usable_file_stem() {
-        let source_files = vec![LoadedSvgFile {
-            contents: "<svg />".into(),
-            glyph_name: String::new(),
-            path: "/tmp/icons/..".to_owned(),
-        }];
-
-        let resolved_codepoints =
-            resolve_codepoints(&source_files, &BTreeMap::new(), 0xF101).unwrap();
-        assert_eq!(resolved_codepoints.get(""), Some(&0xF101));
     }
 }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use tokio::task::JoinSet;
 
-use crate::default_output_dest;
+use crate::input::default_output_dest;
 use crate::templates::{render_css_with_hbs_context, render_html_with_hbs_context};
 use crate::types::GenerateWebfontsResult;
 
