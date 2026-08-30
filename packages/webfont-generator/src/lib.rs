@@ -72,7 +72,6 @@ mod sfnt;
 mod svg;
 #[cfg(test)]
 mod test_helpers;
-mod ttf;
 mod types;
 mod woff;
 

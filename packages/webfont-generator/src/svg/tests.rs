@@ -8,9 +8,8 @@ use super::{
     svg_options_from_options,
 };
 
-use crate::input::{
-    LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
-};
+use crate::input::LoadedSvgFile;
+use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
 use crate::{FormatOptions, GenerateWebfontsOptions, SvgFormatOptions};
 
 #[derive(Clone, Copy)]
@@ -489,15 +488,14 @@ fn attribute_value(svg: &str, tag_start: &str, attribute: &str) -> Option<String
 
 #[test]
 fn empty_svg_produces_glyph_with_empty_path_data() {
+    let fixture = icons_root()
+        .join("emptyicons/empty.svg")
+        .to_string_lossy()
+        .into_owned();
     let svg = generate_svg_font(GenerateWebfontsOptions {
         css: Some(false),
         dest: "artifacts".to_owned(),
-        files: vec![
-            icons_root()
-                .join("emptyicons/empty.svg")
-                .to_string_lossy()
-                .into_owned(),
-        ],
+        files: vec![fixture],
         html: Some(false),
         font_name: Some("iconfont".to_owned()),
         ligature: Some(false),
@@ -671,16 +669,15 @@ fn winding_fixtures_dir() -> PathBuf {
 
 /// Run a single winding fixture through the real pipeline and return the glyph's serialized path.
 fn winding_glyph_path_data(file: &str) -> String {
+    let fixture = winding_fixtures_dir()
+        .join(file)
+        .to_string_lossy()
+        .into_owned();
     let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
         css: Some(false),
         html: Some(false),
         dest: "artifacts".to_string(),
-        files: vec![
-            winding_fixtures_dir()
-                .join(file)
-                .to_string_lossy()
-                .into_owned(),
-        ],
+        files: vec![fixture],
         font_name: Some("winding".to_string()),
         ..Default::default()
     })
@@ -705,7 +702,10 @@ fn subpath_signs(path_data: &str) -> Vec<i8> {
             let (x2, y2) = pts[(k + 1) % pts.len()];
             a += x1 * y2 - x2 * y1;
         }
-        if a >= 0.0 { 1 } else { -1 }
+        if a >= 0.0 {
+            return 1;
+        }
+        -1
     };
     let mut signs = Vec::new();
     let mut pts: Vec<(f64, f64)> = Vec::new();
@@ -789,4 +789,85 @@ fn winding_holes_a_nested_curved_contour() {
         signs[0], signs[1],
         "the contained inner circle must become a hole"
     );
+}
+#[test]
+fn oxvg_path_conversion_matches_kurbo_svg_parser() {
+    use kurbo::{BezPath, PathEl, Point};
+    use oxvg_path::parser::Parse as _;
+
+    let cases = [
+        (
+            "absolute-relative-implicit-lines",
+            "M-0 1.125 2.375 3.625m4.125-5.125 6.125 7.125L20.25 21.375 22.5 23.625l2.125-3.25 4.5 5.625H30.125 31.25h2.375-1.125V40.5 41.625v2.75-1.5",
+            true,
+        ),
+        (
+            "curves-and-cross-family-controls",
+            "M10 20C11.125 12.25 13.375 14.5 15.625 16.75 17.875 18.125 19.25 20.375 21.5 22.625S23.75 24.875 25 26.125s1.25 2.375 3.5 4.625Q31.25 32.375 33.5 34.625 35.75 36.875 38 39.125T40.25 41.375t2.5 3.625S47 48.125 49.25 50.375T52.5 53.625c1.125 2.25 3.375 4.5 5.625 6.75q1.25 2.375 3.5 4.625",
+            false,
+        ),
+        (
+            "arcs-flags-rotation-relative-degenerate",
+            "M1.125 2.25A10.375 20.5 37.25 0 1 30.625 40.75a-12.875 8.25-45.5 1 0 15.125-9.375A0 5 0 0 1 50.25 60.375a5 0 90 1 1-2.125 3.25A4 6-0 0 0 48.125 63.625",
+            false,
+        ),
+        (
+            "negative-zero-and-three-decimals",
+            "M-0-0L.001-.002l-.003.004H-0v-0C.125-.25.375-.5.625-.75Q.875-.999 1.001-1.125",
+            false,
+        ),
+        (
+            "subpaths-close-and-drawing",
+            "M1 2Q2 3 3 4ZS5 6 7 8T9 10M20 21l2 3zL4 5Z",
+            false,
+        ),
+    ];
+
+    for (name, source, nest_implicit) in cases {
+        let mut path = oxvg_path::Path::parse_string(source).unwrap();
+        if nest_implicit {
+            let command = path
+                .0
+                .iter_mut()
+                .find(|command| command.is_implicit())
+                .unwrap();
+            *command = oxvg_path::command::Data::Implicit(Box::new(command.clone()));
+        }
+        let direct = super::geometry::bezpath_from_oxvg_path(&path);
+        let parsed = BezPath::from_svg(&path.to_string()).unwrap();
+        assert_eq!(
+            direct.elements().len(),
+            parsed.elements().len(),
+            "{name}: element count"
+        );
+
+        let assert_point = |index: usize, field: &str, direct: Point, parsed: Point| {
+            assert_eq!(
+                [direct.x.to_bits(), direct.y.to_bits()],
+                [parsed.x.to_bits(), parsed.y.to_bits()],
+                "{name}: element {index} {field}"
+            );
+        };
+        for (index, (direct, parsed)) in direct.elements().iter().zip(parsed.elements()).enumerate()
+        {
+            match (*direct, *parsed) {
+                (PathEl::MoveTo(a), PathEl::MoveTo(b)) | (PathEl::LineTo(a), PathEl::LineTo(b)) => {
+                    assert_point(index, "point", a, b);
+                }
+                (PathEl::QuadTo(a1, a2), PathEl::QuadTo(b1, b2)) => {
+                    assert_point(index, "control", a1, b1);
+                    assert_point(index, "point", a2, b2);
+                }
+                (PathEl::CurveTo(a1, a2, a3), PathEl::CurveTo(b1, b2, b3)) => {
+                    assert_point(index, "control1", a1, b1);
+                    assert_point(index, "control2", a2, b2);
+                    assert_point(index, "point", a3, b3);
+                }
+                (PathEl::ClosePath, PathEl::ClosePath) => {}
+                (direct, parsed) => {
+                    panic!("{name}: element {index} variant differs: {direct:?} != {parsed:?}")
+                }
+            }
+        }
+    }
 }

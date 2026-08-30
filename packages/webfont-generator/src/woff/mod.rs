@@ -2,8 +2,7 @@ use std::hash::Hasher;
 use std::io::{Error, ErrorKind, Write};
 
 use crate::byte_helpers::BigEndian;
-use crate::sfnt::SerializedFontTables;
-use crate::ttf::{Woff1PayloadCache, Woff2TransformCache};
+use crate::sfnt::{SerializedFontTables, Woff1PayloadCache, Woff2TransformCache};
 use flate2::Compression;
 use flate2::write::ZlibEncoder;
 use rustc_hash::FxHasher;
@@ -233,9 +232,9 @@ fn align4_len(len: usize) -> usize {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::sfnt::{TtfOptions, build};
     use crate::svg::types::ProcessedGlyph;
     use crate::test_helpers::fixture_font_tables;
-    use crate::ttf::{TtfOptions, generate_ttf_font_from_glyphs};
     use flate2::read::ZlibDecoder;
     use std::collections::BTreeMap;
     use std::io::Read;
@@ -463,7 +462,7 @@ mod tests {
 
     fn assert_internal_woff2(glyph_count: usize) {
         let tables = acceptance_font_tables(glyph_count);
-        let mut cache = crate::ttf::Woff2TransformCache::default();
+        let mut cache = crate::sfnt::Woff2TransformCache::default();
         let outputs = WOFF2_QUALITIES
             .map(|quality| {
                 let output = tables_to_woff2(&tables, quality, Some(&mut cache)).unwrap();
@@ -546,7 +545,7 @@ mod tests {
     }
 
     fn font_tables(glyphs: Vec<ProcessedGlyph>) -> SerializedFontTables {
-        generate_ttf_font_from_glyphs(
+        build(
             TtfOptions {
                 ascent: None,
                 copyright: None,
@@ -562,6 +561,7 @@ mod tests {
                 version: None,
             },
             &glyphs,
+            None,
         )
         .expect("acceptance TTF should generate")
     }
