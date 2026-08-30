@@ -30,7 +30,7 @@ const config: UserProjectConfigExport = defineProject({
             pack: {
                 command: 'vp pack',
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
-                env: ['CODECOV_TOKEN', 'ALLOW_BUNDLE_ANALYSIS']
+                env: ['CODECOV_TOKEN', 'ALLOW_BUNDLE_ANALYSIS'],
             },
             'pack:tgz': {
                 command: 'pnpm pack',
