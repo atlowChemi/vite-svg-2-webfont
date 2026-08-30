@@ -62,7 +62,7 @@
 #[cfg(feature = "bench")]
 pub mod bench_support;
 mod byte_helpers;
-mod eot;
+mod formats;
 mod incremental;
 mod input;
 mod output;
