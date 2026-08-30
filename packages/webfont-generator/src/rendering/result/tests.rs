@@ -1,32 +1,23 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::input::{
-    LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
-};
+use crate::input::LoadedSvgFile;
+use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
 use crate::types::{FontOutputs, FontType, GenerateWebfontsOptions, GenerateWebfontsResult};
 
 fn build_result(template: Option<&str>) -> GenerateWebfontsResult {
-    let fixture = crate::test_helpers::webfont_fixture("add.svg");
+    build_result_with_templates(template, None)
+}
 
-    let mut css_template = None;
-    let cleanup_dir;
-    if let Some(content) = template {
-        let tmp = std::env::temp_dir().join(format!(
-            "render-cache-test-{}",
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap()
-                .as_nanos()
-        ));
-        std::fs::create_dir_all(&tmp).unwrap();
-        let path = tmp.join("template.hbs");
-        std::fs::write(&path, content).unwrap();
-        css_template = Some(path.to_string_lossy().into_owned());
-        cleanup_dir = Some(tmp);
-    } else {
-        cleanup_dir = None;
-    }
+fn build_result_with_templates(
+    css_template: Option<&str>,
+    html_template: Option<&str>,
+) -> GenerateWebfontsResult {
+    let fixture = crate::test_helpers::webfont_fixture("add.svg");
+    let css_template = css_template
+        .map(|content| crate::test_helpers::write_temp_template("render-cache-css", content));
+    let html_template = html_template
+        .map(|content| crate::test_helpers::write_temp_template("render-cache-html", content));
 
     let options = GenerateWebfontsOptions {
         css: Some(true),
@@ -34,7 +25,8 @@ fn build_result(template: Option<&str>) -> GenerateWebfontsResult {
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         dest: "artifacts".to_owned(),
         files: vec![fixture],
-        html: Some(false),
+        html: Some(html_template.is_some()),
+        html_template,
         font_name: Some("iconfont".to_owned()),
         ligature: Some(false),
         order: Some(vec![FontType::Svg]),
@@ -60,7 +52,7 @@ fn build_result(template: Option<&str>) -> GenerateWebfontsResult {
         .collect();
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
 
-    let result = GenerateWebfontsResult {
+    GenerateWebfontsResult {
         cached: std::sync::OnceLock::new(),
         carried_render: None,
         css_context: None,
@@ -69,14 +61,7 @@ fn build_result(template: Option<&str>) -> GenerateWebfontsResult {
         options: Arc::new(resolved),
         regeneration_state: Arc::new(Mutex::new(None)),
         source_files: Arc::new(source_files),
-    };
-
-    if let Some(dir) = cleanup_dir {
-        // Don't clean up yet -- template file needed for lazy compilation
-        std::mem::forget(dir);
     }
-
-    result
 }
 
 #[test]
@@ -143,6 +128,38 @@ fn generate_css_cache_works_with_custom_template() {
 
     assert_eq!(first, second);
     assert!(first.contains("/cached.svg"));
+}
+
+#[test]
+fn generate_html_restores_styles_after_render_error() {
+    let result = build_result_with_templates(None, Some("{{removePeriods}}"));
+    let cached = result.get_cached_io().unwrap();
+    let original_styles = cached
+        .html_hbs_context
+        .lock()
+        .unwrap()
+        .data()
+        .get("styles")
+        .cloned();
+
+    let error = result
+        .generate_html_pure(Some(HashMap::from([(
+            FontType::Svg,
+            "/error.svg".to_owned(),
+        )])))
+        .unwrap_err();
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+    assert_eq!(
+        cached
+            .html_hbs_context
+            .lock()
+            .unwrap()
+            .data()
+            .get("styles")
+            .cloned(),
+        original_styles
+    );
 }
 
 #[test]
@@ -295,6 +312,22 @@ fn generate_html_cache_returns_different_result_for_different_urls() {
     assert_ne!(result_a, result_b);
     assert!(result_a.contains("/a.svg"));
     assert!(result_b.contains("/b.svg"));
+}
+
+#[test]
+fn generate_custom_html_with_urls_updates_styles_without_changing_default_render() {
+    let result = build_result_with_templates(None, Some("<style>{{{styles}}}</style>"));
+    let default = result.generate_html_pure(None).unwrap();
+    let urls_a = HashMap::from([(FontType::Svg, "/a.svg".to_owned())]);
+    let urls_b = HashMap::from([(FontType::Svg, "/b.svg".to_owned())]);
+
+    let result_a = result.generate_html_pure(Some(urls_a.clone())).unwrap();
+    let result_b = result.generate_html_pure(Some(urls_b)).unwrap();
+
+    assert!(result_a.contains("/a.svg"));
+    assert!(result_b.contains("/b.svg"));
+    assert_eq!(result_a, result.generate_html_pure(Some(urls_a)).unwrap());
+    assert_eq!(default, result.generate_html_pure(None).unwrap());
 }
 
 /// Build a result with multiple font types (svg + woff2) for testing partial URL overrides.

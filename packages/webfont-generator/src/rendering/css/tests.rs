@@ -1,6 +1,7 @@
+use super::SharedTemplateData;
 use super::{
-    SharedTemplateData, build_css_context, calc_hash, make_ctx, make_src, make_urls,
-    render_css_with_context, template_dependencies,
+    build_css_context, calc_hash, make_ctx, make_src, make_urls, render_css_with_context,
+    template_dependencies,
 };
 use crate::input::LoadedSvgFile;
 use crate::types::ResolvedGenerateWebfontsOptions;
@@ -820,4 +821,10 @@ fn template_dependencies_marks_partials_dynamic() {
     assert!(template_dependencies("{{> iconPreview}}").dynamic);
     assert!(template_dependencies("{{>iconPreview}}").dynamic);
     assert!(template_dependencies("{{#> iconPreview}}{{/iconPreview}}").dynamic);
+}
+
+#[test]
+fn template_dependencies_marks_bracket_paths_and_unknown_helpers_dynamic() {
+    assert!(template_dependencies("{{[names]}}").dynamic);
+    assert!(template_dependencies("{{unknown names}}").dynamic);
 }
