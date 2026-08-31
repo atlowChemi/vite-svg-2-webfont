@@ -871,3 +871,39 @@ fn oxvg_path_conversion_matches_kurbo_svg_parser() {
         }
     }
 }
+
+#[test]
+fn quadratic_tiny_paths_are_rounded_and_fully_hashed() {
+    use kurbo::{PathEl, Point};
+    use usvg::tiny_skia_path::PathBuilder;
+
+    let make_path = |control_x, end_y| {
+        let mut builder = PathBuilder::new();
+        builder.move_to(0.4, 0.6);
+        builder.quad_to(control_x, 2.6, 3.4, end_y);
+        builder.finish().unwrap()
+    };
+    let path = super::geometry::rounded_bezpath_from_tiny_paths(&[make_path(1.4, 4.6)], 1.0);
+
+    assert_eq!(
+        path.elements(),
+        &[
+            PathEl::MoveTo(Point::new(0.0, 1.0)),
+            PathEl::QuadTo(Point::new(1.0, 3.0), Point::new(3.0, 5.0)),
+        ]
+    );
+    assert_ne!(
+        super::geometry::bezpath_hash(&path),
+        super::geometry::bezpath_hash(&super::geometry::rounded_bezpath_from_tiny_paths(
+            &[make_path(2.4, 4.6)],
+            1.0,
+        ))
+    );
+    assert_ne!(
+        super::geometry::bezpath_hash(&path),
+        super::geometry::bezpath_hash(&super::geometry::rounded_bezpath_from_tiny_paths(
+            &[make_path(1.4, 5.6)],
+            1.0,
+        ))
+    );
+}

@@ -8,7 +8,7 @@ use crate::input::LoadedSvgFile;
 use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
 use crate::svg::{prepare_svg_font, svg_options_from_options};
 use crate::test_helpers::icons_root;
-use crate::{FontType, GenerateWebfontsOptions};
+use crate::{FontType, FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
 
 use super::outlines::SIMPLIFY_TOLERANCE;
 use super::outlines::{point_line_distance, quadratic_path_from_svg_path_data};
@@ -83,6 +83,79 @@ fn generates_a_ttf_buffer_with_a_true_type_header() {
 
     assert_eq!(&result[..4], &[0x00, 0x01, 0x00, 0x00]);
     assert!(!result.is_empty());
+}
+
+#[test]
+fn public_metadata_options_are_written_to_ttf_tables() {
+    let fixture = icons_root().join("cleanicons/plus.svg");
+    let cases = [
+        (
+            Some("ItAlIc"),
+            "BoLd",
+            " 2.5. ",
+            "Italic",
+            "metadata Italic",
+            "Version 2.5",
+            700,
+        ),
+        (
+            None,
+            "250",
+            "Version 3.0",
+            "Regular",
+            "metadata",
+            "Version 3.0",
+            250,
+        ),
+        (None, "0", "  ", "Regular", "metadata", "Version 1.0", 400),
+    ];
+
+    for (style, weight, version, subfamily, full_name, expected_version, weight_class) in cases {
+        let bytes = generate_ttf_font_bytes(GenerateWebfontsOptions {
+            css: Some(false),
+            dest: "artifacts".to_string(),
+            files: vec![fixture.display().to_string()],
+            font_name: Some("metadata".to_string()),
+            font_style: style.map(str::to_string),
+            font_weight: Some(weight.to_string()),
+            format_options: Some(FormatOptions {
+                ttf: Some(TtfFormatOptions {
+                    copyright: Some("Copyright 2026".to_string()),
+                    description: None,
+                    ts: Some(1_700_000_000),
+                    url: None,
+                    version: Some(version.to_string()),
+                }),
+                ..Default::default()
+            }),
+            html: Some(false),
+            ligature: Some(false),
+            types: Some(vec![FontType::Ttf]),
+            ..Default::default()
+        })
+        .expect("TTF metadata generation should succeed");
+        let font = FontRef::new(&bytes).expect("readable TTF");
+        let name = font.name().expect("name table");
+        let string_data = name.string_data();
+        let read_name = |id| {
+            name.name_record()
+                .iter()
+                .find(|record| record.name_id().to_u16() == id)
+                .unwrap()
+                .string(string_data)
+                .unwrap()
+                .to_string()
+        };
+
+        assert_eq!(read_name(0), "Copyright 2026");
+        assert_eq!(read_name(2), subfamily);
+        assert_eq!(read_name(4), full_name);
+        assert_eq!(read_name(5), expected_version);
+        assert_eq!(
+            font.os2().expect("OS/2 table").us_weight_class(),
+            weight_class
+        );
+    }
 }
 
 #[test]
