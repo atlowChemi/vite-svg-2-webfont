@@ -596,9 +596,38 @@ fn incremental_prepare_matches_full_prepare_and_reuses_cache() {
     };
 
     let mut resolved = resolve_generate_webfonts_options(make_options()).unwrap();
-    let source_files = load_source_files(&resolved.files);
+    let mut source_files = load_source_files(&resolved.files);
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+    let renamed_codepoint = resolved.codepoints[&source_files[0].glyph_name];
+    resolved
+        .codepoints
+        .insert("renamed".to_string(), renamed_codepoint);
     let svg_options = svg_options_from_options(&resolved);
+
+    let mut cache = GlyphCache::default();
+    let error = prepare_svg_font_incremental(&svg_options, &[], &mut cache)
+        .err()
+        .unwrap();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Expected at least one SVG file for native generation."
+    );
+
+    let mut missing_codepoint = source_files[0].clone();
+    missing_codepoint.glyph_name = "missing".to_string();
+    let error = prepare_svg_font_incremental(&svg_options, &[missing_codepoint], &mut cache)
+        .err()
+        .unwrap();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Missing resolved codepoint for glyph 'missing'."
+    );
+    assert_eq!(
+        cache.parse_count, 0,
+        "validation must happen before parsing"
+    );
 
     // The SVG font string encodes every glyph's path data plus the font metrics, so equality
     // proves the prepared fonts match.
@@ -607,7 +636,6 @@ fn incremental_prepare_matches_full_prepare_and_reuses_cache() {
         &prepare_svg_font(&svg_options, &source_files).unwrap(),
     );
 
-    let mut cache = GlyphCache::default();
     let fresh = build_svg_font(
         &svg_options,
         &prepare_svg_font_incremental(&svg_options, &source_files, &mut cache).unwrap(),
@@ -630,6 +658,23 @@ fn incremental_prepare_matches_full_prepare_and_reuses_cache() {
     assert_eq!(
         full, reused,
         "a cache-reuse build must match the full build"
+    );
+
+    let parse_count = cache.parse_count;
+    source_files[0].path.push_str("-renamed");
+    source_files[0].glyph_name = "renamed".to_string();
+    let renamed = build_svg_font(
+        &svg_options,
+        &prepare_svg_font_incremental(&svg_options, &source_files, &mut cache).unwrap(),
+    );
+    let renamed_full = build_svg_font(
+        &svg_options,
+        &prepare_svg_font(&svg_options, &source_files).unwrap(),
+    );
+    assert_eq!(renamed_full, renamed);
+    assert_eq!(
+        cache.parse_count, parse_count,
+        "identical SVG bytes under a new path should reuse cached geometry"
     );
 }
 
