@@ -183,3 +183,7 @@ fn parse_native_urls(urls: HashMap<String, String>) -> napi::Result<HashMap<Font
         })
         .collect::<napi::Result<HashMap<FontType, String>>>()
 }
+
+#[cfg(test)]
+#[path = "napi/tests.rs"]
+mod tests;

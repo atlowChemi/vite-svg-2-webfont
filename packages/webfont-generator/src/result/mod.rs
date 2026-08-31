@@ -1,6 +1,8 @@
 #[cfg(feature = "napi")]
 #[path = "napi.rs"]
 mod napi_adapter;
+#[cfg(test)]
+mod tests;
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex, OnceLock};
