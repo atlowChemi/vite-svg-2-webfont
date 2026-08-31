@@ -4,8 +4,8 @@ use std::sync::{Arc, Mutex, OnceLock};
 use super::collect::OutputContents;
 use super::write::output_hash;
 use super::*;
+use crate::result::FontOutputs;
 use crate::test_helpers::{resolve_options, webfont_fixture};
-use crate::types::FontOutputs;
 use crate::{FontType, GenerateWebfontsOptions};
 
 fn temp_root(name: &str) -> std::path::PathBuf {

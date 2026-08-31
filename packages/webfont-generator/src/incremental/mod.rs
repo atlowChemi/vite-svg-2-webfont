@@ -1,17 +1,65 @@
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
 use std::path::Path;
+use std::sync::{Arc, Mutex};
 
 use crate::input::{LoadedSvgFile, finalize_generate_webfonts_options, validate_glyph_names};
 use crate::output::write_generate_webfonts_result_sync;
-use crate::pipeline::build_font_outputs;
+use crate::pipeline::{TtfGlyphCache, build_font_outputs};
+use crate::result::{GenerateWebfontsResult, RegenerateError};
+use crate::svg::types::GlyphCache;
 use crate::svg::{prepare_svg_font_incremental, source_content_hash, svg_options_from_options};
-use crate::types::{GenerateWebfontsResult, GlyphChange, RegenerateError, RegenerationState};
+use crate::types::GlyphChange;
+
+pub(crate) struct RegenerationState {
+    pub(crate) caches_dirty: bool,
+    pub(crate) glyph_cache: GlyphCache,
+    pub(crate) ttf_cache: Option<TtfGlyphCache>,
+    pub(crate) written_outputs: HashMap<String, [u8; 16]>,
+}
+
+struct RegenerationStateLease {
+    slot: Arc<Mutex<Option<RegenerationState>>>,
+    state: Option<RegenerationState>,
+    keep_caches: bool,
+}
+
+impl RegenerationStateLease {
+    fn state_mut(&mut self) -> &mut RegenerationState {
+        self.state.as_mut().unwrap()
+    }
+
+    fn commit(mut self) {
+        self.keep_caches = true;
+    }
+}
+
+impl Drop for RegenerationStateLease {
+    fn drop(&mut self) {
+        let mut state = self.state.take().unwrap();
+        if !self.keep_caches && state.caches_dirty {
+            state.glyph_cache = GlyphCache::default();
+            if state.ttf_cache.is_some() {
+                state.ttf_cache = Some(TtfGlyphCache::default());
+            }
+        }
+        state.caches_dirty = false;
+        *self.slot.lock().unwrap() = Some(state);
+    }
+}
 
 impl GenerateWebfontsResult {
+    fn take_regeneration_state_lease(&self) -> std::io::Result<RegenerationStateLease> {
+        Ok(RegenerationStateLease {
+            slot: Arc::clone(&self.regeneration_state),
+            state: Some(self.take_regeneration_state()?),
+            keep_caches: false,
+        })
+    }
+
     /// Rebuild after a batch of file changes, reusing cached glyph geometry for files whose
     /// contents are unchanged. Requires the result to have been generated with `incremental`
     /// enabled. `ordered_paths` is the complete file set after the changes, in the order a fresh

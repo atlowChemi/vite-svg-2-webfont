@@ -10,9 +10,9 @@ mod types;
 use std::io::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use crate::input::ResolvedGenerateWebfontsOptions;
 use crate::pipeline::TtfGlyphCache;
 use crate::svg::types::ProcessedGlyph;
-use crate::types::ResolvedGenerateWebfontsOptions;
 
 pub(crate) use types::{CachedCompiledGlyph, TtfOptions};
 

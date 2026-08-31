@@ -15,7 +15,8 @@ use super::html::{
     render_html_with_hbs_context,
 };
 use super::shared::{render_with_field_swap, to_io_err};
-use crate::types::{FontType, GenerateWebfontsResult};
+use crate::result::GenerateWebfontsResult;
+use crate::types::FontType;
 
 /// Caches the last rendered CSS/HTML result for repeated calls with the same urls. Cloneable so
 /// an incremental `regenerate` can carry the still-valid entries (provided-URL renders, which

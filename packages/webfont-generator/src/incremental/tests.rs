@@ -4,12 +4,14 @@ use std::path::Path;
 use serde_json::{Map, Value};
 use write_fonts::read::{FontRef, TableProvider};
 
+use super::RegenerationState;
 use crate::input::{
     LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
 };
 use crate::pipeline::generate_webfonts_sync;
+use crate::result::GenerateWebfontsResult;
 use crate::test_helpers::write_temp_template;
-use crate::types::{FontType, GenerateWebfontsResult, GlyphChange, RegenerationState};
+use crate::types::{FontType, GlyphChange};
 use crate::{FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
 
 const D1: &str = "M2 2 L22 2 L22 22 Z";

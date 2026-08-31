@@ -5,7 +5,8 @@ use write_fonts::types::Tag;
 
 use crate::formats::woff2::Woff2TransformCache;
 use crate::input::{
-    LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
+    LoadedSvgFile, ResolvedGenerateWebfontsOptions, finalize_generate_webfonts_options,
+    resolve_generate_webfonts_options,
 };
 use crate::pipeline::build_font_outputs;
 use crate::sfnt::{self, SerializedFontTables};
@@ -14,7 +15,6 @@ use crate::svg::{
     finalize_glyphs, parse_glyphs, prepare_svg_font, prepare_svg_font_incremental,
     svg_options_from_options,
 };
-use crate::types::ResolvedGenerateWebfontsOptions;
 use crate::{GenerateWebfontsOptions, GenerateWebfontsResult};
 
 /// Source fixture used by Rust benchmarks without exposing generator internals.

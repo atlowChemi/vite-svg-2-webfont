@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use crate::input::default_output_dest;
 use crate::rendering::{render_css_with_hbs_context, render_html_with_hbs_context};
-use crate::types::GenerateWebfontsResult;
+use crate::result::GenerateWebfontsResult;
 
 pub(super) enum OutputContents {
     Bytes(Arc<Vec<u8>>),
