@@ -60,9 +60,10 @@ pub fn fixture_font_tables() -> crate::sfnt::SerializedFontTables {
     let svg_options = crate::svg::svg_options_from_options(&options);
     let prepared = crate::svg::prepare_svg_font(&svg_options, &source_files)
         .expect("expected svg preparation to succeed");
-    crate::ttf::generate_ttf_font_from_glyphs(
-        crate::ttf::ttf_options_from_options(&options),
+    crate::sfnt::build(
+        crate::sfnt::ttf_options_from_options(&options),
         &prepared.processed_glyphs,
+        None,
     )
     .expect("expected ttf generation to succeed")
 }

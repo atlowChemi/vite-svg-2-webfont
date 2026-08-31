@@ -1,21 +1,52 @@
 #[cfg(test)]
 mod tests;
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use rayon::join;
 
 use crate::input::LoadedSvgFile;
+use crate::sfnt::{CachedCompiledGlyph, Woff1PayloadCache, Woff2TransformCache};
 use crate::svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
 use crate::svg::{
     build_svg_font, prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options,
 };
-use crate::ttf::{self, TtfGlyphCache};
 use crate::types::{
     FontOutputs, FontType, GenerateWebfontsResult, RegenerationState,
     ResolvedGenerateWebfontsOptions,
 };
 use crate::{eot, sfnt, woff};
+
+#[derive(Clone, Default)]
+pub(crate) struct TtfGlyphCache {
+    pub(crate) entries: HashMap<u64, Arc<CachedCompiledGlyph>>,
+    pub(crate) tables: HashMap<u64, ([u8; 4], Vec<u8>)>,
+    pub(crate) woff1_payloads: Woff1PayloadCache,
+    pub(crate) woff2_transforms: Woff2TransformCache,
+    #[cfg(test)]
+    pub compile_count: usize,
+    #[cfg(test)]
+    pub table_compile_count: usize,
+}
+
+impl TtfGlyphCache {
+    pub(crate) fn output_caches(&mut self) -> (&mut Woff1PayloadCache, &mut Woff2TransformCache) {
+        (&mut self.woff1_payloads, &mut self.woff2_transforms)
+    }
+    #[cfg(test)]
+    pub(crate) fn woff1_payload_compile_count(&self) -> usize {
+        self.woff1_payloads.compile_count()
+    }
+    #[cfg(test)]
+    pub(crate) fn woff2_transform_compile_count(&self) -> usize {
+        self.woff2_transforms.compile_count
+    }
+    #[cfg(feature = "bench")]
+    pub(crate) fn clear_woff1_payloads(&mut self) {
+        self.woff1_payloads.clear();
+    }
+}
 
 pub(crate) fn generate_webfonts_sync(
     options: ResolvedGenerateWebfontsOptions,
@@ -75,19 +106,12 @@ pub(crate) fn build_font_outputs(
         },
         || -> std::io::Result<Option<sfnt::SerializedFontTables>> {
             if wants_ttf || wants_woff || wants_woff2 || wants_eot {
-                let ttf_options = ttf::ttf_options_from_options(options);
-                match ttf_cache.as_deref_mut() {
-                    Some(cache) => ttf::generate_ttf_font_from_glyphs_cached(
-                        ttf_options,
-                        &prepared.processed_glyphs,
-                        cache,
-                    )
-                    .map(Some),
-                    None => {
-                        ttf::generate_ttf_font_from_glyphs(ttf_options, &prepared.processed_glyphs)
-                            .map(Some)
-                    }
-                }
+                sfnt::build(
+                    sfnt::ttf_options_from_options(options),
+                    &prepared.processed_glyphs,
+                    ttf_cache.as_deref_mut(),
+                )
+                .map(Some)
             } else {
                 Ok(None)
             }

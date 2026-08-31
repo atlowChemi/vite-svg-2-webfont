@@ -7,13 +7,12 @@ use crate::input::{
     LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
 };
 use crate::pipeline::build_font_outputs;
-use crate::sfnt::SerializedFontTables;
+use crate::sfnt::{self, SerializedFontTables, Woff2TransformCache};
 use crate::svg::types::{GlyphCache, ParsedGlyph, PreparedSvgFont};
 use crate::svg::{
     finalize_glyphs, parse_glyphs, prepare_svg_font, prepare_svg_font_incremental,
     svg_options_from_options,
 };
-use crate::ttf::{self, Woff2TransformCache};
 use crate::types::ResolvedGenerateWebfontsOptions;
 use crate::{GenerateWebfontsOptions, GenerateWebfontsResult};
 
@@ -139,9 +138,12 @@ pub fn build_serialized_ttf_tables(
 ) -> io::Result<BenchSerializedFontTables> {
     let sources = load_sources(sources);
     let options = resolve(options, &sources)?;
-    let ttf_options = ttf::ttf_options_from_options(&options);
-    ttf::generate_ttf_font_from_glyphs(ttf_options, &prepared.0.processed_glyphs)
-        .map(BenchSerializedFontTables)
+    sfnt::build(
+        sfnt::ttf_options_from_options(&options),
+        &prepared.0.processed_glyphs,
+        None,
+    )
+    .map(BenchSerializedFontTables)
 }
 
 /// Rebuild serialized table metadata from already dumped table bytes.

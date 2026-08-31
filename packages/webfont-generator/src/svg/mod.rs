@@ -1,3 +1,4 @@
+mod geometry;
 mod parse;
 mod process;
 mod serialize;

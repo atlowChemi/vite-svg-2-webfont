@@ -9,9 +9,9 @@ use napi_derive::napi;
 use serde_json::{Map, Value};
 
 use crate::input::LoadedSvgFile;
+use crate::pipeline::TtfGlyphCache;
 use crate::rendering::{CachedTemplateData, CarriedRenderCache};
 use crate::svg::types::GlyphCache;
-use crate::ttf::TtfGlyphCache;
 
 /// What happened to a file, for [`GenerateWebfontsResult::regenerate`]. `name` is the
 /// caller-resolved glyph name (the `rename` callback, if any, is applied by the caller).

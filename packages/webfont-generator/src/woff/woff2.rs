@@ -3,8 +3,9 @@ use std::hash::Hasher;
 use std::io::{Cursor, Error, ErrorKind};
 
 use crate::byte_helpers::BigEndian;
-use crate::sfnt::{SerializedFontTables, SerializedTable};
-use crate::ttf::{Woff2TransformCache, Woff2TransformPayload};
+use crate::sfnt::{
+    SerializedFontTables, SerializedTable, Woff2TransformCache, Woff2TransformPayload,
+};
 use brotli::enc::backward_references::BrotliEncoderMode;
 use brotli::enc::{
     BrotliCompress, BrotliEncoderMaxCompressedSizeMulti, BrotliEncoderParams, Owned, SendAlloc,

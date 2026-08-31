@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use serde_json::{Map, Value};
+use write_fonts::read::{FontRef, TableProvider};
 
 use crate::input::{
     LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
@@ -25,14 +26,14 @@ fn with_regeneration_state<T>(
     read(state.as_ref().unwrap())
 }
 
-fn stable_format_options() -> FormatOptions {
+fn stable_format_options(with_metadata: bool) -> FormatOptions {
     FormatOptions {
         ttf: Some(TtfFormatOptions {
-            copyright: None,
-            description: None,
+            copyright: with_metadata.then(|| "Copyright 2026".to_owned()),
+            description: with_metadata.then(|| "Incremental test font".to_owned()),
             ts: Some(TEST_TTF_TIMESTAMP),
-            url: None,
-            version: None,
+            url: with_metadata.then(|| "https://example.com".to_owned()),
+            version: with_metadata.then(|| "1.0".to_owned()),
         }),
         ..Default::default()
     }
@@ -77,14 +78,23 @@ fn load(paths: &[String]) -> Vec<LoadedSvgFile> {
 }
 
 fn generate(paths: Vec<String>, incremental: bool) -> GenerateWebfontsResult {
+    generate_with_ligatures(paths, incremental, false, false)
+}
+
+fn generate_with_ligatures(
+    paths: Vec<String>,
+    incremental: bool,
+    ligature: bool,
+    with_metadata: bool,
+) -> GenerateWebfontsResult {
     let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
         css: Some(false),
         dest: "artifacts".to_owned(),
         files: paths,
         html: Some(false),
         font_name: Some("rc".to_owned()),
-        format_options: Some(stable_format_options()),
-        ligature: Some(false),
+        format_options: Some(stable_format_options(with_metadata)),
+        ligature: Some(ligature),
         incremental: Some(incremental),
         // These tests assert in-memory parity; don't touch the disk on regenerate.
         write_files: Some(false),
@@ -101,6 +111,62 @@ fn generate(paths: Vec<String>, incremental: bool) -> GenerateWebfontsResult {
     let source_files = load(&resolved.files);
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
     generate_webfonts_sync(resolved, source_files).unwrap()
+}
+
+#[test]
+fn ligature_regeneration_invalidates_name_dependent_tables_and_skips_single_characters() {
+    let dir = temp_dir();
+    let ab = write_icon(&dir, "ab", D1);
+    let x = write_icon(&dir, "x", "");
+    let mut result = generate_with_ligatures(vec![ab.clone(), x.clone()], true, true, true);
+    let before = with_regeneration_state(&result, |state| {
+        state.ttf_cache.as_ref().unwrap().table_compile_count
+    });
+
+    let initial = FontRef::new(result.ttf_bytes().unwrap()).expect("readable ligature TTF");
+    assert!(initial.gsub().is_ok());
+    assert!(
+        initial
+            .cmap()
+            .unwrap()
+            .map_codepoint(u32::from('a'))
+            .is_some()
+    );
+    assert!(
+        initial
+            .cmap()
+            .unwrap()
+            .map_codepoint(u32::from('x'))
+            .is_none()
+    );
+
+    result
+        .regenerate(
+            &[ab.clone(), x.clone()],
+            &[(
+                ab.clone(),
+                GlyphChange::Changed {
+                    name: Some("cd".to_owned()),
+                },
+            )],
+        )
+        .unwrap();
+    let cd = write_icon(&dir, "cd", D1);
+
+    assert_same(
+        &result,
+        &generate_with_ligatures(vec![cd, x], false, true, true),
+    );
+    assert_eq!(
+        with_regeneration_state(&result, |state| state
+            .ttf_cache
+            .as_ref()
+            .unwrap()
+            .table_compile_count),
+        before + 3,
+        "only cmap, post, and GSUB should be rebuilt for a same-length ligature rename"
+    );
+    std::fs::remove_dir_all(&dir).ok();
 }
 
 fn assert_same(actual: &GenerateWebfontsResult, expected: &GenerateWebfontsResult) {
@@ -702,7 +768,7 @@ fn generate_with_css(paths: Vec<String>, incremental: bool) -> GenerateWebfontsR
         files: paths,
         html: Some(false),
         font_name: Some("rc".to_owned()),
-        format_options: Some(stable_format_options()),
+        format_options: Some(stable_format_options(false)),
         ligature: Some(false),
         incremental: Some(incremental),
         // These tests assert in-memory parity; don't touch the disk on regenerate.
@@ -740,7 +806,7 @@ fn generate_with_templates_and_options(
         html: Some(html_template.is_some()),
         html_template,
         font_name: Some("rc".to_owned()),
-        format_options: Some(stable_format_options()),
+        format_options: Some(stable_format_options(false)),
         ligature: Some(false),
         incremental: Some(incremental),
         template_options,
@@ -1253,7 +1319,7 @@ fn generate_writing(paths: Vec<String>, dest: &Path) -> GenerateWebfontsResult {
         files: paths,
         html: Some(false),
         font_name: Some("rc".to_owned()),
-        format_options: Some(stable_format_options()),
+        format_options: Some(stable_format_options(false)),
         ligature: Some(false),
         incremental: Some(true),
         write_files: Some(true),
@@ -1344,7 +1410,7 @@ fn initial_write_seeds_skip_map_for_first_regenerate() {
             files: files.clone(),
             html: Some(false),
             font_name: Some("rc".to_owned()),
-            format_options: Some(stable_format_options()),
+            format_options: Some(stable_format_options(false)),
             ligature: Some(false),
             incremental: Some(true),
             write_files: Some(true),
