@@ -311,7 +311,7 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
         let ttf = state.ttf_cache.as_ref().unwrap();
         (
             ttf.table_compile_count,
-            ttf.woff1_payload_compile_count(),
+            ttf.woff1_payloads.compile_count(),
             ttf.woff2_transform_compile_count(),
         )
     });
@@ -340,7 +340,8 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
             .ttf_cache
             .as_ref()
             .unwrap()
-            .woff1_payload_compile_count()),
+            .woff1_payloads
+            .compile_count()),
         woff_before + 2
     );
     assert_eq!(

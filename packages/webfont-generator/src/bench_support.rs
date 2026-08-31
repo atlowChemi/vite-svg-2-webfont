@@ -193,7 +193,7 @@ pub fn clear_woff1_payload_cache(result: &mut GenerateWebfontsResult) {
     if let Some(state) = result.regeneration_state.lock().unwrap().as_mut()
         && let Some(cache) = state.ttf_cache.as_mut()
     {
-        cache.clear_woff1_payloads();
+        cache.woff1_payloads.clear();
     }
 }
 

@@ -6,8 +6,10 @@ use std::sync::Arc;
 
 use rayon::join;
 
+use crate::formats::woff1::Woff1PayloadCache;
+use crate::formats::{eot, woff1};
 use crate::input::LoadedSvgFile;
-use crate::sfnt::{CachedCompiledGlyph, Woff1PayloadCache, Woff2TransformCache};
+use crate::sfnt::{CachedCompiledGlyph, Woff2TransformCache};
 use crate::svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
 use crate::svg::{
     build_svg_font, prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options,
@@ -16,7 +18,7 @@ use crate::types::{
     FontOutputs, FontType, GenerateWebfontsResult, RegenerationState,
     ResolvedGenerateWebfontsOptions,
 };
-use crate::{eot, sfnt, woff};
+use crate::{sfnt, woff};
 
 #[derive(Clone, Default)]
 pub(crate) struct TtfGlyphCache {
@@ -31,20 +33,9 @@ pub(crate) struct TtfGlyphCache {
 }
 
 impl TtfGlyphCache {
-    pub(crate) fn output_caches(&mut self) -> (&mut Woff1PayloadCache, &mut Woff2TransformCache) {
-        (&mut self.woff1_payloads, &mut self.woff2_transforms)
-    }
-    #[cfg(test)]
-    pub(crate) fn woff1_payload_compile_count(&self) -> usize {
-        self.woff1_payloads.compile_count()
-    }
     #[cfg(test)]
     pub(crate) fn woff2_transform_compile_count(&self) -> usize {
         self.woff2_transforms.compile_count
-    }
-    #[cfg(feature = "bench")]
-    pub(crate) fn clear_woff1_payloads(&mut self) {
-        self.woff1_payloads.clear();
     }
 }
 
@@ -137,10 +128,10 @@ pub(crate) fn build_font_outputs(
         let ttf_tables = Arc::new(ttf_tables);
         let ttf_font = wants_ttf.then(|| ttf_tables.ttf_arc());
         let (woff1_cache, woff2_cache) = match ttf_cache {
-            Some(cache) => {
-                let (woff1, woff2) = cache.output_caches();
-                (Some(woff1), Some(woff2))
-            }
+            Some(cache) => (
+                Some(&mut cache.woff1_payloads),
+                Some(&mut cache.woff2_transforms),
+            ),
             None => (None, None),
         };
         let (woff_font, (woff2_font, eot_font)) = join(
@@ -148,9 +139,9 @@ pub(crate) fn build_font_outputs(
                 if wants_woff {
                     match woff1_cache {
                         Some(cache) => {
-                            woff::tables_to_woff1_cached(&ttf_tables, woff_metadata, cache)
+                            woff1::tables_to_woff1_cached(&ttf_tables, woff_metadata, cache)
                         }
-                        None => woff::tables_to_woff1(&ttf_tables, woff_metadata),
+                        None => woff1::tables_to_woff1(&ttf_tables, woff_metadata),
                     }
                     .map(Some)
                 } else {

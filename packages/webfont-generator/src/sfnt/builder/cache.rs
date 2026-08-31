@@ -3,19 +3,14 @@ use std::hash::Hasher;
 use std::io::Error;
 
 use rustc_hash::FxHasher;
+use write_fonts::FontWrite;
+
+use write_fonts::dump_table;
 use write_fonts::read::TopLevelTable;
 use write_fonts::validate::Validate;
-use write_fonts::{FontWrite, dump_table};
 
 use crate::pipeline::TtfGlyphCache;
 use crate::svg::types::ProcessedGlyph;
-
-#[derive(Clone, Default)]
-pub(crate) struct Woff1PayloadCache {
-    entries: HashMap<u64, Vec<u8>>,
-    #[cfg(test)]
-    compile_count: usize,
-}
 
 #[derive(Clone, Default)]
 pub(crate) struct Woff2TransformCache {
@@ -32,30 +27,6 @@ pub(crate) struct Woff2TransformPayload {
     pub normalized_loca_format: i16,
     pub normalized_loca_len: usize,
     pub normalized_loca_checksum: u32,
-}
-
-impl Woff1PayloadCache {
-    pub(crate) fn woff1_payload(&self, key: &u64) -> Option<Vec<u8>> {
-        self.entries.get(key).cloned()
-    }
-    pub(crate) fn insert_woff1_payload(&mut self, key: u64, payload: Vec<u8>) {
-        #[cfg(test)]
-        {
-            self.compile_count += 1;
-        }
-        self.entries.insert(key, payload);
-    }
-    pub(crate) fn retain_woff1_payloads(&mut self, used_keys: &HashSet<u64>) {
-        self.entries.retain(|key, _| used_keys.contains(key));
-    }
-    #[cfg(test)]
-    pub(crate) fn compile_count(&self) -> usize {
-        self.compile_count
-    }
-    #[cfg(feature = "bench")]
-    pub(crate) fn clear(&mut self) {
-        self.entries.clear();
-    }
 }
 
 impl Woff2TransformCache {
