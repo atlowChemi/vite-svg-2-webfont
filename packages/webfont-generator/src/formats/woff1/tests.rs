@@ -4,34 +4,41 @@ use flate2::read::ZlibDecoder;
 use std::io::Read;
 
 #[test]
-fn injects_metadata_into_woff_header() {
-    let mut woff = vec![0u8; WOFF_HEADER_SIZE];
+fn cached_and_uncached_encoders_inject_metadata() {
+    let tables = fixture_font_tables();
+    let metadata = "<metadata />";
+    let mut cache = Woff1PayloadCache::default();
 
-    inject_woff_metadata(&mut woff, "<metadata />").unwrap();
+    for woff in [
+        tables_to_woff1(&tables, Some(metadata)).unwrap(),
+        tables_to_woff1_cached(&tables, Some(metadata), &mut cache).unwrap(),
+    ] {
+        let total_length = u32::from_be_bytes(woff[LENGTH_POS..LENGTH_POS + 4].try_into().unwrap());
+        let meta_offset = u32::from_be_bytes(
+            woff[META_OFFSET_POS..META_OFFSET_POS + 4]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+        let meta_length = u32::from_be_bytes(
+            woff[META_LENGTH_POS..META_LENGTH_POS + 4]
+                .try_into()
+                .unwrap(),
+        ) as usize;
+        let meta_orig = u32::from_be_bytes(
+            woff[META_ORIG_LENGTH_POS..META_ORIG_LENGTH_POS + 4]
+                .try_into()
+                .unwrap(),
+        );
+        let mut decoded = String::new();
+        ZlibDecoder::new(&woff[meta_offset..meta_offset + meta_length])
+            .read_to_string(&mut decoded)
+            .unwrap();
 
-    assert!(woff.len() > WOFF_HEADER_SIZE);
-
-    let total_length = u32::from_be_bytes(woff[LENGTH_POS..LENGTH_POS + 4].try_into().unwrap());
-    let meta_offset = u32::from_be_bytes(
-        woff[META_OFFSET_POS..META_OFFSET_POS + 4]
-            .try_into()
-            .unwrap(),
-    );
-    let meta_length = u32::from_be_bytes(
-        woff[META_LENGTH_POS..META_LENGTH_POS + 4]
-            .try_into()
-            .unwrap(),
-    );
-    let meta_orig = u32::from_be_bytes(
-        woff[META_ORIG_LENGTH_POS..META_ORIG_LENGTH_POS + 4]
-            .try_into()
-            .unwrap(),
-    );
-
-    assert_eq!(total_length, woff.len() as u32);
-    assert_eq!(meta_offset, WOFF_HEADER_SIZE as u32);
-    assert_eq!(meta_orig, 12);
-    assert!(meta_length > 0);
+        assert_eq!(total_length, woff.len() as u32);
+        assert_eq!(meta_offset % 4, 0);
+        assert_eq!(meta_orig, metadata.len() as u32);
+        assert_eq!(decoded, metadata);
+    }
 }
 
 #[test]
