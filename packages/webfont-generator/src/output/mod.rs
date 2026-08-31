@@ -7,7 +7,7 @@ use std::collections::HashMap;
 
 use tokio::task::JoinSet;
 
-use crate::types::GenerateWebfontsResult;
+use crate::result::GenerateWebfontsResult;
 
 use collect::collect_write_outputs;
 use write::{

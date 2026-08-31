@@ -4,7 +4,7 @@ use super::{
     template_dependencies,
 };
 use crate::input::LoadedSvgFile;
-use crate::types::ResolvedGenerateWebfontsOptions;
+use crate::input::ResolvedGenerateWebfontsOptions;
 use crate::{
     FontType, FormatOptions, GenerateWebfontsOptions, SvgFormatOptions, TtfFormatOptions,
     WoffFormatOptions,

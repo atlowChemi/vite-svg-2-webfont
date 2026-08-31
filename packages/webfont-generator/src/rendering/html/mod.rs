@@ -3,14 +3,14 @@ use std::fs;
 use std::io::Error;
 use std::path::Path;
 
-use crate::input::LoadedSvgFile;
-use crate::rendering::css::{
-    SharedTemplateData, TemplateDependencies, build_css_context_with_fonts_url,
-    render_css_with_context, template_dependencies,
-};
+use crate::input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::rendering::css::{SharedTemplateData, TemplateDependencies};
+
+use crate::rendering::css::build_css_context_with_fonts_url;
+use crate::rendering::css::render_css_with_context;
+use crate::rendering::css::template_dependencies;
 use crate::rendering::paths::{path_to_slashes, relative_path};
 use crate::rendering::shared::to_io_err;
-use crate::types::ResolvedGenerateWebfontsOptions;
 use handlebars::{
     Context, Handlebars, Helper, HelperDef, HelperResult, Output, RenderContext, RenderErrorReason,
 };

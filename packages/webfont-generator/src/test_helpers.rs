@@ -2,13 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::GenerateWebfontsOptions;
-use crate::input::{
-    LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
-};
-use crate::types::ResolvedGenerateWebfontsOptions;
+use crate::input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
 
-pub fn resolve_options(options: GenerateWebfontsOptions) -> ResolvedGenerateWebfontsOptions {
+use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
+pub fn resolve_options(options: crate::GenerateWebfontsOptions) -> ResolvedGenerateWebfontsOptions {
     resolve_generate_webfonts_options(options)
         .unwrap_or_else(|error| panic!("native options should resolve: {error}"))
 }
@@ -45,7 +42,7 @@ pub fn webfont_fixture(name: &str) -> String {
 }
 
 pub fn fixture_font_tables() -> crate::sfnt::SerializedFontTables {
-    let mut options = resolve_options(GenerateWebfontsOptions {
+    let mut options = resolve_options(crate::GenerateWebfontsOptions {
         css: Some(false),
         dest: "artifacts".to_string(),
         files: vec![webfont_fixture("add.svg")],

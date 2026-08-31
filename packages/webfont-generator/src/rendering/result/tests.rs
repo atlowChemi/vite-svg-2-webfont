@@ -3,7 +3,8 @@ use std::sync::{Arc, Mutex};
 
 use crate::input::LoadedSvgFile;
 use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
-use crate::types::{FontOutputs, FontType, GenerateWebfontsOptions, GenerateWebfontsResult};
+use crate::result::{FontOutputs, GenerateWebfontsResult};
+use crate::types::{FontType, GenerateWebfontsOptions};
 
 fn build_result(template: Option<&str>) -> GenerateWebfontsResult {
     build_result_with_templates(template, None)

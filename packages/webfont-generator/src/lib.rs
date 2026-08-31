@@ -68,6 +68,7 @@ mod input;
 mod output;
 mod pipeline;
 mod rendering;
+mod result;
 mod sfnt;
 mod svg;
 #[cfg(test)]
@@ -75,9 +76,9 @@ mod test_helpers;
 mod types;
 
 #[cfg(feature = "napi")]
-use napi::threadsafe_function::ThreadsafeFunction;
+use napi::Status;
 #[cfg(feature = "napi")]
-use napi::{Error as NapiError, Status};
+use napi::threadsafe_function::ThreadsafeFunction;
 #[cfg(feature = "napi")]
 use napi_derive::napi;
 #[cfg(feature = "napi")]
@@ -96,16 +97,13 @@ use rendering::{
     CachedTemplateData, SharedTemplateData, apply_context_function, build_css_context,
     build_html_context, build_html_registry_and_dependencies,
 };
-pub use types::{
-    CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult,
-    GlyphChange, GlyphChangeEntry, HtmlContext, RegenerateError, SvgFormatOptions,
-    TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
-};
-
 #[cfg(feature = "napi")]
-fn to_napi_err(error: impl std::fmt::Display) -> NapiError {
-    NapiError::new(Status::GenericFailure, error.to_string())
-}
+use result::to_napi_err;
+pub use result::{GenerateWebfontsResult, RegenerateError};
+pub use types::{
+    CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GlyphChange, GlyphChangeEntry,
+    HtmlContext, SvgFormatOptions, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
+};
 
 #[cfg(all(test, feature = "napi"))]
 #[unsafe(no_mangle)]
@@ -163,7 +161,7 @@ pub async fn generate_webfonts(
         tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
             .await
             .map_err(|error| {
-                NapiError::new(
+                napi::Error::new(
                     Status::GenericFailure,
                     format!("Native webfont generation task failed: {error}"),
                 )

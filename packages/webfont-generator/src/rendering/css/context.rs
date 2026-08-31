@@ -10,9 +10,9 @@ use serde_json::{Map, Value};
 
 use super::dependencies::{TemplateDependencies, template_dependencies};
 use crate::{
-    input::LoadedSvgFile,
+    input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions},
     rendering::{paths::join_url, shared::to_io_err},
-    types::{FontType, ResolvedGenerateWebfontsOptions},
+    types::FontType,
 };
 
 /// Wraps md5::Context as an io::Write so serde_json can stream directly into

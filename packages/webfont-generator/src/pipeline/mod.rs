@@ -6,17 +6,16 @@ use rayon::join;
 use crate::formats::woff1::Woff1PayloadCache;
 use crate::formats::woff2::Woff2TransformCache;
 use crate::formats::{eot, woff1, woff2};
-use crate::input::LoadedSvgFile;
+use crate::incremental::RegenerationState;
+use crate::input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::result::{FontOutputs, GenerateWebfontsResult};
 use crate::sfnt;
 use crate::sfnt::CachedCompiledGlyph;
 use crate::svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
 use crate::svg::{
     build_svg_font, prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options,
 };
-use crate::types::{
-    FontOutputs, FontType, GenerateWebfontsResult, RegenerationState,
-    ResolvedGenerateWebfontsOptions,
-};
+use crate::types::FontType;
 
 #[derive(Clone, Default)]
 pub(crate) struct TtfGlyphCache {

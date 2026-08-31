@@ -4,9 +4,9 @@ use std::path::Path;
 
 use super::{build_html_context, build_html_registry, render_html_with_context};
 use crate::input::LoadedSvgFile;
+use crate::input::ResolvedGenerateWebfontsOptions;
 use crate::rendering::css::SharedTemplateData;
 use crate::rendering::paths::{path_to_slashes, relative_path};
-use crate::types::ResolvedGenerateWebfontsOptions;
 use crate::{FontType, GenerateWebfontsOptions};
 
 use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};

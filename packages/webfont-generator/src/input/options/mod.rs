@@ -6,7 +6,47 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 use super::files::LoadedSvgFile;
-use crate::types::{FontType, GenerateWebfontsOptions, ResolvedGenerateWebfontsOptions};
+use crate::types::{FontType, FormatOptions, GenerateWebfontsOptions};
+
+#[derive(Clone)]
+pub(crate) struct ResolvedGenerateWebfontsOptions {
+    pub ascent: Option<f64>,
+    pub center_horizontally: Option<bool>,
+    pub center_vertically: Option<bool>,
+    pub css: bool,
+    pub css_dest: String,
+    pub css_template: Option<String>,
+    /// Fully-resolved codepoints for the current glyph set (explicit + auto-assigned). Rebuilt
+    /// by `finalize_generate_webfonts_options` from `explicit_codepoints` whenever the set changes.
+    pub codepoints: BTreeMap<String, u32>,
+    /// The user-supplied codepoints, kept as the stable base so re-resolving after an
+    /// incremental add/remove assigns the same codepoints a fresh build would.
+    pub explicit_codepoints: BTreeMap<String, u32>,
+    pub css_fonts_url: Option<String>,
+    pub descent: Option<f64>,
+    pub dest: String,
+    pub files: Vec<String>,
+    pub fixed_width: Option<bool>,
+    pub format_options: Option<FormatOptions>,
+    pub html: bool,
+    pub incremental: bool,
+    pub html_dest: String,
+    pub html_template: Option<String>,
+    pub font_height: Option<f64>,
+    pub font_name: String,
+    pub font_style: Option<String>,
+    pub font_weight: Option<String>,
+    pub ligature: bool,
+    pub normalize: bool,
+    pub order: Vec<FontType>,
+    pub optimize_output: Option<bool>,
+    pub preserve_aspect_ratio: Option<bool>,
+    pub round: Option<f64>,
+    pub start_codepoint: u32,
+    pub template_options: Option<serde_json::Map<String, serde_json::Value>>,
+    pub types: Vec<FontType>,
+    pub write_files: bool,
+}
 
 const DEFAULT_FONT_TYPES: [FontType; 3] = [FontType::Eot, FontType::Woff, FontType::Woff2];
 
