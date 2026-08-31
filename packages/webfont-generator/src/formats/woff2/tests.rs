@@ -1,20 +1,20 @@
 use super::compress::compress;
 use super::glyf::{transform_cache_key, write_255_u16, write_triplet};
 use super::prepare::prepare;
-use super::serialize::{HEADER_SIZE, KNOWN_TAGS};
-use super::serialize::{assemble, write_base128, write_directory_entry};
+use super::serialize::{HEADER_SIZE, KNOWN_TAGS, assemble, write_base128, write_directory_entry};
 use super::*;
-use crate::sfnt::SerializedTable;
-use crate::sfnt::TtfOptions;
-use crate::sfnt::build;
+use crate::sfnt::{SerializedTable, TtfOptions, build};
 use crate::svg::types::ProcessedGlyph;
 use crate::test_helpers::fixture_font_tables;
-use std::collections::{BTreeMap, HashSet};
-use std::path::Path;
-use write_fonts::read::tables::compute_checksum;
-use write_fonts::read::tables::glyf::Glyph;
-use write_fonts::read::types::GlyphId;
-use write_fonts::read::{FontRef, TableProvider};
+use std::{
+    collections::{BTreeMap, HashSet},
+    path::Path,
+};
+use write_fonts::read::{
+    FontRef, TableProvider,
+    tables::{compute_checksum, glyf::Glyph},
+    types::GlyphId,
+};
 
 const WOFF2_QUALITIES: std::ops::RangeInclusive<u8> = 0..=11;
 type GlyphOutline = (i16, i16, i16, i16, Vec<u16>, Vec<(i16, i16, bool)>);
@@ -501,6 +501,12 @@ fn cache_hits_invalidates_and_prunes() {
 fn rejects_malformed_required_tables() {
     let tables = fixture_font_tables();
 
+    let empty = SerializedFontTables::new(Vec::new()).unwrap();
+    assert_eq!(
+        prepare(&empty, None).err().unwrap().to_string(),
+        "WOFF2 requires tables"
+    );
+
     let mut missing_pair = raw_tables(&tables);
     missing_pair.retain(|(tag, _)| tag != b"loca");
     assert!(prepare(&SerializedFontTables::new(missing_pair).unwrap(), None).is_err());
@@ -522,6 +528,67 @@ fn rejects_malformed_required_tables() {
         .clone();
     duplicate.push((*b"head", head));
     assert!(prepare(&SerializedFontTables::new(duplicate).unwrap(), None).is_err());
+
+    let mut invalid_loca = single_glyph_tables(simple_glyph(0x31, [0, 0, 10, 10]));
+    let glyf_len = table_bytes_mut(&mut invalid_loca, b"glyf").len() as u32;
+    table_bytes_mut(&mut invalid_loca, b"loca")[4..8]
+        .copy_from_slice(&(glyf_len + 1).to_be_bytes());
+    let invalid_loca = SerializedFontTables::new(invalid_loca).unwrap();
+    assert_eq!(
+        prepare(&invalid_loca, None).err().unwrap().to_string(),
+        "loca offsets must be ascending and within glyf"
+    );
+
+    let mut invalid_endpoints = vec![0, 2];
+    invalid_endpoints.extend_from_slice(&[0; 8]);
+    invalid_endpoints.extend_from_slice(&[0, 0, 0, 0, 0, 0, 0x31]);
+    let invalid_endpoints =
+        SerializedFontTables::new(single_glyph_tables(invalid_endpoints)).unwrap();
+    assert_eq!(
+        prepare(&invalid_endpoints, None).err().unwrap().to_string(),
+        "invalid simple glyph contour endpoints"
+    );
+}
+
+#[test]
+fn preserves_simple_glyph_overlap() {
+    let tables =
+        SerializedFontTables::new(single_glyph_tables(simple_glyph(0x71, [0, 0, 10, 10]))).unwrap();
+    let output = encode(&tables, 11, None).unwrap();
+    let decoded = ::woff::version2::decompress(&output).unwrap();
+    let font = FontRef::new(&decoded).unwrap();
+    let glyph = font
+        .loca(None)
+        .unwrap()
+        .get_glyf(GlyphId::new(0), &font.glyf().unwrap())
+        .unwrap()
+        .unwrap();
+    let Glyph::Simple(glyph) = glyph else {
+        panic!("expected a simple glyph");
+    };
+    assert!(glyph.has_overlapping_contours());
+}
+
+#[test]
+fn preserves_noncanonical_simple_glyph_bbox() {
+    let bbox = [-1, -2, 11, 12];
+    let tables = SerializedFontTables::new(single_glyph_tables(simple_glyph(0x31, bbox))).unwrap();
+    let output = encode(&tables, 11, None).unwrap();
+    let decoded = ::woff::version2::decompress(&output).unwrap();
+    let font = FontRef::new(&decoded).unwrap();
+    let glyph = font
+        .loca(None)
+        .unwrap()
+        .get_glyf(GlyphId::new(0), &font.glyf().unwrap())
+        .unwrap()
+        .unwrap();
+    let Glyph::Simple(glyph) = glyph else {
+        panic!("expected a simple glyph");
+    };
+    assert_eq!(
+        [glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()],
+        bbox
+    );
 }
 
 #[test]
@@ -730,6 +797,24 @@ fn raw_tables(tables: &SerializedFontTables) -> Vec<([u8; 4], Vec<u8>)> {
         .iter()
         .map(|table| (table.tag, table.bytes.clone()))
         .collect()
+}
+
+fn simple_glyph(first_flag: u8, bbox: [i16; 4]) -> Vec<u8> {
+    let mut glyph = 1_i16.to_be_bytes().to_vec();
+    glyph.extend(bbox.into_iter().flat_map(i16::to_be_bytes));
+    glyph.extend_from_slice(&[0, 2, 0, 0, first_flag, 0x33, 0x27, 10, 10, 10]);
+    glyph
+}
+
+fn single_glyph_tables(glyph: Vec<u8>) -> Vec<([u8; 4], Vec<u8>)> {
+    let tables = fixture_font_tables();
+    let mut raw = raw_tables(&tables);
+    table_bytes_mut(&mut raw, b"head")[50..52].copy_from_slice(&1_i16.to_be_bytes());
+    table_bytes_mut(&mut raw, b"maxp")[4..6].copy_from_slice(&1_u16.to_be_bytes());
+    let glyph_len = glyph.len() as u32;
+    *table_bytes_mut(&mut raw, b"glyf") = glyph;
+    *table_bytes_mut(&mut raw, b"loca") = [0_u32.to_be_bytes(), glyph_len.to_be_bytes()].concat();
+    raw
 }
 
 fn cached_payload(byte: u8) -> Woff2TransformPayload {
