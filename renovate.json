@@ -19,7 +19,23 @@
         },
         {
             "groupName": "vite-plus",
-            "matchPackageNames": ["vite-plus", "@voidzero-dev/vite-plus-core"]
+            "matchPackageNames": ["vite-plus", "@voidzero-dev/vite-plus-core", "voidzero-dev/setup-vp"]
+        },
+        {
+            "groupName": "pnpm",
+            "matchPackageNames": ["pnpm", "pnpm/setup"]
+        },
+        {
+            "groupName": "iconify-json",
+            "matchPackageNames": ["@iconify-json/logos", "@iconify-json/simple-icons"]
+        },
+        {
+            "groupName": "napi",
+            "matchPackageNames": ["/^@napi-rs\\//", "/^napi(?:-|$)/"]
+        },
+        {
+            "groupName": "vue and vitepress",
+            "matchPackageNames": ["/^@vue\\//", "/^vue(?:-|$)/", "/^vitepress(?:-|$)/"]
         }
     ],
     "postUpdateOptions": ["pnpmDedupe"],
