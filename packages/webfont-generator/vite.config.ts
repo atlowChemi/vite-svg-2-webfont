@@ -1,8 +1,10 @@
-import { defineProject } from 'vite-plus';
+import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
 
-const cargoCache = {
-    input: [{ auto: true } as const, '!target/**'],
-    output: [{ auto: true } as const, '!target/**'],
+type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
+
+const cargoCache: TaskDefinition = {
+    input: [{ auto: true }, '!target/**'],
+    output: [{ auto: true }, '!target/**'],
 };
 
 export default defineProject({
