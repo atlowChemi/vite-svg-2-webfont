@@ -34,6 +34,7 @@ export default defineProject({
         experimental: {
             fsModuleCache: true,
         },
+        typecheck: { enabled: true },
         projects: [
             {
                 test: {
