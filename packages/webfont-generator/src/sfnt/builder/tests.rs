@@ -14,6 +14,8 @@ use super::outlines::SIMPLIFY_TOLERANCE;
 use super::outlines::{point_line_distance, quadratic_path_from_svg_path_data};
 use super::{build, current_unix_timestamp, ttf_options_from_options};
 
+mod proof_font;
+
 fn generate_ttf_font_bytes(options: GenerateWebfontsOptions) -> Result<Vec<u8>, Error> {
     let mut resolved_options = resolve_generate_webfonts_options(options)
         .map_err(|error| Error::new(ErrorKind::InvalidInput, error.to_string()))?;
