@@ -6,6 +6,7 @@ it('exports the public generator API', () => {
     expectTypeOf(generateWebfonts).toBeFunction();
     expectTypeOf(templates).toEqualTypeOf<{ html: string; css: string; scss: string }>();
     expectTypeOf<GenerateWebfontsInputOptions>().toExtend<{ dest: string; files: string[] }>();
+    expectTypeOf<keyof FormatOptions>().toEqualTypeOf<'svg' | 'ttf' | 'woff' | 'woff2'>();
     expectTypeOf<FormatOptions>().toExtend<{
         svg?: { centerVertically?: boolean };
         ttf?: { ts?: number };

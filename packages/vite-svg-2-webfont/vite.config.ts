@@ -55,7 +55,7 @@ const config: UserProjectConfigExport = defineProject({
         experimental: {
             fsModuleCache: true,
         },
-        typecheck: { enabled: true, ignoreSourceErrors: true },
+        typecheck: { enabled: true },
         projects: [
             {
                 test: {
