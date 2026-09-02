@@ -2,7 +2,6 @@ import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
 import { playwright } from 'vite-plus/test/browser-playwright';
 
 type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
-type TestProjects = NonNullable<NonNullable<UserWorkspaceConfig['test']>['projects']>;
 
 const cargoCache: TaskDefinition = {
     input: [{ auto: true }, '!target/**'],
@@ -10,22 +9,33 @@ const cargoCache: TaskDefinition = {
 };
 
 const browser = process.argv.includes('--mode=browser');
-const browserProject: TestProjects[number] = {
-    publicDir: 'tests/browser/fixtures',
-    test: {
-        browser: {
-            enabled: true,
-            headless: true,
-            instances: [{ browser: 'chromium' }, { browser: 'firefox' }, { browser: 'webkit' }],
-            provider: playwright(),
-            screenshotFailures: false,
-        },
-        include: ['tests/browser/**/*.test.ts'],
-        name: 'webfont-generator-browser',
+const test: NonNullable<UserWorkspaceConfig['test']> = {
+    experimental: {
+        fsModuleCache: true,
     },
+    typecheck: { enabled: true },
+    ...(browser
+        ? {
+              browser: {
+                  enabled: true,
+                  headless: true,
+                  instances: [{ browser: 'chromium' }, { browser: 'firefox' }, { browser: 'webkit' }],
+                  provider: playwright(),
+                  screenshotFailures: false,
+              },
+              include: ['tests/browser/**/*.test.ts'],
+              name: 'webfont-generator-browser',
+          }
+        : {
+              benchmark: { include: [] },
+              exclude: ['tests/browser/**'],
+              include: ['tests/**/*.test.ts'],
+              name: 'webfont-generator',
+          }),
 };
 
 export default defineProject({
+    publicDir: browser ? 'tests/browser/fixtures' : undefined,
     run: {
         tasks: {
             check: {
@@ -64,21 +74,5 @@ export default defineProject({
             },
         },
     },
-    test: {
-        experimental: {
-            fsModuleCache: true,
-        },
-        typecheck: { enabled: true },
-        projects: [
-            {
-                test: {
-                    name: 'webfont-generator',
-                    include: ['tests/**/*.test.ts'],
-                    exclude: ['tests/browser/**'],
-                    benchmark: { include: [] },
-                },
-            },
-            ...(browser ? [browserProject] : []),
-        ],
-    },
+    test,
 });
