@@ -38,7 +38,8 @@ automatic weights may be mixed with explicit weights. The default missing-glyph 
 with variants.
 
 Variant font generation is not available yet. Rust generation returns `Unsupported` for validated
-variant input, and the Node.js wrapper does not expose these options yet.
+variant input; the Node.js wrapper exposes the contract and performs the same cheap validation
+before invoking the native binding.
 
 ### Incremental regeneration
 

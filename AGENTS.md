@@ -9,7 +9,7 @@
 
 ## Focused Commands
 
-- Never manually modify, stage, or restore `packages/webfont-generator/binding.{js,d.ts}` or platform `.node` artifacts unless the user explicitly authorizes generated-binding edits. Build and dependent tasks may regenerate them; leave their generated output untouched and report any changes.
+- Never manually modify or restore `packages/webfont-generator/binding.{js,d.ts}` or platform `.node` artifacts unless the user explicitly authorizes it. Build and dependent tasks may regenerate them; stage and commit those generated updates with the source changes that produced them.
 - `vp run @atlowchemi/webfont-generator#build` builds the Rust/NAPI binding and can update `packages/webfont-generator/binding.{js,d.ts}` and platform `.node` artifacts.
 - After changing Rust code, run `vp run @atlowchemi/webfont-generator#check`; it runs Clippy for the default, CLI, and NAPI feature sets and verifies `cargo fmt`.
 - `vp run @atlowchemi/webfont-generator#test` runs Rust checks/tests via the package task; workspace `vp run test` first depends on the NAPI build, then runs JS/Vitest tests.

@@ -2,7 +2,7 @@ import { join, resolve, sep } from 'node:path';
 import { globSync } from 'node:fs';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
-import type { CssContext, FontType, FormatOptions, GenerateWebfontsInputOptions } from '@atlowchemi/webfont-generator';
+import type { CssContext, FontType, FormatOptions, GenerateWebfontsFileOptions } from '@atlowchemi/webfont-generator';
 import type { IndexHtmlTransformContext } from 'vite';
 
 const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
@@ -272,7 +272,7 @@ type RequiredKeys =
     | 'types'
     | 'order'
     | 'fontName';
-interface ParsedOptions<T extends FontType = FontType> extends Omit<GenerateWebfontsInputOptions<T>, RequiredKeys>, Required<Pick<GenerateWebfontsInputOptions<T>, RequiredKeys>> {}
+interface ParsedOptions<T extends FontType = FontType> extends Omit<GenerateWebfontsFileOptions<T>, RequiredKeys>, Required<Pick<GenerateWebfontsFileOptions<T>, RequiredKeys>> {}
 
 export function parseOptions<T extends FontType = FontType>(options: IconPluginOptions<T>): ParsedOptions<T> {
     const formats = parseIconTypesOption<T>(options);
@@ -326,5 +326,5 @@ export function parseOptions<T extends FontType = FontType>(options: IconPluginO
         ...(typeof options.normalize !== 'undefined' && { normalize: options.normalize }),
         ...(typeof options.round !== 'undefined' && { round: options.round }),
         ...(typeof options.descent !== 'undefined' && { descent: options.descent }),
-    } satisfies GenerateWebfontsInputOptions<T>;
+    } satisfies GenerateWebfontsFileOptions<T>;
 }

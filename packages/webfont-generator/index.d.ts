@@ -1,15 +1,18 @@
 import type {
     CssContext as RawCssContext,
+    FontVariant,
     FormatOptions,
     GenerateWebfontsOptions,
     GenerateWebfontsResult as RawGenerateWebfontsResult,
     GlyphChangeEntry,
     HtmlContext as RawHtmlContext,
+    MissingGlyphOptions,
     SvgFormatOptions,
     TtfFormatOptions,
     Woff2FormatOptions,
     WoffFormatOptions,
 } from './binding';
+import { MissingGlyphBehavior } from './binding';
 import * as templates from './templates.js';
 
 /**
@@ -18,6 +21,7 @@ import * as templates from './templates.js';
  * `src:` descriptor.
  */
 export type FontType = 'svg' | 'ttf' | 'eot' | 'woff' | 'woff2';
+export type MultiVariantFontType = Exclude<FontType, 'svg'>;
 
 /**
  * Context object passed to the `cssContext` callback. The named fields are
@@ -33,16 +37,11 @@ export type CssContext = RawCssContext & { [key: string]: unknown };
  */
 export type HtmlContext = RawHtmlContext & { [key: string]: unknown };
 
-/**
- * Options accepted by `generateWebfonts`. Extends the native
- * `GenerateWebfontsOptions` with JS-only callbacks (`cssContext`,
- * `htmlContext`, `rename`) and narrows `types`/`order` so the resolved result
- * type only includes the requested formats.
- *
- * Inferring `T` from `types` lets the returned `GenerateWebfontsResult` know
- * exactly which font properties are non-null.
- */
-export interface GenerateWebfontsInputOptions<T extends FontType = FontType> extends Omit<GenerateWebfontsOptions, 'types' | 'order'> {
+/** Options shared by ordinary and multi-variant generation. */
+export interface GenerateWebfontsBaseOptions extends Omit<
+    GenerateWebfontsOptions,
+    'files' | 'fontWeight' | 'incremental' | 'missingGlyphs' | 'order' | 'types' | 'variantClassPrefix' | 'variants'
+> {
     /**
      * Mutate the Handlebars context before CSS rendering. Modify `context`
      * in-place; the return value is ignored.
@@ -54,20 +53,42 @@ export interface GenerateWebfontsInputOptions<T extends FontType = FontType> ext
      */
     htmlContext?: (context: HtmlContext) => void;
     /**
-     * Order of `@font-face` `src:` entries in the generated CSS. Every entry
-     * must also appear in `types`. Defaults to
-     * `['eot', 'woff2', 'woff', 'ttf', 'svg']` filtered to the requested
-     * `types`.
-     */
-    order?: NoInfer<T>[];
-    /**
      * Derive a custom glyph name from each SVG file path. Receives the file
      * path; must return the glyph name.
      */
     rename?: (name: string) => string;
-    /** Font formats to generate. Defaults to `['eot', 'woff', 'woff2']`. */
-    types?: T[];
 }
+
+/** Generate one ordinary font from a `files` source. */
+export interface GenerateWebfontsFileOptions<T extends FontType = FontType> extends GenerateWebfontsBaseOptions {
+    files: string[];
+    fontWeight?: GenerateWebfontsOptions['fontWeight'];
+    incremental?: GenerateWebfontsOptions['incremental'];
+    missingGlyphs?: never;
+    order?: NoInfer<T>[];
+    types?: T[];
+    variantClassPrefix?: never;
+    variants?: never;
+}
+
+/** Validate a future multi-variant source. Generation is not available yet. */
+export interface GenerateWebfontsVariantOptions<T extends MultiVariantFontType = MultiVariantFontType> extends GenerateWebfontsBaseOptions {
+    files?: never;
+    fontWeight?: never;
+    incremental?: never;
+    missingGlyphs?: MissingGlyphOptions;
+    order?: NoInfer<T>[];
+    types?: T[];
+    variantClassPrefix?: string;
+    variants: FontVariant[];
+}
+
+/**
+ * Options accepted by `generateWebfonts`. Exactly one source, `files` or
+ * `variants`, is required. Inferring `T` from `types` narrows the generated
+ * font properties on the result.
+ */
+export type GenerateWebfontsInputOptions<T extends FontType = FontType> = GenerateWebfontsFileOptions<T> | GenerateWebfontsVariantOptions<Extract<T, MultiVariantFontType>>;
 
 type FontValue<F extends FontType> = F extends 'svg' ? string : Uint8Array;
 
@@ -86,14 +107,15 @@ export type GenerateWebfontsResult<T extends FontType = FontType> = {
     };
 
 /**
- * Generate a webfont from a set of SVG files.
+ * Generate a webfont from ordinary SVG files or validate a multi-variant source.
  *
- * Loads the SVGs listed in `options.files`, builds the configured
- * `options.types` formats, optionally writes them (along with the CSS and
- * HTML preview) to `options.dest`, and resolves to a `GenerateWebfontsResult`
- * holding the font bytes and template-rendering methods.
+ * Ordinary generation loads `options.files`, builds the configured formats,
+ * optionally writes them to `options.dest`, and resolves with the font bytes
+ * and template-rendering methods. Multi-variant generation is not available
+ * yet and rejects after validating `options.variants`.
  */
-export declare function generateWebfonts<T extends FontType = FontType>(options: GenerateWebfontsInputOptions<T>): Promise<GenerateWebfontsResult<T>>;
+export declare function generateWebfonts<T extends FontType = FontType>(options: GenerateWebfontsFileOptions<T>): Promise<GenerateWebfontsResult<T>>;
+export declare function generateWebfonts<T extends MultiVariantFontType = MultiVariantFontType>(options: GenerateWebfontsVariantOptions<T>): Promise<GenerateWebfontsResult<T>>;
 
 export declare namespace generateWebfonts {
     /**
@@ -104,9 +126,12 @@ export declare namespace generateWebfonts {
 
 export {
     FormatOptions,
+    FontVariant,
     GenerateWebfontsOptions,
     GlyphChangeEntry,
     RawGenerateWebfontsResult,
+    MissingGlyphBehavior,
+    MissingGlyphOptions,
     SvgFormatOptions,
     /**
      * Paths of default templates available for use.

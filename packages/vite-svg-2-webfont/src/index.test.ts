@@ -611,7 +611,7 @@ describe('serve - memoizes generated font outputs', () => {
             const trackGetter = (result: Awaited<ReturnType<typeof realGen>>): Awaited<ReturnType<typeof realGen>> => {
                 getterSpies.push(vi.spyOn(result, 'woff2', 'get'));
                 const regenerateAsync = result.regenerateAsync.bind(result);
-                result.regenerateAsync = async (...args) => trackGetter(await regenerateAsync(...args));
+                result.regenerateAsync = async (...args: Parameters<typeof regenerateAsync>) => trackGetter(await regenerateAsync(...args));
                 return result;
             };
             return trackGetter(await realGen(options));

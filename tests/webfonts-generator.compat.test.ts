@@ -9,7 +9,13 @@ import { inflateSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
 import opentype from 'opentype.js';
 import { compile as compileScss } from 'sass';
-import { generateWebfonts, templates as newCoreTemplates, type FontType, type GenerateWebfontsInputOptions, type GenerateWebfontsResult } from '@atlowchemi/webfont-generator';
+import {
+    generateWebfonts,
+    templates as newCoreTemplates,
+    type FontType,
+    type GenerateWebfontsFileOptions as GenerateWebfontsInputOptions,
+    type GenerateWebfontsResult,
+} from '@atlowchemi/webfont-generator';
 
 type ImplementationTarget = {
     enabled: boolean;
