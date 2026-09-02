@@ -98,6 +98,18 @@ export declare const enum FontType {
   Woff2 = 'woff2'
 }
 
+/** One named SVG design in a multi-variant icon family. */
+export interface FontVariant {
+  /** User-facing variant name, used to derive CSS modifier classes. */
+  name: string
+  /** SVG files that belong to this variant. */
+  files: Array<string>
+  /** Optional explicit CSS weight coordinate in the range 1 through 1000. */
+  weight?: number
+  /** Whether this is the family's default variant. Exactly one variant must set this to `true`. */
+  default?: boolean
+}
+
 /**
  * Per-format configuration object. Each field carries options that only apply
  * to the corresponding output format.
@@ -180,7 +192,7 @@ export interface GenerateWebfontsOptions {
   descent?: number
   /** Output directory for generated font files. Required. */
   dest: string
-  /** Paths to the SVG files to include in the font. Required. */
+  /** Paths to the SVG files to include in an ordinary font. Must be empty when `variants` is set. */
   files: Array<string>
   /** When `true`, produces a monospace font sized to the widest glyph. */
   fixedWidth?: boolean
@@ -220,6 +232,8 @@ export interface GenerateWebfontsOptions {
    * a text ligature. Defaults to `true`.
    */
   ligature?: boolean
+  /** Family-wide missing-glyph policy for multi-variant generation. Invalid without `variants`. */
+  missingGlyphs?: MissingGlyphOptions
   /** Scale icons to the height of the tallest icon. Defaults to `true`. */
   normalize?: boolean
   /**
@@ -252,6 +266,16 @@ export interface GenerateWebfontsOptions {
   templateOptions?: Record<string, any>
   /** Font formats to generate. Defaults to `['eot', 'woff', 'woff2']`. */
   types?: Array<FontType>
+  /**
+   * Prefix for generated variant modifier classes. Defaults to `icon--` in variant mode and is
+   * invalid without `variants`.
+   */
+  variantClassPrefix?: string
+  /**
+   * Ordered named SVG designs for one logical icon family. Variant generation is not yet
+   * available; this phase establishes and validates its input contract.
+   */
+  variants?: Array<FontVariant>
   /**
    * Whether to write generated files to disk. Set to `false` for
    * in-memory usage. Defaults to `true`.
@@ -301,6 +325,27 @@ export interface HtmlContext {
    * string for embedding into CSS `content` declarations.
    */
   codepoints: Record<string, number>
+}
+
+/** Family-wide behavior when a logical glyph is absent from a variant. */
+export declare const enum MissingGlyphBehavior {
+  /** Use an empty outline while retaining the logical glyph's advance. */
+  Blank = 'blank',
+  /** Reject generation and report every missing variant/glyph pair. */
+  Error = 'error',
+  /** Reuse the outline from the named fallback variant. */
+  Fallback = 'fallback'
+}
+
+/** Family-wide missing-glyph policy for multi-variant generation. */
+export interface MissingGlyphOptions {
+  /**
+   * Missing-glyph behavior. Variant mode defaults to [`MissingGlyphBehavior::Blank`] when this
+   * object is omitted.
+   */
+  behavior: MissingGlyphBehavior
+  /** Fallback variant name. Required only when `behavior` is `fallback`. */
+  variant?: string
 }
 
 /**
