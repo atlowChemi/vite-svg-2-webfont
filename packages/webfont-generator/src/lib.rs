@@ -101,9 +101,20 @@ use rendering::{
 use result::to_napi_err;
 pub use result::{GenerateWebfontsResult, RegenerateError};
 pub use types::{
-    CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GlyphChange, GlyphChangeEntry,
-    HtmlContext, SvgFormatOptions, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
+    CssContext, FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, GlyphChange,
+    GlyphChangeEntry, HtmlContext, MissingGlyphBehavior, MissingGlyphOptions, SvgFormatOptions,
+    TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
+
+fn reject_unavailable_variant_generation(options: &GenerateWebfontsOptions) -> std::io::Result<()> {
+    if options.variants.is_some() {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "Multi-variant generation is not available yet; this release only validates the input contract.",
+        ));
+    }
+    Ok(())
+}
 
 #[cfg(all(test, feature = "napi"))]
 #[unsafe(no_mangle)]
@@ -153,6 +164,7 @@ pub async fn generate_webfonts(
     >,
 ) -> napi::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
+    reject_unavailable_variant_generation(&options)?;
     let source_files = load_svg_files_napi(&options.files, rename.as_ref()).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
@@ -233,6 +245,7 @@ pub async fn generate(
     rename: Option<RenameFn>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
+    reject_unavailable_variant_generation(&options)?;
     let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
