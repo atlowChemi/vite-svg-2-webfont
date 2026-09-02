@@ -9,6 +9,7 @@ import {
     type GenerateWebfontsBaseOptions,
     type GenerateWebfontsFileOptions,
     type GenerateWebfontsInputOptions,
+    type GenerateWebfontsOptions,
     type GenerateWebfontsResult,
     type GenerateWebfontsVariantOptions,
     type GlyphChangeEntry,
@@ -20,10 +21,16 @@ import {
 it('exports the public generator API', () => {
     expectTypeOf(generateWebfonts).toBeFunction();
     expectTypeOf(templates).toEqualTypeOf<{ html: string; css: string; scss: string }>();
+    expectTypeOf(MissingGlyphBehavior).toEqualTypeOf<{
+        readonly Blank: 'blank';
+        readonly Error: 'error';
+        readonly Fallback: 'fallback';
+    }>();
     expectTypeOf<GenerateWebfontsFileOptions>().toExtend<GenerateWebfontsBaseOptions & { files: string[] }>();
     expectTypeOf<GenerateWebfontsVariantOptions>().toExtend<GenerateWebfontsBaseOptions & { variants: FontVariant[] }>();
     expectTypeOf<{ dest: string }>().not.toExtend<GenerateWebfontsInputOptions>();
     expectTypeOf<{ dest: string; files: string[]; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsInputOptions>();
+    expectTypeOf<GenerateWebfontsOptions>().toEqualTypeOf<GenerateWebfontsInputOptions>();
     expectTypeOf<{ dest: string; incremental: true; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
     expectTypeOf<{ dest: string; types: ['svg']; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
     expectTypeOf<FontVariant>().toExtend<{ name: string; files: string[]; weight?: number; default?: boolean }>();
