@@ -68,16 +68,41 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 ## Options reference
 
 ::: warning Multi-variant contract preview
-The native input contract now validates `variants`, `variantClassPrefix`, and `missingGlyphs`, but
-the JavaScript wrapper does not expose them and variant font generation is not available yet. Keep
-using `files` until generation support lands.
+The wrapper accepts and validates `variants`, `variantClassPrefix`, and `missingGlyphs`, but variant
+font generation is not available yet. Valid variant input currently rejects with an unsupported
+operation error after validation.
 :::
 
 ### `files`
 
-- **Required**
+- **Required for ordinary generation**
 - Type: `string[]`
 - Description: Array of paths to SVG files to include in the font.
+
+Use a non-empty array for ordinary generation. Omit this field when `variants` is provided.
+
+### `variants`
+
+- **Required for multi-variant input**
+- Type: `FontVariant[]`
+- Description: Ordered SVG designs for one logical icon family. Requires at least two uniquely
+  named variants, non-empty `files` in each variant, and exactly one `default: true`. When every
+  `weight` is explicit, weights must be strictly increasing integers from 1 through 1000.
+
+### `variantClassPrefix`
+
+- Type: `string`
+- Default: `'icon--'` in variant mode
+- Description: Prefix for generated variant modifier classes. Whitespace, NUL, and the legacy
+  `templateOptions.variantClassPrefix` location are rejected.
+
+### `missingGlyphs`
+
+- Type: `{ behavior: 'blank' | 'error' | 'fallback'; variant?: string }`
+- Default: `{ behavior: 'blank' }` in variant mode
+- Description: Family-wide policy for glyphs missing from a variant. `fallback` requires the name
+  of an existing variant; other behaviors reject `variant`. Import `MissingGlyphBehavior` from the
+  package for the enum values.
 
 ### `dest`
 

@@ -4,7 +4,7 @@ import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { afterEach, beforeAll, describe, expect, it } from 'vite-plus/test';
 import { generateWebfonts as generateNativeBinding } from '../binding.js';
-import { type FontType, generateWebfonts, type GenerateWebfontsInputOptions } from '../index.js';
+import { type FontType, generateWebfonts, type GenerateWebfontsFileOptions, type GenerateWebfontsVariantOptions, MissingGlyphBehavior } from '../index.js';
 
 const fixturesRoot = join(import.meta.dirname, '..', 'src', 'svg', 'fixtures');
 const webfontFixtures = join(import.meta.dirname, '..', '..', 'vite-svg-2-webfont', 'src', 'fixtures', 'webfont-test', 'svg');
@@ -33,6 +33,79 @@ describe('generateWebfonts', () => {
         types: ['svg'] as FontType[],
         writeFiles: false,
     };
+    const variantOptions = {
+        dest: tmpdir(),
+        types: ['woff2'],
+        variants: [
+            { default: true, files: ['small.svg'], name: 'small', weight: 300 },
+            { files: ['large.svg'], name: 'large', weight: 700 },
+        ],
+        writeFiles: false,
+    } satisfies GenerateWebfontsVariantOptions;
+
+    describe('variant input validation', () => {
+        it('requires either files or variants', () =>
+            expect(generateWebfonts({ dest: tmpdir() } as GenerateWebfontsFileOptions)).rejects.toThrow('Either "options.files" or "options.variants"'));
+
+        it('rejects files alongside variants', () =>
+            expect(generateWebfonts({ ...variantOptions, files: ['icon.svg'] } as unknown as GenerateWebfontsFileOptions)).rejects.toThrow('options.files'));
+
+        it('requires at least two variants', () =>
+            expect(generateWebfonts({ ...variantOptions, variants: variantOptions.variants.slice(0, 1) } as GenerateWebfontsVariantOptions)).rejects.toThrow(
+                'at least two variants',
+            ));
+
+        it('requires files in every variant', () =>
+            expect(
+                generateWebfonts({
+                    ...variantOptions,
+                    variants: [{ ...variantOptions.variants[0], files: [] }, variantOptions.variants[1]],
+                }),
+            ).rejects.toThrow('options.variants[0].files'));
+
+        it('requires unique variant names', () =>
+            expect(
+                generateWebfonts({
+                    ...variantOptions,
+                    variants: [variantOptions.variants[0], { ...variantOptions.variants[1], name: 'small' }],
+                }),
+            ).rejects.toThrow('duplicates variant name'));
+
+        it('requires exactly one default variant', () =>
+            expect(
+                generateWebfonts({
+                    ...variantOptions,
+                    variants: variantOptions.variants.map(variant => ({ ...variant, default: undefined })),
+                }),
+            ).rejects.toThrow('exactly one default variant'));
+
+        it('requires ordered explicit weights', () =>
+            expect(
+                generateWebfonts({
+                    ...variantOptions,
+                    variants: [variantOptions.variants[0], { ...variantOptions.variants[1], weight: 200 }],
+                }),
+            ).rejects.toThrow('must be greater than the preceding explicit weight'));
+
+        it('rejects incremental mode', () =>
+            expect(generateWebfonts({ ...variantOptions, incremental: true } as unknown as GenerateWebfontsFileOptions)).rejects.toThrow('options.incremental'));
+
+        it('rejects SVG output', () =>
+            expect(generateWebfonts({ ...variantOptions, types: ['svg'] } as unknown as GenerateWebfontsFileOptions<'svg'>)).rejects.toThrow('options.types'));
+
+        it('rejects top-level font weight', () =>
+            expect(generateWebfonts({ ...variantOptions, fontWeight: '400' } as unknown as GenerateWebfontsFileOptions)).rejects.toThrow('options.fontWeight'));
+
+        it('requires a valid missing-glyph fallback', () =>
+            expect(
+                generateWebfonts({
+                    ...variantOptions,
+                    missingGlyphs: { behavior: MissingGlyphBehavior.Fallback, variant: 'unknown' },
+                }),
+            ).rejects.toThrow('does not name a configured variant'));
+
+        it('passes valid variants to the native contract guard', () => expect(generateWebfonts(variantOptions)).rejects.toThrow('Multi-variant generation is not available yet'));
+    });
 
     it('applies rename callbacks in file order', async () => {
         const calls: string[] = [];
@@ -549,7 +622,7 @@ describe('output size (deterministic)', () => {
         );
 
         // `fontHeight` is pinned so the em square (and thus byte sizes) is stable.
-        const base: GenerateWebfontsInputOptions = {
+        const base: GenerateWebfontsFileOptions = {
             files,
             dest: `${dir}/`,
             fontName: 'size',
@@ -611,7 +684,7 @@ async function writeRegenIcon(dir: string, name: string, key: string) {
     return path;
 }
 
-const regenBaseOpts = (dir: string, files: string[]): GenerateWebfontsInputOptions => ({
+const regenBaseOpts = (dir: string, files: string[]): GenerateWebfontsFileOptions => ({
     files,
     dest: `${dir}/`,
     fontName: 'rc',
@@ -754,7 +827,7 @@ describe('regenerate (incremental)', () => {
         const dir = await createTempDir('regen-write-src-');
         const dest = await createTempDir('regen-write-out-');
         const [a, b] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b')]);
-        const opts: GenerateWebfontsInputOptions = { files: [a, b], dest, fontName: 'rc', fontHeight: 24, css: true, writeFiles: true, incremental: true, types: ['woff2'] };
+        const opts: GenerateWebfontsFileOptions = { files: [a, b], dest, fontName: 'rc', fontHeight: 24, css: true, writeFiles: true, incremental: true, types: ['woff2'] };
         const result = await generateWebfonts(opts);
 
         const woff2Path = join(dest, 'rc.woff2');

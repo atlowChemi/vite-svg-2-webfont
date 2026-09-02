@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { mkdtemp, writeFile } from 'node:fs/promises';
 import { bench, describe, expect, type BenchOptions } from 'vite-plus/test';
-import { generateWebfonts, type GenerateWebfontsInputOptions } from '@atlowchemi/webfont-generator';
+import { generateWebfonts, type GenerateWebfontsFileOptions as GenerateWebfontsInputOptions } from '@atlowchemi/webfont-generator';
 
 const require = createRequire(import.meta.url);
 const upstreamCallback = require('@vusion/webfonts-generator') as (options: GenerateWebfontsInputOptions, done: (error: unknown, result?: unknown) => void) => void;
