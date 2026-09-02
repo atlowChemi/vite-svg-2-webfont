@@ -70,7 +70,7 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 ::: warning Multi-variant contract preview
 The wrapper accepts and validates `variants`, `variantClassPrefix`, and `missingGlyphs`, but variant
 font generation is not available yet. Valid variant input currently rejects with an unsupported
-operation error after validation.
+operation error after native weight and filename resolution.
 :::
 
 ### `files`
@@ -86,8 +86,14 @@ Use a non-empty array for ordinary generation. Omit this field when `variants` i
 - **Required for multi-variant input**
 - Type: `FontVariant[]`
 - Description: Ordered SVG designs for one logical icon family. Requires at least two uniquely
-  named variants, non-empty `files` in each variant, and exactly one `default: true`. When every
-  `weight` is explicit, weights must be strictly increasing integers from 1 through 1000.
+  named variants, non-empty `files` in each variant, and exactly one `default: true`. Explicit
+  `weight` values are ordered anchors from 1 through 1000. An automatic default resolves to 400;
+  other automatic values resolve outward in steps of 100, or evenly when an anchor interval is too
+  crowded. Every final weight is unique and strictly follows variant order.
+
+Variant names produce separate CSS and filename encodings. Filename components preserve ASCII
+letters, digits, `_`, and `-`; every other UTF-8 byte becomes `~HH`. Platform-special names are
+encoded, and names that collide on case-insensitive filesystems are rejected.
 
 ### `variantClassPrefix`
 

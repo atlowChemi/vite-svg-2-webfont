@@ -174,17 +174,22 @@ pub struct MissingGlyphOptions {
 ```
 
 Variant mode requires at least two uniquely named variants, exactly one default, and either all
-ordinary `files` or `variants`, never both. Every variant needs at least one SVG file. When every
-weight is explicit, weights must be strictly increasing in the range 1–1000; automatic and explicit
-weights may be mixed. Variant names reject NUL and Unicode whitespace. `variant_class_prefix`
-follows CSSOM identifier serialization, so punctuation is escaped instead of rejected.
+ordinary `files` or `variants`, never both. Every variant needs at least one SVG file. Explicit
+weights are ordered anchors in the range 1–1000. An automatic default resolves to 400; other
+automatic values resolve outward in steps of 100, or evenly within a crowded anchor interval.
+Resolved weights are unique and strictly follow variant order.
+
+Variant names reject NUL and Unicode whitespace. `variant_class_prefix` follows CSSOM identifier
+serialization, so punctuation is escaped instead of rejected. Filename components use a separate
+encoding: ASCII letters, digits, `_`, and `-` remain readable, while every other UTF-8 byte becomes
+`~HH`. Platform-special names are encoded, and case-insensitive filename collisions are rejected.
 
 `MissingGlyphBehavior::Blank` is the default. `Fallback` requires an existing variant name;
 `Blank` and `Error` reject a fallback name. SVG output and incremental mode are invalid with
 variants.
 
-This release validates the contract but does not generate variant fonts. `generate()` and
-`generate_sync()` return `io::ErrorKind::Unsupported` after successful variant validation.
+This release resolves the contract but does not generate variant fonts. `generate()` and
+`generate_sync()` return `io::ErrorKind::Unsupported` after successful variant resolution.
 
 ## `FontType`
 
