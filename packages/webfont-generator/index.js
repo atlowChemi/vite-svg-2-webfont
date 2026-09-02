@@ -10,6 +10,11 @@ function coerceCodepoints(codepoints) {
 
 function validateOptions(options) {
     if (!options.dest) throw new Error('"options.dest" is empty.');
+    if (options.cssTemplate === '') throw new Error('"options.cssTemplate" must not be empty.');
+    if (options.htmlTemplate === '') throw new Error('"options.htmlTemplate" must not be empty.');
+    const types = options.types ?? ['eot', 'woff', 'woff2'];
+    const invalidOrder = options.order?.find(type => !types.includes(type));
+    if (invalidOrder) throw new Error(`Invalid font type order: '${invalidOrder}' is not present in 'types'.`);
 
     const variants = options.variants;
     if (variants == null) {

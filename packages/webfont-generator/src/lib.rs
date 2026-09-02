@@ -108,6 +108,7 @@ pub use types::{
 
 fn reject_unavailable_variant_generation(options: &GenerateWebfontsOptions) -> std::io::Result<()> {
     if options.variants.is_some() {
+        resolve_generate_webfonts_options(options.clone())?;
         return Err(std::io::Error::new(
             std::io::ErrorKind::Unsupported,
             "Multi-variant generation is not available yet; this release only validates the input contract.",
