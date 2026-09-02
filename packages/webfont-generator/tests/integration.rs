@@ -8,13 +8,14 @@ use std::path::Path;
 use webfont_generator::{FontType, FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
 
 fn fixture_files() -> Vec<String> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/svg/fixtures/icons/cleanicons");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = root.join("src/svg/fixtures/icons/cleanicons");
     let mut files: Vec<String> = std::fs::read_dir(&dir)
         .expect("fixture dir should exist")
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("svg"))
-        .map(|p| p.to_string_lossy().into_owned())
+        .map(|p| p.strip_prefix(root).unwrap().to_string_lossy().into_owned())
         .collect();
     files.sort();
     files
@@ -109,13 +110,13 @@ fn ordinary_generation_matches_phase_zero_hashes() {
         (
             "css",
             [
-                57, 186, 141, 201, 126, 86, 213, 51, 108, 76, 21, 118, 47, 19, 239, 184,
+                136, 250, 105, 82, 209, 134, 135, 142, 228, 57, 77, 116, 3, 226, 169, 47,
             ],
         ),
         (
             "html",
             [
-                208, 93, 39, 103, 82, 216, 209, 182, 167, 75, 161, 106, 236, 194, 208, 171,
+                76, 103, 148, 169, 227, 75, 202, 234, 64, 0, 178, 137, 20, 186, 173, 91,
             ],
         ),
     ];
