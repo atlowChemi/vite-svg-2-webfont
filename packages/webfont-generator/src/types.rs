@@ -55,11 +55,13 @@ pub enum FontType {
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
 pub struct FontVariant {
-    /// User-facing variant name, used to derive CSS modifier classes.
+    /// User-facing variant name, used to derive CSS modifier classes and an encoded filename
+    /// component.
     pub name: String,
     /// SVG files that belong to this variant.
     pub files: Vec<String>,
-    /// Optional explicit CSS weight coordinate in the range 1 through 1000.
+    /// Optional explicit CSS weight coordinate in the range 1 through 1000. Automatic weights
+    /// resolve outward from the default in steps of 100, or evenly when an interval is crowded.
     pub weight: Option<u16>,
     /// Whether this is the family's default variant. Exactly one variant must set this to `true`.
     pub default: Option<bool>,

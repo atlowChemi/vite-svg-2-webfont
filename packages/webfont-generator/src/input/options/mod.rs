@@ -6,7 +6,33 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 use super::files::LoadedSvgFile;
-use crate::types::{FontType, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior};
+use crate::types::{
+    FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
+};
+
+#[derive(Clone)]
+#[allow(
+    dead_code,
+    reason = "variant metadata is consumed by later generation phases"
+)]
+pub(crate) struct ResolvedVariants {
+    pub variants: Vec<ResolvedFontVariant>,
+    pub default_index: usize,
+}
+
+#[derive(Clone)]
+#[allow(
+    dead_code,
+    reason = "variant metadata is consumed by later generation phases"
+)]
+pub(crate) struct ResolvedFontVariant {
+    pub name: String,
+    pub files: Vec<String>,
+    pub weight: u16,
+    pub class_name: String,
+    pub selector: String,
+    pub filename_component: String,
+}
 
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
@@ -45,6 +71,11 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub start_codepoint: u32,
     pub template_options: Option<serde_json::Map<String, serde_json::Value>>,
     pub types: Vec<FontType>,
+    #[allow(
+        dead_code,
+        reason = "variant metadata is consumed by later generation phases"
+    )]
+    pub variants: Option<ResolvedVariants>,
     pub write_files: bool,
 }
 
@@ -294,6 +325,182 @@ fn validate_variants(
     Ok(())
 }
 
+fn serialize_css_identifier(value: &str) -> String {
+    let characters = value.chars().collect::<Vec<_>>();
+    let mut escaped = String::with_capacity(value.len());
+    for (index, character) in characters.iter().copied().enumerate() {
+        let codepoint = character as u32;
+        if character == '\0' {
+            escaped.push('\u{fffd}');
+        } else if (1..=0x1f).contains(&codepoint)
+            || codepoint == 0x7f
+            || (index == 0 && character.is_ascii_digit())
+            || (index == 1 && character.is_ascii_digit() && characters.first() == Some(&'-'))
+        {
+            escaped.push('\\');
+            escaped.push_str(&format!("{codepoint:x} "));
+        } else if index == 0 && character == '-' && characters.len() == 1 {
+            escaped.push_str("\\-");
+        } else if codepoint >= 0x80
+            || character == '-'
+            || character == '_'
+            || character.is_ascii_alphanumeric()
+        {
+            escaped.push(character);
+        } else {
+            escaped.push('\\');
+            escaped.push(character);
+        }
+    }
+    escaped
+}
+
+fn resolve_variant_weights(
+    variants: &[FontVariant],
+    default_index: usize,
+) -> std::io::Result<Vec<u16>> {
+    let mut weights = variants
+        .iter()
+        .map(|variant| variant.weight)
+        .collect::<Vec<_>>();
+    weights[default_index].get_or_insert(400);
+
+    let mut anchors = Vec::with_capacity(variants.len() + 2);
+    anchors.push((None, 0_u32));
+    anchors.extend(
+        weights
+            .iter()
+            .enumerate()
+            .filter_map(|(index, weight)| weight.map(|weight| (Some(index), u32::from(weight)))),
+    );
+    anchors.push((None, 1001));
+
+    for pair in anchors.windows(2) {
+        let (left_index, left_weight) = pair[0];
+        let (right_index, right_weight) = pair[1];
+        if left_weight >= right_weight {
+            let index = right_index.unwrap_or(variants.len() - 1);
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "\"options.variants[{index}].weight\" must be greater than the preceding resolved weight {left_weight}."
+                ),
+            ));
+        }
+
+        let start = left_index.map_or(0, |index| index + 1);
+        let end = right_index.unwrap_or(variants.len());
+        let count = end - start;
+        if count == 0 {
+            continue;
+        }
+        if right_weight - left_weight - 1 < count as u32 {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "\"options.variants[{start}..{}].weight\" cannot fit {count} automatic weights between {left_weight} and {right_weight}.",
+                    end - 1,
+                ),
+            ));
+        }
+
+        let before_default = right_index.is_some_and(|index| index <= default_index);
+        let step_weights = (0..count)
+            .map(|offset| {
+                if before_default {
+                    i64::from(right_weight) - 100 * (count - offset) as i64
+                } else {
+                    i64::from(left_weight) + 100 * (offset + 1) as i64
+                }
+            })
+            .collect::<Vec<_>>();
+        let step_weights_fit = step_weights
+            .iter()
+            .all(|weight| *weight > i64::from(left_weight) && *weight < i64::from(right_weight));
+
+        for offset in 0..count {
+            let weight = if step_weights_fit {
+                step_weights[offset] as u32
+            } else {
+                left_weight
+                    + (right_weight - left_weight) * (offset as u32 + 1) / (count as u32 + 1)
+            };
+            weights[start + offset] = Some(weight as u16);
+        }
+    }
+
+    Ok(weights.into_iter().map(Option::unwrap).collect())
+}
+
+fn encode_filename_component(value: &str) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_') {
+            encoded.push(char::from(byte));
+        } else {
+            encoded.push_str(&format!("~{byte:02X}"));
+        }
+    }
+
+    let upper = encoded.to_ascii_uppercase();
+    let reserved = matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
+        || ["COM", "LPT"].iter().any(|prefix| {
+            upper.strip_prefix(prefix).is_some_and(|suffix| {
+                matches!(suffix, "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9")
+            })
+        });
+    if reserved {
+        format!("~{:02X}{}", encoded.as_bytes()[0], &encoded[1..])
+    } else {
+        encoded
+    }
+}
+
+fn resolve_variants(
+    variants: &[FontVariant],
+    class_prefix: &str,
+) -> std::io::Result<ResolvedVariants> {
+    let default_index = variants
+        .iter()
+        .position(|variant| variant.default == Some(true))
+        .ok_or_else(|| {
+            Error::new(
+                ErrorKind::InvalidInput,
+                "\"options.variants\" must contain a default variant.",
+            )
+        })?;
+    let weights = resolve_variant_weights(variants, default_index)?;
+    let mut filenames = HashSet::with_capacity(variants.len());
+    let mut resolved = Vec::with_capacity(variants.len());
+
+    for (index, (variant, weight)) in variants.iter().zip(weights).enumerate() {
+        let filename_component = encode_filename_component(&variant.name);
+        if !filenames.insert(filename_component.to_ascii_lowercase()) {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "\"options.variants[{index}].name\" produces a duplicate case-insensitive filename component \"{filename_component}\"."
+                ),
+            ));
+        }
+        let class_name = format!("{class_prefix}{}", variant.name);
+        let selector = serialize_css_identifier(&class_name);
+        resolved.push(ResolvedFontVariant {
+            name: variant.name.clone(),
+            files: variant.files.clone(),
+            weight,
+            class_name,
+            selector,
+            filename_component,
+        });
+    }
+
+    Ok(ResolvedVariants {
+        variants: resolved,
+        default_index,
+    })
+}
+
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
@@ -312,6 +519,16 @@ pub(crate) fn resolve_generate_webfonts_options(
     let write_files = options.write_files.unwrap_or(true);
     let explicit_codepoints: BTreeMap<String, u32> =
         options.codepoints.unwrap_or_default().into_iter().collect();
+    let variants = options
+        .variants
+        .as_deref()
+        .map(|variants| {
+            resolve_variants(
+                variants,
+                options.variant_class_prefix.as_deref().unwrap_or("icon--"),
+            )
+        })
+        .transpose()?;
 
     let svg_format = options
         .format_options
@@ -375,6 +592,7 @@ pub(crate) fn resolve_generate_webfonts_options(
         start_codepoint: options.start_codepoint.unwrap_or(0xF101),
         template_options: options.template_options,
         types,
+        variants,
         write_files,
     })
 }
