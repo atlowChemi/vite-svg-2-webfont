@@ -67,6 +67,12 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 
 ## Options reference
 
+::: warning Multi-variant contract preview
+The native input contract now validates `variants`, `variantClassPrefix`, and `missingGlyphs`, but
+the JavaScript wrapper does not expose them and variant font generation is not available yet. Keep
+using `files` until generation support lands.
+:::
+
 ### `files`
 
 - **Required**
