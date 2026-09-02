@@ -128,34 +128,57 @@ fn ordinary_generation_matches_phase_zero_hashes() {
 
 #[test]
 fn generate_sync_rejects_variant_generation_until_the_pipeline_is_available() {
-    let error = webfont_generator::generate_sync(
-        GenerateWebfontsOptions {
-            dest: "artifacts".to_owned(),
-            files: vec![],
-            types: Some(vec![FontType::Woff2]),
-            variants: Some(vec![
-                FontVariant {
-                    name: "small".to_owned(),
-                    files: vec!["small.svg".to_owned()],
-                    weight: Some(300),
-                    default: Some(true),
-                },
-                FontVariant {
-                    name: "large".to_owned(),
-                    files: vec!["large.svg".to_owned()],
-                    weight: Some(700),
-                    default: None,
-                },
-            ]),
-            ..Default::default()
-        },
-        None,
-    )
-    .err()
-    .expect("variant generation should be unavailable");
+    let error = webfont_generator::generate_sync(variant_options(), None)
+        .err()
+        .expect("variant generation should be unavailable");
 
     assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
     assert!(error.to_string().contains("not available yet"));
+}
+
+#[test]
+fn generate_sync_validates_shared_variant_options_before_the_pipeline_guard() {
+    let mut options = variant_options();
+    options.order = Some(vec![FontType::Eot]);
+    let error = webfont_generator::generate_sync(options, None)
+        .err()
+        .expect("invalid shared options should fail before the pipeline guard");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("not present in 'types'"));
+
+    let mut options = variant_options();
+    options.css = Some(false);
+    options.css_template = Some(String::new());
+    let error = webfont_generator::generate_sync(options, None)
+        .err()
+        .expect("empty template paths should fail before the pipeline guard");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("options.cssTemplate"));
+}
+
+fn variant_options() -> GenerateWebfontsOptions {
+    GenerateWebfontsOptions {
+        dest: "artifacts".to_owned(),
+        files: vec![],
+        types: Some(vec![FontType::Woff2]),
+        variants: Some(vec![
+            FontVariant {
+                name: "small".to_owned(),
+                files: vec!["small.svg".to_owned()],
+                weight: Some(300),
+                default: Some(true),
+            },
+            FontVariant {
+                name: "large".to_owned(),
+                files: vec!["large.svg".to_owned()],
+                weight: Some(700),
+                default: None,
+            },
+        ]),
+        ..Default::default()
+    }
 }
 
 // --- generate_sync tests ---

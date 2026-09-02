@@ -96,6 +96,11 @@ describe('generateWebfonts', () => {
         it('rejects top-level font weight', () =>
             expect(generateWebfonts({ ...variantOptions, fontWeight: '400' } as unknown as GenerateWebfontsFileOptions)).rejects.toThrow('options.fontWeight'));
 
+        it('rejects invalid shared font order', () =>
+            expect(generateWebfonts({ ...variantOptions, order: ['eot'] } as unknown as GenerateWebfontsVariantOptions)).rejects.toThrow("'eot' is not present in 'types'"));
+
+        it('rejects empty shared template paths', () => expect(generateWebfonts({ ...variantOptions, css: false, cssTemplate: '' })).rejects.toThrow('options.cssTemplate'));
+
         it('requires a valid missing-glyph fallback', () =>
             expect(
                 generateWebfonts({

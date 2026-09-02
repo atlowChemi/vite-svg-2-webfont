@@ -2,17 +2,15 @@ import type {
     CssContext as RawCssContext,
     FontVariant,
     FormatOptions,
-    GenerateWebfontsOptions,
+    GenerateWebfontsOptions as RawGenerateWebfontsOptions,
     GenerateWebfontsResult as RawGenerateWebfontsResult,
     GlyphChangeEntry,
     HtmlContext as RawHtmlContext,
-    MissingGlyphOptions,
     SvgFormatOptions,
     TtfFormatOptions,
     Woff2FormatOptions,
     WoffFormatOptions,
 } from './binding';
-import { MissingGlyphBehavior } from './binding';
 import * as templates from './templates.js';
 
 /**
@@ -22,6 +20,17 @@ import * as templates from './templates.js';
  */
 export type FontType = 'svg' | 'ttf' | 'eot' | 'woff' | 'woff2';
 export type MultiVariantFontType = Exclude<FontType, 'svg'>;
+
+export declare const MissingGlyphBehavior: {
+    readonly Blank: 'blank';
+    readonly Error: 'error';
+    readonly Fallback: 'fallback';
+};
+export type MissingGlyphBehavior = (typeof MissingGlyphBehavior)[keyof typeof MissingGlyphBehavior];
+export interface MissingGlyphOptions {
+    behavior: MissingGlyphBehavior;
+    variant?: string;
+}
 
 /**
  * Context object passed to the `cssContext` callback. The named fields are
@@ -39,7 +48,7 @@ export type HtmlContext = RawHtmlContext & { [key: string]: unknown };
 
 /** Options shared by ordinary and multi-variant generation. */
 export interface GenerateWebfontsBaseOptions extends Omit<
-    GenerateWebfontsOptions,
+    RawGenerateWebfontsOptions,
     'files' | 'fontWeight' | 'incremental' | 'missingGlyphs' | 'order' | 'types' | 'variantClassPrefix' | 'variants'
 > {
     /**
@@ -62,8 +71,8 @@ export interface GenerateWebfontsBaseOptions extends Omit<
 /** Generate one ordinary font from a `files` source. */
 export interface GenerateWebfontsFileOptions<T extends FontType = FontType> extends GenerateWebfontsBaseOptions {
     files: string[];
-    fontWeight?: GenerateWebfontsOptions['fontWeight'];
-    incremental?: GenerateWebfontsOptions['incremental'];
+    fontWeight?: RawGenerateWebfontsOptions['fontWeight'];
+    incremental?: RawGenerateWebfontsOptions['incremental'];
     missingGlyphs?: never;
     order?: NoInfer<T>[];
     types?: T[];
@@ -89,6 +98,7 @@ export interface GenerateWebfontsVariantOptions<T extends MultiVariantFontType =
  * font properties on the result.
  */
 export type GenerateWebfontsInputOptions<T extends FontType = FontType> = GenerateWebfontsFileOptions<T> | GenerateWebfontsVariantOptions<Extract<T, MultiVariantFontType>>;
+export type GenerateWebfontsOptions<T extends FontType = FontType> = GenerateWebfontsInputOptions<T>;
 
 type FontValue<F extends FontType> = F extends 'svg' ? string : Uint8Array;
 
@@ -127,11 +137,8 @@ export declare namespace generateWebfonts {
 export {
     FormatOptions,
     FontVariant,
-    GenerateWebfontsOptions,
     GlyphChangeEntry,
     RawGenerateWebfontsResult,
-    MissingGlyphBehavior,
-    MissingGlyphOptions,
     SvgFormatOptions,
     /**
      * Paths of default templates available for use.
