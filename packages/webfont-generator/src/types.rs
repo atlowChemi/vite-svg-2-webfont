@@ -51,6 +51,43 @@ pub enum FontType {
     Woff2,
 }
 
+/// One named SVG design in a multi-variant icon family.
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Clone)]
+pub struct FontVariant {
+    /// User-facing variant name, used to derive CSS modifier classes.
+    pub name: String,
+    /// SVG files that belong to this variant.
+    pub files: Vec<String>,
+    /// Optional explicit CSS weight coordinate in the range 1 through 1000.
+    pub weight: Option<u16>,
+    /// Whether this is the family's default variant. Exactly one variant must set this to `true`.
+    pub default: Option<bool>,
+}
+
+/// Family-wide behavior when a logical glyph is absent from a variant.
+#[cfg_attr(feature = "napi", napi(string_enum = "lowercase"))]
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum MissingGlyphBehavior {
+    /// Use an empty outline while retaining the logical glyph's advance.
+    Blank,
+    /// Reject generation and report every missing variant/glyph pair.
+    Error,
+    /// Reuse the outline from the named fallback variant.
+    Fallback,
+}
+
+/// Family-wide missing-glyph policy for multi-variant generation.
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Clone)]
+pub struct MissingGlyphOptions {
+    /// Missing-glyph behavior. Variant mode defaults to [`MissingGlyphBehavior::Blank`] when this
+    /// object is omitted.
+    pub behavior: MissingGlyphBehavior,
+    /// Fallback variant name. Required only when `behavior` is `fallback`.
+    pub variant: Option<String>,
+}
+
 impl FontType {
     /// Returns the CSS `format()` value (e.g., "truetype", "woff2").
     #[inline]
@@ -195,9 +232,9 @@ pub struct HtmlContext {
     pub codepoints: HashMap<String, u32>,
 }
 
-/// Top-level options controlling webfont generation. Only `dest` and `files`
-/// are required; every other field has a sensible default. See the per-field
-/// docs for defaults and units.
+/// Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
+/// `files` or future `variants`, are required. Variant input is validated and resolved before
+/// returning an unsupported-operation error; every other field has a sensible default.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
 pub struct GenerateWebfontsOptions {
@@ -230,7 +267,7 @@ pub struct GenerateWebfontsOptions {
     pub descent: Option<f64>,
     /// Output directory for generated font files. Required.
     pub dest: String,
-    /// Paths to the SVG files to include in the font. Required.
+    /// Paths to the SVG files to include in an ordinary font. Must be empty when `variants` is set.
     pub files: Vec<String>,
     /// When `true`, produces a monospace font sized to the widest glyph.
     pub fixed_width: Option<bool>,
@@ -260,6 +297,8 @@ pub struct GenerateWebfontsOptions {
     /// Enable ligature support so each glyph can be referenced by its name as
     /// a text ligature. Defaults to `true`.
     pub ligature: Option<bool>,
+    /// Family-wide missing-glyph policy for multi-variant generation. Invalid without `variants`.
+    pub missing_glyphs: Option<MissingGlyphOptions>,
     /// Scale icons to the height of the tallest icon. Defaults to `true`.
     pub normalize: Option<bool>,
     /// Order of `@font-face` `src:` entries in the generated CSS. Every entry
@@ -284,6 +323,12 @@ pub struct GenerateWebfontsOptions {
     pub template_options: Option<Map<String, Value>>,
     /// Font formats to generate. Defaults to `['eot', 'woff', 'woff2']`.
     pub types: Option<Vec<FontType>>,
+    /// Prefix for generated variant modifier classes. Defaults to `icon--` in variant mode and is
+    /// invalid without `variants`.
+    pub variant_class_prefix: Option<String>,
+    /// Ordered named SVG designs for one logical icon family. Variant generation is not yet
+    /// available; valid input is resolved before returning an unsupported-operation error.
+    pub variants: Option<Vec<FontVariant>>,
     /// Whether to write generated files to disk. Set to `false` for
     /// in-memory usage. Defaults to `true`.
     pub write_files: Option<bool>,

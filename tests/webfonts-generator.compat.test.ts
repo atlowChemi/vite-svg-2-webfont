@@ -9,7 +9,14 @@ import { inflateSync } from 'node:zlib';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
 import opentype from 'opentype.js';
 import { compile as compileScss } from 'sass';
-import { generateWebfonts, templates as newCoreTemplates, type FontType, type GenerateWebfontsInputOptions, type GenerateWebfontsResult } from '@atlowchemi/webfont-generator';
+import {
+    generateWebfonts,
+    templates as newCoreTemplates,
+    type FontType,
+    type GenerateWebfontsFileOptions as GenerateWebfontsInputOptions,
+    type GenerateWebfontsResult,
+    MissingGlyphBehavior,
+} from '@atlowchemi/webfont-generator';
 
 type ImplementationTarget = {
     enabled: boolean;
@@ -61,6 +68,10 @@ const sassSilenceDeprecations = ['global-builtin', 'import', 'new-global'] as co
 afterEach(async () => {
     await Promise.all([...cleanupDirs].map(path => rm(path, { force: true, recursive: true })));
     cleanupDirs.clear();
+});
+
+it('exports missing-glyph behavior for isolated modules', () => {
+    expect(MissingGlyphBehavior.Fallback).toBe('fallback');
 });
 
 async function createTempDir(prefix: string): Promise<string> {
@@ -464,6 +475,7 @@ for (const target of targets) {
         });
 
         it('gives error when "files" is empty', async () => {
+            const message = target.name === 'new-core' ? 'Either "options.files" or "options.variants" must be provided.' : '"options.files" is empty.';
             await expect(
                 run(
                     target,
@@ -472,7 +484,7 @@ for (const target of targets) {
                         ...(target.name === 'new-core' && { types: ['svg'] }),
                     }),
                 ),
-            ).rejects.toThrow('"options.files" is empty.');
+            ).rejects.toThrow(message);
         });
 
         it('uses codepoints and startCodepoint', async () => {
@@ -1502,10 +1514,12 @@ describe('compat:webfonts-generator:side-by-side', () => {
         await expect(run(newCoreTarget, baseOptions(validateDest, { files: undefined, types: ['svg'] }))).rejects.toThrow();
     });
 
-    it('matches validation error messages for empty files', async () => {
+    it('reports the accepted source modes for empty files', async () => {
         const validateDest = await createTempDir('__webfonts-compat-side-by-side-empty-files-');
         await expect(run(upstreamTarget, baseOptions(validateDest, { files: [], types: ['svg'] }))).rejects.toThrow('"options.files" is empty.');
-        await expect(run(newCoreTarget, baseOptions(validateDest, { files: [], types: ['svg'] }))).rejects.toThrow('"options.files" is empty.');
+        await expect(run(newCoreTarget, baseOptions(validateDest, { files: [], types: ['svg'] }))).rejects.toThrow(
+            'Either "options.files" or "options.variants" must be provided.',
+        );
     });
 
     it('rejects malformed svg input in both implementations', async () => {

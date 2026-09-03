@@ -6,7 +6,7 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 use super::files::LoadedSvgFile;
-use crate::types::{FontType, FormatOptions, GenerateWebfontsOptions};
+use crate::types::{FontType, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior};
 
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
@@ -68,11 +68,28 @@ pub(crate) fn validate_generate_webfonts_options(
         ));
     }
 
-    if options.files.is_empty() {
-        return Err(std::io::Error::new(
-            ErrorKind::InvalidInput,
-            "\"options.files\" is empty.".to_owned(),
-        ));
+    match options.variants.as_deref() {
+        None => {
+            if options.files.is_empty() {
+                return Err(std::io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "\"options.files\" is empty.".to_owned(),
+                ));
+            }
+            if options.missing_glyphs.is_some() {
+                return Err(std::io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "\"options.missingGlyphs\" requires \"options.variants\".",
+                ));
+            }
+            if options.variant_class_prefix.is_some() {
+                return Err(std::io::Error::new(
+                    ErrorKind::InvalidInput,
+                    "\"options.variantClassPrefix\" requires \"options.variants\".",
+                ));
+            }
+        }
+        Some(variants) => validate_variants(options, variants)?,
     }
 
     if options.css.unwrap_or(true)
@@ -108,6 +125,170 @@ pub(crate) fn validate_generate_webfonts_options(
                 "\"options.formatOptions.woff2.compressionQuality\" must be between 0 and 11, got {quality}."
             ),
         ));
+    }
+
+    Ok(())
+}
+
+fn validate_variants(
+    options: &GenerateWebfontsOptions,
+    variants: &[crate::types::FontVariant],
+) -> std::io::Result<()> {
+    if !options.files.is_empty() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "\"options.files\" must be empty when \"options.variants\" is provided.",
+        ));
+    }
+    if variants.len() < 2 {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "\"options.variants\" must contain at least two variants.",
+        ));
+    }
+    if options
+        .types
+        .as_ref()
+        .is_some_and(|types| types.contains(&FontType::Svg))
+    {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "\"options.types\" cannot include \"svg\" with \"options.variants\".",
+        ));
+    }
+    if options.incremental == Some(true) {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "\"options.incremental\" cannot be true with \"options.variants\".",
+        ));
+    }
+    if options.font_weight.is_some() {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "\"options.fontWeight\" cannot be used with \"options.variants\".",
+        ));
+    }
+    if options
+        .template_options
+        .as_ref()
+        .is_some_and(|template| template.contains_key("variantClassPrefix"))
+    {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "\"options.templateOptions.variantClassPrefix\" cannot be used with \"options.variants\"; use \"options.variantClassPrefix\".",
+        ));
+    }
+
+    let class_prefix = options.variant_class_prefix.as_deref().unwrap_or("icon--");
+    if class_prefix.is_empty()
+        || class_prefix.contains(char::is_whitespace)
+        || class_prefix.contains('\0')
+    {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "\"options.variantClassPrefix\" must be non-empty and contain neither whitespace nor NUL.",
+        ));
+    }
+
+    let mut names = HashSet::with_capacity(variants.len());
+    let mut default_count = 0;
+    for (index, variant) in variants.iter().enumerate() {
+        let path = format!("options.variants[{index}]");
+        if variant.files.is_empty() {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("\"{path}.files\" is empty."),
+            ));
+        }
+        if variant.name.is_empty() {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("\"{path}.name\" is empty."),
+            ));
+        }
+        if variant.name.contains(char::is_whitespace) {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("\"{path}.name\" contains whitespace."),
+            ));
+        }
+        if variant.name.contains('\0') {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("\"{path}.name\" contains NUL."),
+            ));
+        }
+        if !names.insert(&variant.name) {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "\"{path}.name\" duplicates variant name \"{}\".",
+                    variant.name
+                ),
+            ));
+        }
+        if let Some(weight) = variant.weight
+            && !(1..=1000).contains(&weight)
+        {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("\"{path}.weight\" must be between 1 and 1000, got {weight}."),
+            ));
+        }
+        default_count += usize::from(variant.default == Some(true));
+    }
+
+    if default_count != 1 {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            format!(
+                "\"options.variants\" must contain exactly one default variant, found {default_count}."
+            ),
+        ));
+    }
+
+    if variants.iter().all(|variant| variant.weight.is_some()) {
+        for (index, pair) in variants.windows(2).enumerate() {
+            if pair[0].weight >= pair[1].weight {
+                return Err(Error::new(
+                    ErrorKind::InvalidInput,
+                    format!(
+                        "\"options.variants[{}].weight\" must be greater than the preceding explicit weight.",
+                        index + 1,
+                    ),
+                ));
+            }
+        }
+    }
+
+    if let Some(missing) = &options.missing_glyphs {
+        match missing.behavior {
+            MissingGlyphBehavior::Fallback => {
+                let Some(fallback) = missing.variant.as_deref() else {
+                    return Err(Error::new(
+                        ErrorKind::InvalidInput,
+                        "\"options.missingGlyphs.variant\" is required when behavior is \"fallback\".",
+                    ));
+                };
+                if !variants.iter().any(|variant| variant.name == fallback) {
+                    return Err(Error::new(
+                        ErrorKind::InvalidInput,
+                        format!(
+                            "\"options.missingGlyphs.variant\" does not name a configured variant: \"{fallback}\"."
+                        ),
+                    ));
+                }
+            }
+            MissingGlyphBehavior::Blank | MissingGlyphBehavior::Error
+                if missing.variant.is_some() =>
+            {
+                return Err(Error::new(
+                    ErrorKind::InvalidInput,
+                    "\"options.missingGlyphs.variant\" is only valid when behavior is \"fallback\".",
+                ));
+            }
+            MissingGlyphBehavior::Blank | MissingGlyphBehavior::Error => {}
+        }
     }
 
     Ok(())
@@ -275,12 +456,17 @@ fn resolve_codepoints(
         }
 
         while used_codepoints.contains(&next_codepoint) {
-            next_codepoint += 1;
+            next_codepoint = next_codepoint.checked_add(1).ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidInput,
+                    "Unable to assign another glyph codepoint: the u32 range is exhausted.",
+                )
+            })?;
         }
 
         resolved_codepoints.insert(name, next_codepoint);
         used_codepoints.insert(next_codepoint);
-        next_codepoint += 1;
+        next_codepoint = next_codepoint.saturating_add(1);
     }
 
     Ok(resolved_codepoints)

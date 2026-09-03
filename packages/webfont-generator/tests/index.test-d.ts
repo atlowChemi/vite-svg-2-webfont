@@ -1,11 +1,41 @@
 import { expectTypeOf, it } from 'vite-plus/test';
 import { GenerateWebfontsResult as NativeGenerateWebfontsResult, generateWebfonts as generateNativeWebfonts } from '../binding.js';
-import { generateWebfonts, templates, type CssContext, type FormatOptions, type GenerateWebfontsInputOptions, type GlyphChangeEntry, type HtmlContext } from '../index.js';
+import {
+    generateWebfonts,
+    templates,
+    type CssContext,
+    type FontVariant,
+    type FormatOptions,
+    type GenerateWebfontsBaseOptions,
+    type GenerateWebfontsFileOptions,
+    type GenerateWebfontsInputOptions,
+    type GenerateWebfontsOptions,
+    type GenerateWebfontsResult,
+    type GenerateWebfontsVariantOptions,
+    type GlyphChangeEntry,
+    type HtmlContext,
+    MissingGlyphBehavior,
+    type MissingGlyphOptions,
+} from '../index.js';
 
 it('exports the public generator API', () => {
     expectTypeOf(generateWebfonts).toBeFunction();
     expectTypeOf(templates).toEqualTypeOf<{ html: string; css: string; scss: string }>();
-    expectTypeOf<GenerateWebfontsInputOptions>().toExtend<{ dest: string; files: string[] }>();
+    expectTypeOf(MissingGlyphBehavior).toEqualTypeOf<{
+        readonly Blank: 'blank';
+        readonly Error: 'error';
+        readonly Fallback: 'fallback';
+    }>();
+    expectTypeOf<GenerateWebfontsFileOptions>().toExtend<GenerateWebfontsBaseOptions & { files: string[] }>();
+    expectTypeOf<GenerateWebfontsVariantOptions>().toExtend<GenerateWebfontsBaseOptions & { variants: FontVariant[] }>();
+    expectTypeOf<{ dest: string }>().not.toExtend<GenerateWebfontsInputOptions>();
+    expectTypeOf<{ dest: string; files: string[]; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsInputOptions>();
+    expectTypeOf<GenerateWebfontsOptions>().toEqualTypeOf<GenerateWebfontsInputOptions>();
+    expectTypeOf<{ dest: string; incremental: true; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
+    expectTypeOf<{ dest: string; incremental: false; variants: FontVariant[] }>().toExtend<GenerateWebfontsVariantOptions>();
+    expectTypeOf<{ dest: string; types: ['svg']; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
+    expectTypeOf<FontVariant>().toExtend<{ name: string; files: string[]; weight?: number; default?: boolean }>();
+    expectTypeOf<MissingGlyphOptions>().toEqualTypeOf<{ behavior: MissingGlyphBehavior; variant?: string }>();
     expectTypeOf<keyof FormatOptions>().toEqualTypeOf<'svg' | 'ttf' | 'woff' | 'woff2'>();
     expectTypeOf<FormatOptions>().toExtend<{
         svg?: { centerVertically?: boolean };
@@ -18,6 +48,23 @@ it('exports the public generator API', () => {
         changeType: 'added' | 'changed' | 'removed';
         name?: string;
     }>();
+});
+
+it('accepts the multi-variant contract', () => {
+    expectTypeOf(
+        generateWebfonts({
+            dest: 'fonts',
+            types: ['woff2'],
+            variants: [
+                { default: true, files: ['small.svg'], name: 'small', weight: 300 },
+                { files: ['large.svg'], name: 'large', weight: 700 },
+            ],
+            missingGlyphs: {
+                behavior: MissingGlyphBehavior.Fallback,
+                variant: 'small',
+            },
+        }),
+    ).toEqualTypeOf<Promise<GenerateWebfontsResult<'woff2'>>>();
 });
 
 it('narrows generated formats from the input', async () => {
@@ -50,21 +97,8 @@ it('narrows generated formats from the input', async () => {
 
 it('rejects invalid format combinations and callbacks', () => {
     expectTypeOf(generateWebfonts).toBeFunction();
-
-    void generateWebfonts({
-        dest: 'fonts',
-        files: ['icon.svg'],
-        types: ['woff2'],
-        // @ts-expect-error order is restricted to selected formats
-        order: ['svg'],
-    });
-
-    void generateWebfonts({
-        dest: 'fonts',
-        files: ['icon.svg'],
-        // @ts-expect-error rename must return a glyph name
-        rename: () => 1,
-    });
+    expectTypeOf<{ dest: string; files: string[]; order: ['svg']; types: ['woff2'] }>().not.toExtend<GenerateWebfontsFileOptions<'woff2'>>();
+    expectTypeOf<{ dest: string; files: string[]; rename: () => number }>().not.toExtend<GenerateWebfontsFileOptions>();
 });
 
 it('keeps the generated NAPI declarations compatible', () => {

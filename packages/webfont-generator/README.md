@@ -27,6 +27,20 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
 
+### Multi-variant contract preview
+
+The Rust API defines and validates the future multi-variant input contract through
+`FontVariant`, `MissingGlyphBehavior`, and `MissingGlyphOptions`. Set either ordinary `files` or
+`variants`, not both; variant mode requires at least two uniquely named variants and exactly one
+default. When every weight is explicit, weights must be strictly increasing in the range 1–1000;
+automatic weights may be mixed with explicit weights. The default missing-glyph behavior is
+`blank`; `fallback` requires an existing variant name. SVG output and incremental mode are invalid
+with variants.
+
+Variant font generation is not available yet. Rust generation returns `Unsupported` for validated
+variant input; the Node.js wrapper exposes the contract and performs the same cheap validation
+before invoking the native binding.
+
 ### Incremental regeneration
 
 ```js

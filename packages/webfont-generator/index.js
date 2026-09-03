@@ -1,5 +1,6 @@
-import { generateWebfonts as generateNativeBinding } from './binding.js';
+import { generateWebfonts as generateNativeBinding, MissingGlyphBehavior } from './binding.js';
 import * as templates from './templates.js';
+import { validateOptions } from './validations.js';
 
 const UPSTREAM_TTF_COMPAT_TS = 1_484_141_760_000;
 
@@ -9,13 +10,13 @@ function coerceCodepoints(codepoints) {
 }
 
 async function generateWebfonts(options) {
-    if (!options.dest) throw new Error('"options.dest" is empty.');
-    if (!options.files?.length) throw new Error('"options.files" is empty.');
+    validateOptions(options);
 
     const { rename, cssContext, htmlContext, ...nativeFields } = options;
 
     const nativeOptions = {
         ...nativeFields,
+        files: options.files ?? [],
         codepoints: coerceCodepoints(options.codepoints),
         cssTemplate: options.cssTemplate,
         htmlTemplate: options.htmlTemplate,
@@ -55,4 +56,4 @@ async function generateWebfonts(options) {
 
 generateWebfonts.templates = templates;
 
-export { generateWebfonts, templates };
+export { generateWebfonts, MissingGlyphBehavior, templates };
