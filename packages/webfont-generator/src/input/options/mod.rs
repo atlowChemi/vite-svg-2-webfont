@@ -8,6 +8,7 @@ use std::path::Path;
 use super::files::LoadedSvgFile;
 use crate::types::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
+    MissingGlyphOptions,
 };
 
 #[derive(Clone)]
@@ -63,6 +64,7 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub font_style: Option<String>,
     pub font_weight: Option<String>,
     pub ligature: bool,
+    pub missing_glyphs: MissingGlyphOptions,
     pub normalize: bool,
     pub order: Vec<FontType>,
     pub optimize_output: Option<bool>,
@@ -584,6 +586,10 @@ pub(crate) fn resolve_generate_webfonts_options(
         font_style: options.font_style,
         font_weight: options.font_weight,
         ligature: options.ligature.unwrap_or(true),
+        missing_glyphs: options.missing_glyphs.unwrap_or(MissingGlyphOptions {
+            behavior: MissingGlyphBehavior::Blank,
+            variant: None,
+        }),
         normalize: options.normalize.unwrap_or(true),
         order,
         optimize_output,

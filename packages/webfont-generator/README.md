@@ -40,9 +40,10 @@ missing-glyph behavior is `blank`; `fallback` requires an existing variant name.
 incremental mode are invalid with variants.
 
 Variant font generation is not available yet. Valid variant input is loaded in parallel, renamed in
-variant and file order, joined into a logical glyph union, and assigned shared codepoints before
-Rust generation returns `Unsupported`. The Node.js wrapper exposes the contract and performs cheap
-validation before invoking the native binding.
+variant and file order, joined into a logical glyph union, assigned shared codepoints, and resolved
+according to the configured missing-glyph behavior before Rust generation returns `Unsupported`.
+The Node.js wrapper exposes the contract and performs cheap validation before invoking the native
+binding.
 
 ### Incremental regeneration
 
