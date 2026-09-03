@@ -335,11 +335,28 @@ fn encodes_filesystem_safe_variant_names() {
         ("..", "~2E~2E"),
         ("café", "caf~C3~A9"),
         ("CON", "~43ON"),
+        ("COM1", "~43OM1"),
+        ("LPT9", "~4CPT9"),
         ("\u{1}", "~01"),
         ("a b", "a~20b"),
     ] {
         assert_eq!(encode_filename_component(name), expected);
     }
+}
+
+#[test]
+fn resolver_rejects_variants_without_a_default() {
+    let mut options = variant_options();
+    for variant in options.variants.as_mut().unwrap() {
+        variant.default = None;
+    }
+
+    let error = resolve_generate_webfonts_options(options)
+        .err()
+        .expect("expected unresolved variants without a default to fail");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("must contain a default variant"));
 }
 
 #[test]
