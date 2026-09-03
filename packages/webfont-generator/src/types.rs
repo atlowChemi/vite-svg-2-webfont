@@ -235,8 +235,9 @@ pub struct HtmlContext {
 }
 
 /// Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
-/// `files` or future `variants`, are required. Variant input is validated and resolved before
-/// returning an unsupported-operation error; every other field has a sensible default.
+/// `files` or future `variants`, are required. Variant input is resolved, its SVGs are loaded and
+/// renamed, and logical glyphs receive shared codepoints before an unsupported-operation error is
+/// returned; every other field has a sensible default.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
 pub struct GenerateWebfontsOptions {
