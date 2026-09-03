@@ -282,8 +282,8 @@ export interface GenerateWebfontsOptions {
   variantClassPrefix?: string
   /**
    * Ordered named SVG designs for one logical icon family. Variant generation is not yet
-   * available; validated variants resolve weights and filename components before returning an
-   * unsupported-operation error.
+   * available; valid input resolves metadata, loads and renames SVGs, joins logical glyphs, and
+   * assigns shared codepoints before returning an unsupported-operation error.
    */
   variants?: Array<FontVariant>
   /**
