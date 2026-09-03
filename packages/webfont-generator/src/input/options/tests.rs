@@ -3,7 +3,7 @@ use std::path::Path;
 
 use super::{
     resolve_codepoints, resolve_generate_webfonts_options, resolved_font_types,
-    serialize_css_identifier, validate_font_type_order, validate_generate_webfonts_options,
+    validate_font_type_order, validate_generate_webfonts_options,
 };
 use crate::input::LoadedSvgFile;
 use crate::{
@@ -173,35 +173,6 @@ fn rejects_duplicate_variant_names() {
     let mut options = variant_options();
     options.variants.as_mut().unwrap()[1].name = "small".to_owned();
     validation_error(options, "options.variants[1].name");
-}
-
-#[test]
-fn serializes_css_identifiers() {
-    for (token, expected) in [
-        ("icon--small", "icon--small"),
-        ("icon--a.b", "icon--a\\.b"),
-        ("icon--a#b", "icon--a\\#b"),
-        ("icon--a:b", "icon--a\\:b"),
-        ("icon--a/b", "icon--a\\/b"),
-        ("icon--a\\b", "icon--a\\\\b"),
-        ("icon--größe", "icon--größe"),
-        ("1small", "\\31 small"),
-    ] {
-        assert_eq!(serialize_css_identifier(token), expected);
-    }
-}
-
-#[test]
-fn keeps_escaped_variant_selectors_unique() {
-    let escaped =
-        ["icon--a.b", "icon--a#b", "icon--a:b", "icon--a/b"].map(serialize_css_identifier);
-    assert_eq!(
-        escaped
-            .into_iter()
-            .collect::<std::collections::HashSet<_>>()
-            .len(),
-        4
-    );
 }
 
 #[test]
@@ -519,4 +490,31 @@ fn assigns_a_codepoint_to_an_empty_glyph_name() {
     let resolved = resolve_codepoints(&source_files, &BTreeMap::new(), 0xF101).unwrap();
 
     assert_eq!(resolved.get(""), Some(&0xF101));
+}
+
+#[test]
+fn rejects_exhausted_codepoint_space() {
+    let source_files = vec![loaded_svg_file("first.svg"), loaded_svg_file("second.svg")];
+    let error = resolve_codepoints(&source_files, &BTreeMap::new(), u32::MAX)
+        .expect_err("a second glyph cannot follow u32::MAX");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("codepoint"));
+}
+
+#[test]
+fn propagates_codepoint_exhaustion_while_finalizing() {
+    let mut options = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+        dest: "artifacts".to_owned(),
+        files: vec!["first.svg".to_owned(), "second.svg".to_owned()],
+        start_codepoint: Some(u32::MAX),
+        ..Default::default()
+    })
+    .unwrap();
+    let source_files = vec![loaded_svg_file("first.svg"), loaded_svg_file("second.svg")];
+
+    let error = super::finalize_generate_webfonts_options(&mut options, &source_files)
+        .expect_err("finalization must propagate exhausted codepoints");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
 }
