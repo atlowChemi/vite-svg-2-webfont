@@ -71,7 +71,8 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 The wrapper accepts and validates `variants`, `variantClassPrefix`, and `missingGlyphs`, but variant
 font generation is not available yet. The native binding loads valid variant files, applies `rename`
 in variant and file order, joins matching names into one logical glyph, and assigns shared
-codepoints before returning an unsupported-operation error.
+codepoints before resolving the configured missing-glyph behavior and returning an
+unsupported-operation error.
 :::
 
 ### `files`
@@ -108,8 +109,8 @@ encoded, and names that collide on case-insensitive filesystems are rejected.
 - Type: `{ behavior: 'blank' | 'error' | 'fallback'; variant?: string }`
 - Default: `{ behavior: 'blank' }` in variant mode
 - Description: Family-wide policy for glyphs missing from a variant. `fallback` requires the name
-  of an existing variant; other behaviors reject `variant`. Import `MissingGlyphBehavior` from the
-  package for the enum values.
+  of an existing variant that contains every logical glyph in the family; other behaviors reject
+  `variant`. Import `MissingGlyphBehavior` from the package for the enum values.
 
 ### `dest`
 

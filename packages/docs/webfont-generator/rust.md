@@ -184,15 +184,16 @@ serialization, so punctuation is escaped instead of rejected. Filename component
 encoding: ASCII letters, digits, `_`, and `-` remain readable, while every other UTF-8 byte becomes
 `~HH`. Platform-special names are encoded, and case-insensitive filename collisions are rejected.
 
-`MissingGlyphBehavior::Blank` is the default. `Fallback` requires an existing variant name;
-`Blank` and `Error` reject a fallback name. SVG output and incremental mode are invalid with
-variants.
+`MissingGlyphBehavior::Blank` is the default. `Fallback` requires an existing variant that contains
+every logical glyph in the family; `Blank` and `Error` reject a fallback name. SVG output and
+incremental mode are invalid with variants.
 
 This release loads and resolves variant sources but does not generate variant fonts. Files load in
 parallel while rename callbacks retain variant and file order. Matching names across variants join
 one logical glyph and receive one shared codepoint; duplicate names within a variant are rejected.
-`generate()` and `generate_sync()` return `io::ErrorKind::Unsupported` after successful source
-resolution.
+Missing source cells then become explicit blanks, errors, or references to the configured fallback
+variant. `generate()` and `generate_sync()` return `io::ErrorKind::Unsupported` after successful
+source and missing-glyph resolution.
 
 ## `FontType`
 

@@ -444,6 +444,14 @@ fn validates_missing_glyph_policies() {
 }
 
 #[test]
+fn defaults_missing_glyph_policy_to_blank() {
+    let resolved = resolve_generate_webfonts_options(variant_options()).unwrap();
+
+    assert!(resolved.missing_glyphs.behavior == MissingGlyphBehavior::Blank);
+    assert!(resolved.missing_glyphs.variant.is_none());
+}
+
+#[test]
 fn rejects_invalid_missing_glyph_fallbacks() {
     for variant in [None, Some("unknown".to_owned())] {
         let mut options = variant_options();

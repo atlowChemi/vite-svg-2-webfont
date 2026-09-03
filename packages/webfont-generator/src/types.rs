@@ -75,7 +75,7 @@ pub enum MissingGlyphBehavior {
     Blank,
     /// Reject generation and report every missing variant/glyph pair.
     Error,
-    /// Reuse the outline from the named fallback variant.
+    /// Reuse the outline from the named fallback variant, which must contain every logical glyph.
     Fallback,
 }
 
@@ -86,7 +86,8 @@ pub struct MissingGlyphOptions {
     /// Missing-glyph behavior. Variant mode defaults to [`MissingGlyphBehavior::Blank`] when this
     /// object is omitted.
     pub behavior: MissingGlyphBehavior,
-    /// Fallback variant name. Required only when `behavior` is `fallback`.
+    /// Fallback variant name. Required only when `behavior` is `fallback`; the named variant must
+    /// contain every logical glyph in the family.
     pub variant: Option<String>,
 }
 
@@ -236,8 +237,8 @@ pub struct HtmlContext {
 
 /// Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
 /// `files` or future `variants`, are required. Variant input is resolved, its SVGs are loaded and
-/// renamed, and logical glyphs receive shared codepoints before an unsupported-operation error is
-/// returned; every other field has a sensible default.
+/// renamed, and logical glyphs receive shared codepoints and explicit missing-glyph states before
+/// an unsupported-operation error is returned; every other field has a sensible default.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
 pub struct GenerateWebfontsOptions {
@@ -300,7 +301,8 @@ pub struct GenerateWebfontsOptions {
     /// Enable ligature support so each glyph can be referenced by its name as
     /// a text ligature. Defaults to `true`.
     pub ligature: Option<bool>,
-    /// Family-wide missing-glyph policy for multi-variant generation. Invalid without `variants`.
+    /// Family-wide missing-glyph policy for multi-variant generation. Defaults to `blank` and is
+    /// invalid without `variants`.
     pub missing_glyphs: Option<MissingGlyphOptions>,
     /// Scale icons to the height of the tallest icon. Defaults to `true`.
     pub normalize: Option<bool>,
@@ -331,7 +333,8 @@ pub struct GenerateWebfontsOptions {
     pub variant_class_prefix: Option<String>,
     /// Ordered named SVG designs for one logical icon family. Variant generation is not yet
     /// available; valid input resolves metadata, loads and renames SVGs, joins logical glyphs, and
-    /// assigns shared codepoints before returning an unsupported-operation error.
+    /// assigns shared codepoints and explicit missing-glyph states before returning an
+    /// unsupported-operation error.
     pub variants: Option<Vec<FontVariant>>,
     /// Whether to write generated files to disk. Set to `false` for
     /// in-memory usage. Defaults to `true`.
