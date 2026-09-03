@@ -3,8 +3,8 @@ use std::path::Path;
 
 use super::{
     encode_filename_component, resolve_codepoints, resolve_generate_webfonts_options,
-    resolve_variant_weights, resolved_font_types, serialize_css_identifier,
-    validate_font_type_order, validate_generate_webfonts_options,
+    resolve_variant_weights, resolved_font_types, validate_font_type_order,
+    validate_generate_webfonts_options,
 };
 use crate::input::LoadedSvgFile;
 use crate::{
@@ -707,8 +707,12 @@ fn assigns_a_codepoint_to_an_empty_glyph_name() {
 #[test]
 fn rejects_exhausted_codepoint_space() {
     let source_files = vec![loaded_svg_file("first.svg"), loaded_svg_file("second.svg")];
-    let error = resolve_codepoints(&source_files, &BTreeMap::new(), u32::MAX)
-        .expect_err("a second glyph cannot follow u32::MAX");
+    let error = resolve_codepoints(
+        source_files.iter().map(|file| file.glyph_name.as_str()),
+        &BTreeMap::new(),
+        u32::MAX,
+    )
+    .expect_err("a second glyph cannot follow u32::MAX");
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     assert!(error.to_string().contains("codepoint"));
