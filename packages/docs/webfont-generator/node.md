@@ -71,7 +71,8 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 The wrapper accepts and validates `variants`, `variantClassPrefix`, and `missingGlyphs`, but variant
 font generation is not available yet. The native binding loads valid variant files, applies `rename`
 in variant and file order, joins matching names into one logical glyph, and assigns shared
-codepoints before resolving the configured missing-glyph behavior and returning an
+codepoints before resolving the configured missing-glyph behavior. It then parses and processes the
+SVGs with shared family metrics and stable logical advances before returning an
 unsupported-operation error.
 :::
 
