@@ -13,6 +13,7 @@ use napi::{Error as NapiError, Status};
 use tokio::task::JoinSet;
 
 use super::options::resolve_codepoints;
+use crate::types::MissingGlyphBehavior;
 
 #[derive(Clone)]
 pub(crate) struct LoadedSvgFile {
@@ -37,7 +38,16 @@ pub(crate) struct VariantFamilySources {
 pub(crate) struct LogicalGlyphSources {
     pub name: String,
     pub codepoint: u32,
-    pub sources: Box<[Option<usize>]>,
+    pub sources: Box<[Option<VariantGlyphSource>]>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum VariantGlyphSource {
+    Source {
+        variant_index: usize,
+        source_index: usize,
+    },
+    Blank,
 }
 
 #[cfg(feature = "napi")]
@@ -199,7 +209,7 @@ pub(crate) fn build_variant_family_sources(
     start_codepoint: u32,
 ) -> std::io::Result<(VariantFamilySources, BTreeMap<String, u32>)> {
     let mut name_to_index = HashMap::new();
-    let mut glyphs = Vec::<(String, Box<[Option<usize>]>)>::new();
+    let mut glyphs = Vec::<(String, Box<[Option<VariantGlyphSource>]>)>::new();
 
     for (variant_index, files) in variants.iter().enumerate() {
         for (source_index, file) in files.iter().enumerate() {
@@ -213,7 +223,10 @@ pub(crate) fn build_variant_family_sources(
                     ));
                     index
                 });
-            glyphs[glyph_index].1[variant_index] = Some(source_index);
+            glyphs[glyph_index].1[variant_index] = Some(VariantGlyphSource::Source {
+                variant_index,
+                source_index,
+            });
         }
     }
 
@@ -232,6 +245,73 @@ pub(crate) fn build_variant_family_sources(
         .collect();
 
     Ok((VariantFamilySources { variants, glyphs }, codepoints))
+}
+
+pub(crate) fn resolve_missing_glyphs(
+    family: &mut VariantFamilySources,
+    behavior: MissingGlyphBehavior,
+    fallback_index: Option<usize>,
+    variant_names: &[&str],
+) -> std::io::Result<()> {
+    if behavior == MissingGlyphBehavior::Error {
+        let missing = family
+            .glyphs
+            .iter()
+            .flat_map(|glyph| {
+                glyph
+                    .sources
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, source)| source.is_none())
+                    .map(|(variant_index, _)| {
+                        format!(
+                            "\"{}\" in variant \"{}\"",
+                            glyph.name, variant_names[variant_index]
+                        )
+                    })
+            })
+            .collect::<Vec<_>>();
+        if !missing.is_empty() {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!("Missing glyphs: {}.", missing.join(", ")),
+            ));
+        }
+        return Ok(());
+    }
+
+    if behavior == MissingGlyphBehavior::Fallback {
+        let fallback_index = fallback_index.expect("validated fallback must resolve");
+        if let Some(glyph) = family
+            .glyphs
+            .iter()
+            .find(|glyph| glyph.sources[fallback_index].is_none())
+        {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "Fallback variant \"{}\" is missing glyph \"{}\".",
+                    variant_names[fallback_index], glyph.name
+                ),
+            ));
+        }
+    }
+
+    for glyph in &mut family.glyphs {
+        let replacement = match behavior {
+            MissingGlyphBehavior::Blank => VariantGlyphSource::Blank,
+            MissingGlyphBehavior::Fallback => {
+                let fallback_index = fallback_index.expect("validated fallback must resolve");
+                glyph.sources[fallback_index].expect("fallback completeness checked above")
+            }
+            MissingGlyphBehavior::Error => unreachable!(),
+        };
+        for source in &mut glyph.sources {
+            source.get_or_insert(replacement);
+        }
+    }
+
+    Ok(())
 }
 
 pub(crate) fn validate_glyph_names(source_files: &[LoadedSvgFile]) -> std::io::Result<()> {
