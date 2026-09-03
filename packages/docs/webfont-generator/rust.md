@@ -188,8 +188,11 @@ encoding: ASCII letters, digits, `_`, and `-` remain readable, while every other
 `Blank` and `Error` reject a fallback name. SVG output and incremental mode are invalid with
 variants.
 
-This release resolves the contract but does not generate variant fonts. `generate()` and
-`generate_sync()` return `io::ErrorKind::Unsupported` after successful variant resolution.
+This release loads and resolves variant sources but does not generate variant fonts. Files load in
+parallel while rename callbacks retain variant and file order. Matching names across variants join
+one logical glyph and receive one shared codepoint; duplicate names within a variant are rejected.
+`generate()` and `generate_sync()` return `io::ErrorKind::Unsupported` after successful source
+resolution.
 
 ## `FontType`
 

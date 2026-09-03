@@ -139,8 +139,8 @@ export interface FormatOptions {
  * HTML preview) to `options.dest`, and returns a `GenerateWebfontsResult`
  * holding the font bytes and template-rendering methods.
  *
- * Multi-variant input is validated and resolved, then returns an unsupported-operation error;
- * variant font generation is not available yet.
+ * Multi-variant input is resolved, loaded, renamed, joined into logical glyphs, and assigned
+ * shared codepoints before returning an unsupported-operation error.
  *
  * Optional callbacks:
  * - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
@@ -152,8 +152,9 @@ export declare function generateWebfonts(options: GenerateWebfontsOptions, renam
 
 /**
  * Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
- * `files` or future `variants`, are required. Variant input is validated and resolved before
- * returning an unsupported-operation error; every other field has a sensible default.
+ * `files` or future `variants`, are required. Variant input is resolved, its SVGs are loaded and
+ * renamed, and logical glyphs receive shared codepoints before an unsupported-operation error is
+ * returned; every other field has a sensible default.
  */
 export interface GenerateWebfontsOptions {
   /**
@@ -282,8 +283,8 @@ export interface GenerateWebfontsOptions {
   variantClassPrefix?: string
   /**
    * Ordered named SVG designs for one logical icon family. Variant generation is not yet
-   * available; validated variants resolve weights and filename components before returning an
-   * unsupported-operation error.
+   * available; valid input resolves metadata, loads and renames SVGs, joins logical glyphs, and
+   * assigns shared codepoints before returning an unsupported-operation error.
    */
   variants?: Array<FontVariant>
   /**

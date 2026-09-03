@@ -651,7 +651,12 @@ fn resolves_missing_codepoints_in_source_file_order() {
         loaded_svg_file("/tmp/icons/arrow-right.svg"),
     ];
 
-    let resolved = resolve_codepoints(&source_files, &BTreeMap::new(), 0xF101).unwrap();
+    let resolved = resolve_codepoints(
+        source_files.iter().map(|file| file.glyph_name.as_str()),
+        &BTreeMap::new(),
+        0xF101,
+    )
+    .unwrap();
 
     assert_eq!(resolved.get("arrow-left"), Some(&0xF101));
     assert_eq!(resolved.get("arrow-right"), Some(&0xF102));
@@ -669,7 +674,12 @@ fn preserves_explicit_codepoints_and_skips_used_values() {
         ("check".to_owned(), 0xF101),
     ]);
 
-    let resolved = resolve_codepoints(&source_files, &explicit, 0xF101).unwrap();
+    let resolved = resolve_codepoints(
+        source_files.iter().map(|file| file.glyph_name.as_str()),
+        &explicit,
+        0xF101,
+    )
+    .unwrap();
 
     assert_eq!(resolved.get("arrow-left"), Some(&0xF105));
     assert_eq!(resolved.get("check"), Some(&0xF101));
@@ -684,7 +694,12 @@ fn assigns_a_codepoint_to_an_empty_glyph_name() {
         path: "/tmp/icons/..".to_owned(),
     }];
 
-    let resolved = resolve_codepoints(&source_files, &BTreeMap::new(), 0xF101).unwrap();
+    let resolved = resolve_codepoints(
+        source_files.iter().map(|file| file.glyph_name.as_str()),
+        &BTreeMap::new(),
+        0xF101,
+    )
+    .unwrap();
 
     assert_eq!(resolved.get(""), Some(&0xF101));
 }
@@ -692,8 +707,12 @@ fn assigns_a_codepoint_to_an_empty_glyph_name() {
 #[test]
 fn rejects_exhausted_codepoint_space() {
     let source_files = vec![loaded_svg_file("first.svg"), loaded_svg_file("second.svg")];
-    let error = resolve_codepoints(&source_files, &BTreeMap::new(), u32::MAX)
-        .expect_err("a second glyph cannot follow u32::MAX");
+    let error = resolve_codepoints(
+        source_files.iter().map(|file| file.glyph_name.as_str()),
+        &BTreeMap::new(),
+        u32::MAX,
+    )
+    .expect_err("a second glyph cannot follow u32::MAX");
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     assert!(error.to_string().contains("codepoint"));
