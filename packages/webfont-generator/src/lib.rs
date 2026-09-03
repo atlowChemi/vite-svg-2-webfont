@@ -228,8 +228,8 @@ async fn napi_generation_keeps_the_ordinary_source_path() {
 /// HTML preview) to `options.dest`, and returns a `GenerateWebfontsResult`
 /// holding the font bytes and template-rendering methods.
 ///
-/// Multi-variant input is validated and resolved, then returns an unsupported-operation error;
-/// variant font generation is not available yet.
+/// Multi-variant input is resolved, loaded, renamed, joined into logical glyphs, and assigned
+/// shared codepoints before returning an unsupported-operation error.
 ///
 /// Optional callbacks:
 /// - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
@@ -351,7 +351,8 @@ pub type RenameFn = Box<dyn Fn(&str) -> String + Send + Sync>;
 /// Generate webfonts from SVG files.
 ///
 /// This is the pure Rust async entry point. Requires a tokio runtime. Multi-variant input is
-/// validated and resolved, then returns an unsupported-operation error.
+/// resolved, loaded, renamed, joined into logical glyphs, and assigned shared codepoints before
+/// returning an unsupported-operation error.
 pub async fn generate(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
@@ -390,8 +391,8 @@ pub async fn generate(
     Ok(result)
 }
 
-/// Synchronous version of [`generate`]. Spawns a tokio runtime internally and has the same
-/// validation-only behavior for multi-variant input.
+/// Synchronous version of [`generate`]. Spawns a tokio runtime internally and has the same source
+/// preparation behavior for multi-variant input.
 pub fn generate_sync(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
