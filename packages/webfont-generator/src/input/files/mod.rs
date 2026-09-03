@@ -298,13 +298,11 @@ pub(crate) fn resolve_missing_glyphs(
     }
 
     for glyph in &mut family.glyphs {
-        let replacement = match behavior {
-            MissingGlyphBehavior::Blank => VariantGlyphSource::Blank,
-            MissingGlyphBehavior::Fallback => {
-                let fallback_index = fallback_index.expect("validated fallback must resolve");
-                glyph.sources[fallback_index].expect("fallback completeness checked above")
-            }
-            MissingGlyphBehavior::Error => unreachable!(),
+        let replacement = if behavior == MissingGlyphBehavior::Blank {
+            VariantGlyphSource::Blank
+        } else {
+            let fallback_index = fallback_index.expect("validated fallback must resolve");
+            glyph.sources[fallback_index].expect("fallback completeness checked above")
         };
         for source in &mut glyph.sources {
             source.get_or_insert(replacement);

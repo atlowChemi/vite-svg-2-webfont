@@ -38,8 +38,8 @@ default. Explicit weights are anchors in the range 1–1000. An automatic defaul
 other automatic weights resolve outward in steps of 100, or evenly within crowded anchor
 intervals. Final weights must follow variant order and remain unique. Variant names determine CSS
 modifier classes, not output filenames. The default
-missing-glyph behavior is `blank`; `fallback` requires an existing variant name. SVG/EOT output and
-incremental mode are invalid with variants.
+missing-glyph behavior is `blank`; `fallback` requires an existing variant that contains every
+logical glyph in the family. SVG/EOT output and incremental mode are invalid with variants.
 
 Variant font generation is not available yet. Valid variant input is loaded in parallel, renamed in
 variant and file order, joined into a logical glyph union, assigned shared codepoints, and resolved
