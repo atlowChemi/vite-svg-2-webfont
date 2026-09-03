@@ -87,7 +87,7 @@ use std::sync::Mutex;
 use input::{
     ResolvedGenerateWebfontsOptions, VariantFamilySources, build_variant_family_sources,
     finalize_generate_webfonts_options, load_svg_files, load_variant_svg_files,
-    resolve_generate_webfonts_options, validate_generate_webfonts_options,
+    resolve_generate_webfonts_options, resolve_missing_glyphs, validate_generate_webfonts_options,
 };
 #[cfg(feature = "napi")]
 use input::{load_svg_files_napi, load_variant_svg_files_napi};
@@ -111,10 +111,31 @@ fn prepare_variant_family(
     options: &mut ResolvedGenerateWebfontsOptions,
     source_files: Vec<Vec<input::LoadedSvgFile>>,
 ) -> std::io::Result<VariantFamilySources> {
-    let (family, codepoints) = build_variant_family_sources(
+    let (mut family, codepoints) = build_variant_family_sources(
         source_files,
         &options.explicit_codepoints,
         options.start_codepoint,
+    )?;
+    let variants = options
+        .variants
+        .as_ref()
+        .expect("variant source preparation requires resolved variants");
+    let variant_names = variants
+        .variants
+        .iter()
+        .map(|variant| variant.name.as_str())
+        .collect::<Vec<_>>();
+    let fallback_index = options.missing_glyphs.variant.as_deref().map(|name| {
+        variant_names
+            .iter()
+            .position(|variant_name| *variant_name == name)
+            .expect("validated fallback must name a resolved variant")
+    });
+    resolve_missing_glyphs(
+        &mut family,
+        options.missing_glyphs.behavior,
+        fallback_index,
+        &variant_names,
     )?;
     options.codepoints = codepoints;
     Ok(family)
@@ -123,7 +144,7 @@ fn prepare_variant_family(
 fn unavailable_variant_generation() -> std::io::Error {
     std::io::Error::new(
         std::io::ErrorKind::Unsupported,
-        "Multi-variant generation is not available yet; this release loads and resolves the input contract.",
+        "Multi-variant generation is not available yet; this release loads and resolves variant sources and missing-glyph behavior.",
     )
 }
 
@@ -228,8 +249,9 @@ async fn napi_generation_keeps_the_ordinary_source_path() {
 /// HTML preview) to `options.dest`, and returns a `GenerateWebfontsResult`
 /// holding the font bytes and template-rendering methods.
 ///
-/// Multi-variant input is resolved, loaded, renamed, joined into logical glyphs, and assigned
-/// shared codepoints before returning an unsupported-operation error.
+/// Multi-variant input is resolved, loaded, renamed, joined into logical glyphs, assigned shared
+/// codepoints, and resolved according to its missing-glyph policy before returning an
+/// unsupported-operation error.
 ///
 /// Optional callbacks:
 /// - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
@@ -351,8 +373,8 @@ pub type RenameFn = Box<dyn Fn(&str) -> String + Send + Sync>;
 /// Generate webfonts from SVG files.
 ///
 /// This is the pure Rust async entry point. Requires a tokio runtime. Multi-variant input is
-/// resolved, loaded, renamed, joined into logical glyphs, and assigned shared codepoints before
-/// returning an unsupported-operation error.
+/// resolved, loaded, renamed, joined into logical glyphs, assigned shared codepoints, and resolved
+/// according to its missing-glyph policy before returning an unsupported-operation error.
 pub async fn generate(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
