@@ -60,7 +60,7 @@ async fn napi_loader_uses_default_glyph_names() {
     std::fs::write(&path, "<svg />").unwrap();
     let paths = vec![path.to_string_lossy().into_owned()];
 
-    let source_files = load_svg_files_napi(&paths, None).await.unwrap();
+    let source_files = load_svg_files_napi(&paths, None, true).await.unwrap();
 
     assert_eq!(
         source_files[0].glyph_name,

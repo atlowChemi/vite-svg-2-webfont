@@ -137,6 +137,90 @@ extern "C" fn napi_call_threadsafe_function(
     0
 }
 
+#[cfg(all(test, feature = "napi"))]
+#[unsafe(no_mangle)]
+extern "C" fn napi_release_threadsafe_function(
+    _: napi::sys::napi_threadsafe_function,
+    _: napi::sys::napi_threadsafe_function_release_mode,
+) -> napi::sys::napi_status {
+    0
+}
+
+#[cfg(all(test, feature = "napi"))]
+#[tokio::test]
+async fn napi_variant_generation_prepares_sources_before_returning_unsupported() {
+    let path = test_helpers::webfont_fixture("add.svg");
+    let variants = vec![
+        FontVariant {
+            name: "small".to_owned(),
+            files: vec![path.clone()],
+            weight: Some(300),
+            default: Some(true),
+        },
+        FontVariant {
+            name: "large".to_owned(),
+            files: vec![path.clone()],
+            weight: Some(700),
+            default: None,
+        },
+    ];
+    let options = GenerateWebfontsOptions {
+        dest: "artifacts".to_owned(),
+        files: vec![],
+        types: Some(vec![FontType::Woff2]),
+        variants: Some(variants.clone()),
+        ..Default::default()
+    };
+
+    let error = generate_webfonts(options, None, None, None)
+        .await
+        .err()
+        .expect("variant generation should remain unavailable");
+    assert!(error.reason.contains("not available yet"));
+
+    let mut duplicate = variants;
+    duplicate[0].files.push(path);
+    let error = generate_webfonts(
+        GenerateWebfontsOptions {
+            dest: "artifacts".to_owned(),
+            files: vec![],
+            types: Some(vec![FontType::Woff2]),
+            variants: Some(duplicate),
+            ..Default::default()
+        },
+        None,
+        None,
+        None,
+    )
+    .await
+    .err()
+    .expect("duplicate names within one variant should fail");
+    assert!(error.reason.contains("must be unique"));
+}
+
+#[cfg(all(test, feature = "napi"))]
+#[tokio::test]
+async fn napi_generation_keeps_the_ordinary_source_path() {
+    let result = generate_webfonts(
+        GenerateWebfontsOptions {
+            css: Some(false),
+            dest: "artifacts".to_owned(),
+            files: vec![test_helpers::webfont_fixture("add.svg")],
+            html: Some(false),
+            types: Some(vec![FontType::Svg]),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+        None,
+        None,
+    )
+    .await
+    .expect("ordinary NAPI generation should succeed");
+
+    assert!(result.svg_string().is_some());
+}
+
 /// Generate a webfont from a set of SVG files.
 ///
 /// Loads the SVGs listed in `options.files`, builds the configured
@@ -192,7 +276,7 @@ pub async fn generate_webfonts(
         let _family = prepare_variant_family(&mut resolved_options, source_files)?;
         return Err(unavailable_variant_generation().into());
     }
-    let source_files = load_svg_files_napi(&options.files, rename.as_ref()).await?;
+    let source_files = load_svg_files_napi(&options.files, rename.as_ref(), true).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
 
