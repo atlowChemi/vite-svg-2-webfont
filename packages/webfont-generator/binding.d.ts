@@ -100,11 +100,17 @@ export declare const enum FontType {
 
 /** One named SVG design in a multi-variant icon family. */
 export interface FontVariant {
-  /** User-facing variant name, used to derive CSS modifier classes. */
+  /**
+   * User-facing variant name, used to derive CSS modifier classes and an encoded filename
+   * component.
+   */
   name: string
   /** SVG files that belong to this variant. */
   files: Array<string>
-  /** Optional explicit CSS weight coordinate in the range 1 through 1000. */
+  /**
+   * Optional explicit CSS weight coordinate in the range 1 through 1000. Automatic weights
+   * resolve outward from the default in steps of 100, or evenly when an interval is crowded.
+   */
   weight?: number
   /** Whether this is the family's default variant. Exactly one variant must set this to `true`. */
   default?: boolean
@@ -276,7 +282,8 @@ export interface GenerateWebfontsOptions {
   variantClassPrefix?: string
   /**
    * Ordered named SVG designs for one logical icon family. Variant generation is not yet
-   * available; valid input is resolved before returning an unsupported-operation error.
+   * available; validated variants resolve weights and filename components before returning an
+   * unsupported-operation error.
    */
   variants?: Array<FontVariant>
   /**
