@@ -117,6 +117,7 @@ pub(crate) async fn load_variant_svg_files(
 pub(crate) async fn load_svg_files_napi(
     paths: &[String],
     rename: Option<&ThreadsafeFunction<Vec<String>, Vec<String>, Vec<String>, Status, false>>,
+    validate_names: bool,
 ) -> napi::Result<Vec<LoadedSvgFile>> {
     let raw = load_svg_contents(paths).await.map_err(to_napi_err)?;
     let glyph_names = if let Some(rename) = rename {
@@ -143,7 +144,9 @@ pub(crate) async fn load_svg_files_napi(
         })
         .collect::<Vec<_>>();
 
-    validate_glyph_names(&source_files).map_err(to_napi_err)?;
+    if validate_names {
+        validate_glyph_names(&source_files).map_err(to_napi_err)?;
+    }
     Ok(source_files)
 }
 
@@ -155,23 +158,9 @@ pub(crate) async fn load_variant_svg_files_napi(
 ) -> napi::Result<Vec<Vec<LoadedSvgFile>>> {
     let lengths = variant_paths.iter().map(Vec::len).collect::<Vec<_>>();
     let paths = variant_paths.iter().flatten().cloned().collect::<Vec<_>>();
-    let raw = load_svg_contents(&paths).await.map_err(to_napi_err)?;
-    let glyph_names = if let Some(rename) = rename {
-        let glyph_names = rename.call_async_catch(paths).await?;
-        if glyph_names.len() != raw.len() {
-            return Err(NapiError::new(
-                Status::InvalidArg,
-                "rename callback returned an unexpected number of glyph names".to_owned(),
-            ));
-        }
-        glyph_names
-    } else {
-        raw.iter()
-            .map(|(path, _)| default_glyph_name_from_path(path).map_err(to_napi_err))
-            .collect::<napi::Result<_>>()?
-    };
+    let source_files = load_svg_files_napi(&paths, rename, false).await?;
 
-    split_variant_files(raw, glyph_names, &lengths).map_err(to_napi_err)
+    split_loaded_variant_files(source_files, &lengths).map_err(to_napi_err)
 }
 
 fn split_variant_files(
@@ -179,14 +168,22 @@ fn split_variant_files(
     glyph_names: Vec<String>,
     lengths: &[usize],
 ) -> std::io::Result<Vec<Vec<LoadedSvgFile>>> {
-    let mut source_files =
-        raw.into_iter()
-            .zip(glyph_names)
-            .map(|((path, contents), glyph_name)| LoadedSvgFile {
-                contents: contents.into(),
-                glyph_name,
-                path,
-            });
+    let source_files = raw
+        .into_iter()
+        .zip(glyph_names)
+        .map(|((path, contents), glyph_name)| LoadedSvgFile {
+            contents: contents.into(),
+            glyph_name,
+            path,
+        });
+    split_loaded_variant_files(source_files.collect(), lengths)
+}
+
+fn split_loaded_variant_files(
+    source_files: Vec<LoadedSvgFile>,
+    lengths: &[usize],
+) -> std::io::Result<Vec<Vec<LoadedSvgFile>>> {
+    let mut source_files = source_files.into_iter();
     let mut variants = Vec::with_capacity(lengths.len());
     for length in lengths {
         let variant = source_files.by_ref().take(*length).collect::<Vec<_>>();
