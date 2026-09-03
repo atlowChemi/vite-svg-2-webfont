@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.6.2](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.6.1...webfont-generator-v0.6.2) (2026-09-03)
+
+### Performance Improvements
+
+- **webfont-generator:** disable unused usvg features ([#398](https://github.com/atlowChemi/vite-svg-2-webfont/issues/398)) ([c628ce1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/c628ce1705f7dddacd2d0ab41794567539be951f))
+
 ## [0.6.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.6.0...webfont-generator-v0.6.1) (2026-08-24)
 
 ### Performance Improvements
