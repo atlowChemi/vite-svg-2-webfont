@@ -349,7 +349,7 @@ export declare const enum MissingGlyphBehavior {
   Blank = 'blank',
   /** Reject generation and report every missing variant/glyph pair. */
   Error = 'error',
-  /** Reuse the outline from the named fallback variant. */
+  /** Reuse the outline from the named fallback variant, which must contain every logical glyph. */
   Fallback = 'fallback'
 }
 
@@ -360,7 +360,10 @@ export interface MissingGlyphOptions {
    * object is omitted.
    */
   behavior: MissingGlyphBehavior
-  /** Fallback variant name. Required only when `behavior` is `fallback`. */
+  /**
+   * Fallback variant name. Required only when `behavior` is `fallback`; the named variant must
+   * contain every logical glyph in the family.
+   */
   variant?: string
 }
 

@@ -6,7 +6,8 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use webfont_generator::{
-    FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, TtfFormatOptions,
+    FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
+    MissingGlyphOptions, TtfFormatOptions,
 };
 
 fn fixture_files() -> Vec<String> {
@@ -134,6 +135,21 @@ fn generate_sync_rejects_variant_generation_until_the_pipeline_is_available() {
 
     assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
     assert!(error.to_string().contains("not available yet"));
+}
+
+#[test]
+fn generate_sync_resolves_fallback_before_the_pipeline_guard() {
+    let mut options = variant_options();
+    options.missing_glyphs = Some(MissingGlyphOptions {
+        behavior: MissingGlyphBehavior::Fallback,
+        variant: Some("small".to_owned()),
+    });
+
+    let error = webfont_generator::generate_sync(options, None)
+        .err()
+        .expect("variant generation should remain unavailable");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
 }
 
 #[test]
