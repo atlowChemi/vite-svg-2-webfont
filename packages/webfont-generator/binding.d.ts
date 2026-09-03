@@ -140,7 +140,7 @@ export interface FormatOptions {
  * holding the font bytes and template-rendering methods.
  *
  * Multi-variant input is resolved, loaded, renamed, joined into logical glyphs, assigned shared
- * codepoints, and resolved according to its missing-glyph policy before returning an
+ * codepoints and metrics, and processed according to its missing-glyph policy before returning an
  * unsupported-operation error.
  *
  * Optional callbacks:
@@ -154,8 +154,8 @@ export declare function generateWebfonts(options: GenerateWebfontsOptions, renam
 /**
  * Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
  * `files` or future `variants`, are required. Variant input is resolved, its SVGs are loaded and
- * renamed, and logical glyphs receive shared codepoints and explicit missing-glyph states before
- * an unsupported-operation error is returned; every other field has a sensible default.
+ * renamed, and logical glyphs receive shared codepoints, metrics, and processed outlines before an
+ * unsupported-operation error is returned; every other field has a sensible default.
  */
 export interface GenerateWebfontsOptions {
   /**
@@ -288,7 +288,7 @@ export interface GenerateWebfontsOptions {
   /**
    * Ordered named SVG designs for one logical icon family. Variant generation is not yet
    * available; valid input resolves metadata, loads and renames SVGs, joins logical glyphs, and
-   * assigns shared codepoints and explicit missing-glyph states before returning an
+   * assigns shared codepoints, metrics, and processed outlines before returning an
    * unsupported-operation error.
    */
   variants?: Array<FontVariant>
