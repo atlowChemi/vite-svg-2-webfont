@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests;
 
-use std::collections::HashSet;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 use std::sync::Arc;
@@ -12,11 +12,32 @@ use napi::threadsafe_function::ThreadsafeFunction;
 use napi::{Error as NapiError, Status};
 use tokio::task::JoinSet;
 
+use super::options::resolve_codepoints;
+
 #[derive(Clone)]
 pub(crate) struct LoadedSvgFile {
     pub contents: Arc<str>,
     pub glyph_name: String,
     pub path: String,
+}
+
+#[allow(
+    dead_code,
+    reason = "variant sources are consumed by later generation phases"
+)]
+pub(crate) struct VariantFamilySources {
+    pub variants: Vec<Vec<LoadedSvgFile>>,
+    pub glyphs: Vec<LogicalGlyphSources>,
+}
+
+#[allow(
+    dead_code,
+    reason = "logical glyphs are consumed by later generation phases"
+)]
+pub(crate) struct LogicalGlyphSources {
+    pub name: String,
+    pub codepoint: u32,
+    pub sources: Box<[Option<usize>]>,
 }
 
 #[cfg(feature = "napi")]
@@ -29,25 +50,28 @@ async fn load_svg_contents(paths: &[String]) -> std::io::Result<Vec<(String, Str
     let mut tasks = JoinSet::new();
 
     for (index, path) in paths.iter().cloned().enumerate() {
-        tasks.spawn(async move {
-            tokio::fs::read_to_string(&path)
-                .await
-                .map(|contents| (index, (path, contents)))
-        });
+        tasks.spawn(async move { (index, path.clone(), tokio::fs::read_to_string(path).await) });
     }
 
     let mut results = Vec::with_capacity(paths.len());
     while let Some(result) = tasks.join_next().await {
-        let (index, pair) = result
-            .map_err(|error| std::io::Error::other(format!("SVG loading task failed: {error}")))?
-            .map_err(|error| {
-                std::io::Error::other(format!("Failed to read source SVG file: {error}"))
-            })?;
-        results.push((index, pair));
+        results.push(
+            result.map_err(|error| {
+                std::io::Error::other(format!("SVG loading task failed: {error}"))
+            })?,
+        );
     }
 
-    results.sort_by_key(|(index, _)| *index);
-    Ok(results.into_iter().map(|(_, pair)| pair).collect())
+    results.sort_by_key(|(index, _, _)| *index);
+    results
+        .into_iter()
+        .map(|(_, path, contents)| match contents {
+            Ok(contents) => Ok((path, contents)),
+            Err(error) => Err(std::io::Error::other(format!(
+                "Failed to read source SVG file '{path}': {error}"
+            ))),
+        })
+        .collect()
 }
 
 /// Load SVG files and resolve glyph names using an optional sync rename function.
@@ -70,6 +94,21 @@ pub(crate) async fn load_svg_files(
 
     validate_glyph_names(&source_files)?;
     Ok(source_files)
+}
+
+pub(crate) async fn load_variant_svg_files(
+    variant_paths: &[Vec<String>],
+    rename: Option<&(dyn Fn(&str) -> String + Send + Sync)>,
+) -> std::io::Result<Vec<Vec<LoadedSvgFile>>> {
+    let lengths = variant_paths.iter().map(Vec::len).collect::<Vec<_>>();
+    let paths = variant_paths.iter().flatten().cloned().collect::<Vec<_>>();
+    let raw = load_svg_contents(&paths).await?;
+    let glyph_names = raw
+        .iter()
+        .map(|(path, _)| glyph_name_from_path(path, rename))
+        .collect::<std::io::Result<Vec<_>>>()?;
+
+    split_variant_files(raw, glyph_names, &lengths)
 }
 
 /// NAPI version: resolve glyph names via async ThreadsafeFunction callback.
@@ -106,6 +145,96 @@ pub(crate) async fn load_svg_files_napi(
 
     validate_glyph_names(&source_files).map_err(to_napi_err)?;
     Ok(source_files)
+}
+
+#[cfg(feature = "napi")]
+#[allow(clippy::type_complexity)]
+pub(crate) async fn load_variant_svg_files_napi(
+    variant_paths: &[Vec<String>],
+    rename: Option<&ThreadsafeFunction<Vec<String>, Vec<String>, Vec<String>, Status, false>>,
+) -> napi::Result<Vec<Vec<LoadedSvgFile>>> {
+    let lengths = variant_paths.iter().map(Vec::len).collect::<Vec<_>>();
+    let paths = variant_paths.iter().flatten().cloned().collect::<Vec<_>>();
+    let raw = load_svg_contents(&paths).await.map_err(to_napi_err)?;
+    let glyph_names = if let Some(rename) = rename {
+        let glyph_names = rename.call_async_catch(paths).await?;
+        if glyph_names.len() != raw.len() {
+            return Err(NapiError::new(
+                Status::InvalidArg,
+                "rename callback returned an unexpected number of glyph names".to_owned(),
+            ));
+        }
+        glyph_names
+    } else {
+        raw.iter()
+            .map(|(path, _)| default_glyph_name_from_path(path).map_err(to_napi_err))
+            .collect::<napi::Result<_>>()?
+    };
+
+    split_variant_files(raw, glyph_names, &lengths).map_err(to_napi_err)
+}
+
+fn split_variant_files(
+    raw: Vec<(String, String)>,
+    glyph_names: Vec<String>,
+    lengths: &[usize],
+) -> std::io::Result<Vec<Vec<LoadedSvgFile>>> {
+    let mut source_files =
+        raw.into_iter()
+            .zip(glyph_names)
+            .map(|((path, contents), glyph_name)| LoadedSvgFile {
+                contents: contents.into(),
+                glyph_name,
+                path,
+            });
+    let mut variants = Vec::with_capacity(lengths.len());
+    for length in lengths {
+        let variant = source_files.by_ref().take(*length).collect::<Vec<_>>();
+        validate_glyph_names(&variant)?;
+        variants.push(variant);
+    }
+    Ok(variants)
+}
+
+pub(crate) fn build_variant_family_sources(
+    variants: Vec<Vec<LoadedSvgFile>>,
+    explicit_codepoints: &BTreeMap<String, u32>,
+    start_codepoint: u32,
+) -> std::io::Result<(VariantFamilySources, BTreeMap<String, u32>)> {
+    let mut name_to_index = HashMap::new();
+    let mut glyphs = Vec::<(String, Box<[Option<usize>]>)>::new();
+
+    for (variant_index, files) in variants.iter().enumerate() {
+        for (source_index, file) in files.iter().enumerate() {
+            let glyph_index = *name_to_index
+                .entry(file.glyph_name.clone())
+                .or_insert_with(|| {
+                    let index = glyphs.len();
+                    glyphs.push((
+                        file.glyph_name.clone(),
+                        vec![None; variants.len()].into_boxed_slice(),
+                    ));
+                    index
+                });
+            glyphs[glyph_index].1[variant_index] = Some(source_index);
+        }
+    }
+
+    let codepoints = resolve_codepoints(
+        glyphs.iter().map(|(name, _)| name.as_str()),
+        explicit_codepoints,
+        start_codepoint,
+    )?;
+    let glyphs = glyphs
+        .into_iter()
+        .map(|(name, sources)| LogicalGlyphSources {
+            codepoint: codepoints[&name],
+            name,
+            sources,
+        })
+        .collect();
+
+    Ok((VariantFamilySources { variants, glyphs }, codepoints))
 }
 
 pub(crate) fn validate_glyph_names(source_files: &[LoadedSvgFile]) -> std::io::Result<()> {

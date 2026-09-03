@@ -37,13 +37,71 @@ describe('generateWebfonts', () => {
         dest: tmpdir(),
         types: ['woff2'],
         variants: [
-            { default: true, files: ['small.svg'], name: 'small', weight: 300 },
-            { files: ['large.svg'], name: 'large', weight: 700 },
+            { default: true, files: [renameFiles[0]], name: 'small', weight: 300 },
+            { files: [renameFiles[0]], name: 'large', weight: 700 },
         ],
         writeFiles: false,
     } satisfies GenerateWebfontsVariantOptions;
 
     it('passes valid variants to the native contract guard', () => expect(generateWebfonts(variantOptions)).rejects.toThrow('Multi-variant generation is not available yet'));
+
+    it('applies variant rename callbacks in flattened source order', async () => {
+        const paths = [renameFiles.slice(0, 2), [renameFiles[2], renameFiles[0]]];
+        const calls: string[] = [];
+
+        await expect(
+            generateWebfonts({
+                ...variantOptions,
+                rename(path) {
+                    calls.push(path);
+                    return `glyph-${calls.length}`;
+                },
+                variants: [
+                    { default: true, files: paths[0], name: 'small' },
+                    { files: paths[1], name: 'large' },
+                ],
+            }),
+        ).rejects.toThrow('Multi-variant generation is not available yet');
+        expect(calls).toEqual(paths.flat());
+    });
+
+    it('passes variant paths to one native rename batch', async () => {
+        const batches: string[][] = [];
+
+        await expect(
+            generateNativeBinding({ ...variantOptions, files: [], types: undefined }, paths => {
+                batches.push(paths);
+                return paths.map((_, index) => `glyph-${index}`);
+            }),
+        ).rejects.toThrow('Multi-variant generation is not available yet');
+        expect(batches).toEqual([[renameFiles[0], renameFiles[0]]]);
+    });
+
+    it('rejects an invalid variant rename batch length', async () => {
+        await expect(generateNativeBinding({ ...variantOptions, files: [], types: undefined }, paths => paths.slice(1))).rejects.toThrow(
+            'rename callback returned an unexpected number of glyph names',
+        );
+    });
+
+    it('calls every variant rename before rejecting a local duplicate', async () => {
+        const files = renameFiles.slice(0, 2);
+        const calls: string[] = [];
+
+        await expect(
+            generateWebfonts({
+                ...variantOptions,
+                rename(path) {
+                    calls.push(path);
+                    return 'duplicate';
+                },
+                variants: [
+                    { default: true, files, name: 'small' },
+                    { files: [renameFiles[2]], name: 'large' },
+                ],
+            }),
+        ).rejects.toThrow('The glyph name "duplicate" must be unique.');
+        expect(calls).toEqual([...files, renameFiles[2]]);
+    });
 
     it('applies rename callbacks in file order', async () => {
         const calls: string[] = [];

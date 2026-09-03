@@ -602,7 +602,9 @@ pub(crate) fn finalize_generate_webfonts_options(
     source_files: &[LoadedSvgFile],
 ) -> std::io::Result<()> {
     options.codepoints = resolve_codepoints(
-        source_files,
+        source_files
+            .iter()
+            .map(|source_file| source_file.glyph_name.as_str()),
         &options.explicit_codepoints,
         options.start_codepoint,
     )?;
@@ -657,8 +659,8 @@ fn validate_font_type_order(
     Ok(())
 }
 
-fn resolve_codepoints(
-    source_files: &[LoadedSvgFile],
+pub(super) fn resolve_codepoints<'a>(
+    names: impl IntoIterator<Item = &'a str>,
     codepoints: &BTreeMap<String, u32>,
     start_codepoint: u32,
 ) -> Result<BTreeMap<String, u32>, Error> {
@@ -666,10 +668,8 @@ fn resolve_codepoints(
     let mut used_codepoints: HashSet<u32> = resolved_codepoints.values().copied().collect();
     let mut next_codepoint = start_codepoint;
 
-    for source_file in source_files {
-        let name = source_file.glyph_name.clone();
-
-        if resolved_codepoints.contains_key(&name) {
+    for name in names {
+        if resolved_codepoints.contains_key(name) {
             continue;
         }
 
@@ -682,7 +682,7 @@ fn resolve_codepoints(
             })?;
         }
 
-        resolved_codepoints.insert(name, next_codepoint);
+        resolved_codepoints.insert(name.to_owned(), next_codepoint);
         used_codepoints.insert(next_codepoint);
         next_codepoint = next_codepoint.saturating_add(1);
     }
