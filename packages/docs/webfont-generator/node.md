@@ -69,8 +69,9 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 
 ::: warning Multi-variant contract preview
 The wrapper accepts and validates `variants`, `variantClassPrefix`, and `missingGlyphs`, but variant
-font generation is not available yet. Valid variant input currently rejects with an unsupported
-operation error after native weight and filename resolution.
+font generation is not available yet. The native binding loads valid variant files, applies `rename`
+in variant and file order, joins matching names into one logical glyph, and assigns shared
+codepoints before returning an unsupported-operation error.
 :::
 
 ### `files`
