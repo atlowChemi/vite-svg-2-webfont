@@ -177,6 +177,25 @@ fn rejects_duplicate_variant_names() {
 }
 
 #[test]
+fn serializes_css_identifiers() {
+    for (token, expected) in [
+        ("icon--small", "icon--small"),
+        ("icon--a.b", "icon--a\\.b"),
+        ("icon--a#b", "icon--a\\#b"),
+        ("icon--a:b", "icon--a\\:b"),
+        ("icon--a/b", "icon--a\\/b"),
+        ("icon--a\\b", "icon--a\\\\b"),
+        ("icon--größe", "icon--größe"),
+        ("1small", "\\31 small"),
+        ("-1small", "-\\31 small"),
+        ("\0", "�"),
+        ("-", "\\-"),
+    ] {
+        assert_eq!(serialize_css_identifier(token), expected);
+    }
+}
+
+#[test]
 fn requires_exactly_one_default_variant() {
     let mut no_default = variant_options();
     no_default.variants.as_mut().unwrap()[1].default = None;
