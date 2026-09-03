@@ -84,7 +84,7 @@ export interface GenerateWebfontsFileOptions<T extends FontType = FontType> exte
 export interface GenerateWebfontsVariantOptions<T extends MultiVariantFontType = MultiVariantFontType> extends GenerateWebfontsBaseOptions {
     files?: never;
     fontWeight?: never;
-    incremental?: never;
+    incremental?: false;
     missingGlyphs?: MissingGlyphOptions;
     order?: NoInfer<T>[];
     types?: T[];

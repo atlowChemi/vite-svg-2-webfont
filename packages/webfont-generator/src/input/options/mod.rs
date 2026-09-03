@@ -191,7 +191,6 @@ fn validate_variants(
     }
 
     let mut names = HashSet::with_capacity(variants.len());
-    let mut selectors = HashSet::with_capacity(variants.len());
     let mut default_count = 0;
     for (index, variant) in variants.iter().enumerate() {
         let path = format!("options.variants[{index}]");
@@ -237,13 +236,6 @@ fn validate_variants(
             ));
         }
         default_count += usize::from(variant.default == Some(true));
-        let class = format!("{class_prefix}{}", variant.name);
-        if !selectors.insert(serialize_css_identifier(&class)) {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                format!("\"{path}.name\" produces a duplicate escaped CSS selector."),
-            ));
-        }
     }
 
     if default_count != 1 {
@@ -300,36 +292,6 @@ fn validate_variants(
     }
 
     Ok(())
-}
-
-fn serialize_css_identifier(value: &str) -> String {
-    let characters = value.chars().collect::<Vec<_>>();
-    let mut escaped = String::with_capacity(value.len());
-    for (index, character) in characters.iter().copied().enumerate() {
-        let codepoint = character as u32;
-        if character == '\0' {
-            escaped.push('\u{fffd}');
-        } else if (1..=0x1f).contains(&codepoint)
-            || codepoint == 0x7f
-            || (index == 0 && character.is_ascii_digit())
-            || (index == 1 && character.is_ascii_digit() && characters.first() == Some(&'-'))
-        {
-            escaped.push('\\');
-            escaped.push_str(&format!("{codepoint:x} "));
-        } else if index == 0 && character == '-' && characters.len() == 1 {
-            escaped.push_str("\\-");
-        } else if codepoint >= 0x80
-            || character == '-'
-            || character == '_'
-            || character.is_ascii_alphanumeric()
-        {
-            escaped.push(character);
-        } else {
-            escaped.push('\\');
-            escaped.push(character);
-        }
-    }
-    escaped
 }
 
 pub(crate) fn resolve_generate_webfonts_options(
@@ -494,12 +456,17 @@ fn resolve_codepoints(
         }
 
         while used_codepoints.contains(&next_codepoint) {
-            next_codepoint += 1;
+            next_codepoint = next_codepoint.checked_add(1).ok_or_else(|| {
+                Error::new(
+                    ErrorKind::InvalidInput,
+                    "Unable to assign another glyph codepoint: the u32 range is exhausted.",
+                )
+            })?;
         }
 
         resolved_codepoints.insert(name, next_codepoint);
         used_codepoints.insert(next_codepoint);
-        next_codepoint += 1;
+        next_codepoint = next_codepoint.saturating_add(1);
     }
 
     Ok(resolved_codepoints)
