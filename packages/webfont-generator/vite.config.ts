@@ -1,4 +1,5 @@
 import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
+import { playwright } from 'vite-plus/test/browser-playwright';
 
 type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
 
@@ -7,7 +8,34 @@ const cargoCache: TaskDefinition = {
     output: [{ auto: true }, '!target/**'],
 };
 
+const browser = process.argv.includes('--mode=browser');
+const test: NonNullable<UserWorkspaceConfig['test']> = {
+    experimental: {
+        fsModuleCache: true,
+    },
+    typecheck: { enabled: true },
+    ...(browser
+        ? {
+              browser: {
+                  enabled: true,
+                  headless: true,
+                  instances: [{ browser: 'chromium' }, { browser: 'firefox' }, { browser: 'webkit' }],
+                  provider: playwright(),
+                  screenshotFailures: false,
+              },
+              include: ['tests/browser/**/*.test.ts'],
+              name: 'webfont-generator-browser',
+          }
+        : {
+              benchmark: { include: [] },
+              exclude: ['tests/browser/**'],
+              include: ['tests/**/*.test.ts'],
+              name: 'webfont-generator',
+          }),
+};
+
 export default defineProject({
+    publicDir: browser ? 'tests/browser/fixtures' : undefined,
     run: {
         tasks: {
             check: {
@@ -18,14 +46,18 @@ export default defineProject({
                 ...cargoCache,
                 command: 'cargo t && cargo t --features cli && cargo t --features napi',
                 dependsOn: ['check'],
-                env: ['UPDATE_SVG_FIXTURES'],
+                env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
+            },
+            'test:browser': {
+                cache: false,
+                command: 'vp test --mode=browser --project=webfont-generator-browser',
             },
             'test:coverage': {
                 ...cargoCache,
                 command:
                     'cargo llvm-cov clean --workspace && cargo llvm-cov --no-report && cargo llvm-cov --no-report --features cli && cargo llvm-cov --no-report --features napi && cargo llvm-cov report --lcov --output-path rust-lcov.info',
                 dependsOn: ['check'],
-                env: ['UPDATE_SVG_FIXTURES'],
+                env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
             },
             build: {
                 ...cargoCache,
@@ -42,19 +74,5 @@ export default defineProject({
             },
         },
     },
-    test: {
-        experimental: {
-            fsModuleCache: true,
-        },
-        typecheck: { enabled: true },
-        projects: [
-            {
-                test: {
-                    name: 'webfont-generator',
-                    include: ['tests/**/*.test.ts'],
-                    benchmark: { include: [] },
-                },
-            },
-        ],
-    },
+    test,
 });

@@ -65,6 +65,22 @@ jobs:
                   cache: true
             - run: vp run @atlowchemi/vite-svg-webfont-docs#build
 
+    test-browser:
+        name: test browser font compatibility
+        needs: [ci]
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: voidzero-dev/setup-vp@1b32467adbe183473499fd9d5d372c3ed9641754 # v1.18.0
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - name: Install browsers
+              run: vp exec playwright install --with-deps chromium firefox webkit
+            - name: Run browser tests
+              run: vp run @atlowchemi/webfont-generator#test:browser
+
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
         needs: [build]
@@ -249,7 +265,7 @@ jobs:
     required-checks:
         name: Required checks
         if: always()
-        needs: [ci, build, docs, test-host, test-docker, test-vite-compat]
+        needs: [ci, build, docs, test-browser, test-host, test-docker, test-vite-compat]
         runs-on: ubuntu-latest
         steps:
             - name: Verify all dependent jobs succeeded
