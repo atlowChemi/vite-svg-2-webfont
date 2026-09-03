@@ -84,12 +84,13 @@ use napi_derive::napi;
 #[cfg(feature = "napi")]
 use std::sync::Mutex;
 
-#[cfg(feature = "napi")]
-use input::load_svg_files_napi;
 use input::{
-    finalize_generate_webfonts_options, load_svg_files, resolve_generate_webfonts_options,
-    validate_generate_webfonts_options,
+    ResolvedGenerateWebfontsOptions, VariantFamilySources, build_variant_family_sources,
+    finalize_generate_webfonts_options, load_svg_files, load_variant_svg_files,
+    resolve_generate_webfonts_options, validate_generate_webfonts_options,
 };
+#[cfg(feature = "napi")]
+use input::{load_svg_files_napi, load_variant_svg_files_napi};
 use output::write_generate_webfonts_result;
 use pipeline::generate_webfonts_sync;
 #[cfg(feature = "napi")]
@@ -106,15 +107,24 @@ pub use types::{
     TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
 
-fn reject_unavailable_variant_generation(options: &GenerateWebfontsOptions) -> std::io::Result<()> {
-    if options.variants.is_some() {
-        resolve_generate_webfonts_options(options.clone())?;
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Unsupported,
-            "Multi-variant generation is not available yet; this release only validates and resolves the input contract.",
-        ));
-    }
-    Ok(())
+fn prepare_variant_family(
+    options: &mut ResolvedGenerateWebfontsOptions,
+    source_files: Vec<Vec<input::LoadedSvgFile>>,
+) -> std::io::Result<VariantFamilySources> {
+    let (family, codepoints) = build_variant_family_sources(
+        source_files,
+        &options.explicit_codepoints,
+        options.start_codepoint,
+    )?;
+    options.codepoints = codepoints;
+    Ok(family)
+}
+
+fn unavailable_variant_generation() -> std::io::Error {
+    std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "Multi-variant generation is not available yet; this release loads and resolves the input contract.",
+    )
 }
 
 #[cfg(all(test, feature = "napi"))]
@@ -168,7 +178,20 @@ pub async fn generate_webfonts(
     >,
 ) -> napi::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
-    reject_unavailable_variant_generation(&options)?;
+    if options.variants.is_some() {
+        let mut resolved_options = resolve_generate_webfonts_options(options)?;
+        let variant_paths = resolved_options
+            .variants
+            .as_ref()
+            .expect("validated variant options must resolve variants")
+            .variants
+            .iter()
+            .map(|variant| variant.files.clone())
+            .collect::<Vec<_>>();
+        let source_files = load_variant_svg_files_napi(&variant_paths, rename.as_ref()).await?;
+        let _family = prepare_variant_family(&mut resolved_options, source_files)?;
+        return Err(unavailable_variant_generation().into());
+    }
     let source_files = load_svg_files_napi(&options.files, rename.as_ref()).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
@@ -250,7 +273,20 @@ pub async fn generate(
     rename: Option<RenameFn>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
-    reject_unavailable_variant_generation(&options)?;
+    if options.variants.is_some() {
+        let mut resolved_options = resolve_generate_webfonts_options(options)?;
+        let variant_paths = resolved_options
+            .variants
+            .as_ref()
+            .expect("validated variant options must resolve variants")
+            .variants
+            .iter()
+            .map(|variant| variant.files.clone())
+            .collect::<Vec<_>>();
+        let source_files = load_variant_svg_files(&variant_paths, rename.as_deref()).await?;
+        let _family = prepare_variant_family(&mut resolved_options, source_files)?;
+        return Err(unavailable_variant_generation());
+    }
     let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
