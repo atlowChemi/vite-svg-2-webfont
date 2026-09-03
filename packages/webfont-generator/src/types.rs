@@ -75,7 +75,7 @@ pub enum MissingGlyphBehavior {
     Blank,
     /// Reject generation and report every missing variant/glyph pair.
     Error,
-    /// Reuse the outline from the named fallback variant.
+    /// Reuse the outline from the named fallback variant, which must contain every logical glyph.
     Fallback,
 }
 
@@ -86,7 +86,8 @@ pub struct MissingGlyphOptions {
     /// Missing-glyph behavior. Variant mode defaults to [`MissingGlyphBehavior::Blank`] when this
     /// object is omitted.
     pub behavior: MissingGlyphBehavior,
-    /// Fallback variant name. Required only when `behavior` is `fallback`.
+    /// Fallback variant name. Required only when `behavior` is `fallback`; the named variant must
+    /// contain every logical glyph in the family.
     pub variant: Option<String>,
 }
 

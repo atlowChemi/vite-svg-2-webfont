@@ -109,8 +109,8 @@ encoded, and names that collide on case-insensitive filesystems are rejected.
 - Type: `{ behavior: 'blank' | 'error' | 'fallback'; variant?: string }`
 - Default: `{ behavior: 'blank' }` in variant mode
 - Description: Family-wide policy for glyphs missing from a variant. `fallback` requires the name
-  of an existing variant; other behaviors reject `variant`. Import `MissingGlyphBehavior` from the
-  package for the enum values.
+  of an existing variant that contains every logical glyph in the family; other behaviors reject
+  `variant`. Import `MissingGlyphBehavior` from the package for the enum values.
 
 ### `dest`
 
