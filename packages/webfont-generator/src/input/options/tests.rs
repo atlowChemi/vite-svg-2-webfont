@@ -3,8 +3,8 @@ use std::path::Path;
 
 use super::{
     encode_filename_component, resolve_codepoints, resolve_generate_webfonts_options,
-    resolve_variant_weights, resolved_font_types, validate_font_type_order,
-    validate_generate_webfonts_options,
+    resolve_variant_weights, resolved_font_types, serialize_css_identifier,
+    validate_font_type_order, validate_generate_webfonts_options,
 };
 use crate::input::LoadedSvgFile;
 use crate::{
