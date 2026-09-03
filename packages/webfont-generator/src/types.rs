@@ -329,7 +329,8 @@ pub struct GenerateWebfontsOptions {
     /// invalid without `variants`.
     pub variant_class_prefix: Option<String>,
     /// Ordered named SVG designs for one logical icon family. Variant generation is not yet
-    /// available; valid input is resolved before returning an unsupported-operation error.
+    /// available; validated variants resolve weights and filename components before returning an
+    /// unsupported-operation error.
     pub variants: Option<Vec<FontVariant>>,
     /// Whether to write generated files to disk. Set to `false` for
     /// in-memory usage. Defaults to `true`.
