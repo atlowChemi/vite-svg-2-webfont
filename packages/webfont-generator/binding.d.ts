@@ -133,6 +133,9 @@ export interface FormatOptions {
  * HTML preview) to `options.dest`, and returns a `GenerateWebfontsResult`
  * holding the font bytes and template-rendering methods.
  *
+ * Multi-variant input is validated and resolved, then returns an unsupported-operation error;
+ * variant font generation is not available yet.
+ *
  * Optional callbacks:
  * - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
  * - `cssContext(ctx)` — mutate the Handlebars context before CSS rendering;
@@ -142,9 +145,9 @@ export interface FormatOptions {
 export declare function generateWebfonts(options: GenerateWebfontsOptions, rename?: (((arg: Array<string>) => Array<string>)) | undefined | null, cssContext?: (((arg: Record<string, any>) => Record<string, any>)) | undefined | null, htmlContext?: (((arg: Record<string, any>) => Record<string, any>)) | undefined | null): Promise<GenerateWebfontsResult>
 
 /**
- * Top-level options controlling webfont generation. Only `dest` and `files`
- * are required; every other field has a sensible default. See the per-field
- * docs for defaults and units.
+ * Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
+ * `files` or future `variants`, are required. Variant input is validated and resolved before
+ * returning an unsupported-operation error; every other field has a sensible default.
  */
 export interface GenerateWebfontsOptions {
   /**
@@ -273,7 +276,7 @@ export interface GenerateWebfontsOptions {
   variantClassPrefix?: string
   /**
    * Ordered named SVG designs for one logical icon family. Variant generation is not yet
-   * available; this phase establishes and validates its input contract.
+   * available; valid input is resolved before returning an unsupported-operation error.
    */
   variants?: Array<FontVariant>
   /**
