@@ -203,7 +203,7 @@ fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<Compiled
     })
 }
 
-fn compile_simple_glyph(glyph: &ProcessedGlyph) -> Result<SimpleGlyph, Error> {
+pub(super) fn compile_simple_glyph(glyph: &ProcessedGlyph) -> Result<SimpleGlyph, Error> {
     let path = match &glyph.ttf_path {
         Some(path) => quadratic_path(path)?,
         None => quadratic_path_from_svg_path_data(&glyph.path_data)?,
