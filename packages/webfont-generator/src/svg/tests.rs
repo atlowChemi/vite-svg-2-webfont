@@ -10,8 +10,8 @@ use write_fonts::types::{GlyphId, Tag};
 
 use super::types::{GlyphCache, PreparedVariantFamily, ProcessedGlyph};
 use super::{
-    build_svg_font, prepare_svg_font, prepare_svg_font_incremental, prepare_variant_svg_family,
-    source_content_hash, svg_options_from_options,
+    build_svg_font, glyph_scale, prepare_svg_font, prepare_svg_font_incremental,
+    prepare_variant_svg_family, source_content_hash, svg_options_from_options,
 };
 
 use crate::input::{self, LoadedSvgFile, ResolvedGenerateWebfontsOptions, VariantFamilySources};
@@ -313,6 +313,12 @@ fn assert_snapshot(name: &str, actual_svg: &str) {
         actual_svg, expected_svg,
         "svg snapshot mismatch for '{name}'"
     );
+}
+
+#[test]
+fn zero_dimensions_keep_the_default_glyph_scale() {
+    assert_eq!(glyph_scale(0.0, 0.0, true, 0.0, 1000.0), 1.0);
+    assert_eq!(glyph_scale(0.0, 0.0, false, 0.0, 1000.0), 1.0);
 }
 
 #[test]
