@@ -148,6 +148,14 @@ fn unavailable_variant_generation() -> std::io::Error {
     )
 }
 
+#[cfg(feature = "napi")]
+fn variant_preparation_join_error(error: tokio::task::JoinError) -> napi::Error {
+    napi::Error::new(
+        Status::GenericFailure,
+        format!("Native variant preparation task failed: {error}"),
+    )
+}
+
 #[cfg(all(test, feature = "napi"))]
 #[unsafe(no_mangle)]
 extern "C" fn napi_call_threadsafe_function(
@@ -165,6 +173,21 @@ extern "C" fn napi_release_threadsafe_function(
     _: napi::sys::napi_threadsafe_function_release_mode,
 ) -> napi::sys::napi_status {
     0
+}
+
+#[cfg(all(test, feature = "napi"))]
+#[tokio::test]
+async fn napi_variant_preparation_reports_panicking_worker() {
+    let join_error = tokio::task::spawn_blocking(|| panic!("variant preparation panic"))
+        .await
+        .unwrap_err();
+    let error = variant_preparation_join_error(join_error);
+
+    assert!(
+        error
+            .reason
+            .starts_with("Native variant preparation task failed:")
+    );
 }
 
 #[cfg(all(test, feature = "napi"))]
@@ -298,12 +321,8 @@ pub async fn generate_webfonts(
         let preparation = tokio::task::spawn_blocking(move || {
             prepare_variant_family(&mut resolved_options, source_files)
         });
-        let _family = preparation.await.map_err(|error| {
-            napi::Error::new(
-                Status::GenericFailure,
-                format!("Native variant preparation task failed: {error}"),
-            )
-        })??;
+        let preparation = preparation.await;
+        let _family = preparation.map_err(variant_preparation_join_error)??;
         return Err(unavailable_variant_generation().into());
     }
     let source_files = load_svg_files_napi(&options.files, rename.as_ref(), true).await?;
