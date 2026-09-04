@@ -192,8 +192,9 @@ This release loads and resolves variant sources but does not generate variant fo
 parallel while rename callbacks retain variant and file order. Matching names across variants join
 one logical glyph and receive one shared codepoint; duplicate names within a variant are rejected.
 Missing source cells then become explicit blanks, errors, or references to the configured fallback
-variant. `generate()` and `generate_sync()` return `io::ErrorKind::Unsupported` after successful
-source and missing-glyph resolution.
+variant. Every resolved source is then parsed and processed with shared family metrics and a stable
+advance per logical glyph. `generate()` and `generate_sync()` return `io::ErrorKind::Unsupported`
+after successful geometry preparation.
 
 ## `FontType`
 

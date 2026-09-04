@@ -23,14 +23,13 @@ pub(crate) fn process_glyph(
     serialize_path: bool,
     structure_path: bool,
 ) -> Result<ProcessedGlyph, Error> {
-    let ratio = if normalize {
-        let base = glyph.width.max(glyph.height);
-        if base > 0.0 { font_height / base } else { 1.0 }
-    } else if max_glyph_height > 0.0 {
-        font_height / max_glyph_height
-    } else {
-        1.0
-    };
+    let ratio = glyph_scale(
+        glyph.width,
+        glyph.height,
+        normalize,
+        max_glyph_height,
+        font_height,
+    );
     let mut scaled_width = glyph.width * ratio;
     let scaled_height = glyph.height * ratio;
     let y_offset = scaled_height - descent;
@@ -118,6 +117,26 @@ pub(crate) fn process_glyph(
         ttf_path_hash,
         width: scaled_width,
     })
+}
+
+pub(crate) fn glyph_scale(
+    width: f64,
+    height: f64,
+    normalize: bool,
+    max_glyph_height: f64,
+    font_height: f64,
+) -> f64 {
+    if normalize {
+        let base = width.max(height);
+        if base <= 0.0 {
+            return 1.0;
+        }
+        font_height / base
+    } else if max_glyph_height > 0.0 {
+        font_height / max_glyph_height
+    } else {
+        1.0
+    }
 }
 
 fn calculate_combined_bounds(paths: &[usvg::tiny_skia_path::Path]) -> Rect {

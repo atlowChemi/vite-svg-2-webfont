@@ -41,9 +41,9 @@ logical glyph in the family. SVG output and incremental mode are invalid with va
 
 Variant font generation is not available yet. Valid variant input is loaded in parallel, renamed in
 variant and file order, joined into a logical glyph union, assigned shared codepoints, and resolved
-according to the configured missing-glyph behavior before Rust generation returns `Unsupported`.
-The Node.js wrapper exposes the contract and performs cheap validation before invoking the native
-binding.
+according to the configured missing-glyph behavior. Its SVGs are then parsed with shared family
+metrics and stable logical advances before Rust generation returns `Unsupported`. The Node.js
+wrapper exposes the contract and performs cheap validation before invoking the native binding.
 
 ### Incremental regeneration
 
