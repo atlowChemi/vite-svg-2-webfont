@@ -295,7 +295,15 @@ pub async fn generate_webfonts(
             .map(|variant| variant.files.clone())
             .collect::<Vec<_>>();
         let source_files = load_variant_svg_files_napi(&variant_paths, rename.as_ref()).await?;
-        let _family = prepare_variant_family(&mut resolved_options, source_files)?;
+        let preparation = tokio::task::spawn_blocking(move || {
+            prepare_variant_family(&mut resolved_options, source_files)
+        });
+        let _family = preparation.await.map_err(|error| {
+            napi::Error::new(
+                Status::GenericFailure,
+                format!("Native variant preparation task failed: {error}"),
+            )
+        })??;
         return Err(unavailable_variant_generation().into());
     }
     let source_files = load_svg_files_napi(&options.files, rename.as_ref(), true).await?;
@@ -392,7 +400,10 @@ pub async fn generate(
             .map(|variant| variant.files.clone())
             .collect::<Vec<_>>();
         let source_files = load_variant_svg_files(&variant_paths, rename.as_deref()).await?;
-        let _family = prepare_variant_family(&mut resolved_options, source_files)?;
+        let preparation = tokio::task::spawn_blocking(move || {
+            prepare_variant_family(&mut resolved_options, source_files)
+        });
+        let _family = preparation.await.map_err(std::io::Error::other)??;
         return Err(unavailable_variant_generation());
     }
     let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
