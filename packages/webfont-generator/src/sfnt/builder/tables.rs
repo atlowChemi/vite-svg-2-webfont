@@ -18,7 +18,7 @@ use crate::sfnt::SerializedFontTables;
 use super::cache::{
     dump_cached_ttf_table, dump_ttf_table, hash_option_str, hash_str, table_cache_key,
 };
-use super::ligatures::{LigaturePlaceholderGlyph, build_ligature_gsub};
+use super::ligatures::LigaturePlaceholderGlyph;
 use super::types::{CompiledGlyph, GlyphMetrics, TtfOptions};
 use super::{clamp_to_i16, clamp_to_u16, current_unix_timestamp};
 
@@ -50,14 +50,6 @@ pub(super) fn assemble_font(
         )
         .chain(ligature_placeholders.iter().map(|_| LongMetric::new(0, 0)))
         .collect::<Vec<_>>();
-    let character_indices: Vec<u16> = compiled_glyphs
-        .iter()
-        .map(|g| g.codepoint)
-        .chain(ligature_placeholders.iter().map(|g| g.codepoint))
-        .map(|cp| cp.min(u32::from(u16::MAX)) as u16)
-        .collect();
-    let first_char_index = character_indices.iter().copied().min().unwrap_or(0);
-    let last_char_index = character_indices.iter().copied().max().unwrap_or(0);
     let head_timestamp = derive_head_timestamp(options.ts);
     let head = Head::new(
         Fixed::from_i32(1),
@@ -104,19 +96,16 @@ pub(super) fn assemble_font(
         max_component_elements: Some(0),
         max_component_depth: Some(0),
     };
-    let os2 = Os2 {
-        x_avg_char_width: metrics.x_avg_char_width,
-        us_weight_class: derive_weight_class(options.font_weight),
-        ach_vend_id: DEFAULT_VENDOR_ID,
-        us_first_char_index: first_char_index,
-        us_last_char_index: last_char_index,
-        s_typo_ascender: clamp_to_i16(ascent.round()),
-        s_typo_descender: clamp_to_i16(-descent.round()),
-        s_typo_line_gap: 0,
-        us_win_ascent: clamp_to_u16(ascent.round(), 0, u16::MAX),
-        us_win_descent: clamp_to_u16(descent.round(), 0, u16::MAX),
-        ..Default::default()
-    };
+    let os2 = build_os2(
+        options,
+        metrics,
+        ascent,
+        descent,
+        compiled_glyphs
+            .iter()
+            .map(|glyph| glyph.codepoint)
+            .chain(ligature_placeholders.iter().map(|glyph| glyph.codepoint)),
+    );
     let cmap = Cmap::from_mappings(
         compiled_glyphs
             .iter()
@@ -147,6 +136,7 @@ pub(super) fn assemble_font(
     let name = build_name_table(
         options.font_name,
         &font_subfamily,
+        None,
         options.copyright,
         options.description,
         options.manufacturer_url,
@@ -157,7 +147,7 @@ pub(super) fn assemble_font(
             .chain(compiled_glyphs.iter().map(|g| g.name.as_str()))
             .chain(ligature_placeholders.iter().map(|g| g.name.as_str())),
     );
-    let gsub = build_ligature_gsub(compiled_glyphs, ligature_placeholders);
+    let gsub = super::ligatures::build_ligature_gsub(compiled_glyphs, ligature_placeholders);
     let mut used_table_keys = HashSet::new();
     let mut tables = Vec::with_capacity(11);
     tables.push(dump_ttf_table(&head, "head")?);
@@ -304,9 +294,10 @@ fn gsub_cache_key(
     })
 }
 
-fn build_name_table(
+pub(super) fn build_name_table(
     font_family: &str,
     font_subfamily: &str,
+    postscript_name: Option<&str>,
     copyright: Option<&str>,
     description: Option<&str>,
     url: Option<&str>,
@@ -317,13 +308,13 @@ fn build_name_table(
     } else {
         format!("{font_family} {font_subfamily}")
     };
-    let postscript_name = full_name.replace(' ', "-");
+    let default_postscript_name = full_name.replace(' ', "-");
     let mut name_record = vec![
         make_windows_name_record(1, font_family),
         make_windows_name_record(2, font_subfamily),
         make_windows_name_record(4, &full_name),
         make_windows_name_record(5, version.unwrap_or("Version 1.0")),
-        make_windows_name_record(6, &postscript_name),
+        make_windows_name_record(6, postscript_name.unwrap_or(&default_postscript_name)),
     ];
     if let Some(copyright) = copyright {
         name_record.push(make_windows_name_record(0, copyright));
@@ -342,8 +333,33 @@ fn build_name_table(
         ..Default::default()
     }
 }
-fn make_windows_name_record(name_id: u16, value: &str) -> NameRecord {
+pub(super) fn make_windows_name_record(name_id: u16, value: &str) -> NameRecord {
     NameRecord::new(3, 1, 0x0409, NameId::new(name_id), value.to_string().into())
+}
+
+pub(super) fn build_os2(
+    options: &TtfOptions,
+    metrics: &GlyphMetrics,
+    ascent: f64,
+    descent: f64,
+    codepoints: impl Iterator<Item = u32>,
+) -> Os2 {
+    let character_indices = codepoints
+        .map(|codepoint| codepoint.min(u32::from(u16::MAX)) as u16)
+        .collect::<Vec<_>>();
+    Os2 {
+        x_avg_char_width: metrics.x_avg_char_width,
+        us_weight_class: derive_weight_class(options.font_weight),
+        ach_vend_id: DEFAULT_VENDOR_ID,
+        us_first_char_index: character_indices.iter().copied().min().unwrap_or(0),
+        us_last_char_index: character_indices.iter().copied().max().unwrap_or(0),
+        s_typo_ascender: clamp_to_i16(ascent.round()),
+        s_typo_descender: clamp_to_i16(-descent.round()),
+        s_typo_line_gap: 0,
+        us_win_ascent: clamp_to_u16(ascent.round(), 0, u16::MAX),
+        us_win_descent: clamp_to_u16(descent.round(), 0, u16::MAX),
+        ..Default::default()
+    }
 }
 fn derive_subfamily_name(options: &TtfOptions) -> String {
     match options.font_style {
@@ -362,7 +378,7 @@ fn derive_weight_class(font_weight: Option<&str>) -> u16 {
         None => 400,
     }
 }
-fn derive_version_string(version: Option<&str>) -> Option<String> {
+pub(super) fn derive_version_string(version: Option<&str>) -> Option<String> {
     let version = version?.trim();
     if version.is_empty() {
         return None;
