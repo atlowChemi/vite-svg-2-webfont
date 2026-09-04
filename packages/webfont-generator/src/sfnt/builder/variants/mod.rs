@@ -130,6 +130,7 @@ pub(crate) fn build_variant(
     let mut name = build_name_table(
         options.font_name,
         default_name,
+        Some(&variant_postscript_name(options.font_name, default_name)),
         options.copyright,
         options.description,
         options.manufacturer_url,
@@ -252,7 +253,11 @@ fn add_presentation(
     // ponytail: exact linear scan; add outline-hash buckets if large variant families make this hot.
     let physical_index = physical
         .iter()
-        .position(|glyph| glyph.advance_width == advance_width && glyph.simple_glyph() == &outline)
+        .position(|glyph| {
+            (!is_default || glyph.source_index == logical_index)
+                && glyph.advance_width == advance_width
+                && glyph.simple_glyph() == &outline
+        })
         .unwrap_or_else(|| {
             let index = physical.len();
             let bbox = outline.bbox;
@@ -279,6 +284,34 @@ fn presentation_name(logical_name: &str, variant_index: usize, is_default: bool)
         logical_name.to_owned()
     } else {
         format!("{logical_name}.{variant_index}")
+    }
+}
+
+fn variant_postscript_name(font_family: &str, variant_name: &str) -> String {
+    const HASH_LEN: usize = 32;
+    const MAX_LEN: usize = 63;
+
+    let identity = format!("{font_family}\0{variant_name}");
+    let hash = format!("{:x}", md5::compute(identity.as_bytes()));
+    let mut prefix = String::new();
+    for character in format!("{font_family}-{variant_name}").chars() {
+        let valid = character.is_ascii_graphic()
+            && !matches!(
+                character,
+                '[' | ']' | '(' | ')' | '{' | '}' | '<' | '>' | '/' | '%'
+            );
+        if valid {
+            prefix.push(character);
+        } else if !prefix.ends_with('-') {
+            prefix.push('-');
+        }
+    }
+    let prefix = prefix.trim_matches('-');
+    let prefix = &prefix[..prefix.len().min(MAX_LEN - HASH_LEN - 1)];
+    if prefix.is_empty() {
+        hash
+    } else {
+        format!("{prefix}-{hash}")
     }
 }
 

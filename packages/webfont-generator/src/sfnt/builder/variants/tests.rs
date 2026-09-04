@@ -242,6 +242,45 @@ fn deduplicates_only_equal_compiled_outlines_and_clamped_advances() {
 }
 
 #[test]
+fn keeps_default_gids_distinct_when_logical_variant_rows_diverge() {
+    let variants = resolved_variants();
+    let shared_default = outline("shared", 0xe020, 20.0, 20.0);
+    let family = PreparedVariantFamily {
+        ascent: 10.0,
+        descent: 0.0,
+        font_height: 1000.0,
+        glyphs: vec![
+            ProcessedVariantGlyph {
+                name: "first".to_owned(),
+                codepoint: 0xe020,
+                advance_width: 20.0,
+                outlines: vec![
+                    Some(outline("first", 0xe020, 20.0, 10.0)),
+                    Some(shared_default.clone()),
+                    Some(outline("first", 0xe020, 20.0, 30.0)),
+                ]
+                .into_boxed_slice(),
+            },
+            ProcessedVariantGlyph {
+                name: "second".to_owned(),
+                codepoint: 0xe021,
+                advance_width: 20.0,
+                outlines: vec![
+                    Some(outline("second", 0xe021, 20.0, 11.0)),
+                    Some(shared_default),
+                    Some(outline("second", 0xe021, 20.0, 31.0)),
+                ]
+                .into_boxed_slice(),
+            },
+        ],
+    };
+    let built = build_variant(options(), &family, &variants).unwrap();
+
+    assert_eq!(built.presentation_gids[0][1], GlyphId16::new(1));
+    assert_eq!(built.presentation_gids[1][1], GlyphId16::new(2));
+}
+
+#[test]
 fn writes_fvar_stat_names_and_default_weight_metadata() {
     let variants = resolved_variants();
     let mut options = options();
@@ -261,6 +300,10 @@ fn writes_fvar_stat_names_and_default_weight_metadata() {
     };
     assert_eq!(read_name(256), "Weight");
     assert_eq!(read_name(5), "Version 1.2");
+    assert_eq!(
+        read_name(6),
+        variant_postscript_name("Variant Test", "Regular")
+    );
     assert_eq!(
         (read_name(257), read_name(258), read_name(259)),
         ("Light".to_owned(), "Regular".to_owned(), "Bold".to_owned())
@@ -330,6 +373,33 @@ fn writes_fvar_stat_names_and_default_weight_metadata() {
     assert_eq!(os2.us_weight_class(), 400);
     assert_eq!(os2.us_first_char_index(), 0xe001);
     assert_eq!(os2.us_last_char_index(), 0xe002);
+}
+
+#[test]
+fn makes_deterministic_postscript_safe_variant_names() {
+    let first = variant_postscript_name(
+        "Fónt /[](){}<>% with a very long family name that must be truncated",
+        "large/alt",
+    );
+    let collision = variant_postscript_name(
+        "Fónt /[](){}<>% with a very long family name that must be truncated",
+        "large%alt",
+    );
+
+    assert!(first.is_ascii());
+    assert!(first.len() <= 63);
+    assert!(!first.chars().any(|character| {
+        character.is_ascii_whitespace()
+            || matches!(
+                character,
+                '[' | ']' | '(' | ')' | '{' | '}' | '<' | '>' | '/' | '%'
+            )
+    }));
+    assert_ne!(first, collision);
+    assert_eq!(
+        variant_postscript_name("", "💡"),
+        format!("{:x}", md5::compute(b"\0\xf0\x9f\x92\xa1"))
+    );
 }
 
 #[test]
