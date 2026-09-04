@@ -136,6 +136,7 @@ pub(super) fn assemble_font(
     let name = build_name_table(
         options.font_name,
         &font_subfamily,
+        None,
         options.copyright,
         options.description,
         options.manufacturer_url,
@@ -296,6 +297,7 @@ fn gsub_cache_key(
 pub(super) fn build_name_table(
     font_family: &str,
     font_subfamily: &str,
+    postscript_name: Option<&str>,
     copyright: Option<&str>,
     description: Option<&str>,
     url: Option<&str>,
@@ -306,13 +308,13 @@ pub(super) fn build_name_table(
     } else {
         format!("{font_family} {font_subfamily}")
     };
-    let postscript_name = full_name.replace(' ', "-");
+    let default_postscript_name = full_name.replace(' ', "-");
     let mut name_record = vec![
         make_windows_name_record(1, font_family),
         make_windows_name_record(2, font_subfamily),
         make_windows_name_record(4, &full_name),
         make_windows_name_record(5, version.unwrap_or("Version 1.0")),
-        make_windows_name_record(6, &postscript_name),
+        make_windows_name_record(6, postscript_name.unwrap_or(&default_postscript_name)),
     ];
     if let Some(copyright) = copyright {
         name_record.push(make_windows_name_record(0, copyright));
