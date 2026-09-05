@@ -19,7 +19,7 @@ use write_fonts::types::{F2Dot14, Fixed, GlyphId, GlyphId16, NameId, Tag};
 
 use crate::input::ResolvedVariants;
 use crate::sfnt::SerializedFontTables;
-use crate::svg::types::PreparedVariantFamily;
+use crate::svg::types::{PreparedVariantFamily, ProcessedGlyph};
 
 use super::clamp_to_u16;
 use super::glyphs::{build_glyf_table, compile_simple_glyph, compute_glyph_metrics};
@@ -34,6 +34,10 @@ const FIRST_VARIANT_NAME_ID: u16 = 257;
 
 pub(crate) struct VariantFontBuild {
     pub(crate) tables: SerializedFontTables,
+    #[allow(
+        dead_code,
+        reason = "presentation GIDs are consumed by later variant phases"
+    )]
     pub(crate) presentation_gids: Vec<Box<[GlyphId16]>>,
 }
 
@@ -280,6 +284,58 @@ pub(crate) fn build_variant(
         tables: SerializedFontTables::new(tables)?,
         presentation_gids,
     })
+}
+
+pub(crate) fn build_static_variant(
+    options: TtfOptions<'_>,
+    family: &PreparedVariantFamily,
+    variant_index: usize,
+    weight: u16,
+) -> Result<SerializedFontTables, Error> {
+    let glyphs = family
+        .glyphs
+        .iter()
+        .enumerate()
+        .map(|(index, glyph)| {
+            let mut outline =
+                glyph.outlines[variant_index]
+                    .clone()
+                    .unwrap_or_else(|| ProcessedGlyph {
+                        codepoint: glyph.codepoint,
+                        height: 0.0,
+                        index,
+                        name: glyph.name.clone(),
+                        path_data: "".into(),
+                        ttf_path: None,
+                        ttf_path_hash: None,
+                        width: glyph.advance_width,
+                    });
+            outline.codepoint = glyph.codepoint;
+            outline.index = index;
+            outline.name.clone_from(&glyph.name);
+            outline.width = glyph.advance_width;
+            outline
+        })
+        .collect::<Vec<_>>();
+    let weight = weight.to_string();
+    super::build(
+        TtfOptions {
+            ascent: Some(family.ascent),
+            copyright: options.copyright,
+            descent: Some(family.descent),
+            description: options.description,
+            font_height: Some(family.font_height),
+            font_name: options.font_name,
+            font_style: options.font_style,
+            font_weight: Some(&weight),
+            ligature: options.ligature,
+            manufacturer_url: options.manufacturer_url,
+            ts: options.ts,
+            version: options.version,
+        },
+        &glyphs,
+        None,
+    )
 }
 
 fn build_variant_gsub(
