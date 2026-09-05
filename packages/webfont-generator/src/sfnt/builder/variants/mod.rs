@@ -1,10 +1,21 @@
+use std::collections::BTreeMap;
 use std::io::{Error, ErrorKind};
 
 use write_fonts::tables::cmap::Cmap;
 use write_fonts::tables::fvar::{AxisInstanceArrays, Fvar, InstanceRecord, VariationAxisRecord};
 use write_fonts::tables::glyf::SimpleGlyph;
+use write_fonts::tables::gsub::{
+    self, Gsub, SingleSubst, SubstitutionLookup, SubstitutionLookupList,
+};
+use write_fonts::tables::layout::builders::{Builder, LookupBuilder};
+use write_fonts::tables::layout::{
+    Condition, ConditionSet, CoverageTable, Feature, FeatureList, FeatureRecord,
+    FeatureTableSubstitution, FeatureTableSubstitutionRecord, FeatureVariationRecord,
+    FeatureVariations, LangSys, Lookup, LookupFlag, Script, ScriptList, ScriptRecord,
+};
 use write_fonts::tables::stat::{AxisRecord, AxisValue, AxisValueTableFlags, Stat};
-use write_fonts::types::{Fixed, GlyphId, GlyphId16, NameId, Tag};
+use write_fonts::tables::variations::ivs_builder::VariationStoreBuilder;
+use write_fonts::types::{F2Dot14, Fixed, GlyphId, GlyphId16, NameId, Tag};
 
 use crate::input::ResolvedVariants;
 use crate::sfnt::SerializedFontTables;
@@ -12,6 +23,7 @@ use crate::svg::types::PreparedVariantFamily;
 
 use super::clamp_to_u16;
 use super::glyphs::{build_glyf_table, compile_simple_glyph, compute_glyph_metrics};
+use super::ligatures;
 use super::tables::{
     assemble_font, build_name_table, build_os2, derive_version_string, make_windows_name_record,
 };
@@ -73,9 +85,11 @@ pub(crate) fn build_variant(
             }
         }
     }
-    let presentation_gids = checked_gids(physical.len(), matrix)?;
+    let ligature_placeholders =
+        ligatures::build_ligature_placeholders(&physical[..family.glyphs.len()], options.ligature);
+    let presentation_gids = checked_gids(physical.len() + ligature_placeholders.len(), matrix)?;
 
-    let (glyf, loca, loca_format) = build_glyf_table(&physical, &[])?;
+    let (glyf, loca, loca_format) = build_glyf_table(&physical, &ligature_placeholders)?;
     let metrics = compute_glyph_metrics(&physical);
     let default_weight = variants.variants[variants.default_index].weight.to_string();
     let base_options = TtfOptions {
@@ -96,7 +110,7 @@ pub(crate) fn build_variant(
         &base_options,
         &physical,
         &[],
-        &[],
+        &ligature_placeholders,
         glyf,
         loca,
         loca_format,
@@ -107,24 +121,36 @@ pub(crate) fn build_variant(
         None,
     )?;
 
-    let cmap = Cmap::from_mappings(family.glyphs.iter().enumerate().filter_map(
-        |(logical_index, glyph)| {
-            char::from_u32(glyph.codepoint).map(|codepoint| {
-                (
-                    codepoint,
-                    GlyphId::new(u32::from(
-                        presentation_gids[logical_index][variants.default_index].to_u16(),
-                    )),
-                )
-            })
-        },
-    ))
-    .map_err(|error| {
-        Error::new(
-            ErrorKind::InvalidData,
-            format!("Failed to build cmap table: {error}"),
+    let cmap =
+        Cmap::from_mappings(
+            family
+                .glyphs
+                .iter()
+                .enumerate()
+                .filter_map(|(logical_index, glyph)| {
+                    char::from_u32(glyph.codepoint).map(|codepoint| {
+                        (
+                            codepoint,
+                            GlyphId::new(u32::from(
+                                presentation_gids[logical_index][variants.default_index].to_u16(),
+                            )),
+                        )
+                    })
+                })
+                .chain(ligature_placeholders.iter().enumerate().filter_map(
+                    |(index, placeholder)| {
+                        char::from_u32(placeholder.codepoint).map(|codepoint| {
+                            (codepoint, GlyphId::new((physical.len() + index + 1) as u32))
+                        })
+                    },
+                )),
         )
-    })?;
+        .map_err(|error| {
+            Error::new(
+                ErrorKind::InvalidData,
+                format!("Failed to build cmap table: {error}"),
+            )
+        })?;
 
     let default_name = &variants.variants[variants.default_index].name;
     let mut name = build_name_table(
@@ -195,11 +221,23 @@ pub(crate) fn build_variant(
             .collect(),
         name_id(variants.default_index),
     );
+    let gsub = build_variant_gsub(
+        family,
+        variants,
+        &presentation_gids,
+        &ligature_placeholders,
+        physical.len(),
+    );
 
     let mut tables = base
         .tables()
         .iter()
-        .filter(|table| table.tag != *b"OS/2" && table.tag != *b"cmap" && table.tag != *b"name")
+        .filter(|table| {
+            table.tag != *b"GSUB"
+                && table.tag != *b"OS/2"
+                && table.tag != *b"cmap"
+                && table.tag != *b"name"
+        })
         .map(|table| (table.tag, table.bytes.clone()))
         .collect::<Vec<_>>();
     tables.push((
@@ -229,11 +267,188 @@ pub(crate) fn build_variant(
         *b"STAT",
         write_fonts::dump_table(&stat).map_err(Error::other)?,
     ));
+    tables.push((
+        *b"GSUB",
+        write_fonts::dump_table(&gsub).map_err(Error::other)?,
+    ));
 
     Ok(VariantFontBuild {
         tables: SerializedFontTables::new(tables)?,
         presentation_gids,
     })
+}
+
+fn build_variant_gsub(
+    family: &PreparedVariantFamily,
+    variants: &ResolvedVariants,
+    presentation_gids: &[Box<[GlyphId16]>],
+    placeholders: &[ligatures::LigaturePlaceholderGlyph],
+    physical_count: usize,
+) -> Gsub {
+    let default_gids = presentation_gids
+        .iter()
+        .map(|row| row[variants.default_index])
+        .collect::<Vec<_>>();
+    let mut lookups = Vec::new();
+    let mut rvrn_lookups = vec![None; variants.variants.len()];
+    for variant_index in 0..variants.variants.len() {
+        if variant_index == variants.default_index {
+            continue;
+        }
+        rvrn_lookups[variant_index] = Some(lookups.len() as u16);
+        lookups.push(SubstitutionLookup::Single(Lookup::new(
+            LookupFlag::empty(),
+            vec![SingleSubst::format_2(
+                CoverageTable::format_1(default_gids.clone()),
+                presentation_gids
+                    .iter()
+                    .map(|row| row[variant_index])
+                    .collect(),
+            )],
+        )));
+    }
+
+    let mut liga_lookups = vec![None; variants.variants.len()];
+    if !placeholders.is_empty() {
+        for (variant_index, lookup_index) in liga_lookups.iter_mut().enumerate() {
+            *lookup_index = Some(lookups.len() as u16);
+            lookups.push(build_variant_ligature_lookup(
+                family,
+                presentation_gids,
+                placeholders,
+                physical_count,
+                variant_index,
+            ));
+        }
+    }
+
+    let (features, rvrn_feature_index, liga_feature_index) =
+        if let Some(default_liga) = liga_lookups[variants.default_index] {
+            (
+                vec![
+                    FeatureRecord::new(Tag::new(b"liga"), Feature::new(None, vec![default_liga])),
+                    FeatureRecord::new(Tag::new(b"rvrn"), Feature::new(None, vec![])),
+                ],
+                1,
+                Some(0),
+            )
+        } else {
+            (
+                vec![FeatureRecord::new(
+                    Tag::new(b"rvrn"),
+                    Feature::new(None, vec![]),
+                )],
+                0,
+                None,
+            )
+        };
+    let mut gsub = Gsub::new(
+        ScriptList::new(vec![ScriptRecord::new(
+            Tag::new(b"DFLT"),
+            Script::new(
+                Some(LangSys::new((0..features.len() as u16).collect())),
+                vec![],
+            ),
+        )]),
+        FeatureList::new(features),
+        SubstitutionLookupList::new(lookups),
+    );
+    gsub.feature_variations.set(FeatureVariations::new(
+        variants
+            .variants
+            .iter()
+            .enumerate()
+            .filter(|(index, _)| *index != variants.default_index)
+            .map(|(variant_index, _)| {
+                let mut substitutions = Vec::new();
+                if let (Some(feature_index), Some(lookup_index)) =
+                    (liga_feature_index, liga_lookups[variant_index])
+                {
+                    substitutions.push(FeatureTableSubstitutionRecord::new(
+                        feature_index,
+                        Feature::new(None, vec![lookup_index]),
+                    ));
+                }
+                substitutions.push(FeatureTableSubstitutionRecord::new(
+                    rvrn_feature_index,
+                    Feature::new(None, vec![rvrn_lookups[variant_index].unwrap()]),
+                ));
+                let (minimum, maximum) = variant_range(variants, variant_index);
+                FeatureVariationRecord::new(
+                    Some(ConditionSet::new(vec![Condition::format_1_axis_range(
+                        0, minimum, maximum,
+                    )])),
+                    Some(FeatureTableSubstitution::new(substitutions)),
+                )
+            })
+            .collect(),
+    ));
+    gsub
+}
+
+fn build_variant_ligature_lookup(
+    family: &PreparedVariantFamily,
+    presentation_gids: &[Box<[GlyphId16]>],
+    placeholders: &[ligatures::LigaturePlaceholderGlyph],
+    physical_count: usize,
+    variant_index: usize,
+) -> SubstitutionLookup {
+    let placeholder_gids = placeholders
+        .iter()
+        .enumerate()
+        .map(|(index, glyph)| {
+            (
+                glyph.codepoint,
+                GlyphId16::new((physical_count + index + 1) as u16),
+            )
+        })
+        .collect::<BTreeMap<_, _>>();
+    let mut builder =
+        LookupBuilder::<gsub::builders::LigatureSubBuilder>::new(LookupFlag::empty(), None);
+    for (logical_index, glyph) in family.glyphs.iter().enumerate() {
+        let sequence = glyph
+            .name
+            .chars()
+            .filter_map(|character| placeholder_gids.get(&u32::from(character)).copied())
+            .collect::<Vec<_>>();
+        if sequence.len() >= 2 {
+            builder
+                .last_mut()
+                .expect("ligature lookup builder should always contain a subtable")
+                .insert(sequence, presentation_gids[logical_index][variant_index]);
+        }
+    }
+    let mut variation_store = VariationStoreBuilder::new(0);
+    SubstitutionLookup::Ligature(builder.build(&mut variation_store))
+}
+
+fn variant_range(variants: &ResolvedVariants, variant_index: usize) -> (F2Dot14, F2Dot14) {
+    let boundary = |lower: usize, upper: usize| {
+        let midpoint = (f64::from(variants.variants[lower].weight)
+            + f64::from(variants.variants[upper].weight))
+            / 2.0;
+        let minimum = f64::from(variants.variants[0].weight);
+        let default = f64::from(variants.variants[variants.default_index].weight);
+        let maximum = f64::from(variants.variants.last().unwrap().weight);
+        let normalized = if midpoint < default {
+            (midpoint - default) / (default - minimum)
+        } else {
+            (midpoint - default) / (maximum - default)
+        };
+        F2Dot14::from_f64(normalized)
+    };
+    let minimum = if variant_index == 0 {
+        F2Dot14::NEG_ONE
+    } else {
+        boundary(variant_index - 1, variant_index)
+    };
+    let maximum = if variant_index + 1 == variants.variants.len() {
+        F2Dot14::ONE
+    } else {
+        let next_boundary = boundary(variant_index, variant_index + 1);
+        F2Dot14::from_bits(next_boundary.to_bits() - 1)
+    };
+    (minimum, maximum)
 }
 
 fn add_presentation(
