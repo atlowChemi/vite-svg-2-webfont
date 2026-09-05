@@ -1,14 +1,13 @@
 use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use kurbo::Shape;
 use write_fonts::read::tables::glyf::Glyph;
 use write_fonts::read::{FontRef, TableProvider};
 use write_fonts::types::{GlyphId, Tag};
 
-use super::types::{GlyphCache, PreparedVariantFamily, ProcessedGlyph};
+use super::types::{GlyphCache, PreparedVariantFamily};
 use super::{
     build_svg_font, glyph_scale, prepare_svg_font, prepare_svg_font_incremental,
     prepare_variant_svg_family, source_content_hash, svg_options_from_options,
@@ -1135,28 +1134,6 @@ fn variant_family_metrics_are_order_independent_and_center_with_explicit_overrid
     }
 }
 
-fn oracle_glyphs(prepared: &PreparedVariantFamily, variant_index: usize) -> Vec<ProcessedGlyph> {
-    prepared
-        .glyphs
-        .iter()
-        .enumerate()
-        .map(|(index, glyph)| {
-            glyph.outlines[variant_index]
-                .clone()
-                .unwrap_or_else(|| ProcessedGlyph {
-                    codepoint: glyph.codepoint,
-                    height: 0.0,
-                    index,
-                    name: glyph.name.clone(),
-                    path_data: Arc::from(""),
-                    ttf_path: None,
-                    ttf_path_hash: None,
-                    width: glyph.advance_width,
-                })
-        })
-        .collect()
-}
-
 #[test]
 fn static_variant_oracles_share_metrics_codepoints_and_advances() {
     let (family, codepoints) = resolved_family(
@@ -1173,28 +1150,29 @@ fn static_variant_oracles_share_metrics_codepoints_and_advances() {
     );
     let prepared = prepare_family(&family, codepoints, |_| {});
     let build = |prepared: &PreparedVariantFamily, variant_index, weight| {
-        crate::sfnt::build(
+        crate::sfnt::build_static_variant(
             crate::sfnt::TtfOptions {
-                ascent: Some(prepared.ascent),
+                ascent: None,
                 copyright: None,
-                descent: Some(prepared.descent),
+                descent: None,
                 description: None,
-                font_height: Some(prepared.font_height),
+                font_height: None,
                 font_name: "variant-oracle",
                 font_style: None,
-                font_weight: Some(weight),
+                font_weight: None,
                 ligature: false,
                 manufacturer_url: None,
                 ts: Some(0),
                 version: None,
             },
-            &oracle_glyphs(&prepared, variant_index),
-            None,
+            prepared,
+            variant_index,
+            weight,
         )
         .unwrap()
     };
-    let small_tables = build(&prepared, 0, "300");
-    let large_tables = build(&prepared, 1, "700");
+    let small_tables = build(&prepared, 0, 300);
+    let large_tables = build(&prepared, 1, 700);
     let small = FontRef::new(small_tables.ttf()).unwrap();
     let large = FontRef::new(large_tables.ttf()).unwrap();
 
@@ -1230,7 +1208,7 @@ fn static_variant_oracles_share_metrics_codepoints_and_advances() {
         &["small", "large"],
     );
     let fallback = prepare_family(&fallback_family, fallback_codepoints, |_| {});
-    let fallback_large_tables = build(&fallback, 1, "700");
+    let fallback_large_tables = build(&fallback, 1, 700);
     let fallback_large = FontRef::new(fallback_large_tables.ttf()).unwrap();
     assert_eq!(
         glyph_bounds(&fallback_large, 0xe002_u32),
