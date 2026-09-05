@@ -3,24 +3,18 @@ use std::path::Path;
 use std::sync::Arc;
 
 use flate2::read::ZlibDecoder;
+use kurbo::{BezPath, Point};
 use write_fonts::read::tables::gsub::{
     SingleSubst as ReadSingleSubst, SubstitutionLookup as ReadSubstitutionLookup,
 };
 use write_fonts::read::tables::layout::Condition as ReadCondition;
-use write_fonts::read::{FontData, FontRead, FontRef, TableProvider};
-use write_fonts::tables::fvar::{AxisInstanceArrays, Fvar, VariationAxisRecord};
-use write_fonts::tables::gsub::{Gsub, SingleSubst, SubstitutionLookup, SubstitutionLookupList};
-use write_fonts::tables::layout::{
-    Condition, ConditionSet, CoverageTable, Feature, FeatureList, FeatureRecord,
-    FeatureTableSubstitution, FeatureTableSubstitutionRecord, FeatureVariationRecord,
-    FeatureVariations, LangSys, Lookup, LookupFlag, Script, ScriptList, ScriptRecord,
-};
-use write_fonts::tables::name::{Name, NameRecord};
-use write_fonts::tables::stat::{AxisRecord, Stat};
+use write_fonts::read::{FontRef, TableProvider};
 use write_fonts::types::{F2Dot14, Fixed, GlyphId, GlyphId16, MajorMinor, NameId, Tag};
 
+use crate::input::resolve_generate_webfonts_options;
 use crate::sfnt::SerializedFontTables;
-use crate::svg::types::ProcessedGlyph;
+use crate::svg::types::{PreparedVariantFamily, ProcessedGlyph, ProcessedVariantGlyph};
+use crate::{FontType, FontVariant, GenerateWebfontsOptions};
 
 use super::super::TtfOptions;
 
@@ -32,7 +26,7 @@ fn proof_font_declares_discrete_weight_variation() {
     let tables = build_proof_font();
     let font = FontRef::new(tables.ttf()).expect("proof TTF should parse");
 
-    assert_eq!(font.maxp().unwrap().num_glyphs(), 3);
+    assert_eq!(font.maxp().unwrap().num_glyphs(), 5);
     assert_eq!(
         font.cmap().unwrap().map_codepoint(0xe001_u32),
         Some(GlyphId::new(1))
@@ -60,6 +54,9 @@ fn proof_font_declares_discrete_weight_variation() {
     let gsub = font.gsub().expect("proof font should contain GSUB");
     assert_eq!(gsub.version(), MajorMinor::VERSION_1_1);
     let feature = gsub.feature_list().unwrap().get(0).unwrap();
+    assert_eq!(feature.tag, Tag::new(b"liga"));
+    let liga_feature = feature;
+    let feature = gsub.feature_list().unwrap().get(1).unwrap();
     assert_eq!(feature.tag, Tag::new(b"rvrn"));
     assert!(feature.lookup_list_indices().is_empty());
 
@@ -83,7 +80,8 @@ fn proof_font_declares_discrete_weight_variation() {
         .feature_table_substitution(variations.offset_data())
         .unwrap()
         .unwrap();
-    let alternate = substitutions.substitutions()[0]
+    assert_eq!(substitutions.substitution_count(), 2);
+    let alternate = substitutions.substitutions()[1]
         .alternate_feature(substitutions.offset_data())
         .unwrap();
     assert_eq!(alternate.lookup_list_indices()[0].get(), 0);
@@ -92,13 +90,24 @@ fn proof_font_declares_discrete_weight_variation() {
     let ReadSubstitutionLookup::Single(lookup) = lookup else {
         panic!("expected a single-substitution lookup");
     };
-    let ReadSingleSubst::Format1(single) = lookup.subtables().get(0).unwrap() else {
-        panic!("expected SingleSubst format 1");
+    let ReadSingleSubst::Format2(single) = lookup.subtables().get(0).unwrap() else {
+        panic!("expected SingleSubst format 2");
     };
-    assert_eq!(single.delta_glyph_id(), 1);
     assert_eq!(
         single.coverage().unwrap().iter().collect::<Vec<_>>(),
         vec![GlyphId16::new(1)],
+    );
+    assert_eq!(single.substitute_glyph_ids()[0].get(), GlyphId16::new(2));
+    let alternate_liga = substitutions.substitutions()[0]
+        .alternate_feature(substitutions.offset_data())
+        .unwrap();
+    assert_eq!(
+        ligature_target(&gsub, liga_feature.lookup_list_indices()[0].get()),
+        GlyphId16::new(1)
+    );
+    assert_eq!(
+        ligature_target(&gsub, alternate_liga.lookup_list_indices()[0].get()),
+        GlyphId16::new(2)
     );
 }
 
@@ -149,29 +158,42 @@ fn browser_proof_fixture_matches_test_builder() {
 }
 
 fn build_proof_font() -> SerializedFontTables {
-    let glyphs = [
-        ProcessedGlyph {
+    let variants = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+        dest: "artifacts".to_owned(),
+        files: vec![],
+        types: Some(vec![FontType::Ttf]),
+        variants: Some(vec![
+            FontVariant {
+                name: "Light".to_owned(),
+                files: vec!["light.svg".to_owned()],
+                weight: Some(300),
+                default: Some(true),
+            },
+            FontVariant {
+                name: "Bold".to_owned(),
+                files: vec!["bold.svg".to_owned()],
+                weight: Some(700),
+                default: None,
+            },
+        ]),
+        write_files: Some(false),
+        ..Default::default()
+    })
+    .unwrap()
+    .variants
+    .unwrap();
+    let family = PreparedVariantFamily {
+        ascent: 1000.0,
+        descent: 0.0,
+        font_height: 1000.0,
+        glyphs: vec![ProcessedVariantGlyph {
+            name: "ab".to_owned(),
             codepoint: 0xe001,
-            height: 1000.0,
-            index: 0,
-            name: "proof-left".to_owned(),
-            path_data: Arc::from("M100,100 L300,100 L300,900 L100,900 Z"),
-            ttf_path: None,
-            ttf_path_hash: None,
-            width: 1000.0,
-        },
-        ProcessedGlyph {
-            codepoint: 0xe002,
-            height: 1000.0,
-            index: 1,
-            name: "proof-right".to_owned(),
-            path_data: Arc::from("M700,100 L900,100 L900,900 L700,900 Z"),
-            ttf_path: None,
-            ttf_path_hash: None,
-            width: 1000.0,
-        },
-    ];
-    let base = super::super::build(
+            advance_width: 1000.0,
+            outlines: vec![proof_glyph(100.0, 300.0), proof_glyph(700.0, 900.0)].into_boxed_slice(),
+        }],
+    };
+    super::super::build_variant(
         TtfOptions {
             ascent: Some(1000.0),
             copyright: None,
@@ -181,87 +203,61 @@ fn build_proof_font() -> SerializedFontTables {
             font_name: "Discrete rvrn proof",
             font_style: None,
             font_weight: Some("300"),
-            ligature: false,
+            ligature: true,
             manufacturer_url: None,
             ts: Some(0),
             version: None,
         },
-        &glyphs,
-        None,
+        &family,
+        &variants,
     )
-    .expect("proof base font should build");
+    .expect("proof variant font should build")
+    .tables
+}
 
-    let fvar = Fvar::new(AxisInstanceArrays::new(
-        vec![VariationAxisRecord::new(
-            Tag::new(b"wght"),
-            Fixed::from_i32(300),
-            Fixed::from_i32(300),
-            Fixed::from_i32(700),
-            0,
-            NameId::new(256),
-        )],
-        vec![],
-    ));
-    let lookup = SubstitutionLookup::Single(Lookup::new(
-        LookupFlag::empty(),
-        vec![SingleSubst::format_1(
-            CoverageTable::format_1(vec![GlyphId16::new(1)]),
-            1,
-        )],
-    ));
-    let mut gsub = Gsub::new(
-        ScriptList::new(vec![ScriptRecord::new(
-            Tag::new(b"DFLT"),
-            Script::new(Some(LangSys::new(vec![0])), vec![]),
-        )]),
-        FeatureList::new(vec![FeatureRecord::new(
-            Tag::new(b"rvrn"),
-            Feature::new(None, vec![]),
-        )]),
-        SubstitutionLookupList::new(vec![lookup]),
-    );
-    gsub.feature_variations
-        .set(FeatureVariations::new(vec![FeatureVariationRecord::new(
-            Some(ConditionSet::new(vec![Condition::format_1_axis_range(
-                0,
-                F2Dot14::from_f32(0.5),
-                F2Dot14::ONE,
-            )])),
-            Some(FeatureTableSubstitution::new(vec![
-                FeatureTableSubstitutionRecord::new(0, Feature::new(None, vec![0])),
-            ])),
-        )]));
+fn proof_glyph(x_min: f64, x_max: f64) -> Option<ProcessedGlyph> {
+    let mut path = BezPath::new();
+    path.move_to(Point::new(x_min, 100.0));
+    path.line_to(Point::new(x_max, 100.0));
+    path.line_to(Point::new(x_max, 900.0));
+    path.line_to(Point::new(x_min, 900.0));
+    path.close_path();
+    Some(ProcessedGlyph {
+        codepoint: 0xe001,
+        height: 1000.0,
+        index: 0,
+        name: "ab".to_owned(),
+        path_data: Arc::from(""),
+        ttf_path: Some(Arc::new(path)),
+        ttf_path_hash: None,
+        width: 1000.0,
+    })
+}
 
-    let mut name = Name::read(FontData::new(table_bytes(&base, *b"name")))
-        .expect("base name table should parse");
-    name.name_record.push(NameRecord::new(
-        3,
-        1,
-        0x0409,
-        NameId::new(256),
-        "Weight".to_owned().into(),
-    ));
-    name.name_record.sort();
-    let stat = Stat::new(
-        vec![AxisRecord::new(Tag::new(b"wght"), NameId::new(256), 0)],
-        vec![],
-        NameId::new(2),
-    );
-
-    let mut tables = base
-        .tables()
-        .iter()
-        .map(|table| (table.tag, table.bytes.clone()))
-        .collect::<Vec<_>>();
-    tables
-        .iter_mut()
-        .find(|(tag, _)| *tag == *b"name")
-        .expect("base font should contain name")
-        .1 = write_fonts::dump_table(&name).unwrap();
-    tables.push((*b"fvar", write_fonts::dump_table(&fvar).unwrap()));
-    tables.push((*b"GSUB", write_fonts::dump_table(&gsub).unwrap()));
-    tables.push((*b"STAT", write_fonts::dump_table(&stat).unwrap()));
-    SerializedFontTables::new(tables).expect("proof variation tables should serialize")
+fn ligature_target(
+    gsub: &write_fonts::read::tables::gsub::Gsub<'_>,
+    lookup_index: u16,
+) -> GlyphId16 {
+    let lookup = gsub
+        .lookup_list()
+        .unwrap()
+        .lookups()
+        .get(usize::from(lookup_index))
+        .unwrap();
+    let ReadSubstitutionLookup::Ligature(lookup) = lookup else {
+        panic!("expected a ligature lookup")
+    };
+    lookup
+        .subtables()
+        .get(0)
+        .unwrap()
+        .ligature_sets()
+        .get(0)
+        .unwrap()
+        .ligatures()
+        .get(0)
+        .unwrap()
+        .ligature_glyph()
 }
 
 fn table_bytes(tables: &crate::sfnt::SerializedFontTables, tag: [u8; 4]) -> &[u8] {
