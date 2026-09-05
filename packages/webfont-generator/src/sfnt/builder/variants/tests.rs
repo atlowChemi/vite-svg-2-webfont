@@ -205,6 +205,8 @@ fn writes_weight_conditioned_direct_and_ligature_substitutions() {
         Tag::new(b"rvrn")
     );
     assert!(font.cmap().unwrap().map_codepoint(u32::from('b')).is_some());
+    assert_eq!(font.os2().unwrap().us_first_char_index(), u16::from(b'-'));
+    assert_eq!(font.os2().unwrap().us_last_char_index(), 0xe002);
 
     let default_liga = gsub.feature_list().unwrap().get(0).unwrap();
     assert_eq!(
@@ -591,8 +593,16 @@ fn rejects_invalid_variant_metadata_and_glyph_matrix() {
     assert_eq!(error.kind(), ErrorKind::InvalidInput);
 
     let variants = resolved_variants();
-    let mut family = family();
-    family.glyphs[0].outlines = vec![None].into_boxed_slice();
-    let error = build_variant(options(), &family, &variants).err().unwrap();
+    let mut malformed_family = family();
+    malformed_family.glyphs[0].outlines = vec![None].into_boxed_slice();
+    let error = build_variant(options(), &malformed_family, &variants)
+        .err()
+        .unwrap();
     assert_eq!(error.kind(), ErrorKind::InvalidInput);
+
+    let mut family = family();
+    family.glyphs[1].codepoint = family.glyphs[0].codepoint;
+    let error = build_variant(options(), &family, &variants).err().unwrap();
+    assert_eq!(error.kind(), ErrorKind::InvalidData);
+    assert!(error.to_string().starts_with("Failed to build cmap table:"));
 }
