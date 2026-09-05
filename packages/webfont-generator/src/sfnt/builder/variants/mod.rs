@@ -255,7 +255,11 @@ pub(crate) fn build_variant(
             &metrics,
             family.ascent,
             family.descent,
-            family.glyphs.iter().map(|glyph| glyph.codepoint),
+            family
+                .glyphs
+                .iter()
+                .map(|glyph| glyph.codepoint)
+                .chain(ligature_placeholders.iter().map(|glyph| glyph.codepoint)),
         ))
         .map_err(Error::other)?,
     ));
