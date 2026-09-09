@@ -50,8 +50,17 @@ The existing CSS/HTML render methods accept shared flat URL maps. A supplied map
 overrides generated URLs; missing entries become empty. Variant SVG/EOT overrides are rejected.
 Custom-template contexts receive ordered `variants` entries with `name`, `weight`, `default`,
 `className`, and `selector`, plus `variantClassPrefix`. No extra result getters are needed.
-Multi-face default CSS/HTML is the next implementation phase: currently variant companion files
-are not written, and in-memory default rendering still uses the ordinary single-face template.
+Default CSS emits one exact-weight `@font-face` per variant, sharing the modern URLs. Icon
+pseudo-elements use the default weight and `font-synthesis: none`; add a modifier such as
+`icon--bold` alongside the glyph class to select another variant. A modifier alone emits no glyph.
+CSS/HTML companion files are written when enabled; HTML shows one grid in the default variant.
+Contexts also expose `defaultWeight` and `fontStyle` (default `normal`). The SCSS
+`webfont-icon($name)` mixin uses each icon family's default weight; modifier classes select variants.
+Its icon-map entries append the default weight and style to the ordinary family/codepoint pair.
+
+Non-exact weights use CSS font matching, not interpolation: with faces at 300, 400, and 700,
+requests for 100/350 select 300, 450/500 select 400, and 600/900 select 700. Generated
+pseudo-elements explicitly set their weight, so inherited weights do not override them.
 
 ### Incremental regeneration
 

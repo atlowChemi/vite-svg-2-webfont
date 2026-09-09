@@ -198,9 +198,17 @@ Existing rendering methods take the same flat `Option<HashMap<FontType, String>>
 `None` uses generated URLs; `Some` completely overrides them, with omitted entries empty.
 Variant SVG/EOT overrides are rejected. Ordered resolved variant data is available in custom
 template contexts as `variants` (`name`, `weight`, `default`, `className`, `selector`) and
-`variantClassPrefix`. Multi-face default rendering is the next phase: variant CSS/HTML companion
-files are currently not written, and in-memory default rendering uses the ordinary single-face
-template.
+`variantClassPrefix`, plus `defaultWeight` and `fontStyle` (default `normal`). Default CSS emits
+one exact-weight face per variant sharing the modern URLs. Icon pseudo-elements use the default
+weight and `font-synthesis: none`; modifier classes such as `icon--bold` select another variant
+when combined with a glyph class. A modifier alone emits no glyph. CSS/HTML companions are
+written when enabled, and HTML shows one default grid.
+
+The SCSS `webfont-icon($name)` mixin reads each family's default weight/style from extended
+icon-map entries; ordinary family/codepoint pairs remain supported. Non-exact weights follow
+CSS font matching: for faces at 300, 400, and 700, requests for 100/350 select 300, 450/500
+select 400, and 600/900 select 700. Generated pseudo-elements explicitly set their weight
+rather than inheriting it.
 
 ## `FontType`
 

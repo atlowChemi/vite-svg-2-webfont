@@ -102,6 +102,14 @@ pub(super) fn make_ctx(
 
     if let Some(variants) = &options.variants {
         ctx.insert(
+            "defaultWeight".to_owned(),
+            Value::Number(variants.variants[variants.default_index].weight.into()),
+        );
+        ctx.insert(
+            "fontStyle".to_owned(),
+            Value::String(options.font_style.as_deref().unwrap_or("normal").to_owned()),
+        );
+        ctx.insert(
             "variants".to_owned(),
             Value::Array(
                 variants

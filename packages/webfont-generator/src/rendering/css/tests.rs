@@ -26,6 +26,54 @@ fn render_css(
 use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};
 
 #[test]
+fn variant_default_css_matches_template_and_resolved_weights() {
+    let options = resolve_options(GenerateWebfontsOptions {
+        dest: "artifacts".into(),
+        font_name: Some("weights".into()),
+        font_style: Some("italic".into()),
+        variants: Some(vec![
+            FontVariant {
+                name: "light/alt".into(),
+                files: vec!["a.svg".into()],
+                weight: Some(300),
+                default: None,
+            },
+            FontVariant {
+                name: "bold".into(),
+                files: vec!["b.svg".into()],
+                weight: Some(700),
+                default: Some(true),
+            },
+        ]),
+        ..Default::default()
+    });
+    let shared = SharedTemplateData::new(&options, &[]).unwrap();
+    let ctx = build_css_context(&options, &shared);
+    let css = render_css_with_context(&shared, &ctx).unwrap();
+    let mut registry = handlebars::Handlebars::new();
+    registry
+        .register_template_string("css", include_str!("../../../templates/css.hbs"))
+        .unwrap();
+    assert_eq!(css, registry.render("css", &ctx).unwrap());
+    assert_eq!(css.matches("@font-face").count(), 2);
+    assert_eq!(css.matches("weights.woff2?").count(), 2);
+    assert!(css.contains("font-weight: 300;"));
+    assert!(css.contains("font-weight: 700 !important;"));
+    assert!(css.contains("font-style: italic;"));
+    assert!(css.contains("font-synthesis: none;"));
+    assert!(css.contains(":is(.icon).icon--light\\/alt:before"));
+    let base_rule = css
+        .split(".icon:before {")
+        .nth(1)
+        .unwrap()
+        .split('}')
+        .next()
+        .unwrap();
+    assert!(base_rule.contains("font-weight: 700;"));
+    assert!(!base_rule.contains("font-weight: 700 !important;"));
+}
+
+#[test]
 fn hash_matches_expected_value_for_known_options() {
     let options = GenerateWebfontsOptions {
         ascent: Some(1000.0),

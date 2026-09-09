@@ -2,6 +2,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
+import { compileString } from 'sass';
+import * as templates from '../templates.js';
 import { afterEach, beforeAll, describe, expect, it } from 'vite-plus/test';
 import { generateWebfonts as generateNativeBinding } from '../binding.js';
 import { type FontType, generateWebfonts, type GenerateWebfontsFileOptions, type GenerateWebfontsVariantOptions } from '../index.js';
@@ -51,6 +53,64 @@ describe('generateWebfonts', () => {
         expect(result.svg).toBeNull();
     });
 
+    it('writes multi-face companions and keeps URL render caches independent', async () => {
+        const dest = await createTempDir('variant-companions-');
+        const result = await generateWebfonts({ ...variantOptions, dest, html: true, writeFiles: true });
+        const css = result.generateCss();
+        expect(await readFile(join(dest, 'iconfont.css'), 'utf8')).toBe(css);
+        expect(await readFile(join(dest, 'iconfont.html'), 'utf8')).toBe(result.generateHtml());
+        expect(css.match(/@font-face/g)).toHaveLength(2);
+        const templated = await generateWebfonts({ ...variantOptions, dest, html: true, cssTemplate: templates.css, htmlTemplate: templates.html });
+        const urls = { woff2: '/shared.woff2' };
+        expect(templated.generateCss(urls)).toBe(result.generateCss(urls));
+        expect(templated.generateHtml(urls)).toBe(result.generateHtml(urls));
+        expect(result.generateHtml().match(/class="icon icon-plus"/g)).toHaveLength(1);
+        for (const url of ['/first.woff2', '/second.woff2', '/first.woff2']) {
+            expect(result.generateCss({ woff2: url }).split(url)).toHaveLength(3);
+            expect(result.generateHtml({ woff2: url }).split(url)).toHaveLength(3);
+        }
+        expect(result.generateCss()).toBe(css);
+    });
+
+    it('reports variant companion write failures', async () => {
+        const dest = await createTempDir('variant-write-error-');
+        const blocker = join(dest, 'blocker');
+        await writeFile(blocker, 'not a directory');
+        await expect(generateWebfonts({ ...variantOptions, dest, cssDest: join(blocker, 'font.css'), writeFiles: true })).rejects.toThrow(/directory|exists/i);
+    });
+
+    it('compiles SCSS with ordinary and multiple variant families in either import order', async () => {
+        const variant = await generateWebfonts({ ...variantOptions, cssTemplate: templates.scss });
+        const second = await generateWebfonts({
+            ...variantOptions,
+            cssTemplate: templates.scss,
+            fontName: 'second',
+            variants: variantOptions.variants.map((item, index) => ({ ...item, weight: index ? 800 : 200 })),
+            rename: () => 'other',
+        });
+        const ordinary = await generateWebfonts({ ...renameOptions, cssTemplate: templates.scss, css: true });
+        for (const [index, sources] of [
+            [ordinary, variant, second],
+            [second, variant, ordinary],
+        ].entries()) {
+            const css = compileString(
+                sources.map(result => result.generateCss()).join('\n') + '\n.default { @include webfont-icon("plus"); }\n.other { @include webfont-icon("other"); }',
+                { logger: { warn() {}, debug() {} } },
+            ).css;
+            // The last family defining plus owns that map entry; other always belongs to second.
+            const defaultRule = css.match(/\.default:before \{([^}]+)\}/)?.[1];
+            const otherRule = css.match(/\.other:before \{([^}]+)\}/)?.[1];
+            expect(defaultRule).toContain(`font-weight: ${index ? 'normal !important' : '300'};`);
+            expect(otherRule).toContain('font-family: "second" !important');
+            expect(otherRule).toContain('font-weight: 200;');
+            expect(otherRule).toContain('font-synthesis: none');
+            expect(otherRule).toContain('content: "\\f101"');
+            expect(css).toContain('font-weight: 700 !important');
+            expect(css).toContain('font-synthesis: none');
+            expect(css).toContain('content:');
+        }
+    });
+
     it('applies variant rename callbacks in flattened source order', async () => {
         const paths = [renameFiles.slice(0, 2), [renameFiles[2], renameFiles[0]]];
         const calls: string[] = [];
@@ -89,9 +149,17 @@ describe('generateWebfonts', () => {
             ...variantOptions,
             cssContext(context) {
                 names = (context.variants as Array<{ name: string }>).map(variant => variant.name);
+                expect(context.defaultWeight).toBe(300);
+                expect(context.fontStyle).toBe('normal');
+                expect(context.variants).toEqual([
+                    { name: 'small', weight: 300, default: true, className: 'icon--small', selector: 'icon--small' },
+                    { name: 'large', weight: 700, default: false, className: 'icon--large', selector: 'icon--large' },
+                ]);
             },
             htmlContext(context) {
                 htmlNames = context.names;
+                expect(context.defaultWeight).toBe(300);
+                expect(context.fontStyle).toBe('normal');
             },
         });
 

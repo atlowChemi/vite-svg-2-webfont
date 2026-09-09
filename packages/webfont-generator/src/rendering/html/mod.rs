@@ -179,7 +179,12 @@ fn make_ctx(
     if options.variants.is_some() {
         let css_ctx =
             build_css_context_with_fonts_url(options, shared, Some(&html_css_fonts_url(options)));
-        for key in ["variants", "variantClassPrefix"] {
+        for key in [
+            "variants",
+            "variantClassPrefix",
+            "defaultWeight",
+            "fontStyle",
+        ] {
             ctx.insert(key.to_owned(), css_ctx[key].clone());
         }
         let mut seen = std::collections::HashSet::new();
