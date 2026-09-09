@@ -34,8 +34,62 @@ pub(super) fn calc_hash(
 
     let hashable = HashableGenerateWebfontsOptions::from(options);
     serde_json::to_writer(Md5Writer(&mut hash), &hashable).expect("hash options should serialize");
+    if let Some(variants) = &options.variants {
+        let variant_hashable = HashableVariantOptions {
+            default_index: variants.default_index,
+            missing_glyph_behavior: match options.missing_glyphs.behavior {
+                crate::types::MissingGlyphBehavior::Blank => "blank",
+                crate::types::MissingGlyphBehavior::Error => "error",
+                crate::types::MissingGlyphBehavior::Fallback => "fallback",
+            },
+            missing_glyph_variant: options.missing_glyphs.variant.as_deref(),
+            variants: variants
+                .variants
+                .iter()
+                .enumerate()
+                .map(|(index, variant)| HashableVariant {
+                    name: &variant.name,
+                    files: &variant.files,
+                    weight: variant.weight,
+                    default: index == variants.default_index,
+                    class_name: &variant.class_name,
+                    selector: &variant.selector,
+                })
+                .collect(),
+            woff2_compression_quality: options
+                .format_options
+                .as_ref()
+                .and_then(|formats| formats.woff2.as_ref())
+                .and_then(|woff2| woff2.compression_quality),
+        };
+        serde_json::to_writer(Md5Writer(&mut hash), &variant_hashable)
+            .expect("variant hash options should serialize");
+    }
 
     format!("{:x}", hash.finalize())
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HashableVariantOptions<'a> {
+    default_index: usize,
+    missing_glyph_behavior: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    missing_glyph_variant: Option<&'a str>,
+    variants: Vec<HashableVariant<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    woff2_compression_quality: Option<u8>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HashableVariant<'a> {
+    name: &'a str,
+    files: &'a [String],
+    weight: u16,
+    default: bool,
+    class_name: &'a str,
+    selector: &'a str,
 }
 
 #[derive(Serialize)]

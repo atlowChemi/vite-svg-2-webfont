@@ -151,7 +151,7 @@ contract; all other fields are optional and implement `Default`.
 | `variant_class_prefix`  | `Option<String>`               | `"icon--"`              | CSS variant modifier prefix           |
 | `variants`              | `Option<Vec<FontVariant>>`     | --                      | Multi-variant input contract          |
 
-### Multi-variant contract preview
+### Multi-weight variants
 
 Variant formats default to WOFF/WOFF2; TTF is also supported. Ordinary format defaults are unchanged.
 
@@ -189,13 +189,18 @@ filenames; all variants share one resource per requested modern format.
 every logical glyph in the family; `Blank` and `Error` reject a fallback name. SVG/EOT output and
 incremental mode are invalid with variants.
 
-This release loads and resolves variant sources but does not generate variant fonts. Files load in
-parallel while rename callbacks retain variant and file order. Matching names across variants join
-one logical glyph and receive one shared codepoint; duplicate names within a variant are rejected.
-Missing source cells then become explicit blanks, errors, or references to the configured fallback
-variant. Every resolved source is then parsed and processed with shared family metrics and a stable
-advance per logical glyph. `generate()` and `generate_sync()` return `io::ErrorKind::Unsupported`
-after successful geometry preparation.
+`generate()` and `generate_sync()` produce one shared variable font per requested modern format.
+Existing `ttf_bytes()`, `woff_bytes()`, and `woff2_bytes()` return those resources; SVG/EOT getters
+return `None`. Writes use `fontName.extension` and are non-transactional: failures may leave a
+partial bundle. All regeneration methods reject variant results with `io::ErrorKind::Unsupported`.
+
+Existing rendering methods take the same flat `Option<HashMap<FontType, String>>` in both modes.
+`None` uses generated URLs; `Some` completely overrides them, with omitted entries empty.
+Variant SVG/EOT overrides are rejected. Ordered resolved variant data is available in custom
+template contexts as `variants` (`name`, `weight`, `default`, `className`, `selector`) and
+`variantClassPrefix`. Multi-face default rendering is the next phase: variant CSS/HTML companion
+files are currently not written, and in-memory default rendering uses the ordinary single-face
+template.
 
 ## `FontType`
 
