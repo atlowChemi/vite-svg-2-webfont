@@ -55,8 +55,7 @@ pub enum FontType {
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
 pub struct FontVariant {
-    /// User-facing variant name, used to derive CSS modifier classes and an encoded filename
-    /// component.
+    /// User-facing variant name, used to derive CSS modifier classes.
     pub name: String,
     /// SVG files that belong to this variant.
     pub files: Vec<String>,
@@ -330,7 +329,7 @@ pub struct GenerateWebfontsOptions {
     /// invalid without `variants`.
     pub variant_class_prefix: Option<String>,
     /// Ordered named SVG designs for one logical icon family. Variant generation is not yet
-    /// available; validated variants resolve weights and filename components before returning an
+    /// available; validated variants resolve weights and CSS selectors before returning an
     /// unsupported-operation error.
     pub variants: Option<Vec<FontVariant>>,
     /// Whether to write generated files to disk. Set to `false` for

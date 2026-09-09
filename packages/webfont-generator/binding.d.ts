@@ -100,10 +100,7 @@ export declare const enum FontType {
 
 /** One named SVG design in a multi-variant icon family. */
 export interface FontVariant {
-  /**
-   * User-facing variant name, used to derive CSS modifier classes and an encoded filename
-   * component.
-   */
+  /** User-facing variant name, used to derive CSS modifier classes. */
   name: string
   /** SVG files that belong to this variant. */
   files: Array<string>
@@ -285,7 +282,7 @@ export interface GenerateWebfontsOptions {
   variantClassPrefix?: string
   /**
    * Ordered named SVG designs for one logical icon family. Variant generation is not yet
-   * available; validated variants resolve weights and filename components before returning an
+   * available; validated variants resolve weights and CSS selectors before returning an
    * unsupported-operation error.
    */
   variants?: Array<FontVariant>

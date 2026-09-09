@@ -91,9 +91,8 @@ Use a non-empty array for ordinary generation. Omit this field when `variants` i
   other automatic values resolve outward in steps of 100, or evenly when an anchor interval is too
   crowded. Every final weight is unique and strictly follows variant order.
 
-Variant names produce separate CSS and filename encodings. Filename components preserve ASCII
-letters, digits, `_`, and `-`; every other UTF-8 byte becomes `~HH`. Platform-special names are
-encoded, and names that collide on case-insensitive filesystems are rejected.
+Variant names produce CSS modifier classes with CSSOM-escaped selectors. Names do not form output
+filenames; all variants share one resource per requested modern format.
 
 ### `variantClassPrefix`
 
