@@ -267,7 +267,10 @@ export interface GenerateWebfontsOptions {
    * `classPrefix` and `baseSelector`.
    */
   templateOptions?: Record<string, any>
-  /** Font formats to generate. Defaults to `['eot', 'woff', 'woff2']`. */
+  /**
+   * Font formats to generate. Ordinary mode defaults to `['eot', 'woff', 'woff2']`;
+   * variant mode defaults to `['woff', 'woff2']` and rejects SVG and EOT.
+   */
   types?: Array<FontType>
   /**
    * Prefix for generated variant modifier classes. Defaults to `icon--` in variant mode and is

@@ -119,8 +119,8 @@ Use a non-empty array for ordinary generation. Omit this field when `variants` i
 ### `types`
 
 - Type: `FontType[]`
-- Default: `['eot', 'woff', 'woff2']`
-- Description: Font formats to generate. Valid values: `'svg'`, `'ttf'`, `'eot'`, `'woff'`, `'woff2'`.
+- Default: `['eot', 'woff', 'woff2']` for ordinary input; `['woff', 'woff2']` for variants
+- Description: Font formats to generate. Ordinary input accepts `'svg'`, `'ttf'`, `'eot'`, `'woff'`, `'woff2'`. Variant input accepts only `'ttf'`, `'woff'`, and `'woff2'`.
 
 ### `order`
 

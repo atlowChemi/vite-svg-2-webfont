@@ -321,7 +321,8 @@ pub struct GenerateWebfontsOptions {
     /// context for both CSS and HTML rendering. Typical home for
     /// `classPrefix` and `baseSelector`.
     pub template_options: Option<Map<String, Value>>,
-    /// Font formats to generate. Defaults to `['eot', 'woff', 'woff2']`.
+    /// Font formats to generate. Ordinary mode defaults to `['eot', 'woff', 'woff2']`;
+    /// variant mode defaults to `['woff', 'woff2']` and rejects SVG and EOT.
     pub types: Option<Vec<FontType>>,
     /// Prefix for generated variant modifier classes. Defaults to `icon--` in variant mode and is
     /// invalid without `variants`.

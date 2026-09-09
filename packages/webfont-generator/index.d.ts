@@ -19,7 +19,7 @@ import * as templates from './templates.js';
  * `src:` descriptor.
  */
 export type FontType = 'svg' | 'ttf' | 'eot' | 'woff' | 'woff2';
-export type MultiVariantFontType = Exclude<FontType, 'svg'>;
+export type MultiVariantFontType = Exclude<FontType, 'svg' | 'eot'>;
 
 export declare const MissingGlyphBehavior: {
     readonly Blank: 'blank';

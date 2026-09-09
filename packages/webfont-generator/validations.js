@@ -2,7 +2,7 @@ function validateOptions(options) {
     if (!options.dest) throw new Error('"options.dest" is empty.');
     if (options.cssTemplate === '') throw new Error('"options.cssTemplate" must not be empty.');
     if (options.htmlTemplate === '') throw new Error('"options.htmlTemplate" must not be empty.');
-    const types = options.types ?? ['eot', 'woff', 'woff2'];
+    const types = options.types ?? (options.variants == null ? ['eot', 'woff', 'woff2'] : ['woff', 'woff2']);
     const invalidOrder = options.order?.find(type => !types.includes(type));
     if (invalidOrder) throw new Error(`Invalid font type order: '${invalidOrder}' is not present in 'types'.`);
 
@@ -16,7 +16,7 @@ function validateOptions(options) {
 
     if (options.files?.length) throw new Error('"options.files" must be empty when "options.variants" is provided.');
     if (variants.length < 2) throw new Error('"options.variants" must contain at least two variants.');
-    if (options.types?.includes('svg')) throw new Error('"options.types" cannot include "svg" with "options.variants".');
+    if (options.types?.some(type => type === 'svg' || type === 'eot')) throw new Error('"options.types" cannot include "svg" or "eot" with "options.variants".');
     if (options.incremental === true) throw new Error('"options.incremental" cannot be true with "options.variants".');
     if (options.fontWeight != null) throw new Error('"options.fontWeight" cannot be used with "options.variants".');
     if (Object.hasOwn(options.templateOptions ?? {}, 'variantClassPrefix')) {

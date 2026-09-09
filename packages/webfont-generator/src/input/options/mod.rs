@@ -149,11 +149,11 @@ fn validate_variants(
     if options
         .types
         .as_ref()
-        .is_some_and(|types| types.contains(&FontType::Svg))
+        .is_some_and(|types| types.contains(&FontType::Svg) || types.contains(&FontType::Eot))
     {
         return Err(Error::new(
             ErrorKind::InvalidInput,
-            "\"options.types\" cannot include \"svg\" with \"options.variants\".",
+            "\"options.types\" cannot include \"svg\" or \"eot\" with \"options.variants\".",
         ));
     }
     if options.incremental == Some(true) {
@@ -395,6 +395,7 @@ pub(crate) fn finalize_generate_webfonts_options(
 fn resolved_font_types(options: &GenerateWebfontsOptions) -> Vec<FontType> {
     match &options.types {
         Some(types) => types.clone(),
+        None if options.variants.is_some() => vec![FontType::Woff, FontType::Woff2],
         None => DEFAULT_FONT_TYPES.to_vec(),
     }
 }

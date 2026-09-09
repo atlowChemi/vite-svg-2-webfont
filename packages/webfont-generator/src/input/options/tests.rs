@@ -148,6 +148,22 @@ fn rejects_svg_output_with_variants() {
 }
 
 #[test]
+fn rejects_eot_output_with_variants() {
+    let mut options = variant_options();
+    options.types = Some(vec![FontType::Eot]);
+    validation_error(options, "options.types");
+}
+
+#[test]
+fn variant_defaults_request_only_modern_web_formats() {
+    let mut options = variant_options();
+    options.types = None;
+    let resolved = resolve_generate_webfonts_options(options).unwrap();
+    assert!(resolved.types == [FontType::Woff, FontType::Woff2]);
+    assert!(resolved.order == [FontType::Woff2, FontType::Woff]);
+}
+
+#[test]
 fn rejects_incremental_mode_with_variants() {
     let mut options = variant_options();
     options.incremental = Some(true);
