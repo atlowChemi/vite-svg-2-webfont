@@ -99,7 +99,6 @@ async fn async_writer_dispatches_every_font_format() {
             woff_font: Some(Arc::new(b"woff".to_vec())),
             woff2_font: Some(Arc::new(b"woff2".to_vec())),
             eot_font: Some(Arc::new(b"eot".to_vec())),
-            legacy_eot_fonts: vec![],
         },
         html_context: None,
         options: Arc::new(options),

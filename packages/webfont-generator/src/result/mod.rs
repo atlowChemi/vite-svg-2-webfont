@@ -28,8 +28,6 @@ pub(crate) struct FontOutputs {
     pub(crate) woff_font: Option<Arc<Vec<u8>>>,
     pub(crate) woff2_font: Option<Arc<Vec<u8>>>,
     pub(crate) eot_font: Option<Arc<Vec<u8>>>,
-    #[allow(dead_code, reason = "ordered legacy outputs are exposed in Phase 9")]
-    pub(crate) legacy_eot_fonts: Vec<Arc<Vec<u8>>>,
 }
 
 /// Failure from asynchronous regeneration. Ordinary regeneration errors retain the input result

@@ -19,83 +19,13 @@ use crate::types::FontType;
 
 #[cfg(test)]
 mod variant_tests {
-    use std::io::Read;
-
+    use super::*;
+    use crate::input::{load_variant_svg_files, resolve_generate_webfonts_options};
+    use crate::{FontVariant, GenerateWebfontsOptions};
     use flate2::read::ZlibDecoder;
-    use kurbo::{BezPath, Point};
-    use write_fonts::read::tables::gsub::SubstitutionLookup as ReadSubstitutionLookup;
+    use std::io::Read;
     use write_fonts::read::{FontRef, TableProvider};
     use write_fonts::types::Tag;
-
-    use super::*;
-    use crate::input::resolve_generate_webfonts_options;
-    use crate::svg::types::{PreparedVariantFamily, ProcessedGlyph, ProcessedVariantGlyph};
-    use crate::{FontVariant, GenerateWebfontsOptions};
-
-    fn options(types: Vec<FontType>) -> ResolvedGenerateWebfontsOptions {
-        resolve_generate_webfonts_options(GenerateWebfontsOptions {
-            css: Some(false),
-            dest: "artifacts".to_owned(),
-            files: vec![],
-            html: Some(false),
-            types: Some(types),
-            variants: Some(vec![
-                FontVariant {
-                    name: "Light".to_owned(),
-                    files: vec!["light.svg".to_owned()],
-                    weight: Some(300),
-                    default: None,
-                },
-                FontVariant {
-                    name: "Bold".to_owned(),
-                    files: vec!["bold.svg".to_owned()],
-                    weight: Some(700),
-                    default: Some(true),
-                },
-            ]),
-            write_files: Some(false),
-            ..Default::default()
-        })
-        .unwrap()
-    }
-
-    fn family() -> PreparedVariantFamily {
-        let outline = |name: &str, codepoint, shape_width| {
-            let mut path = BezPath::new();
-            path.move_to(Point::new(0.0, 0.0));
-            path.line_to(Point::new(shape_width, 0.0));
-            path.line_to(Point::new(0.0, 10.0));
-            path.close_path();
-            ProcessedGlyph {
-                codepoint,
-                height: 10.0,
-                index: 0,
-                name: name.to_owned(),
-                path_data: Arc::from(""),
-                ttf_path: Some(Arc::new(path)),
-                ttf_path_hash: None,
-                width: 20.0,
-            }
-        };
-        PreparedVariantFamily {
-            ascent: 10.0,
-            descent: 0.0,
-            font_height: 1000.0,
-            glyphs: [("icon", 0xe001), ("mark", 0xe002)]
-                .into_iter()
-                .map(|(name, codepoint)| ProcessedVariantGlyph {
-                    name: name.to_owned(),
-                    codepoint,
-                    advance_width: 20.0,
-                    outlines: vec![
-                        Some(outline(name, codepoint, 10.0)),
-                        Some(outline(name, codepoint, 20.0)),
-                    ]
-                    .into_boxed_slice(),
-                })
-                .collect(),
-        }
-    }
 
     fn woff1_table(woff: &[u8], wanted: [u8; 4]) -> Vec<u8> {
         let count = usize::from(u16::from_be_bytes(woff[12..14].try_into().unwrap()));
@@ -118,21 +48,36 @@ mod variant_tests {
         }
     }
 
-    #[test]
-    fn variant_bundle_preserves_variable_tables_and_builds_static_eots() {
-        let options = options(vec![
-            FontType::Ttf,
-            FontType::Woff,
-            FontType::Woff2,
-            FontType::Eot,
-        ]);
-        let outputs = build_variant_font_outputs(&options, &family()).unwrap();
-        let ttf = outputs.ttf_font.unwrap();
-        let variable = FontRef::new(&ttf).unwrap();
-        let decoded = ::woff::version2::decompress(outputs.woff2_font.as_ref().unwrap())
-            .expect("variant WOFF2 should decode");
+    #[tokio::test]
+    async fn variant_bundle_preserves_modern_tables_and_filters_formats() {
+        let paths = vec![vec![crate::test_helpers::webfont_fixture("add.svg")]; 2];
+        let mut options = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+            dest: "artifacts".to_owned(),
+            variants: Some(vec![
+                FontVariant {
+                    name: "Light".to_owned(),
+                    files: paths[0].clone(),
+                    weight: Some(300),
+                    default: None,
+                },
+                FontVariant {
+                    name: "Bold".to_owned(),
+                    files: paths[1].clone(),
+                    weight: Some(700),
+                    default: Some(true),
+                },
+            ]),
+            types: Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]),
+            write_files: Some(false),
+            ..Default::default()
+        })
+        .unwrap();
+        let files = load_variant_svg_files(&paths, None).await.unwrap();
+        let family = crate::prepare_variant_family(&mut options, files).unwrap();
+        let outputs = build_variant_font_outputs(&options, &family).unwrap();
+        let variable = FontRef::new(outputs.ttf_font.as_ref().unwrap()).unwrap();
+        let decoded = ::woff::version2::decompress(outputs.woff2_font.as_ref().unwrap()).unwrap();
         let decoded = FontRef::new(&decoded).unwrap();
-
         for tag in [*b"fvar", *b"STAT", *b"GSUB", *b"maxp"] {
             let expected = variable.table_data(Tag::new(&tag)).unwrap();
             assert_eq!(
@@ -144,77 +89,28 @@ mod variant_tests {
                 expected.as_bytes()
             );
         }
-
-        assert_eq!(outputs.legacy_eot_fonts.len(), 2);
-        let mut identities = Vec::new();
-        for (((eot, weight), x_max), variant_name) in outputs
-            .legacy_eot_fonts
-            .iter()
-            .zip([300, 700])
-            .zip([10, 20])
-            .zip(["Light", "Bold"])
-        {
-            assert_eq!(u32::from_le_bytes(eot[28..32].try_into().unwrap()), weight);
-            let ttf_len = u32::from_le_bytes(eot[4..8].try_into().unwrap()) as usize;
-            let font = FontRef::new(&eot[eot.len() - ttf_len..]).unwrap();
-            assert_eq!(font.os2().unwrap().us_weight_class(), weight as u16);
-            assert!(font.fvar().is_err());
-            assert_eq!(font.head().unwrap().x_max(), x_max);
-
-            let name = font.name().unwrap();
-            let string_data = name.string_data();
-            let read_name = |id| {
-                name.name_record()
-                    .iter()
-                    .find(|record| record.name_id().to_u16() == id)
-                    .unwrap()
-                    .string(string_data)
-                    .unwrap()
-                    .to_string()
-            };
-            assert_eq!(read_name(2), variant_name);
-            identities.push((read_name(4), read_name(6)));
-
-            let gsub = font.gsub().unwrap();
-            let lookup = gsub.lookup_list().unwrap().lookups().get(0).unwrap();
-            let ReadSubstitutionLookup::Ligature(lookup) = lookup else {
-                panic!("expected static ligature lookup")
-            };
-            let sets = lookup.subtables().get(0).unwrap().ligature_sets();
-            let mut targets = Vec::new();
-            for index in 0..sets.len() {
-                targets.extend(
-                    sets.get(index)
-                        .unwrap()
-                        .ligatures()
-                        .iter()
-                        .map(|ligature| ligature.unwrap().ligature_glyph()),
-                );
-            }
-            assert_eq!(targets.len(), 2);
-            assert!(targets.iter().all(|target| target.to_u16() == 1));
-        }
-        assert_ne!(identities[0], identities[1]);
-        assert!(Arc::ptr_eq(
-            outputs.eot_font.as_ref().unwrap(),
-            &outputs.legacy_eot_fonts[1]
-        ));
-    }
-
-    #[test]
-    fn variant_bundle_only_returns_requested_formats() {
-        for (types, expected) in [
-            (vec![FontType::Ttf], (true, false, false, 0)),
-            (vec![FontType::Woff2], (false, false, true, 0)),
-            (vec![FontType::Eot], (false, false, false, 2)),
+        for types in [
+            vec![],
+            vec![FontType::Ttf],
+            vec![FontType::Woff],
+            vec![FontType::Woff2],
         ] {
-            let outputs = build_variant_font_outputs(&options(types), &family()).unwrap();
-            assert_eq!(outputs.ttf_font.is_some(), expected.0);
-            assert_eq!(outputs.woff_font.is_some(), expected.1);
-            assert_eq!(outputs.woff2_font.is_some(), expected.2);
-            assert_eq!(outputs.legacy_eot_fonts.len(), expected.3);
-            assert_eq!(outputs.eot_font.is_some(), expected.3 > 0);
+            options.types = types;
+            let outputs = build_variant_font_outputs(&options, &family).unwrap();
+            assert_eq!(
+                outputs.ttf_font.is_some(),
+                options.types.contains(&FontType::Ttf)
+            );
+            assert_eq!(
+                outputs.woff_font.is_some(),
+                options.types.contains(&FontType::Woff)
+            );
+            assert_eq!(
+                outputs.woff2_font.is_some(),
+                options.types.contains(&FontType::Woff2)
+            );
             assert!(outputs.svg_font.is_none());
+            assert!(outputs.eot_font.is_none());
         }
     }
 }
@@ -384,7 +280,6 @@ pub(crate) fn build_font_outputs(
         woff_font,
         woff2_font,
         eot_font,
-        legacy_eot_fonts: vec![],
     })
 }
 
@@ -396,67 +291,36 @@ pub(crate) fn build_variant_font_outputs(
     let wants_ttf = options.types.contains(&FontType::Ttf);
     let wants_woff = options.types.contains(&FontType::Woff);
     let wants_woff2 = options.types.contains(&FontType::Woff2);
-    let wants_eot = options.types.contains(&FontType::Eot);
+    if !wants_ttf && !wants_woff && !wants_woff2 {
+        return Ok(FontOutputs::default());
+    }
     let variants = options
         .variants
         .as_ref()
         .expect("variant outputs require resolved variants");
-
-    let variable = if wants_ttf || wants_woff || wants_woff2 {
-        Some(Arc::new(
-            sfnt::build_variant(sfnt::ttf_options_from_options(options), family, variants)?.tables,
-        ))
-    } else {
-        None
-    };
-    let ttf_font = wants_ttf.then(|| variable.as_ref().unwrap().ttf_arc());
-    let woff_metadata = options
+    let variable =
+        sfnt::build_variant(sfnt::ttf_options_from_options(options), family, variants)?.tables;
+    let metadata = options
         .format_options
         .as_ref()
-        .and_then(|value| value.woff.as_ref())
-        .and_then(|value| value.metadata.as_deref());
-    let woff2_quality = options
+        .and_then(|formats| formats.woff.as_ref())
+        .and_then(|woff| woff.metadata.as_deref());
+    let quality = options
         .format_options
         .as_ref()
-        .and_then(|value| value.woff2.as_ref())
-        .and_then(|value| value.compression_quality)
+        .and_then(|formats| formats.woff2.as_ref())
+        .and_then(|woff2| woff2.compression_quality)
         .unwrap_or(11);
-    let woff_font = wants_woff
-        .then(|| woff1::tables_to_woff1(variable.as_ref().unwrap(), woff_metadata))
-        .transpose()?
-        .map(Arc::new);
-    let woff2_font = wants_woff2
-        .then(|| woff2::tables_to_woff2(variable.as_ref().unwrap(), woff2_quality, None))
-        .transpose()?
-        .map(Arc::new);
-    let legacy_eot_fonts = if wants_eot {
-        variants
-            .variants
-            .iter()
-            .enumerate()
-            .map(|(index, variant)| {
-                sfnt::build_static_variant(
-                    sfnt::ttf_options_from_options(options),
-                    family,
-                    index,
-                    &variant.name,
-                    variant.weight,
-                )
-                .and_then(|tables| eot::tables_to_eot(&tables))
-                .map(Arc::new)
-            })
-            .collect::<std::io::Result<Vec<_>>>()?
-    } else {
-        vec![]
-    };
-    let eot_font = legacy_eot_fonts.get(variants.default_index).cloned();
-
     Ok(FontOutputs {
-        svg_font: None,
-        ttf_font,
-        woff_font,
-        woff2_font,
-        eot_font,
-        legacy_eot_fonts,
+        ttf_font: wants_ttf.then(|| variable.ttf_arc()),
+        woff_font: wants_woff
+            .then(|| woff1::tables_to_woff1(&variable, metadata))
+            .transpose()?
+            .map(Arc::new),
+        woff2_font: wants_woff2
+            .then(|| woff2::tables_to_woff2(&variable, quality, None))
+            .transpose()?
+            .map(Arc::new),
+        ..Default::default()
     })
 }
