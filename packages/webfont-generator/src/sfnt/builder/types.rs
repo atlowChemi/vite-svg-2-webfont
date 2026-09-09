@@ -59,10 +59,4 @@ pub(super) struct GlyphMetrics {
     pub(super) x_max_extent: i32,
 }
 
-pub(super) struct GlyphAlias {
-    pub(super) codepoint: u32,
-    pub(super) glyph_index: usize,
-    pub(super) name: String,
-}
-
-pub(super) type CmapAliases = Vec<GlyphAlias>;
+pub(super) type CmapAliases = Vec<(u32, usize)>;

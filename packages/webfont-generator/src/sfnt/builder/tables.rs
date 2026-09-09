@@ -19,7 +19,7 @@ use super::cache::{
     dump_cached_ttf_table, dump_ttf_table, hash_option_str, hash_str, table_cache_key,
 };
 use super::ligatures::LigaturePlaceholderGlyph;
-use super::types::{CompiledGlyph, GlyphAlias, GlyphMetrics, TtfOptions};
+use super::types::{CompiledGlyph, GlyphMetrics, TtfOptions};
 use super::{clamp_to_i16, clamp_to_u16, current_unix_timestamp};
 
 const DEFAULT_VENDOR_ID: Tag = Tag::new(b"ATLW");
@@ -30,8 +30,7 @@ const DEFAULT_TTF_MANUFACTURER_URL: &str = "http://fontello.com";
 pub(super) fn assemble_font(
     options: &TtfOptions,
     compiled_glyphs: &[CompiledGlyph],
-    cmap_aliases: &[GlyphAlias],
-    ligature_aliases: &[GlyphAlias],
+    cmap_aliases: &[(u32, usize)],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
     glyf: write_fonts::tables::glyf::Glyf,
     loca: write_fonts::tables::loca::Loca,
@@ -114,9 +113,8 @@ pub(super) fn assemble_font(
             .filter_map(|(i, g)| {
                 char::from_u32(g.codepoint).map(|c| (c, GlyphId::new((i + 1) as u32)))
             })
-            .chain(cmap_aliases.iter().filter_map(|alias| {
-                char::from_u32(alias.codepoint)
-                    .map(|codepoint| (codepoint, GlyphId::new((alias.glyph_index + 1) as u32)))
+            .chain(cmap_aliases.iter().filter_map(|(cp, idx)| {
+                char::from_u32(*cp).map(|c| (c, GlyphId::new((*idx + 1) as u32)))
             }))
             .chain(
                 ligature_placeholders
@@ -149,11 +147,7 @@ pub(super) fn assemble_font(
             .chain(compiled_glyphs.iter().map(|g| g.name.as_str()))
             .chain(ligature_placeholders.iter().map(|g| g.name.as_str())),
     );
-    let gsub = super::ligatures::build_ligature_gsub(
-        compiled_glyphs,
-        ligature_aliases,
-        ligature_placeholders,
-    );
+    let gsub = super::ligatures::build_ligature_gsub(compiled_glyphs, ligature_placeholders);
     let mut used_table_keys = HashSet::new();
     let mut tables = Vec::with_capacity(11);
     tables.push(dump_ttf_table(&head, "head")?);
@@ -206,7 +200,7 @@ pub(super) fn assemble_font(
         tables.push(dump_cached_ttf_table(
             &mut table_cache,
             &mut used_table_keys,
-            || gsub_cache_key(compiled_glyphs, ligature_aliases, ligature_placeholders),
+            || gsub_cache_key(compiled_glyphs, ligature_placeholders),
             gsub,
             "GSUB",
         )?);
@@ -231,16 +225,16 @@ fn hmtx_cache_key(
 }
 fn cmap_cache_key(
     compiled_glyphs: &[CompiledGlyph],
-    cmap_aliases: &[GlyphAlias],
+    cmap_aliases: &[(u32, usize)],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
 ) -> u64 {
     table_cache_key(b"cmap", |hasher| {
         for glyph in compiled_glyphs {
             hasher.write_u32(glyph.codepoint);
         }
-        for alias in cmap_aliases {
-            hasher.write_u32(alias.codepoint);
-            hasher.write_usize(alias.glyph_index);
+        for (codepoint, index) in cmap_aliases {
+            hasher.write_u32(*codepoint);
+            hasher.write_usize(*index);
         }
         for glyph in ligature_placeholders {
             hasher.write_u32(glyph.codepoint);
@@ -288,16 +282,11 @@ fn post_cache_key(
 }
 fn gsub_cache_key(
     compiled_glyphs: &[CompiledGlyph],
-    aliases: &[GlyphAlias],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
 ) -> u64 {
     table_cache_key(b"GSUB", |hasher| {
         for glyph in compiled_glyphs {
             hash_str(hasher, &glyph.name);
-        }
-        for alias in aliases {
-            hash_str(hasher, &alias.name);
-            hasher.write_usize(alias.glyph_index);
         }
         for glyph in ligature_placeholders {
             hasher.write_u32(glyph.codepoint);
