@@ -99,6 +99,7 @@ const config: UserConfig = defineConfig({
         },
         projects: [
             'packages/!(example)/vite.config.ts',
+            'packages/webfont-generator/vite.browser.config.ts',
             {
                 test: {
                     name: 'compat',
