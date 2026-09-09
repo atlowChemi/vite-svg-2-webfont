@@ -72,15 +72,45 @@ fn render_default_css_inner(ctx: &Map<String, Value>, font_name: &str, src: &str
     let codepoint_count = codepoints.map_or(0, |c| c.len());
     let mut result = String::with_capacity(256 + codepoint_count * 60);
 
-    _ = write!(
-        result,
-        "@font-face {{\n\tfont-family: \"{font_name}\";\n\tfont-display: block;\n\tsrc: {src};\n}}\n\n"
-    );
-    _ = write!(result, "{base_selector} {{\n\tline-height: 1;\n}}\n\n");
-    _ = write!(
-        result,
-        "{base_selector}:before {{\n\tfont-family: {font_name} !important;\n\tfont-style: normal;\n\tfont-weight: normal !important;\n\tvertical-align: top;\n}}\n\n"
-    );
+    if let Some(variants) = ctx
+        .get("variants")
+        .and_then(Value::as_array)
+        .filter(|variants| !variants.is_empty())
+    {
+        let style = crate::rendering::ctx_str(ctx, "fontStyle", "normal");
+        let default_weight = &ctx["defaultWeight"];
+        for variant in variants {
+            let weight = &variant["weight"];
+            _ = write!(
+                result,
+                "@font-face {{\n\tfont-family: \"{font_name}\";\n\tfont-display: block;\n\tfont-style: {style};\n\tfont-weight: {weight};\n\tsrc: {src};\n}}\n\n"
+            );
+        }
+        _ = write!(result, "{base_selector} {{\n\tline-height: 1;\n}}\n\n");
+        _ = write!(
+            result,
+            "{base_selector}:before {{\n\tfont-family: {font_name} !important;\n\tfont-style: {style};\n\tfont-weight: {default_weight};\n\tfont-synthesis: none;\n\tvertical-align: top;\n}}\n\n"
+        );
+        for variant in variants {
+            let selector = variant["selector"].as_str().unwrap_or("");
+            let weight = &variant["weight"];
+            // :is() ties modifiers to the configured base, including selector lists.
+            _ = write!(
+                result,
+                ":is({base_selector}).{selector}:before {{\n\tfont-weight: {weight} !important;\n}}\n\n"
+            );
+        }
+    } else {
+        _ = write!(
+            result,
+            "@font-face {{\n\tfont-family: \"{font_name}\";\n\tfont-display: block;\n\tsrc: {src};\n}}\n\n"
+        );
+        _ = write!(result, "{base_selector} {{\n\tline-height: 1;\n}}\n\n");
+        _ = write!(
+            result,
+            "{base_selector}:before {{\n\tfont-family: {font_name} !important;\n\tfont-style: normal;\n\tfont-weight: normal !important;\n\tvertical-align: top;\n}}\n\n"
+        );
+    }
 
     if let Some(codepoints) = codepoints {
         for (name, value) in codepoints {

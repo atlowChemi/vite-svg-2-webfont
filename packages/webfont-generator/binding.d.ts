@@ -284,6 +284,10 @@ export interface GenerateWebfontsOptions {
   /**
    * Ordered named SVG designs for one logical icon family. Variant generation emits shared
    * variable TTF/WOFF/WOFF2 fonts. SVG and EOT output are unsupported in variant mode.
+   * Default CSS emits exact-weight faces sharing those fonts, with modifier classes and no
+   * synthetic weights. CSS/HTML companions are written when enabled; HTML uses one default grid.
+   * Template contexts include ordered `variants`, `variantClassPrefix`, `defaultWeight`, and
+   * `fontStyle`. The SCSS mixin uses each family's default weight and style.
    */
   variants?: Array<FontVariant>
   /**
