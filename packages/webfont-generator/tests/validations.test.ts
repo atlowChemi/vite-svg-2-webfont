@@ -57,6 +57,7 @@ describe('validateOptions', () => {
 
     it('rejects unsupported variant combinations', () => {
         expect(() => validateOptions(options({ types: ['svg'] }))).toThrow('options.types');
+        expect(() => validateOptions(options({ types: ['eot'] }))).toThrow('options.types');
         expect(() => validateOptions(options({ incremental: true }))).toThrow('options.incremental');
         expect(() => validateOptions(options({ fontWeight: '400' }))).toThrow('options.fontWeight');
         expect(() => validateOptions(options({ templateOptions: { variantClassPrefix: 'weight--' } }))).toThrow('options.templateOptions.variantClassPrefix');

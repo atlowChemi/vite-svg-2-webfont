@@ -153,6 +153,8 @@ contract; all other fields are optional and implement `Default`.
 
 ### Multi-variant contract preview
 
+Variant formats default to WOFF/WOFF2; TTF is also supported. Ordinary format defaults are unchanged.
+
 ```rust
 pub struct FontVariant {
     pub name: String,
@@ -180,7 +182,7 @@ weights may be mixed. Variant names reject NUL and Unicode whitespace. `variant_
 follows CSSOM identifier serialization, so punctuation is escaped instead of rejected.
 
 `MissingGlyphBehavior::Blank` is the default. `Fallback` requires an existing variant name;
-`Blank` and `Error` reject a fallback name. SVG output and incremental mode are invalid with
+`Blank` and `Error` reject a fallback name. SVG/EOT output and incremental mode are invalid with
 variants.
 
 This release validates the contract but does not generate variant fonts. `generate()` and

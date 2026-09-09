@@ -34,6 +34,7 @@ it('exports the public generator API', () => {
     expectTypeOf<{ dest: string; incremental: true; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
     expectTypeOf<{ dest: string; incremental: false; variants: FontVariant[] }>().toExtend<GenerateWebfontsVariantOptions>();
     expectTypeOf<{ dest: string; types: ['svg']; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
+    expectTypeOf<{ dest: string; types: ['eot']; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
     expectTypeOf<FontVariant>().toExtend<{ name: string; files: string[]; weight?: number; default?: boolean }>();
     expectTypeOf<MissingGlyphOptions>().toEqualTypeOf<{ behavior: MissingGlyphBehavior; variant?: string }>();
     expectTypeOf<keyof FormatOptions>().toEqualTypeOf<'svg' | 'ttf' | 'woff' | 'woff2'>();
