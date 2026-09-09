@@ -1167,6 +1167,7 @@ fn static_variant_oracles_share_metrics_codepoints_and_advances() {
             },
             prepared,
             variant_index,
+            if variant_index == 0 { "small" } else { "large" },
             weight,
         )
         .unwrap()

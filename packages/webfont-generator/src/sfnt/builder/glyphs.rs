@@ -12,7 +12,7 @@ use super::cache::compiled_glyph_cache_key;
 use super::ligatures::LigaturePlaceholderGlyph;
 use super::outlines::{quadratic_path, quadratic_path_from_svg_path_data};
 use super::types::{
-    CachedCompiledGlyph, CmapAliases, CompiledGlyph, CompiledGlyphOutline, GlyphMetrics,
+    CachedCompiledGlyph, CmapAliases, CompiledGlyph, CompiledGlyphOutline, GlyphAlias, GlyphMetrics,
 };
 use super::{clamp_to_i16, clamp_to_u16};
 
@@ -20,7 +20,7 @@ pub(super) fn compile_and_dedup_glyphs(
     glyphs: &[ProcessedGlyph],
 ) -> Result<(Vec<CompiledGlyph>, CmapAliases), Error> {
     let mut compiled: Vec<CompiledGlyph> = Vec::with_capacity(glyphs.len());
-    let mut aliases: Vec<(u32, usize)> = Vec::new();
+    let mut aliases = CmapAliases::new();
     let mut seen: HashMap<(u64, u16), Vec<usize>> = HashMap::new();
     for (i, glyph) in glyphs.iter().enumerate() {
         let advance_width = clamp_to_u16(glyph.width.round(), 0, u16::MAX);
@@ -32,7 +32,11 @@ pub(super) fn compile_and_dedup_glyphs(
                 .copied()
         });
         if let Some(first_idx) = duplicate_of {
-            aliases.push((glyph.codepoint, first_idx));
+            aliases.push(GlyphAlias {
+                codepoint: glyph.codepoint,
+                glyph_index: first_idx,
+                name: glyph.name.clone(),
+            });
         } else {
             let idx = compiled.len();
             seen.entry(key).or_default().push(idx);
@@ -47,7 +51,7 @@ pub(super) fn compile_and_dedup_glyphs_cached(
     cache: &mut TtfGlyphCache,
 ) -> Result<(Vec<CompiledGlyph>, CmapAliases), Error> {
     let mut compiled: Vec<CompiledGlyph> = Vec::with_capacity(glyphs.len());
-    let mut aliases: Vec<(u32, usize)> = Vec::new();
+    let mut aliases = CmapAliases::new();
     let mut seen: HashMap<(u64, u16), Vec<usize>> = HashMap::new();
     let mut used_keys = HashSet::with_capacity(glyphs.len());
     for (i, glyph) in glyphs.iter().enumerate() {
@@ -60,7 +64,11 @@ pub(super) fn compile_and_dedup_glyphs_cached(
                 .copied()
         });
         if let Some(first_idx) = duplicate_of {
-            aliases.push((glyph.codepoint, first_idx));
+            aliases.push(GlyphAlias {
+                codepoint: glyph.codepoint,
+                glyph_index: first_idx,
+                name: glyph.name.clone(),
+            });
         } else {
             let cache_key = compiled_glyph_cache_key(glyph, advance_width);
             let cached = match cache.entries.get(&cache_key) {

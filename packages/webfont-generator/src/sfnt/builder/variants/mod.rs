@@ -89,8 +89,11 @@ pub(crate) fn build_variant(
             }
         }
     }
-    let ligature_placeholders =
-        ligatures::build_ligature_placeholders(&physical[..family.glyphs.len()], options.ligature);
+    let ligature_placeholders = ligatures::build_ligature_placeholders(
+        &physical[..family.glyphs.len()],
+        &[],
+        options.ligature,
+    );
     let presentation_gids = checked_gids(physical.len() + ligature_placeholders.len(), matrix)?;
 
     let (glyf, loca, loca_format) = build_glyf_table(&physical, &ligature_placeholders)?;
@@ -113,6 +116,7 @@ pub(crate) fn build_variant(
     let base = assemble_font(
         &base_options,
         &physical,
+        &[],
         &[],
         &ligature_placeholders,
         glyf,
@@ -290,6 +294,7 @@ pub(crate) fn build_static_variant(
     options: TtfOptions<'_>,
     family: &PreparedVariantFamily,
     variant_index: usize,
+    variant_name: &str,
     weight: u16,
 ) -> Result<SerializedFontTables, Error> {
     let glyphs = family
@@ -318,7 +323,17 @@ pub(crate) fn build_static_variant(
         })
         .collect::<Vec<_>>();
     let weight = weight.to_string();
-    super::build(
+    let postscript_name = variant_postscript_name(options.font_name, variant_name);
+    let name = build_name_table(
+        options.font_name,
+        variant_name,
+        Some(&postscript_name),
+        options.copyright,
+        options.description,
+        options.manufacturer_url,
+        derive_version_string(options.version).as_deref(),
+    );
+    let built = super::build_with_ligature_aliases(
         TtfOptions {
             ascent: Some(family.ascent),
             copyright: options.copyright,
@@ -334,8 +349,18 @@ pub(crate) fn build_static_variant(
             version: options.version,
         },
         &glyphs,
-        None,
-    )
+    )?;
+    let mut tables = built
+        .tables()
+        .iter()
+        .filter(|table| table.tag != *b"name")
+        .map(|table| (table.tag, table.bytes.clone()))
+        .collect::<Vec<_>>();
+    tables.push((
+        *b"name",
+        write_fonts::dump_table(&name).map_err(Error::other)?,
+    ));
+    SerializedFontTables::new(tables)
 }
 
 fn build_variant_gsub(
