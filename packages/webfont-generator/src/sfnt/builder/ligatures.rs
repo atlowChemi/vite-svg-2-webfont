@@ -10,7 +10,7 @@ use write_fonts::tables::layout::{
 use write_fonts::tables::variations::ivs_builder::VariationStoreBuilder;
 use write_fonts::types::{GlyphId16, Tag};
 
-use super::types::CompiledGlyph;
+use super::types::{CompiledGlyph, GlyphAlias};
 
 pub(super) struct LigaturePlaceholderGlyph {
     pub(super) codepoint: u32,
@@ -19,6 +19,7 @@ pub(super) struct LigaturePlaceholderGlyph {
 
 pub(super) fn build_ligature_placeholders(
     compiled_glyphs: &[CompiledGlyph],
+    aliases: &[GlyphAlias],
     ligature: bool,
 ) -> Vec<LigaturePlaceholderGlyph> {
     if !ligature {
@@ -26,11 +27,15 @@ pub(super) fn build_ligature_placeholders(
     }
     let mut seen = HashSet::new();
     let mut placeholders = Vec::new();
-    for glyph in compiled_glyphs {
-        if glyph.name.chars().count() < 2 {
+    for name in compiled_glyphs
+        .iter()
+        .map(|glyph| glyph.name.as_str())
+        .chain(aliases.iter().map(|alias| alias.name.as_str()))
+    {
+        if name.chars().count() < 2 {
             continue;
         }
-        for character in glyph.name.chars() {
+        for character in name.chars() {
             let codepoint = u32::from(character);
             if seen.insert(codepoint) {
                 placeholders.push(LigaturePlaceholderGlyph {
@@ -45,6 +50,7 @@ pub(super) fn build_ligature_placeholders(
 
 pub(super) fn build_ligature_gsub(
     compiled_glyphs: &[CompiledGlyph],
+    aliases: &[GlyphAlias],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
 ) -> Option<Gsub> {
     if ligature_placeholders.is_empty() {
@@ -61,9 +67,17 @@ pub(super) fn build_ligature_gsub(
         })
         .collect::<BTreeMap<_, _>>();
     let mut lookup_builder = LookupBuilder::<LigatureSubBuilder>::new(LookupFlag::empty(), None);
-    for (index, glyph) in compiled_glyphs.iter().enumerate() {
-        let sequence = glyph
-            .name
+    for (name, index) in compiled_glyphs
+        .iter()
+        .enumerate()
+        .map(|(index, glyph)| (glyph.name.as_str(), index))
+        .chain(
+            aliases
+                .iter()
+                .map(|alias| (alias.name.as_str(), alias.glyph_index)),
+        )
+    {
+        let sequence = name
             .chars()
             .filter_map(|character| placeholder_glyph_ids.get(&u32::from(character)).copied())
             .collect::<Vec<_>>();

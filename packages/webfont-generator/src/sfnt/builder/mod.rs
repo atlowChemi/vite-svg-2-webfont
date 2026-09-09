@@ -55,13 +55,21 @@ pub(crate) fn build(
 ) -> Result<super::SerializedFontTables, Error> {
     match cache {
         Some(cache) => build_cached(options, glyphs, cache),
-        None => build_uncached(options, glyphs),
+        None => build_uncached(options, glyphs, false),
     }
+}
+
+fn build_with_ligature_aliases(
+    options: TtfOptions,
+    glyphs: &[ProcessedGlyph],
+) -> Result<super::SerializedFontTables, Error> {
+    build_uncached(options, glyphs, true)
 }
 
 fn build_uncached(
     options: TtfOptions,
     glyphs: &[ProcessedGlyph],
+    preserve_ligature_aliases: bool,
 ) -> Result<super::SerializedFontTables, Error> {
     let font_height = options.font_height.unwrap_or_else(|| {
         glyphs
@@ -73,7 +81,13 @@ fn build_uncached(
     let ascent = options.ascent.unwrap_or(font_height - descent);
 
     let (compiled_glyphs, cmap_aliases) = compile_and_dedup_glyphs(glyphs)?;
-    let ligature_placeholders = build_ligature_placeholders(&compiled_glyphs, options.ligature);
+    let ligature_aliases = if preserve_ligature_aliases {
+        cmap_aliases.as_slice()
+    } else {
+        &[]
+    };
+    let ligature_placeholders =
+        build_ligature_placeholders(&compiled_glyphs, ligature_aliases, options.ligature);
     let (glyf, loca, loca_format) = build_glyf_table(&compiled_glyphs, &ligature_placeholders)?;
     let metrics = compute_glyph_metrics(&compiled_glyphs);
 
@@ -81,6 +95,7 @@ fn build_uncached(
         &options,
         &compiled_glyphs,
         &cmap_aliases,
+        ligature_aliases,
         &ligature_placeholders,
         glyf,
         loca,
@@ -108,7 +123,8 @@ fn build_cached(
     let ascent = options.ascent.unwrap_or(font_height - descent);
 
     let (compiled_glyphs, cmap_aliases) = compile_and_dedup_glyphs_cached(glyphs, cache)?;
-    let ligature_placeholders = build_ligature_placeholders(&compiled_glyphs, options.ligature);
+    let ligature_placeholders =
+        build_ligature_placeholders(&compiled_glyphs, &[], options.ligature);
     let (glyf, loca, loca_format) = build_glyf_table(&compiled_glyphs, &ligature_placeholders)?;
     let metrics = compute_glyph_metrics(&compiled_glyphs);
 
@@ -116,6 +132,7 @@ fn build_cached(
         &options,
         &compiled_glyphs,
         &cmap_aliases,
+        &[],
         &ligature_placeholders,
         glyf,
         loca,

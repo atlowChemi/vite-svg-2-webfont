@@ -23,6 +23,7 @@ mod variant_tests {
 
     use flate2::read::ZlibDecoder;
     use kurbo::{BezPath, Point};
+    use write_fonts::read::tables::gsub::SubstitutionLookup as ReadSubstitutionLookup;
     use write_fonts::read::{FontRef, TableProvider};
     use write_fonts::types::Tag;
 
@@ -59,17 +60,17 @@ mod variant_tests {
     }
 
     fn family() -> PreparedVariantFamily {
-        let outline = |shape_width| {
+        let outline = |name: &str, codepoint, shape_width| {
             let mut path = BezPath::new();
             path.move_to(Point::new(0.0, 0.0));
             path.line_to(Point::new(shape_width, 0.0));
             path.line_to(Point::new(0.0, 10.0));
             path.close_path();
             ProcessedGlyph {
-                codepoint: 0xe001,
+                codepoint,
                 height: 10.0,
                 index: 0,
-                name: "icon".to_owned(),
+                name: name.to_owned(),
                 path_data: Arc::from(""),
                 ttf_path: Some(Arc::new(path)),
                 ttf_path_hash: None,
@@ -80,12 +81,19 @@ mod variant_tests {
             ascent: 10.0,
             descent: 0.0,
             font_height: 1000.0,
-            glyphs: vec![ProcessedVariantGlyph {
-                name: "icon".to_owned(),
-                codepoint: 0xe001,
-                advance_width: 20.0,
-                outlines: vec![Some(outline(10.0)), Some(outline(20.0))].into_boxed_slice(),
-            }],
+            glyphs: [("icon", 0xe001), ("mark", 0xe002)]
+                .into_iter()
+                .map(|(name, codepoint)| ProcessedVariantGlyph {
+                    name: name.to_owned(),
+                    codepoint,
+                    advance_width: 20.0,
+                    outlines: vec![
+                        Some(outline(name, codepoint, 10.0)),
+                        Some(outline(name, codepoint, 20.0)),
+                    ]
+                    .into_boxed_slice(),
+                })
+                .collect(),
         }
     }
 
@@ -138,11 +146,13 @@ mod variant_tests {
         }
 
         assert_eq!(outputs.legacy_eot_fonts.len(), 2);
-        for ((eot, weight), x_max) in outputs
+        let mut identities = Vec::new();
+        for (((eot, weight), x_max), variant_name) in outputs
             .legacy_eot_fonts
             .iter()
             .zip([300, 700])
             .zip([10, 20])
+            .zip(["Light", "Bold"])
         {
             assert_eq!(u32::from_le_bytes(eot[28..32].try_into().unwrap()), weight);
             let ttf_len = u32::from_le_bytes(eot[4..8].try_into().unwrap()) as usize;
@@ -150,7 +160,41 @@ mod variant_tests {
             assert_eq!(font.os2().unwrap().us_weight_class(), weight as u16);
             assert!(font.fvar().is_err());
             assert_eq!(font.head().unwrap().x_max(), x_max);
+
+            let name = font.name().unwrap();
+            let string_data = name.string_data();
+            let read_name = |id| {
+                name.name_record()
+                    .iter()
+                    .find(|record| record.name_id().to_u16() == id)
+                    .unwrap()
+                    .string(string_data)
+                    .unwrap()
+                    .to_string()
+            };
+            assert_eq!(read_name(2), variant_name);
+            identities.push((read_name(4), read_name(6)));
+
+            let gsub = font.gsub().unwrap();
+            let lookup = gsub.lookup_list().unwrap().lookups().get(0).unwrap();
+            let ReadSubstitutionLookup::Ligature(lookup) = lookup else {
+                panic!("expected static ligature lookup")
+            };
+            let sets = lookup.subtables().get(0).unwrap().ligature_sets();
+            let mut targets = Vec::new();
+            for index in 0..sets.len() {
+                targets.extend(
+                    sets.get(index)
+                        .unwrap()
+                        .ligatures()
+                        .iter()
+                        .map(|ligature| ligature.unwrap().ligature_glyph()),
+                );
+            }
+            assert_eq!(targets.len(), 2);
+            assert!(targets.iter().all(|target| target.to_u16() == 1));
         }
+        assert_ne!(identities[0], identities[1]);
         assert!(Arc::ptr_eq(
             outputs.eot_font.as_ref().unwrap(),
             &outputs.legacy_eot_fonts[1]
@@ -395,6 +439,7 @@ pub(crate) fn build_variant_font_outputs(
                     sfnt::ttf_options_from_options(options),
                     family,
                     index,
+                    &variant.name,
                     variant.weight,
                 )
                 .and_then(|tables| eot::tables_to_eot(&tables))
