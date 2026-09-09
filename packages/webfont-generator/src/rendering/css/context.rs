@@ -100,6 +100,35 @@ pub(super) fn make_ctx(
 
     ctx.extend(shared.template_options.clone());
 
+    if let Some(variants) = &options.variants {
+        ctx.insert(
+            "variants".to_owned(),
+            Value::Array(
+                variants
+                    .variants
+                    .iter()
+                    .enumerate()
+                    .map(|(index, variant)| {
+                        serde_json::json!({"name": variant.name, "weight": variant.weight,
+                "default": index == variants.default_index, "className": variant.class_name,
+                "selector": variant.selector})
+                    })
+                    .collect(),
+            ),
+        );
+        let first = &variants.variants[0];
+        ctx.insert(
+            "variantClassPrefix".to_owned(),
+            Value::String(
+                first
+                    .class_name
+                    .strip_suffix(&first.name)
+                    .unwrap()
+                    .to_owned(),
+            ),
+        );
+    }
+
     ctx
 }
 

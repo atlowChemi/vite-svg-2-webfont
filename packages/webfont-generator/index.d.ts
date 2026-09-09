@@ -81,9 +81,7 @@ export interface GenerateWebfontsFileOptions<T extends FontType = FontType> exte
 }
 
 /**
- * Prepare a future multi-variant source. Files are loaded and renamed, matching
- * glyphs are joined, and shared codepoints are assigned before generation returns
- * an unsupported-operation error.
+ * Generate one shared variable TTF/WOFF/WOFF2 per requested format.
  */
 export interface GenerateWebfontsVariantOptions<T extends MultiVariantFontType = MultiVariantFontType> extends GenerateWebfontsBaseOptions {
     files?: never;
@@ -121,12 +119,12 @@ export type GenerateWebfontsResult<T extends FontType = FontType> = {
     };
 
 /**
- * Generate a webfont from ordinary SVG files or resolve a multi-variant source contract.
+ * Generate a webfont from ordinary SVG files or ordered multi-weight variants.
  *
  * Ordinary generation loads `options.files`, builds the configured formats,
  * optionally writes them to `options.dest`, and resolves with the font bytes
- * and template-rendering methods. Multi-variant generation is not available
- * yet and rejects after validating and resolving variant weights and CSS selectors.
+ * and template-rendering methods. Multi-variant generation returns shared modern
+ * fonts through the same getters; SVG and EOT are unsupported in variant mode.
  */
 export declare function generateWebfonts<T extends FontType = FontType>(options: GenerateWebfontsFileOptions<T>): Promise<GenerateWebfontsResult<T>>;
 export declare function generateWebfonts<T extends MultiVariantFontType = MultiVariantFontType>(options: GenerateWebfontsVariantOptions<T>): Promise<GenerateWebfontsResult<T>>;

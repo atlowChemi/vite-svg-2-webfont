@@ -6,8 +6,8 @@ use super::{
 use crate::input::LoadedSvgFile;
 use crate::input::ResolvedGenerateWebfontsOptions;
 use crate::{
-    FontType, FormatOptions, GenerateWebfontsOptions, SvgFormatOptions, TtfFormatOptions,
-    WoffFormatOptions,
+    FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
+    MissingGlyphOptions, SvgFormatOptions, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
 use serde_json::{Map, Value};
 use std::collections::HashMap;
@@ -712,6 +712,96 @@ fn shared_template_data_reads_source_but_does_not_compile_invalid_css_template_e
     assert!(
         shared.is_ok(),
         "init should succeed even with invalid template content"
+    );
+}
+
+fn variant_hash_options(quality: Option<u8>) -> ResolvedGenerateWebfontsOptions {
+    resolve_options(GenerateWebfontsOptions {
+        dest: "artifacts".to_owned(),
+        format_options: Some(FormatOptions {
+            woff2: Some(Woff2FormatOptions {
+                compression_quality: quality,
+            }),
+            ..Default::default()
+        }),
+        missing_glyphs: Some(MissingGlyphOptions {
+            behavior: MissingGlyphBehavior::Blank,
+            variant: None,
+        }),
+        types: Some(vec![FontType::Woff2]),
+        variants: Some(vec![
+            FontVariant {
+                name: "light".to_owned(),
+                files: vec!["light/add.svg".to_owned()],
+                weight: Some(300),
+                default: Some(false),
+            },
+            FontVariant {
+                name: "regular".to_owned(),
+                files: vec!["regular/add.svg".to_owned()],
+                weight: Some(400),
+                default: Some(true),
+            },
+        ]),
+        write_files: Some(false),
+        ..Default::default()
+    })
+}
+
+#[test]
+fn variant_hash_includes_resolved_variants_missing_policy_and_explicit_woff2_quality() {
+    let files = vec![LoadedSvgFile {
+        contents: "same source".into(),
+        glyph_name: "add".to_owned(),
+        path: "add.svg".to_owned(),
+    }];
+    let base = variant_hash_options(Some(9));
+
+    let mut changed_variant = base.clone();
+    changed_variant.variants.as_mut().unwrap().variants[0].weight = 200;
+    let mut changed_missing = base.clone();
+    changed_missing.missing_glyphs = MissingGlyphOptions {
+        behavior: MissingGlyphBehavior::Fallback,
+        variant: Some("regular".to_owned()),
+    };
+
+    assert_ne!(
+        calc_hash(&base, &files),
+        calc_hash(&changed_variant, &files)
+    );
+    assert_ne!(
+        calc_hash(&base, &files),
+        calc_hash(&changed_missing, &files)
+    );
+    assert_ne!(
+        calc_hash(&variant_hash_options(Some(8)), &files),
+        calc_hash(&variant_hash_options(Some(9)), &files)
+    );
+}
+
+#[test]
+fn ordinary_hash_serialization_still_ignores_the_woff2_quality_value() {
+    let fixture = crate::test_helpers::webfont_fixture("add.svg");
+    let ordinary = |quality| {
+        resolve_options(GenerateWebfontsOptions {
+            dest: "artifacts".to_owned(),
+            files: vec![fixture.clone()],
+            format_options: Some(FormatOptions {
+                woff2: Some(Woff2FormatOptions {
+                    compression_quality: Some(quality),
+                }),
+                ..Default::default()
+            }),
+            types: Some(vec![FontType::Woff2]),
+            write_files: Some(false),
+            ..Default::default()
+        })
+    };
+    let files = fixture_source_files(&ordinary(8));
+
+    assert_eq!(
+        calc_hash(&ordinary(8), &files),
+        calc_hash(&ordinary(9), &files)
     );
 }
 

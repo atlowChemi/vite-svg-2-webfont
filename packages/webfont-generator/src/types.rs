@@ -235,9 +235,7 @@ pub struct HtmlContext {
 }
 
 /// Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
-/// `files` or future `variants`, are required. Variant input is resolved, its SVGs are loaded and
-/// renamed, and logical glyphs receive shared codepoints, metrics, and processed outlines before an
-/// unsupported-operation error is returned; every other field has a sensible default.
+/// `files` or `variants`, are required. Every other field has a sensible default.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
 pub struct GenerateWebfontsOptions {
@@ -331,10 +329,8 @@ pub struct GenerateWebfontsOptions {
     /// Prefix for generated variant modifier classes. Defaults to `icon--` in variant mode and is
     /// invalid without `variants`.
     pub variant_class_prefix: Option<String>,
-    /// Ordered named SVG designs for one logical icon family. Variant generation is not yet
-    /// available; valid input resolves metadata, loads and renames SVGs, joins logical glyphs, and
-    /// assigns shared codepoints, metrics, and processed outlines before returning an
-    /// unsupported-operation error.
+    /// Ordered named SVG designs for one logical icon family. Variant generation emits shared
+    /// variable TTF/WOFF/WOFF2 fonts. SVG and EOT output are unsupported in variant mode.
     pub variants: Option<Vec<FontVariant>>,
     /// Whether to write generated files to disk. Set to `false` for
     /// in-memory usage. Defaults to `true`.

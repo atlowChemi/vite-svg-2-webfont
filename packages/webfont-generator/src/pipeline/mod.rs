@@ -73,7 +73,7 @@ mod variant_tests {
         })
         .unwrap();
         let files = load_variant_svg_files(&paths, None).await.unwrap();
-        let family = crate::prepare_variant_family(&mut options, files).unwrap();
+        let (family, _) = crate::prepare_variant_family(&mut options, files).unwrap();
         let outputs = build_variant_font_outputs(&options, &family).unwrap();
         let variable = FontRef::new(outputs.ttf_font.as_ref().unwrap()).unwrap();
         let decoded = ::woff::version2::decompress(outputs.woff2_font.as_ref().unwrap()).unwrap();
@@ -166,6 +166,24 @@ pub(crate) fn generate_webfonts_sync(
         options: std::sync::Arc::new(options),
         regeneration_state: std::sync::Arc::new(std::sync::Mutex::new(regeneration_state)),
         source_files: std::sync::Arc::new(source_files),
+    })
+}
+
+pub(crate) fn generate_variant_webfonts_sync(
+    options: ResolvedGenerateWebfontsOptions,
+    source_files: Vec<LoadedSvgFile>,
+    family: crate::svg::types::PreparedVariantFamily,
+) -> std::io::Result<GenerateWebfontsResult> {
+    let fonts = build_variant_font_outputs(&options, &family)?;
+    Ok(GenerateWebfontsResult {
+        cached: std::sync::OnceLock::new(),
+        carried_render: None,
+        css_context: None,
+        fonts,
+        html_context: None,
+        options: Arc::new(options),
+        regeneration_state: Arc::new(std::sync::Mutex::new(None)),
+        source_files: Arc::new(source_files),
     })
 }
 
@@ -283,7 +301,6 @@ pub(crate) fn build_font_outputs(
     })
 }
 
-#[allow(dead_code, reason = "variant result wiring is completed in Phase 9")]
 pub(crate) fn build_variant_font_outputs(
     options: &ResolvedGenerateWebfontsOptions,
     family: &crate::svg::types::PreparedVariantFamily,

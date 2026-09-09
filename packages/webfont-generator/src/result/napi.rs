@@ -52,8 +52,8 @@ impl GenerateWebfontsResult {
     }
 
     /// Render the CSS string for this result. Pass `urls` to override the
-    /// default font URLs in the `@font-face src:` descriptor (only the keys
-    /// you supply are overridden). The result is cached per `urls` value, so
+    /// default font URLs in the `@font-face src:` descriptor. A supplied map is a complete
+    /// override; omitted formats use empty URLs. The result is cached per `urls` value, so
     /// repeated calls with the same input are cheap.
     #[napi(ts_args_type = "urls?: Partial<Record<FontType, string>>")]
     pub fn generate_css(&self, urls: Option<HashMap<String, String>>) -> napi::Result<String> {
@@ -62,8 +62,8 @@ impl GenerateWebfontsResult {
     }
 
     /// Render the HTML preview string for this result. Pass `urls` to
-    /// override font URLs in the embedded stylesheet (only the keys you
-    /// supply are overridden). The result is cached per `urls` value.
+    /// override font URLs in the embedded stylesheet. A supplied map is a complete override;
+    /// omitted formats use empty URLs. The result is cached per `urls` value.
     #[napi(ts_args_type = "urls?: Partial<Record<FontType, string>>")]
     pub fn generate_html(&self, urls: Option<HashMap<String, String>>) -> napi::Result<String> {
         let urls = urls.map(parse_native_urls).transpose()?;
