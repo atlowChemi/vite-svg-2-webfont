@@ -1,5 +1,4 @@
 import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
-import { playwright } from 'vite-plus/test/browser-playwright';
 
 type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
 
@@ -8,34 +7,7 @@ const cargoCache: TaskDefinition = {
     output: [{ auto: true }, '!target/**'],
 };
 
-const browser = process.argv.includes('--mode=browser');
-const test: NonNullable<UserWorkspaceConfig['test']> = {
-    experimental: {
-        fsModuleCache: true,
-    },
-    typecheck: { enabled: true },
-    ...(browser
-        ? {
-              browser: {
-                  enabled: true,
-                  headless: true,
-                  instances: [{ browser: 'chromium' }, { browser: 'firefox' }, { browser: 'webkit' }],
-                  provider: playwright(),
-                  screenshotFailures: false,
-              },
-              include: ['tests/browser/**/*.test.ts'],
-              name: 'webfont-generator-browser',
-          }
-        : {
-              benchmark: { include: [] },
-              exclude: ['tests/browser/**'],
-              include: ['tests/**/*.test.ts'],
-              name: 'webfont-generator',
-          }),
-};
-
 export default defineProject({
-    publicDir: browser ? 'tests/browser/fixtures' : undefined,
     run: {
         tasks: {
             check: {
@@ -50,7 +22,7 @@ export default defineProject({
             },
             'test:browser': {
                 cache: false,
-                command: 'vp test --mode=browser --project=webfont-generator-browser',
+                command: 'vp test --root ../.. --project=webfont-generator-browser',
             },
             'test:coverage': {
                 ...cargoCache,
@@ -74,5 +46,14 @@ export default defineProject({
             },
         },
     },
-    test,
+    test: {
+        experimental: {
+            fsModuleCache: true,
+        },
+        typecheck: { enabled: true },
+        benchmark: { include: [] },
+        exclude: ['tests/browser/**'],
+        include: ['tests/**/*.test.ts'],
+        name: 'webfont-generator',
+    },
 });
