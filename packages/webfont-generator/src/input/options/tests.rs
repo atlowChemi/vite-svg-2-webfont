@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use super::{
-    encode_filename_component, resolve_codepoints, resolve_generate_webfonts_options,
-    resolve_variant_weights, resolved_font_types, serialize_css_identifier,
-    validate_font_type_order, validate_generate_webfonts_options,
+    resolve_codepoints, resolve_generate_webfonts_options, resolve_variant_weights,
+    resolved_font_types, serialize_css_identifier, validate_font_type_order,
+    validate_generate_webfonts_options,
 };
 use crate::input::LoadedSvgFile;
 use crate::{
@@ -362,24 +362,6 @@ fn rejects_conflicting_or_exhausted_weight_intervals() {
 }
 
 #[test]
-fn encodes_filesystem_safe_variant_names() {
-    for (name, expected) in [
-        ("small", "small"),
-        ("a/b", "a~2Fb"),
-        ("a\\b", "a~5Cb"),
-        ("..", "~2E~2E"),
-        ("café", "caf~C3~A9"),
-        ("CON", "~43ON"),
-        ("COM1", "~43OM1"),
-        ("LPT9", "~4CPT9"),
-        ("\u{1}", "~01"),
-        ("a b", "a~20b"),
-    ] {
-        assert_eq!(encode_filename_component(name), expected);
-    }
-}
-
-#[test]
 fn resolver_rejects_variants_without_a_default() {
     let mut options = variant_options();
     for variant in options.variants.as_mut().unwrap() {
@@ -412,23 +394,20 @@ fn resolves_ordered_variant_metadata() {
     assert_eq!(variants.variants[0].files, ["small.svg"]);
     assert_eq!(variants.variants[0].class_name, "weight--small");
     assert_eq!(variants.variants[0].selector, "weight--small");
-    assert_eq!(variants.variants[0].filename_component, "small");
-    assert_eq!(variants.variants[1].filename_component, "large~2Falt");
 }
 
 #[test]
-fn rejects_case_insensitive_filename_collisions() {
+fn accepts_distinct_case_sensitive_variant_names() {
     let mut options = variant_options();
     options.variants = Some(vec![
         variant("small", None, true),
         variant("Small", None, false),
     ]);
 
-    let error = resolve_generate_webfonts_options(options)
-        .err()
-        .expect("expected filename collision to fail");
-    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
-    assert!(error.to_string().contains("filename"));
+    let resolved = resolve_generate_webfonts_options(options).unwrap();
+    let variants = resolved.variants.unwrap();
+    assert_eq!(variants.variants[0].name, "small");
+    assert_eq!(variants.variants[1].name, "Small");
 }
 
 #[test]

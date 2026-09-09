@@ -182,9 +182,8 @@ automatic values resolve outward in steps of 100, or evenly within a crowded anc
 Resolved weights are unique and strictly follow variant order.
 
 Variant names reject NUL and Unicode whitespace. `variant_class_prefix` follows CSSOM identifier
-serialization, so punctuation is escaped instead of rejected. Filename components use a separate
-encoding: ASCII letters, digits, `_`, and `-` remain readable, while every other UTF-8 byte becomes
-`~HH`. Platform-special names are encoded, and case-insensitive filename collisions are rejected.
+serialization, so punctuation is escaped instead of rejected. Variant names do not form output
+filenames; all variants share one resource per requested modern format.
 
 `MissingGlyphBehavior::Blank` is the default. `Fallback` requires an existing variant name;
 `Blank` and `Error` reject a fallback name. SVG/EOT output and incremental mode are invalid with

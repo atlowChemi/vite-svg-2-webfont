@@ -31,7 +31,6 @@ pub(crate) struct ResolvedFontVariant {
     pub weight: u16,
     pub class_name: String,
     pub selector: String,
-    pub filename_component: String,
 }
 
 #[derive(Clone)]
@@ -432,30 +431,6 @@ fn resolve_variant_weights(
     Ok(weights.into_iter().map(Option::unwrap).collect())
 }
 
-fn encode_filename_component(value: &str) -> String {
-    let mut encoded = String::with_capacity(value.len());
-    for byte in value.bytes() {
-        if byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'_') {
-            encoded.push(char::from(byte));
-        } else {
-            encoded.push_str(&format!("~{byte:02X}"));
-        }
-    }
-
-    let upper = encoded.to_ascii_uppercase();
-    let reserved = matches!(upper.as_str(), "CON" | "PRN" | "AUX" | "NUL")
-        || ["COM", "LPT"].iter().any(|prefix| {
-            upper.strip_prefix(prefix).is_some_and(|suffix| {
-                matches!(suffix, "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9")
-            })
-        });
-    if reserved {
-        format!("~{:02X}{}", encoded.as_bytes()[0], &encoded[1..])
-    } else {
-        encoded
-    }
-}
-
 fn resolve_variants(
     variants: &[FontVariant],
     class_prefix: &str,
@@ -470,19 +445,9 @@ fn resolve_variants(
             )
         })?;
     let weights = resolve_variant_weights(variants, default_index)?;
-    let mut filenames = HashSet::with_capacity(variants.len());
     let mut resolved = Vec::with_capacity(variants.len());
 
-    for (index, (variant, weight)) in variants.iter().zip(weights).enumerate() {
-        let filename_component = encode_filename_component(&variant.name);
-        if !filenames.insert(filename_component.to_ascii_lowercase()) {
-            return Err(Error::new(
-                ErrorKind::InvalidInput,
-                format!(
-                    "\"options.variants[{index}].name\" produces a duplicate case-insensitive filename component \"{filename_component}\"."
-                ),
-            ));
-        }
+    for (variant, weight) in variants.iter().zip(weights) {
         let class_name = format!("{class_prefix}{}", variant.name);
         let selector = serialize_css_identifier(&class_name);
         resolved.push(ResolvedFontVariant {
@@ -491,7 +456,6 @@ fn resolve_variants(
             weight,
             class_name,
             selector,
-            filename_component,
         });
     }
 

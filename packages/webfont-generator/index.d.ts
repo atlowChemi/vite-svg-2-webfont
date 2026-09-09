@@ -122,7 +122,7 @@ export type GenerateWebfontsResult<T extends FontType = FontType> = {
  * Ordinary generation loads `options.files`, builds the configured formats,
  * optionally writes them to `options.dest`, and resolves with the font bytes
  * and template-rendering methods. Multi-variant generation is not available
- * yet and rejects after validating and resolving variant weights and filename components.
+ * yet and rejects after validating and resolving variant weights and CSS selectors.
  */
 export declare function generateWebfonts<T extends FontType = FontType>(options: GenerateWebfontsFileOptions<T>): Promise<GenerateWebfontsResult<T>>;
 export declare function generateWebfonts<T extends MultiVariantFontType = MultiVariantFontType>(options: GenerateWebfontsVariantOptions<T>): Promise<GenerateWebfontsResult<T>>;
