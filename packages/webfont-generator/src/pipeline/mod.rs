@@ -78,6 +78,12 @@ mod variant_tests {
         let variable = FontRef::new(outputs.ttf_font.as_ref().unwrap()).unwrap();
         let decoded = ::woff::version2::decompress(outputs.woff2_font.as_ref().unwrap()).unwrap();
         let decoded = FontRef::new(&decoded).unwrap();
+        // WOFF1 preserves loca byte-for-byte, including small uncompressed tables.
+        // WOFF2 reconstruction may change glyf padding and therefore loca offsets.
+        assert_eq!(
+            woff1_table(outputs.woff_font.as_ref().unwrap(), *b"loca"),
+            variable.table_data(Tag::new(b"loca")).unwrap().as_bytes()
+        );
         for tag in [*b"fvar", *b"STAT", *b"GSUB", *b"maxp"] {
             let expected = variable.table_data(Tag::new(&tag)).unwrap();
             assert_eq!(
