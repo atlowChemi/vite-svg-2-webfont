@@ -33,7 +33,9 @@ test('switches unrelated outlines by font weight', async () => {
 });
 
 test('generated exact-weight faces share a URL and select glyphs and ligatures', async () => {
-    const css = await (await fetch('/generated-weights.css')).text();
+    const cssResponse = await fetch('/generated-weights.css');
+    expect(cssResponse.ok).toBe(true);
+    const css = await cssResponse.text();
     expect(css.match(/@font-face/g)).toHaveLength(3);
     expect(css.match(/\/generated-weights\.woff2/g)).toHaveLength(3);
     const style = document.createElement('style');
