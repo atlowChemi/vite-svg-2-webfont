@@ -13,6 +13,11 @@ const webfontFixtures = join(import.meta.dirname, '..', '..', 'vite-svg-2-webfon
 
 const cleanupDirs = new Set<string>();
 
+function fontBuffer(font: string | Uint8Array | null) {
+    if (font === null) throw new Error('Expected a generated font');
+    return Buffer.from(font);
+}
+
 afterEach(async () => {
     await Promise.all([...cleanupDirs].map(path => rm(path, { force: true, recursive: true })));
     cleanupDirs.clear();
@@ -223,7 +228,7 @@ describe('generateWebfonts', () => {
         const result = await generateWebfonts({
             ...variantOptions,
             cssContext(context) {
-                names = (context.variants as Array<{ name: string }>).map(variant => variant.name);
+                names = context.variants?.map(variant => variant.name) ?? [];
                 expect(context.defaultWeight).toBe(300);
                 expect(context.fontStyle).toBe('normal');
                 expect(context.variants).toEqual([
@@ -305,7 +310,7 @@ describe('generateWebfonts', () => {
 
         expect(calls).toEqual(renameFiles);
         expect(
-            Buffer.from(result.svg)
+            fontBuffer(result.svg)
                 .toString('utf8')
                 .match(/glyph-name="renamed-\d"/g),
         ).toEqual(['glyph-name="renamed-1"', 'glyph-name="renamed-2"', 'glyph-name="renamed-3"']);
@@ -504,7 +509,7 @@ describe('generateWebfonts', () => {
             types: ['svg'],
         } as never);
 
-        const svg = Buffer.from(result.svg).toString('utf8');
+        const svg = fontBuffer(result.svg).toString('utf8');
 
         expect(svg).toContain('<metadata>native-metadata</metadata>');
         expect(svg).toContain('font id="custom-font-id"');
@@ -552,8 +557,8 @@ describe('generateWebfonts', () => {
             types: ['svg'],
         } as never);
 
-        const baseSvg = Buffer.from(baseResult.svg).toString('utf8');
-        const optimizedSvg = Buffer.from(optimizedResult.svg).toString('utf8');
+        const baseSvg = fontBuffer(baseResult.svg).toString('utf8');
+        const optimizedSvg = fontBuffer(optimizedResult.svg).toString('utf8');
 
         expect(optimizedSvg).toContain('<glyph');
         expect(optimizedSvg.length).toBeLessThanOrEqual(baseSvg.length);
@@ -575,8 +580,8 @@ describe('generateWebfonts', () => {
             types: ['svg', 'ttf'],
         } as never);
 
-        expect(Buffer.from(result.svg).toString('utf8')).toContain('glyph-name="add"');
-        expect(Buffer.from(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
+        expect(fontBuffer(result.svg).toString('utf8')).toContain('glyph-name="add"');
+        expect(fontBuffer(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
         expect(result.generateCss({ svg: '/assets/iconfont.svg', ttf: '/assets/iconfont.ttf' })).toContain('format("svg")');
         expect(result.generateCss({ svg: '/assets/iconfont.svg', ttf: '/assets/iconfont.ttf' })).toContain('format("truetype")');
     });
@@ -597,8 +602,8 @@ describe('generateWebfonts', () => {
             types: ['ttf', 'eot'],
         } as never);
 
-        expect(Buffer.from(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
-        expect(Buffer.from(result.eot).subarray(34, 36).toString('ascii')).toBe('LP');
+        expect(fontBuffer(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
+        expect(fontBuffer(result.eot).subarray(34, 36).toString('ascii')).toBe('LP');
         expect(result.generateCss({ eot: '/assets/iconfont.eot', ttf: '/assets/iconfont.ttf' })).toContain('format("embedded-opentype")');
         expect(result.generateCss({ eot: '/assets/iconfont.eot', ttf: '/assets/iconfont.ttf' })).toContain('/assets/iconfont.eot?#iefix');
     });
@@ -619,8 +624,8 @@ describe('generateWebfonts', () => {
             types: ['ttf', 'woff'],
         } as never);
 
-        expect(Buffer.from(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
-        expect(Buffer.from(result.woff).subarray(0, 4).toString('ascii')).toBe('wOFF');
+        expect(fontBuffer(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
+        expect(fontBuffer(result.woff).subarray(0, 4).toString('ascii')).toBe('wOFF');
         expect(result.generateCss({ ttf: '/assets/iconfont.ttf', woff: '/assets/iconfont.woff' })).toContain('format("woff")');
     });
 
@@ -640,8 +645,8 @@ describe('generateWebfonts', () => {
             types: ['ttf', 'woff2'],
         } as never);
 
-        expect(Buffer.from(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
-        expect(Buffer.from(result.woff2).subarray(0, 4).toString('ascii')).toBe('wOF2');
+        expect(fontBuffer(result.ttf).subarray(0, 4)).toEqual(Buffer.from([0x00, 0x01, 0x00, 0x00]));
+        expect(fontBuffer(result.woff2).subarray(0, 4).toString('ascii')).toBe('wOF2');
         expect(result.generateCss({ ttf: '/assets/iconfont.ttf', woff2: '/assets/iconfont.woff2' })).toContain('format("woff2")');
     });
 
@@ -661,8 +666,8 @@ describe('generateWebfonts', () => {
             types: ['svg', 'eot'],
         } as never);
 
-        expect(Buffer.from(result.svg).toString('utf8')).toContain('glyph-name="add"');
-        expect(Buffer.from(result.eot).subarray(34, 36).toString('ascii')).toBe('LP');
+        expect(fontBuffer(result.svg).toString('utf8')).toContain('glyph-name="add"');
+        expect(fontBuffer(result.eot).subarray(34, 36).toString('ascii')).toBe('LP');
         expect(result.generateCss({ eot: '/assets/iconfont.eot', svg: '/assets/iconfont.svg' })).toContain('format("embedded-opentype")');
         expect(result.generateCss({ eot: '/assets/iconfont.eot', svg: '/assets/iconfont.svg' })).toContain('format("svg")');
     });
@@ -688,8 +693,8 @@ describe('generateWebfonts', () => {
             types: ['svg', 'woff'],
         } as never);
 
-        expect(Buffer.from(result.svg).toString('utf8')).toContain('glyph-name="add"');
-        expect(Buffer.from(result.woff).subarray(0, 4).toString('ascii')).toBe('wOFF');
+        expect(fontBuffer(result.svg).toString('utf8')).toContain('glyph-name="add"');
+        expect(fontBuffer(result.woff).subarray(0, 4).toString('ascii')).toBe('wOFF');
         expect(result.generateCss({ svg: '/assets/iconfont.svg', woff: '/assets/iconfont.woff' })).toContain('format("woff")');
     });
 
@@ -709,8 +714,8 @@ describe('generateWebfonts', () => {
             types: ['svg', 'woff2'],
         } as never);
 
-        expect(Buffer.from(result.svg).toString('utf8')).toContain('glyph-name="add"');
-        expect(Buffer.from(result.woff2).subarray(0, 4).toString('ascii')).toBe('wOF2');
+        expect(fontBuffer(result.svg).toString('utf8')).toContain('glyph-name="add"');
+        expect(fontBuffer(result.woff2).subarray(0, 4).toString('ascii')).toBe('wOF2');
         expect(result.generateCss({ svg: '/assets/iconfont.svg', woff2: '/assets/iconfont.woff2' })).toContain('format("woff2")');
     });
 
@@ -739,7 +744,7 @@ describe('generateWebfonts', () => {
             types: ['svg'],
         } as never);
 
-        const svg = Buffer.from(result.svg).toString('utf8');
+        const svg = fontBuffer(result.svg).toString('utf8');
         const expected = await readFile(join(fixturesRoot, 'expected/preserveaspectratio-preserved.svg'), 'utf8');
 
         expect(svg).toBe(expected);
@@ -825,7 +830,7 @@ describe('output size (deterministic)', () => {
             generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 11 } } }),
             generateWebfonts({ ...base, types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] }),
         ]);
-        Object.assign(woff2ByQuality, { q9: nine.woff2.length, q10: ten.woff2.length, q11: eleven.woff2.length });
+        Object.assign(woff2ByQuality, { q9: fontBuffer(nine.woff2).length, q10: fontBuffer(ten.woff2).length, q11: fontBuffer(eleven.woff2).length });
         Object.assign(perFormat, { svg: all.svg.length, ttf: all.ttf.length, eot: all.eot.length, woff: all.woff.length, woff2: all.woff2.length });
     });
 
@@ -881,8 +886,8 @@ const regenBaseOpts = (dir: string, files: string[]): GenerateWebfontsFileOption
 });
 
 // Normalize to a plain Uint8Array so a Node Buffer from `readFile` compares equal to a font getter.
-const toBytes = (value: Uint8Array) => Uint8Array.from(value);
-const isFontByteEqual = (a: Uint8Array, b: Uint8Array) => toBytes(a).toString() === toBytes(b).toString();
+const toBytes = (value: Uint8Array | null) => Uint8Array.from(fontBuffer(value));
+const isFontByteEqual = (a: Uint8Array | null, b: Uint8Array | null) => toBytes(a).toString() === toBytes(b).toString();
 
 expect.extend({
     toEqualFont(received: Awaited<ReturnType<typeof generateWebfonts>>, expected: Awaited<ReturnType<typeof generateWebfonts>>) {

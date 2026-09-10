@@ -93,6 +93,23 @@ Non-exact weights follow CSS font matching: for faces at 300, 400, and 700, requ
 select 300, 450/500 select 400, and 600/900 select 700. Generated pseudo-elements set their own
 weight; inherited weights do not override it.
 
+### TypeScript output inference
+
+Literal `types` lists infer non-null getters for the requested formats and `null` for the rest.
+Omitting `types` infers EOT/WOFF/WOFF2 for ordinary calls and WOFF/WOFF2 for variant calls.
+Widened arrays, such as `FontType[]`, produce nullable getters for possible formats. Options
+variables typed as `GenerateWebfontsOptions` (the ordinary/variant union) are accepted with
+conservative nullable getters.
+
+`GenerateWebfontsResult<Possible, Guaranteed>` describes these two sets of formats; the second
+parameter defaults to the first for explicitly known outputs. Async regeneration preserves both.
+
+`CssContext` and `HtmlContext` include optional `variants: TemplateVariant[]`,
+`variantClassPrefix: string`, `defaultWeight: number`, and `fontStyle: string`. These fields are
+provided in variant mode and absent by default in ordinary mode. `TemplateVariant` contains
+`name: string`, `weight: number`, `default: boolean`, `className: string`, and `selector: string`.
+The selector is an escaped CSS identifier without a leading dot.
+
 ### `files`
 
 - **Required for ordinary generation**
