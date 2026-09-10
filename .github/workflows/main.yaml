@@ -19,7 +19,7 @@ jobs:
               with:
                   components: clippy, rustfmt
             - name: Install cargo-llvm-cov
-              uses: taiki-e/install-action@5bf6ce016fd2e72eefc647cbca1e4213f65955b8 # v2.87.5
+              uses: taiki-e/install-action@7b8d4719ee4aaa279bdf55df38dacb9ebfe12a6c # v2.87.6
               env:
                   GITHUB_TOKEN: ${{ github.token }}
               with:
