@@ -38,8 +38,11 @@ function validateOptions(options) {
         if (variant.name.includes('\0')) throw new Error(`"${path}.name" contains NUL.`);
         if (names.has(variant.name)) throw new Error(`"${path}.name" duplicates variant name "${variant.name}".`);
         names.add(variant.name);
-        if (variant.weight != null && (!Number.isInteger(variant.weight) || variant.weight < 1 || variant.weight > 1000)) {
+        if (variant.weight != null && !Number.isInteger(variant.weight)) {
             throw new Error(`"${path}.weight" must be an integer between 1 and 1000, got ${variant.weight}.`);
+        }
+        if (variant.weight != null && (variant.weight < 1 || variant.weight > 1000)) {
+            throw new Error(`"${path}.weight" must be between 1 and 1000, got ${variant.weight}.`);
         }
         defaultCount += Number(variant.default === true);
     }

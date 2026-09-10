@@ -53,7 +53,7 @@ export declare class GenerateWebfontsResult {
 }
 
 /**
- * Guaranteed fields supplied to a `cssContext` callback. Additional keys from
+ * Fields supplied to a `cssContext` callback. Additional keys from
  * user-supplied `templateOptions` are merged into the same object at runtime,
  * so the JS-side type widens this with an open-ended index signature.
  */
@@ -72,6 +72,14 @@ export interface CssContext {
    * declarations like `content: "\f101"`.
    */
   codepoints: Record<string, string>
+  /** Ordered resolved variants; absent in ordinary mode unless supplied by template options. */
+  variants?: Array<TemplateVariant>
+  /** Modifier class prefix, supplied in variant mode. */
+  variantClassPrefix?: string
+  /** Resolved default weight, supplied in variant mode. */
+  defaultWeight?: number
+  /** Resolved font style, supplied in variant mode. */
+  fontStyle?: string
 }
 
 /**
@@ -315,7 +323,7 @@ export interface GlyphChangeEntry {
 }
 
 /**
- * Guaranteed fields supplied to an `htmlContext` callback. Additional keys
+ * Fields supplied to an `htmlContext` callback. Additional keys
  * from user-supplied `templateOptions` are merged into the same object at
  * runtime, so the JS-side type widens this with an open-ended index signature.
  */
@@ -339,6 +347,14 @@ export interface HtmlContext {
    * string for embedding into CSS `content` declarations.
    */
   codepoints: Record<string, number>
+  /** Ordered resolved variants; absent in ordinary mode unless supplied by template options. */
+  variants?: Array<TemplateVariant>
+  /** Modifier class prefix, supplied in variant mode. */
+  variantClassPrefix?: string
+  /** Resolved default weight, supplied in variant mode. */
+  defaultWeight?: number
+  /** Resolved font style, supplied in variant mode. */
+  fontStyle?: string
 }
 
 /** Family-wide behavior when a logical glyph is absent from a variant. */
@@ -395,6 +411,20 @@ export interface SvgFormatOptions {
    * aspect ratio when scaling glyphs into the em-square.
    */
   preserveAspectRatio?: boolean
+}
+
+/** Resolved variant metadata supplied to CSS and HTML template callbacks. */
+export interface TemplateVariant {
+  /** User-provided variant name. */
+  name: string
+  /** Resolved CSS weight coordinate. */
+  weight: number
+  /** Whether this is the family's default design. */
+  default: boolean
+  /** Unescaped modifier class for use in HTML. */
+  className: string
+  /** CSS-escaped modifier class identifier, without a leading dot. */
+  selector: string
 }
 
 /**

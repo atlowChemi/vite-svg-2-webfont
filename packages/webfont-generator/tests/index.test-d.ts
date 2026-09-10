@@ -6,6 +6,7 @@ import {
     type CssContext,
     type FontVariant,
     type FormatOptions,
+    type FontType,
     type GenerateWebfontsBaseOptions,
     type GenerateWebfontsFileOptions,
     type GenerateWebfontsInputOptions,
@@ -96,10 +97,67 @@ it('narrows generated formats from the input', async () => {
     expectTypeOf(result.regenerateAsync(['icon.svg'])).resolves.toEqualTypeOf<typeof result>();
 });
 
+it('uses runtime format defaults when types are omitted', async () => {
+    const ordinary = await generateWebfonts({ dest: 'fonts', files: ['icon.svg'] });
+    expectTypeOf(ordinary.svg).toBeNull();
+    expectTypeOf(ordinary.ttf).toBeNull();
+    expectTypeOf(ordinary.eot).toEqualTypeOf<Uint8Array>();
+    expectTypeOf(ordinary.woff).toEqualTypeOf<Uint8Array>();
+    expectTypeOf(ordinary.woff2).toEqualTypeOf<Uint8Array>();
+    const variant = await generateWebfonts({ dest: 'fonts', variants: [] });
+    expectTypeOf(variant.svg).toBeNull();
+    expectTypeOf(variant.eot).toBeNull();
+    expectTypeOf(variant.ttf).toBeNull();
+    expectTypeOf(variant.woff).toEqualTypeOf<Uint8Array>();
+    expectTypeOf(variant.woff2).toEqualTypeOf<Uint8Array>();
+});
+
+it('keeps dynamic format selections nullable and accepts options unions', async () => {
+    const types: FontType[] = ['woff2'];
+    const dynamic = await generateWebfonts({ dest: 'fonts', files: ['icon.svg'], types });
+    expectTypeOf(dynamic.svg).toEqualTypeOf<string | null>();
+    expectTypeOf(dynamic.ttf).toEqualTypeOf<Uint8Array | null>();
+    expectTypeOf(dynamic.regenerateAsync([])).resolves.toEqualTypeOf<typeof dynamic>();
+    const narrowTypes: Array<'woff' | 'woff2'> = ['woff2'];
+    const variants = await generateWebfonts({ dest: 'fonts', variants: [], types: narrowTypes });
+    expectTypeOf(variants.ttf).toBeNull();
+    expectTypeOf(variants.woff).toEqualTypeOf<Uint8Array | null>();
+    expectTypeOf(variants.woff2).toEqualTypeOf<Uint8Array | null>();
+    const selected: ['woff' | 'woff2', 'ttf'] = ['woff2', 'ttf'];
+    const selectedResult = await generateWebfonts({ dest: 'fonts', variants: [], types: selected });
+    expectTypeOf(selectedResult.woff).toEqualTypeOf<Uint8Array | null>();
+    expectTypeOf(selectedResult.woff2).toEqualTypeOf<Uint8Array | null>();
+    expectTypeOf(selectedResult.ttf).toEqualTypeOf<Uint8Array>();
+    const options = {} as GenerateWebfontsOptions;
+    const result = await generateWebfonts(options);
+    expectTypeOf(result.svg).toEqualTypeOf<string | null>();
+    expectTypeOf(result.woff2).toEqualTypeOf<Uint8Array | null>();
+});
+
+it('types resolved variant template metadata without casts', () => {
+    expectTypeOf<CssContext['variants']>().toEqualTypeOf<HtmlContext['variants']>();
+    expectTypeOf<NonNullable<CssContext['variants']>[number]>().toEqualTypeOf<{
+        name: string;
+        weight: number;
+        default: boolean;
+        className: string;
+        selector: string;
+    }>();
+    expectTypeOf<CssContext['defaultWeight']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<CssContext['fontStyle']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<HtmlContext['variantClassPrefix']>().toEqualTypeOf<string | undefined>();
+});
+
 it('rejects invalid format combinations and callbacks', () => {
     expectTypeOf(generateWebfonts).toBeFunction();
     expectTypeOf<{ dest: string; files: string[]; order: ['svg']; types: ['woff2'] }>().not.toExtend<GenerateWebfontsFileOptions<'woff2'>>();
     expectTypeOf<{ dest: string; files: string[]; rename: () => number }>().not.toExtend<GenerateWebfontsFileOptions>();
+    // @ts-expect-error Variant generation does not accept legacy formats.
+    void generateWebfonts({ dest: 'fonts', variants: [], types: ['svg'] });
+    // @ts-expect-error The options-union overload must still reject mixed sources.
+    void generateWebfonts({ dest: 'fonts', files: ['icon.svg'], variants: [] });
+    // @ts-expect-error Order must be a subset of the requested formats.
+    void generateWebfonts({ dest: 'fonts', files: ['icon.svg'], types: ['woff2'], order: ['svg'] });
 });
 
 it('keeps the generated NAPI declarations compatible', () => {

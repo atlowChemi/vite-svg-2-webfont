@@ -7,6 +7,7 @@ import type {
     GlyphChangeEntry,
     HtmlContext as RawHtmlContext,
     SvgFormatOptions,
+    TemplateVariant,
     TtfFormatOptions,
     Woff2FormatOptions,
     WoffFormatOptions,
@@ -34,14 +35,14 @@ export interface MissingGlyphOptions {
 
 /**
  * Context object passed to the `cssContext` callback. The named fields are
- * always supplied by the native engine; the index signature accommodates
+ * supplied by the native engine; variant fields are optional in ordinary mode. The index signature accommodates
  * arbitrary keys merged in from user-supplied `templateOptions`.
  */
 export type CssContext = RawCssContext & { [key: string]: unknown };
 
 /**
  * Context object passed to the `htmlContext` callback. The named fields are
- * always supplied by the native engine; the index signature accommodates
+ * supplied by the native engine; variant fields are optional in ordinary mode. The index signature accommodates
  * arbitrary keys merged in from user-supplied `templateOptions`.
  */
 export type HtmlContext = RawHtmlContext & { [key: string]: unknown };
@@ -104,18 +105,29 @@ export type GenerateWebfontsOptions<T extends FontType = FontType> = GenerateWeb
 
 type FontValue<F extends FontType> = F extends 'svg' ? string : Uint8Array;
 
+type ContainsFormat<Formats extends readonly FontType[], F extends FontType> = Formats extends readonly [infer Head, ...infer Tail extends FontType[]]
+    ? [Head] extends [F]
+        ? true
+        : ContainsFormat<Tail, F>
+    : false;
+type GuaranteedFormats<Formats extends readonly FontType[]> = {
+    [F in Formats[number]]: [ContainsFormat<Formats, F>] extends [true] ? F : never;
+}[Formats[number]];
+
 /**
  * Result of a successful `generateWebfonts` call. Each font format is exposed
- * as a property — formats included in `types` carry their bytes (or, for
- * `svg`, the XML string), and formats not in `types` are typed as `null`.
+ * as a property. `T` is the set of possible formats; `Guaranteed` is the set
+ * known to be requested. Possible but unconfirmed formats are nullable;
+ * excluded formats are `null`. Literal format lists and omitted `types`
+ * infer guaranteed formats, while widened arrays retain nullable getters.
  *
  * Also carries `generateCss` and `generateHtml` for rendering with custom
  * URLs after the fact.
  */
-export type GenerateWebfontsResult<T extends FontType = FontType> = {
-    [F in FontType]: F extends T ? FontValue<F> : null;
+export type GenerateWebfontsResult<T extends FontType = FontType, Guaranteed extends T = T> = {
+    [F in FontType]: F extends Guaranteed ? FontValue<F> : F extends T ? FontValue<F> | null : null;
 } & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml' | 'regenerate'> & {
-        regenerateAsync(files: string[], changes?: GlyphChangeEntry[] | null): Promise<GenerateWebfontsResult<T>>;
+        regenerateAsync(files: string[], changes?: GlyphChangeEntry[] | null): Promise<GenerateWebfontsResult<T, Guaranteed>>;
     };
 
 /**
@@ -126,8 +138,26 @@ export type GenerateWebfontsResult<T extends FontType = FontType> = {
  * and template-rendering methods. Multi-variant generation returns shared modern
  * fonts through the same getters; SVG and EOT are unsupported in variant mode.
  */
-export declare function generateWebfonts<T extends FontType = FontType>(options: GenerateWebfontsFileOptions<T>): Promise<GenerateWebfontsResult<T>>;
-export declare function generateWebfonts<T extends MultiVariantFontType = MultiVariantFontType>(options: GenerateWebfontsVariantOptions<T>): Promise<GenerateWebfontsResult<T>>;
+export declare function generateWebfonts<const Formats extends readonly FontType[]>(
+    options: Omit<GenerateWebfontsFileOptions<Formats[number]>, 'types'> & { types: Formats },
+): Promise<GenerateWebfontsResult<Formats[number], number extends Formats['length'] ? never : GuaranteedFormats<Formats>>>;
+export declare function generateWebfonts<const Formats extends readonly MultiVariantFontType[]>(
+    options: Omit<GenerateWebfontsVariantOptions<Formats[number]>, 'types'> & { types: Formats },
+): Promise<GenerateWebfontsResult<Formats[number], number extends Formats['length'] ? never : GuaranteedFormats<Formats>>>;
+export declare function generateWebfonts(
+    options: GenerateWebfontsFileOptions<'eot' | 'woff' | 'woff2'> & { types?: undefined },
+): Promise<GenerateWebfontsResult<'eot' | 'woff' | 'woff2'>>;
+export declare function generateWebfonts(options: GenerateWebfontsVariantOptions<'woff' | 'woff2'> & { types?: undefined }): Promise<GenerateWebfontsResult<'woff' | 'woff2'>>;
+/** Options whose format selection is not statically known have nullable getters. */
+export declare function generateWebfonts<T extends FontType = FontType>(
+    options: GenerateWebfontsFileOptions<T>,
+): Promise<GenerateWebfontsResult<T | 'eot' | 'woff' | 'woff2', never>>;
+export declare function generateWebfonts<T extends MultiVariantFontType = MultiVariantFontType>(
+    options: GenerateWebfontsVariantOptions<T>,
+): Promise<GenerateWebfontsResult<T | 'woff' | 'woff2', never>>;
+export declare function generateWebfonts<T extends FontType = FontType>(
+    options: GenerateWebfontsInputOptions<T>,
+): Promise<GenerateWebfontsResult<T | 'eot' | 'woff' | 'woff2', never>>;
 
 export declare namespace generateWebfonts {
     /**
@@ -142,6 +172,7 @@ export {
     GlyphChangeEntry,
     RawGenerateWebfontsResult,
     SvgFormatOptions,
+    TemplateVariant,
     /**
      * Paths of default templates available for use.
      */

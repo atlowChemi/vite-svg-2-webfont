@@ -104,7 +104,7 @@ pub use result::{GenerateWebfontsResult, RegenerateError};
 pub use types::{
     CssContext, FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, GlyphChange,
     GlyphChangeEntry, HtmlContext, MissingGlyphBehavior, MissingGlyphOptions, SvgFormatOptions,
-    TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
+    TemplateVariant, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
 
 fn prepare_variant_family(
