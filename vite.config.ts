@@ -84,7 +84,7 @@ const config: UserConfig = defineConfig({
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             coverage: {
-                command: 'vp test --coverage',
+                command: "vp test --coverage --project='!webfont-generator-browser*'",
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
         },
