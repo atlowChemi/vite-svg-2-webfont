@@ -34,6 +34,30 @@ pub(crate) fn build_html_context(
     Ok(make_ctx(options, shared, source_files, styles))
 }
 
+/// Reuse callback-mutated CSS while resolving default font URLs for the HTML destination.
+#[cfg(any(feature = "napi", test))]
+pub(crate) fn build_html_context_with_css(
+    options: &ResolvedGenerateWebfontsOptions,
+    shared: &SharedTemplateData,
+    source_files: &[LoadedSvgFile],
+    finalized_css: &Map<String, Value>,
+) -> Result<Map<String, Value>, Error> {
+    let mut css_ctx = finalized_css.clone();
+    let original_css = crate::rendering::css::build_css_context(options, shared);
+    // Preserve an explicit callback src override; otherwise rebase URLs for the HTML file.
+    if css_ctx.get("src") == original_css.get("src") {
+        let html_css =
+            build_css_context_with_fonts_url(options, shared, Some(&html_css_fonts_url(options)));
+        css_ctx.insert("src".to_owned(), html_css["src"].clone());
+    }
+    build_html_context(
+        options,
+        shared,
+        source_files,
+        Some(render_css_with_context(shared, &css_ctx)?),
+    )
+}
+
 /// Render HTML using a pre-built Handlebars Context (no serialization).
 /// Falls back to the hot-path renderer when no custom template is configured.
 pub(crate) fn render_html_with_hbs_context(

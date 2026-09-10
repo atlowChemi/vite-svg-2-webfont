@@ -89,6 +89,18 @@ describe('generateWebfonts', () => {
             rename: () => 'other',
         });
         const ordinary = await generateWebfonts({ ...renameOptions, cssTemplate: templates.scss, css: true });
+        for (const sources of [
+            [variant, second],
+            [second, variant],
+        ]) {
+            const { css } = compileString(
+                sources.map(result => result.generateCss()).join('\n') + '\n.first { @include webfont-icon("plus"); }\n.second { @include webfont-icon("other"); }',
+                { logger: { warn() {}, debug() {} } },
+            );
+            expect(css.match(/\.first\.icon--large:before \{([^}]+)\}/)?.[1]).toContain('font-weight: 700 !important');
+            expect(css.match(/\.second\.icon--large:before \{([^}]+)\}/)?.[1]).toContain('font-weight: 800 !important');
+            expect(css).not.toMatch(/^\.icon--/m);
+        }
         for (const [index, sources] of [
             [ordinary, variant, second],
             [second, variant, ordinary],
@@ -105,10 +117,49 @@ describe('generateWebfonts', () => {
             expect(otherRule).toContain('font-weight: 200;');
             expect(otherRule).toContain('font-synthesis: none');
             expect(otherRule).toContain('content: "\\f101"');
-            expect(css).toContain('font-weight: 700 !important');
+            expect(css.match(/\.other\.icon--large:before \{([^}]+)\}/)?.[1]).toContain('font-weight: 800 !important');
+            expect(css.match(/\.other\.icon--small:before \{([^}]+)\}/)?.[1]).toContain('font-weight: 200 !important');
+            expect(css).not.toMatch(/^\.icon--/m);
             expect(css).toContain('font-synthesis: none');
             expect(css).toContain('content:');
         }
+    });
+
+    it.each([undefined, templates.css, templates.scss])('keeps arbitrary ordinary template variants from enabling multi-face rendering (%s)', async cssTemplate => {
+        const options = { ...renameOptions, css: true, cssTemplate };
+        const baseline = await generateWebfonts(options);
+        const result = await generateWebfonts({ ...options, templateOptions: { variants: [{ name: 'unrelated' }], __webfontVariantMode: true } });
+        expect(result.generateCss({ svg: '/ordinary.svg' })).toBe(baseline.generateCss({ svg: '/ordinary.svg' }));
+    });
+
+    it.each([undefined, templates.css])('preserves finalized CSS callback styles in HTML with destination-relative URLs (%s)', async cssTemplate => {
+        const dest = await createTempDir('variant-callback-styles-');
+        const result = await generateWebfonts({
+            ...variantOptions,
+            dest,
+            cssDest: join(dest, 'styles', 'icons.css'),
+            htmlDest: join(dest, 'preview', 'nested', 'icons.html'),
+            cssTemplate,
+            html: true,
+            writeFiles: true,
+            cssContext(context) {
+                context.fontStyle = 'italic';
+                context.defaultWeight = 350;
+                (context.variants as Array<{ weight: number }>)[0].weight = 350;
+            },
+        });
+        const css = result.generateCss();
+        const html = result.generateHtml();
+        for (const output of [css, html, result.generateHtml({ woff2: '/override.woff2' })]) {
+            expect(output).toContain('font-style: italic');
+            expect(output).toContain('font-weight: 350');
+            expect(output).not.toContain('font-weight: 300');
+        }
+        expect(css).toContain('url("iconfont.woff2?');
+        expect(html).toContain('../../iconfont.woff2');
+        expect(result.generateHtml({ woff2: '/override.woff2' })).toContain('/override.woff2');
+        expect(result.generateHtml()).toBe(html);
+        expect(await readFile(join(dest, 'preview', 'nested', 'icons.html'), 'utf8')).toBe(html);
     });
 
     it('applies variant rename callbacks in flattened source order', async () => {

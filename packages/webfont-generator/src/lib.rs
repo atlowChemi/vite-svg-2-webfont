@@ -345,13 +345,27 @@ pub async fn generate_webfonts(
             css_ctx = apply_context_function(css_ctx, css_context.as_ref())
                 .await
                 .map_err(to_napi_err)?;
+            css_ctx.insert(
+                "__webfontVariantMode".to_owned(),
+                serde_json::Value::Bool(result.options.variants.is_some()),
+            );
             result.css_context = Some(css_ctx.clone());
         }
 
         let mut html_ctx =
             if result.options.html || html_context.is_some() || result.options.variants.is_some() {
-                build_html_context(&result.options, &shared, &result.source_files, None)
+                if result.options.variants.is_some() && css_context.is_some() {
+                    rendering::build_html_context_with_css(
+                        &result.options,
+                        &shared,
+                        &result.source_files,
+                        &css_ctx,
+                    )
                     .map_err(to_napi_err)?
+                } else {
+                    build_html_context(&result.options, &shared, &result.source_files, None)
+                        .map_err(to_napi_err)?
+                }
             } else {
                 serde_json::Map::new()
             };
