@@ -319,6 +319,75 @@ fn variant_options() -> GenerateWebfontsOptions {
 // --- generate_sync tests ---
 
 #[test]
+fn variant_templates_expose_ordered_metadata_and_deduplicated_names() {
+    let dest = temp_dest("variant-template-contexts");
+    std::fs::create_dir_all(&dest).unwrap();
+    let css_path = Path::new(&dest).join("css.hbs");
+    let html_path = Path::new(&dest).join("html.hbs");
+    let metadata = "{{#each variants}}{{name}}:{{weight}}:{{default}}:{{className}}:{{{selector}}};{{/each}}|{{variantClassPrefix}}|";
+    std::fs::write(&css_path, format!("{metadata}{{{{{{src}}}}}}")).unwrap();
+    std::fs::write(
+        &html_path,
+        format!("{metadata}{{{{#each names}}}}{{{{this}}}};{{{{/each}}}}|{{{{{{styles}}}}}}"),
+    )
+    .unwrap();
+    let mut options = variant_options();
+    let files = fixture_files();
+    options.variants.as_mut().unwrap()[1].files = files[1..3].to_vec();
+    options.variant_class_prefix = Some("weight--".to_owned());
+    options.css_template = Some(css_path.to_string_lossy().into_owned());
+    options.html_template = Some(html_path.to_string_lossy().into_owned());
+    options.html = Some(true);
+    let result = webfont_generator::generate_sync(options, None).unwrap();
+    let expected = "small:300:true:weight--small:weight--small;large:700:false:weight--large:weight--large;|weight--|";
+    let names = files[..3]
+        .iter()
+        .map(|file| {
+            format!(
+                "{};",
+                Path::new(file).file_stem().unwrap().to_str().unwrap()
+            )
+        })
+        .collect::<String>();
+    let default_css = result.generate_css_pure(None).unwrap();
+    let default_html = result.generate_html_pure(None).unwrap();
+    assert!(default_css.starts_with(expected));
+    assert!(default_html.starts_with(&format!("{expected}{names}|{expected}")));
+    for url in ["/first.woff2", "/second.woff2", "/first.woff2"] {
+        let urls = HashMap::from([(FontType::Woff2, url.to_owned())]);
+        let css = result.generate_css_pure(Some(urls.clone())).unwrap();
+        let html = result.generate_html_pure(Some(urls)).unwrap();
+        assert_eq!(css, format!("{expected}url(\"{url}\") format(\"woff2\")"));
+        assert_eq!(html, format!("{expected}{names}|{css}"));
+    }
+    assert_eq!(result.generate_css_pure(None).unwrap(), default_css);
+    assert_eq!(result.generate_html_pure(None).unwrap(), default_html);
+    std::fs::remove_dir_all(dest).unwrap();
+}
+
+#[test]
+fn variant_rendering_rejects_legacy_urls_before_using_cached_results() {
+    let result = webfont_generator::generate_sync(variant_options(), None).unwrap();
+    let css = result.generate_css_pure(None).unwrap();
+    let html = result.generate_html_pure(None).unwrap();
+    for format in [FontType::Svg, FontType::Eot] {
+        let urls = HashMap::from([(format, "/unsupported".to_owned())]);
+        for error in [
+            result.generate_css_pure(Some(urls.clone())).unwrap_err(),
+            result.generate_html_pure(Some(urls)).unwrap_err(),
+        ] {
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+            assert_eq!(
+                error.to_string(),
+                "SVG and EOT URLs are unsupported for variant results."
+            );
+        }
+    }
+    assert_eq!(result.generate_css_pure(None).unwrap(), css);
+    assert_eq!(result.generate_html_pure(None).unwrap(), html);
+}
+
+#[test]
 fn generate_sync_produces_all_default_font_types() {
     let dest = temp_dest("gen-sync-defaults");
     let result = webfont_generator::generate_sync(

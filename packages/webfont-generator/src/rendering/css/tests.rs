@@ -764,6 +764,16 @@ fn variant_hash_includes_resolved_variants_missing_policy_and_explicit_woff2_qua
         behavior: MissingGlyphBehavior::Fallback,
         variant: Some("regular".to_owned()),
     };
+    let mut error_missing = base.clone();
+    error_missing.missing_glyphs = MissingGlyphOptions {
+        behavior: MissingGlyphBehavior::Error,
+        variant: None,
+    };
+    assert_ne!(calc_hash(&base, &files), calc_hash(&error_missing, &files));
+    assert_ne!(
+        calc_hash(&changed_missing, &files),
+        calc_hash(&error_missing, &files)
+    );
 
     assert_ne!(
         calc_hash(&base, &files),
