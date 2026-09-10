@@ -1,4 +1,4 @@
-{{#if variants}}
+{{#if __webfontVariantMode}}
 {{#each variants}}
 @font-face {
 	font-family: "{{../fontName}}";
@@ -8,11 +8,12 @@
 	src: {{{../src}}};
 }
 
-.{{{selector}}}:before {
-	font-weight: {{weight}} !important;
-}
-
 {{/each}}
+$webfont-variants: (
+{{#each variants}}
+	'{{{sassString selector}}}': {{weight}},
+{{/each}}
+);
 {{else}}
 @font-face {
 	font-family: "{{fontName}}";
@@ -27,7 +28,7 @@
 
 $webfont-icons: map-merge($webfont-icons, (
 	{{#each codepoints}}
-		'{{@key}}': ('{{../fontName}}' '{{this}}'{{#if ../variants}} {{../defaultWeight}} '{{../fontStyle}}'{{/if}}),
+		'{{@key}}': ('{{../fontName}}' '{{this}}'{{#if ../__webfontVariantMode}} {{../defaultWeight}} '{{../fontStyle}}' $webfont-variants{{/if}}),
 	{{/each}}
 ));
 
@@ -35,6 +36,13 @@ $webfont-icons: map-merge($webfont-icons, (
 	line-height: 1;
 
 	$icon: map-get($webfont-icons, $name);
+	@if length($icon) > 4 {
+		@each $selector, $weight in nth($icon, 5) {
+			&.#{$selector}:before {
+				font-weight: $weight !important;
+			}
+		}
+	}
 	&:before {
 		font-family: nth($icon, 1) !important;
 		@if length($icon) > 2 {
