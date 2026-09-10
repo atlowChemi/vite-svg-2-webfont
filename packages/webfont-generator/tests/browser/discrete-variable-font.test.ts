@@ -24,9 +24,7 @@ test('switches unrelated outlines by font weight', async () => {
 
     for (const sample of samples) {
         expect(sample.direct.opaquePixels).toBeGreaterThan(0);
-        expect(sample.ligature.opaquePixels).toBeGreaterThan(0);
-        expect(sample.ligature.width).toBeCloseTo(sample.direct.width, 2);
-        expect(sample.ligature.centroidX).toBeCloseTo(sample.direct.centroidX, 0);
+        expect(sample.ligature).toEqual(sample.direct);
     }
     expect(light.width).toEqual(heavy.width);
     expect(heavy.centroidX - light.centroidX).toBeGreaterThan(40);
