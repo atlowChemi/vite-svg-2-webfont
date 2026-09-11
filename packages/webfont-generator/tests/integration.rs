@@ -657,6 +657,201 @@ async fn generate_async_produces_fonts() {
 mod cli {
     use std::process::Command;
 
+    #[test]
+    fn manifests_generate_from_an_unrelated_working_directory_and_report_fields() {
+        use serde_json::json;
+        let root = std::path::PathBuf::from(super::temp_dest("cli-manifest"));
+        std::fs::create_dir_all(root.join("icons")).unwrap();
+        std::fs::copy(
+            std::path::Path::new(&fixture_dir()).join("plus.svg"),
+            root.join("icons/plus.svg"),
+        )
+        .unwrap();
+        std::fs::write(root.join("css.hbs"), "family={{fontName}};{{{src}}}").unwrap();
+        std::fs::write(
+            root.join("html.hbs"),
+            "{{#each names}}{{this}};{{/each}}{{{styles}}}",
+        )
+        .unwrap();
+        let path = root.join("icons.json");
+        let manifest = json!({
+            "dest": "out", "fontName": "manifest", "html": true,
+            "formatOptions": {"ttf": {"ts": 1700000000}},
+            "cssTemplate": "css.hbs", "htmlTemplate": "html.hbs",
+            "cssDest": "styles/font.css", "htmlDest": "preview/font.html",
+            "variants": [
+                {"name": "light", "files": ["icons"], "default": true, "weight": 300},
+                {"name": "bold", "files": ["icons/plus.svg"], "weight": 700}
+            ]
+        });
+        std::fs::write(&path, manifest.to_string()).unwrap();
+        let output = cli_bin()
+            .current_dir(root.parent().unwrap())
+            .arg("--config")
+            .arg(&path)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(root.join("out/manifest.woff").exists());
+        assert!(root.join("out/manifest.woff2").exists());
+        let first = std::fs::read(root.join("out/manifest.woff2")).unwrap();
+        assert!(
+            cli_bin()
+                .arg("--config")
+                .arg(&path)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        assert_eq!(
+            first,
+            std::fs::read(root.join("out/manifest.woff2")).unwrap()
+        );
+        assert!(!root.join("out/manifest.eot").exists());
+        assert!(
+            std::fs::read_to_string(root.join("styles/font.css"))
+                .unwrap()
+                .contains("family=manifest")
+        );
+        assert!(
+            std::fs::read_to_string(root.join("preview/font.html"))
+                .unwrap()
+                .starts_with("plus;")
+        );
+        for (value, field) in [
+            (json!({"dest":"", "files":["icons"]}), "dest"),
+            (
+                json!({"dest":"out", "files":["icons"], "cssDest":""}),
+                "cssDest",
+            ),
+            (json!({"dest":"out", "files":[""]}), "files[0]"),
+            (json!({"files":["icons"]}), "dest"),
+            (
+                json!({"dest":"out", "files":["icons"], "formatOptions":{"woff2":{"typo":true}}}),
+                "typo",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["files"] = json!(["icons"]);
+                    value
+                },
+                "files",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["variants"][1]["files"] = json!(["icons", "icons/plus.svg"]);
+                    value
+                },
+                "variants[1].files[1]",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["variants"][0]["default"] = json!(false);
+                    value
+                },
+                "variants",
+            ),
+            (json!({"dest":"out", "files":["missing.svg"]}), "files[0]"),
+            (
+                json!({"dest":"out", "files":["icons", "icons/../icons/plus.svg"]}),
+                "files[1]",
+            ),
+            (
+                json!({"dest":"out", "files":["icons"], "typo":true}),
+                "typo",
+            ),
+            (
+                json!({"dest":"out", "files":["icons"], "formatOptions":{"woff2":{"compressionQuality":"bad"}}}),
+                "formatOptions.woff2.compressionQuality",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["variants"][1]["weight"] = json!(1001);
+                    value
+                },
+                "variants[1].weight",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["types"] = json!(["eot"]);
+                    value
+                },
+                "types",
+            ),
+        ] {
+            std::fs::write(&path, value.to_string()).unwrap();
+            let output = cli_bin().arg("--config").arg(&path).output().unwrap();
+            assert!(!output.status.success());
+            let error = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                error.contains(path.to_str().unwrap()) && error.contains(field),
+                "{error}"
+            );
+        }
+        std::fs::write(
+            &path,
+            json!({"dest":"ordinary", "files":["icons"], "types":["svg", "eot"]}).to_string(),
+        )
+        .unwrap();
+        assert!(
+            cli_bin()
+                .arg("--config")
+                .arg(&path)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        assert!(root.join("ordinary/iconfont.svg").exists());
+        assert!(root.join("ordinary/iconfont.eot").exists());
+        std::fs::write(
+            &path,
+            json!({"dest":"defaults", "files":["icons"]}).to_string(),
+        )
+        .unwrap();
+        assert!(
+            cli_bin()
+                .arg("--config")
+                .arg(&path)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        for ext in ["eot", "woff", "woff2"] {
+            assert!(root.join(format!("defaults/iconfont.{ext}")).exists());
+        }
+        let mut dry_run = manifest.clone();
+        dry_run["dest"] = json!("dry-run");
+        dry_run["writeFiles"] = json!(false);
+        std::fs::write(&path, dry_run.to_string()).unwrap();
+        assert!(
+            cli_bin()
+                .arg("--config")
+                .arg(&path)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        assert!(!root.join("dry-run").exists());
+        std::fs::write(&path, "{broken json").unwrap();
+        let output = cli_bin().arg("--config").arg(&path).output().unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains(path.to_str().unwrap()));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     fn cli_bin() -> Command {
         Command::new(env!("CARGO_BIN_EXE_webfont-generator"))
     }
