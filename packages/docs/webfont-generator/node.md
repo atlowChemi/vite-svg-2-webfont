@@ -84,7 +84,9 @@ modifier such as `icon--bold` alongside the glyph class to select a variant. A m
 emits no glyph. CSS/HTML companion files are written when enabled; HTML shows one default grid.
 
 The SCSS `webfont-icon($name)` mixin retains its signature and reads each family's default weight
-and style from its icon-map entry (family, codepoint, weight, style). Ordinary two-item entries
+and style from its five-item icon-map entry `(family, codepoint, weight, style, variantsMap)`.
+`variantsMap` maps CSS-escaped modifier identifiers (without a leading dot) to numeric weights;
+the mixin reads this fifth item to emit modifiers scoped to its caller's selector. Ordinary two-item entries
 remain supported. Generated modifier classes select other variants.
 
 Non-exact weights follow CSS font matching: for faces at 300, 400, and 700, requests for 100/350

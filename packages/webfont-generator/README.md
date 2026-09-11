@@ -56,7 +56,9 @@ pseudo-elements use the default weight and `font-synthesis: none`; add a modifie
 CSS/HTML companion files are written when enabled; HTML shows one grid in the default variant.
 Contexts also expose `defaultWeight` and `fontStyle` (default `normal`). The SCSS
 `webfont-icon($name)` mixin uses each icon family's default weight; modifier classes select variants.
-Its icon-map entries append the default weight and style to the ordinary family/codepoint pair.
+Variant icon-map entries contain `(family, codepoint, weight, style, variantsMap)`. The fifth item
+maps CSS-escaped modifier identifiers (without a leading dot) to numeric weights, which the mixin
+uses to emit modifiers scoped to its caller's selector. Ordinary family/codepoint pairs remain supported.
 
 Non-exact weights use CSS font matching, not interpolation: with faces at 300, 400, and 700,
 requests for 100/350 select 300, 450/500 select 400, and 600/900 select 700. Generated

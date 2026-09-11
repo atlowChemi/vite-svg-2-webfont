@@ -72,11 +72,12 @@ fn render_default_css_inner(ctx: &Map<String, Value>, font_name: &str, src: &str
     let codepoint_count = codepoints.map_or(0, |c| c.len());
     let mut result = String::with_capacity(256 + codepoint_count * 60);
 
-    if let Some(variants) = ctx
-        .get("variants")
-        .and_then(Value::as_array)
-        .filter(|_| ctx.get("__webfontVariantMode") == Some(&Value::Bool(true)))
-    {
+    if ctx.get("__webfontVariantMode") == Some(&Value::Bool(true)) {
+        let variants = ctx
+            .get("variants")
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or_default();
         let style = crate::rendering::ctx_str(ctx, "fontStyle", "normal");
         let default_weight = &ctx["defaultWeight"];
         for variant in variants {

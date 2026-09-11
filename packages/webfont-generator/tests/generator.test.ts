@@ -72,11 +72,15 @@ describe('generateWebfonts', () => {
         expect(result.generateCss()).toBe(css);
     });
 
-    it('keeps variant rendering consistent when callbacks remove every face', async () => {
+    it.each([[], undefined, null, false, 42, 'invalid'])('keeps variant rendering consistent when callbacks replace the face list with %j', async variants => {
         const options = {
             ...variantOptions,
             cssContext(context: Record<string, unknown>) {
-                context.variants = [];
+                if (variants === undefined) {
+                    delete context.variants;
+                } else {
+                    context.variants = variants;
+                }
             },
         };
         const builtin = await generateWebfonts(options);
