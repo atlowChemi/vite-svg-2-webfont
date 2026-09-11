@@ -84,12 +84,13 @@ use napi_derive::napi;
 #[cfg(feature = "napi")]
 use std::sync::Mutex;
 
-#[cfg(feature = "napi")]
-use input::load_svg_files_napi;
 use input::{
-    finalize_generate_webfonts_options, load_svg_files, resolve_generate_webfonts_options,
-    validate_generate_webfonts_options,
+    ResolvedGenerateWebfontsOptions, VariantFamilySources, build_variant_family_sources,
+    finalize_generate_webfonts_options, load_svg_files, load_variant_svg_files,
+    resolve_generate_webfonts_options, validate_generate_webfonts_options,
 };
+#[cfg(feature = "napi")]
+use input::{load_svg_files_napi, load_variant_svg_files_napi};
 use output::write_generate_webfonts_result;
 use pipeline::generate_webfonts_sync;
 #[cfg(feature = "napi")]
@@ -106,15 +107,24 @@ pub use types::{
     TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
 
-fn reject_unavailable_variant_generation(options: &GenerateWebfontsOptions) -> std::io::Result<()> {
-    if options.variants.is_some() {
-        resolve_generate_webfonts_options(options.clone())?;
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::Unsupported,
-            "Multi-variant generation is not available yet; this release only validates and resolves the input contract.",
-        ));
-    }
-    Ok(())
+fn prepare_variant_family(
+    options: &mut ResolvedGenerateWebfontsOptions,
+    source_files: Vec<Vec<input::LoadedSvgFile>>,
+) -> std::io::Result<VariantFamilySources> {
+    let (family, codepoints) = build_variant_family_sources(
+        source_files,
+        &options.explicit_codepoints,
+        options.start_codepoint,
+    )?;
+    options.codepoints = codepoints;
+    Ok(family)
+}
+
+fn unavailable_variant_generation() -> std::io::Error {
+    std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "Multi-variant generation is not available yet; this release loads and resolves the input contract.",
+    )
 }
 
 #[cfg(all(test, feature = "napi"))]
@@ -127,6 +137,90 @@ extern "C" fn napi_call_threadsafe_function(
     0
 }
 
+#[cfg(all(test, feature = "napi"))]
+#[unsafe(no_mangle)]
+extern "C" fn napi_release_threadsafe_function(
+    _: napi::sys::napi_threadsafe_function,
+    _: napi::sys::napi_threadsafe_function_release_mode,
+) -> napi::sys::napi_status {
+    0
+}
+
+#[cfg(all(test, feature = "napi"))]
+#[tokio::test]
+async fn napi_variant_generation_prepares_sources_before_returning_unsupported() {
+    let path = test_helpers::webfont_fixture("add.svg");
+    let variants = vec![
+        FontVariant {
+            name: "small".to_owned(),
+            files: vec![path.clone()],
+            weight: Some(300),
+            default: Some(true),
+        },
+        FontVariant {
+            name: "large".to_owned(),
+            files: vec![path.clone()],
+            weight: Some(700),
+            default: None,
+        },
+    ];
+    let options = GenerateWebfontsOptions {
+        dest: "artifacts".to_owned(),
+        files: vec![],
+        types: Some(vec![FontType::Woff2]),
+        variants: Some(variants.clone()),
+        ..Default::default()
+    };
+
+    let error = generate_webfonts(options, None, None, None)
+        .await
+        .err()
+        .expect("variant generation should remain unavailable");
+    assert!(error.reason.contains("not available yet"));
+
+    let mut duplicate = variants;
+    duplicate[0].files.push(path);
+    let error = generate_webfonts(
+        GenerateWebfontsOptions {
+            dest: "artifacts".to_owned(),
+            files: vec![],
+            types: Some(vec![FontType::Woff2]),
+            variants: Some(duplicate),
+            ..Default::default()
+        },
+        None,
+        None,
+        None,
+    )
+    .await
+    .err()
+    .expect("duplicate names within one variant should fail");
+    assert!(error.reason.contains("must be unique"));
+}
+
+#[cfg(all(test, feature = "napi"))]
+#[tokio::test]
+async fn napi_generation_keeps_the_ordinary_source_path() {
+    let result = generate_webfonts(
+        GenerateWebfontsOptions {
+            css: Some(false),
+            dest: "artifacts".to_owned(),
+            files: vec![test_helpers::webfont_fixture("add.svg")],
+            html: Some(false),
+            types: Some(vec![FontType::Svg]),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+        None,
+        None,
+    )
+    .await
+    .expect("ordinary NAPI generation should succeed");
+
+    assert!(result.svg_string().is_some());
+}
+
 /// Generate a webfont from a set of SVG files.
 ///
 /// Loads the SVGs listed in `options.files`, builds the configured
@@ -134,8 +228,8 @@ extern "C" fn napi_call_threadsafe_function(
 /// HTML preview) to `options.dest`, and returns a `GenerateWebfontsResult`
 /// holding the font bytes and template-rendering methods.
 ///
-/// Multi-variant input is validated and resolved, then returns an unsupported-operation error;
-/// variant font generation is not available yet.
+/// Multi-variant input is resolved, loaded, renamed, joined into logical glyphs, and assigned
+/// shared codepoints before returning an unsupported-operation error.
 ///
 /// Optional callbacks:
 /// - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
@@ -168,8 +262,21 @@ pub async fn generate_webfonts(
     >,
 ) -> napi::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
-    reject_unavailable_variant_generation(&options)?;
-    let source_files = load_svg_files_napi(&options.files, rename.as_ref()).await?;
+    if options.variants.is_some() {
+        let mut resolved_options = resolve_generate_webfonts_options(options)?;
+        let variant_paths = resolved_options
+            .variants
+            .as_ref()
+            .expect("validated variant options must resolve variants")
+            .variants
+            .iter()
+            .map(|variant| variant.files.clone())
+            .collect::<Vec<_>>();
+        let source_files = load_variant_svg_files_napi(&variant_paths, rename.as_ref()).await?;
+        let _family = prepare_variant_family(&mut resolved_options, source_files)?;
+        return Err(unavailable_variant_generation().into());
+    }
+    let source_files = load_svg_files_napi(&options.files, rename.as_ref(), true).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
 
@@ -244,13 +351,27 @@ pub type RenameFn = Box<dyn Fn(&str) -> String + Send + Sync>;
 /// Generate webfonts from SVG files.
 ///
 /// This is the pure Rust async entry point. Requires a tokio runtime. Multi-variant input is
-/// validated and resolved, then returns an unsupported-operation error.
+/// resolved, loaded, renamed, joined into logical glyphs, and assigned shared codepoints before
+/// returning an unsupported-operation error.
 pub async fn generate(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
-    reject_unavailable_variant_generation(&options)?;
+    if options.variants.is_some() {
+        let mut resolved_options = resolve_generate_webfonts_options(options)?;
+        let variant_paths = resolved_options
+            .variants
+            .as_ref()
+            .expect("validated variant options must resolve variants")
+            .variants
+            .iter()
+            .map(|variant| variant.files.clone())
+            .collect::<Vec<_>>();
+        let source_files = load_variant_svg_files(&variant_paths, rename.as_deref()).await?;
+        let _family = prepare_variant_family(&mut resolved_options, source_files)?;
+        return Err(unavailable_variant_generation());
+    }
     let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
@@ -270,8 +391,8 @@ pub async fn generate(
     Ok(result)
 }
 
-/// Synchronous version of [`generate`]. Spawns a tokio runtime internally and has the same
-/// validation-only behavior for multi-variant input.
+/// Synchronous version of [`generate`]. Spawns a tokio runtime internally and has the same source
+/// preparation behavior for multi-variant input.
 pub fn generate_sync(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,

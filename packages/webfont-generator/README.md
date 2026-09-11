@@ -41,8 +41,9 @@ modifier classes, not output filenames. The default
 missing-glyph behavior is `blank`; `fallback` requires an existing variant name. SVG/EOT output and
 incremental mode are invalid with variants.
 
-Variant font generation is not available yet. Rust generation returns `Unsupported` after valid
-variant input is resolved; the Node.js wrapper exposes the contract and performs the same cheap
+Variant font generation is not available yet. Valid variant input is loaded in parallel, renamed in
+variant and file order, joined into a logical glyph union, and assigned shared codepoints before
+Rust generation returns `Unsupported`. The Node.js wrapper exposes the contract and performs cheap
 validation before invoking the native binding.
 
 ### Incremental regeneration

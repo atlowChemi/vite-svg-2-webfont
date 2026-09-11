@@ -80,7 +80,11 @@ export interface GenerateWebfontsFileOptions<T extends FontType = FontType> exte
     variants?: never;
 }
 
-/** Validate a future multi-variant source. Generation is not available yet. */
+/**
+ * Prepare a future multi-variant source. Files are loaded and renamed, matching
+ * glyphs are joined, and shared codepoints are assigned before generation returns
+ * an unsupported-operation error.
+ */
 export interface GenerateWebfontsVariantOptions<T extends MultiVariantFontType = MultiVariantFontType> extends GenerateWebfontsBaseOptions {
     files?: never;
     fontWeight?: never;
