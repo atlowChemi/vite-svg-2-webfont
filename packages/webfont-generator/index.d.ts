@@ -156,6 +156,13 @@ export declare function generateWebfonts(
     options: GenerateWebfontsFileOptions<'eot' | 'woff' | 'woff2'> & { types?: undefined },
 ): Promise<GenerateWebfontsResult<'eot' | 'woff' | 'woff2'>>;
 export declare function generateWebfonts(options: GenerateWebfontsVariantOptions<'woff' | 'woff2'> & { types?: undefined }): Promise<GenerateWebfontsResult<'woff' | 'woff2'>>;
+/** Explicit single-format generics retain guarantees when types is a nonempty tuple. */
+export declare function generateWebfonts<T extends FontType>(
+    options: Omit<GenerateWebfontsFileOptions<T>, 'types'> & { types: readonly [T, ...T[]] },
+): Promise<GenerateWebfontsResult<T, GuaranteedFormats<[T]>>>;
+export declare function generateWebfonts<T extends MultiVariantFontType>(
+    options: Omit<GenerateWebfontsVariantOptions<T>, 'types'> & { types: readonly [T, ...T[]] },
+): Promise<GenerateWebfontsResult<T, GuaranteedFormats<[T]>>>;
 /** Options whose format selection is not statically known have nullable getters. */
 export declare function generateWebfonts<T extends FontType = FontType>(
     options: GenerateWebfontsFileOptions<T>,

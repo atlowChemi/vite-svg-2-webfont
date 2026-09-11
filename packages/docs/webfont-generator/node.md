@@ -101,6 +101,11 @@ Widened arrays, such as `FontType[]`, produce nullable getters for possible form
 variables typed as `GenerateWebfontsOptions` (the ordinary/variant union) are accepted with
 conservative nullable getters.
 
+Explicit single-format calls such as `generateWebfonts<'svg'>({ files, dest, types: ['svg'] })`
+also retain non-null getters when `types` is a nonempty tuple. This applies to modern variant
+formats as well. Explicit union generics and widened arrays remain conservative: a list whose
+element type is a union does not guarantee that every member was requested.
+
 `GenerateWebfontsResult<Possible, Guaranteed>` describes these two sets of formats; the second
 parameter defaults to the first for explicitly known outputs. Async regeneration preserves both.
 

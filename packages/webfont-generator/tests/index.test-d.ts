@@ -112,6 +112,25 @@ it('uses runtime format defaults when types are omitted', async () => {
     expectTypeOf(variant.woff2).toEqualTypeOf<Uint8Array>();
 });
 
+it('preserves explicit single-format generics without overpromising dynamic selections', async () => {
+    const svg = await generateWebfonts<'svg'>({ dest: 'fonts', files: ['icon.svg'], types: ['svg'] });
+    expectTypeOf(svg).toEqualTypeOf<GenerateWebfontsResult<'svg'>>();
+    expectTypeOf(svg.svg).toBeString();
+    const modern = await generateWebfonts<'woff2'>({ dest: 'fonts', variants: [], types: ['woff2'] });
+    expectTypeOf(modern).toEqualTypeOf<GenerateWebfontsResult<'woff2'>>();
+    expectTypeOf(modern.woff2).toEqualTypeOf<Uint8Array>();
+    const types: Array<'svg'> = [];
+    const dynamic = await generateWebfonts<'svg'>({ dest: 'fonts', files: ['icon.svg'], types });
+    expectTypeOf(dynamic.svg).toEqualTypeOf<string | null>();
+    const possible = await generateWebfonts<'svg' | 'woff2'>({ dest: 'fonts', files: ['icon.svg'], types: ['svg'] });
+    expectTypeOf(possible.svg).toEqualTypeOf<string | null>();
+    expectTypeOf(possible.woff2).toEqualTypeOf<Uint8Array | null>();
+    const omitted = await generateWebfonts<'svg'>({ dest: 'fonts', files: ['icon.svg'] });
+    expectTypeOf(omitted.svg).toEqualTypeOf<string | null>();
+    // @ts-expect-error Explicit generics cannot enable SVG for variants.
+    void generateWebfonts<'svg'>({ dest: 'fonts', variants: [], types: ['svg'] });
+});
+
 it('keeps dynamic format selections nullable and accepts options unions', async () => {
     const types: FontType[] = ['woff2'];
     const dynamic = await generateWebfonts({ dest: 'fonts', files: ['icon.svg'], types });
