@@ -112,7 +112,18 @@ impl GenerateWebfontsResult {
         }
     }
 
+    pub(crate) fn require_ordinary_regeneration(&self) -> std::io::Result<()> {
+        if self.options.variants.is_some() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Unsupported,
+                "Multi-variant regeneration is not yet available.",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn take_regeneration_state(&self) -> std::io::Result<RegenerationState> {
+        self.require_ordinary_regeneration()?;
         if !self.options.incremental {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,

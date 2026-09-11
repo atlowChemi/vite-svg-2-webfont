@@ -27,11 +27,11 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
 
-### Multi-variant contract preview
+### Multi-weight variants
 
 Variant formats default to WOFF/WOFF2; TTF is also supported. Ordinary format defaults are unchanged.
 
-The Rust API defines and validates the future multi-variant input contract through
+The Rust and Node APIs support multi-variant input through
 `FontVariant`, `MissingGlyphBehavior`, and `MissingGlyphOptions`. Set either ordinary `files` or
 `variants`, not both; variant mode requires at least two uniquely named variants and exactly one
 default. Explicit weights are anchors in the range 1–1000. An automatic default resolves to 400;
@@ -41,11 +41,17 @@ modifier classes, not output filenames. The default
 missing-glyph behavior is `blank`; `fallback` requires an existing variant that contains every
 logical glyph in the family. SVG/EOT output and incremental mode are invalid with variants.
 
-Variant font generation is not available yet. Valid variant input is loaded in parallel, renamed in
-variant and file order, joined into a logical glyph union, assigned shared codepoints, and resolved
-according to the configured missing-glyph behavior. Its SVGs are then parsed with shared family
-metrics and stable logical advances before Rust generation returns `Unsupported`. The Node.js
-wrapper exposes the contract and performs cheap validation before invoking the native binding.
+Generation returns one shared variable font per requested modern format through the existing
+TTF/WOFF/WOFF2 getters and writes `fontName.ttf`, `fontName.woff`, and `fontName.woff2`.
+SVG/EOT getters are empty for variant results. Writes are non-transactional: a failure can leave a
+partial bundle. Variant regeneration, including async methods, returns an unsupported error.
+
+The existing CSS/HTML render methods accept shared flat URL maps. A supplied map completely
+overrides generated URLs; missing entries become empty. Variant SVG/EOT overrides are rejected.
+Custom-template contexts receive ordered `variants` entries with `name`, `weight`, `default`,
+`className`, and `selector`, plus `variantClassPrefix`. No extra result getters are needed.
+Multi-face default CSS/HTML is the next implementation phase: currently variant companion files
+are not written, and in-memory default rendering still uses the ordinary single-face template.
 
 ### Incremental regeneration
 

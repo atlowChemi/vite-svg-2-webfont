@@ -111,6 +111,7 @@ impl GenerateWebfontsResult {
         ordered_paths: &[String],
         changes: &[(String, GlyphChange)],
     ) -> std::io::Result<()> {
+        self.require_ordinary_regeneration()?;
         if self.css_context.is_some() || self.html_context.is_some() {
             return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,
@@ -338,6 +339,7 @@ impl GenerateWebfontsResult {
     /// # }
     /// ```
     pub fn regenerate_all(&mut self, ordered_paths: &[String]) -> std::io::Result<()> {
+        self.require_ordinary_regeneration()?;
         if !self.options.incremental {
             return Err(std::io::Error::new(
                 ErrorKind::InvalidInput,

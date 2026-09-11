@@ -54,6 +54,22 @@ pub(crate) struct CachedTemplateData {
 }
 
 impl GenerateWebfontsResult {
+    fn validate_render_urls(
+        &self,
+        urls: Option<&HashMap<FontType, String>>,
+    ) -> std::io::Result<()> {
+        if self.options.variants.is_some()
+            && urls.is_some_and(|urls| {
+                urls.contains_key(&FontType::Svg) || urls.contains_key(&FontType::Eot)
+            })
+        {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "SVG and EOT URLs are unsupported for variant results.",
+            ));
+        }
+        Ok(())
+    }
     #[cfg(test)]
     pub(crate) fn has_carried_css_no_urls_for_test(&self) -> bool {
         self.carried_render
@@ -180,6 +196,7 @@ impl GenerateWebfontsResult {
         &self,
         urls: Option<HashMap<FontType, String>>,
     ) -> std::io::Result<String> {
+        self.validate_render_urls(urls.as_ref())?;
         let cached = self.get_cached_io()?;
         let mut rc = cached.render_cache.lock().unwrap();
 
@@ -227,6 +244,7 @@ impl GenerateWebfontsResult {
         &self,
         urls: Option<HashMap<FontType, String>>,
     ) -> std::io::Result<String> {
+        self.validate_render_urls(urls.as_ref())?;
         let cached = self.get_cached_io()?;
         let mut rc = cached.render_cache.lock().unwrap();
 

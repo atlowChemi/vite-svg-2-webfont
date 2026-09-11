@@ -43,38 +43,85 @@ describe('generateWebfonts', () => {
         writeFiles: false,
     } satisfies GenerateWebfontsVariantOptions;
 
-    it('passes valid variants to the native contract guard', () => expect(generateWebfonts(variantOptions)).rejects.toThrow('Multi-variant generation is not available yet'));
+    it('generates shared modern formats through existing getters', async () => {
+        const result = await generateWebfonts({ ...variantOptions, fontName: 'variant-test', variantClassPrefix: 'weight--' });
+
+        expect(result.woff2).toBeInstanceOf(Uint8Array);
+        expect(result.eot).toBeNull();
+        expect(result.svg).toBeNull();
+    });
 
     it('applies variant rename callbacks in flattened source order', async () => {
         const paths = [renameFiles.slice(0, 2), [renameFiles[2], renameFiles[0]]];
         const calls: string[] = [];
 
-        await expect(
-            generateWebfonts({
-                ...variantOptions,
-                rename(path) {
-                    calls.push(path);
-                    return `glyph-${calls.length}`;
-                },
-                variants: [
-                    { default: true, files: paths[0], name: 'small' },
-                    { files: paths[1], name: 'large' },
-                ],
-            }),
-        ).rejects.toThrow('Multi-variant generation is not available yet');
+        const result = await generateWebfonts({
+            ...variantOptions,
+            rename(path) {
+                calls.push(path);
+                return `glyph-${(calls.length - 1) % 2}`;
+            },
+            variants: [
+                { default: true, files: paths[0], name: 'small' },
+                { files: paths[1], name: 'large' },
+            ],
+        });
         expect(calls).toEqual(paths.flat());
+        expect(result.woff2).toBeInstanceOf(Uint8Array);
     });
 
     it('passes variant paths to one native rename batch', async () => {
         const batches: string[][] = [];
 
-        await expect(
-            generateNativeBinding({ ...variantOptions, files: [], types: undefined }, paths => {
-                batches.push(paths);
-                return paths.map((_, index) => `glyph-${index}`);
-            }),
-        ).rejects.toThrow('Multi-variant generation is not available yet');
+        const result = await generateNativeBinding({ ...variantOptions, files: [], types: undefined }, paths => {
+            batches.push(paths);
+            return paths.map((_, index) => `glyph-${index}`);
+        });
         expect(batches).toEqual([[renameFiles[0], renameFiles[0]]]);
+        expect(result.woff2).toBeInstanceOf(Uint8Array);
+    });
+
+    it('passes ordered variant data to context callbacks', async () => {
+        let names: string[] = [];
+        let htmlNames: string[] = [];
+
+        const result = await generateWebfonts({
+            ...variantOptions,
+            cssContext(context) {
+                names = (context.variants as Array<{ name: string }>).map(variant => variant.name);
+            },
+            htmlContext(context) {
+                htmlNames = context.names;
+            },
+        });
+
+        expect(names).toEqual(['small', 'large']);
+        expect(htmlNames).toEqual(['plus']);
+        expect(() => result.regenerate([], [])).toThrow('Multi-variant regeneration is not yet available.');
+        await expect(result.regenerateAsync([], [])).rejects.toThrow('Multi-variant regeneration is not yet available.');
+    });
+
+    it('renders complete variant URL overrides and validates them', async () => {
+        const dest = await createTempDir('vite-variant-urls-');
+        const cssTemplate = join(dest, 'variants.hbs');
+        await writeFile(cssTemplate, '{{{src}}}');
+        const result = await generateWebfonts({ ...variantOptions, cssTemplate, types: ['woff', 'woff2'] });
+        const urls = { woff2: '/assets/family.woff2' };
+        expect(result.generateCss(urls)).toContain('/assets/family.woff2');
+        expect(result.generateCss(urls)).toContain('url("") format("woff")');
+        expect(result.generateHtml(urls)).toContain('/assets/family.woff2');
+        expect(result.generateCss({})).not.toContain('/assets/family.woff2');
+        expect(() => result.generateCss({ eot: '/bad.eot' })).toThrow(/SVG and EOT URLs/);
+        expect(() => result.generateHtml({ svg: '/bad.svg' })).toThrow(/SVG and EOT URLs/);
+    });
+
+    it('rejects sync and async regeneration for variant results', async () => {
+        const result = await generateWebfonts(variantOptions);
+
+        expect(() => result.regenerate([], [])).toThrow(/Multi-variant regeneration/);
+        expect(() => result.regenerate([])).toThrow(/Multi-variant regeneration/);
+        await expect(result.regenerateAsync([], [])).rejects.toThrow(/Multi-variant regeneration/);
+        await expect(result.regenerateAsync([])).rejects.toThrow(/Multi-variant regeneration/);
     });
 
     it('rejects an invalid variant rename batch length', async () => {

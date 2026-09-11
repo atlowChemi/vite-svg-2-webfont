@@ -176,6 +176,24 @@ fn make_ctx(
         ("styles".to_owned(), Value::String(styles)),
     ]));
 
+    if options.variants.is_some() {
+        let css_ctx =
+            build_css_context_with_fonts_url(options, shared, Some(&html_css_fonts_url(options)));
+        for key in ["variants", "variantClassPrefix"] {
+            ctx.insert(key.to_owned(), css_ctx[key].clone());
+        }
+        let mut seen = std::collections::HashSet::new();
+        ctx.insert(
+            "names".to_owned(),
+            Value::Array(
+                source_files
+                    .iter()
+                    .filter(|source| seen.insert(source.glyph_name.as_str()))
+                    .map(|source| Value::String(source.glyph_name.clone()))
+                    .collect(),
+            ),
+        );
+    }
     ctx
 }
 

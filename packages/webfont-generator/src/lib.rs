@@ -92,7 +92,7 @@ use input::{
 #[cfg(feature = "napi")]
 use input::{load_svg_files_napi, load_variant_svg_files_napi};
 use output::write_generate_webfonts_result;
-use pipeline::generate_webfonts_sync;
+use pipeline::{generate_variant_webfonts_sync, generate_webfonts_sync};
 #[cfg(feature = "napi")]
 use rendering::{
     CachedTemplateData, SharedTemplateData, apply_context_function, build_css_context,
@@ -110,7 +110,7 @@ pub use types::{
 fn prepare_variant_family(
     options: &mut ResolvedGenerateWebfontsOptions,
     source_files: Vec<Vec<input::LoadedSvgFile>>,
-) -> std::io::Result<svg::types::PreparedVariantFamily> {
+) -> std::io::Result<(svg::types::PreparedVariantFamily, Vec<input::LoadedSvgFile>)> {
     let (mut family, codepoints) = build_variant_family_sources(
         source_files,
         &options.explicit_codepoints,
@@ -138,14 +138,10 @@ fn prepare_variant_family(
         &variant_names,
     )?;
     options.codepoints = codepoints;
-    svg::prepare_variant_svg_family(&svg::svg_options_from_options(options), &family)
-}
-
-fn unavailable_variant_generation() -> std::io::Error {
-    std::io::Error::new(
-        std::io::ErrorKind::Unsupported,
-        "Multi-variant generation is not available yet; this release resolves variant sources, missing-glyph behavior, and shared geometry.",
-    )
+    let prepared =
+        svg::prepare_variant_svg_family(&svg::svg_options_from_options(options), &family)?;
+    let source_files = family.variants.into_iter().flatten().collect();
+    Ok((prepared, source_files))
 }
 
 #[cfg(feature = "napi")]
@@ -192,7 +188,7 @@ async fn napi_variant_preparation_reports_panicking_worker() {
 
 #[cfg(all(test, feature = "napi"))]
 #[tokio::test]
-async fn napi_variant_generation_prepares_sources_before_returning_unsupported() {
+async fn napi_variant_generation_succeeds_after_preparing_sources() {
     let path = test_helpers::webfont_fixture("add.svg");
     let variants = vec![
         FontVariant {
@@ -213,14 +209,15 @@ async fn napi_variant_generation_prepares_sources_before_returning_unsupported()
         files: vec![],
         types: Some(vec![FontType::Woff2]),
         variants: Some(variants.clone()),
+        write_files: Some(false),
         ..Default::default()
     };
 
-    let error = generate_webfonts(options, None, None, None)
+    let result = generate_webfonts(options, None, None, None)
         .await
-        .err()
-        .expect("variant generation should remain unavailable");
-    assert!(error.reason.contains("not available yet"));
+        .expect("variant generation should succeed");
+    assert!(result.woff2_bytes().is_some());
+    assert!(result.eot_bytes().is_none());
 
     let mut duplicate = variants;
     duplicate[0].files.push(path);
@@ -272,9 +269,7 @@ async fn napi_generation_keeps_the_ordinary_source_path() {
 /// HTML preview) to `options.dest`, and returns a `GenerateWebfontsResult`
 /// holding the font bytes and template-rendering methods.
 ///
-/// Multi-variant input is resolved, loaded, renamed, joined into logical glyphs, assigned shared
-/// codepoints and metrics, and processed according to its missing-glyph policy before returning an
-/// unsupported-operation error.
+/// Multi-variant input generates one shared variable font per requested modern format.
 ///
 /// Optional callbacks:
 /// - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
@@ -307,7 +302,7 @@ pub async fn generate_webfonts(
     >,
 ) -> napi::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
-    if options.variants.is_some() {
+    let mut result = if options.variants.is_some() {
         let mut resolved_options = resolve_generate_webfonts_options(options)?;
         let variant_paths = resolved_options
             .variants
@@ -318,18 +313,16 @@ pub async fn generate_webfonts(
             .map(|variant| variant.files.clone())
             .collect::<Vec<_>>();
         let source_files = load_variant_svg_files_napi(&variant_paths, rename.as_ref()).await?;
-        let preparation = tokio::task::spawn_blocking(move || {
-            prepare_variant_family(&mut resolved_options, source_files)
+        let generation = tokio::task::spawn_blocking(move || {
+            let (family, source_files) =
+                prepare_variant_family(&mut resolved_options, source_files)?;
+            generate_variant_webfonts_sync(resolved_options, source_files, family)
         });
-        let preparation = preparation.await;
-        let _family = preparation.map_err(variant_preparation_join_error)??;
-        return Err(unavailable_variant_generation().into());
-    }
-    let source_files = load_svg_files_napi(&options.files, rename.as_ref(), true).await?;
-    let mut resolved_options = resolve_generate_webfonts_options(options)?;
-    finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
-
-    let mut result =
+        generation.await.map_err(variant_preparation_join_error)??
+    } else {
+        let source_files = load_svg_files_napi(&options.files, rename.as_ref(), true).await?;
+        let mut resolved_options = resolve_generate_webfonts_options(options)?;
+        finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
         tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
             .await
             .map_err(|error| {
@@ -337,7 +330,8 @@ pub async fn generate_webfonts(
                     Status::GenericFailure,
                     format!("Native webfont generation task failed: {error}"),
                 )
-            })??;
+            })??
+    };
 
     // Pre-compute mutated contexts via ThreadsafeFunction (async-safe).
     // When callbacks are present, we build SharedTemplateData here and seed the
@@ -354,12 +348,13 @@ pub async fn generate_webfonts(
             result.css_context = Some(css_ctx.clone());
         }
 
-        let mut html_ctx = if result.options.html || html_context.is_some() {
-            build_html_context(&result.options, &shared, &result.source_files, None)
-                .map_err(to_napi_err)?
-        } else {
-            serde_json::Map::new()
-        };
+        let mut html_ctx =
+            if result.options.html || html_context.is_some() || result.options.variants.is_some() {
+                build_html_context(&result.options, &shared, &result.source_files, None)
+                    .map_err(to_napi_err)?
+            } else {
+                serde_json::Map::new()
+            };
         if html_context.is_some() {
             html_ctx = apply_context_function(html_ctx, html_context.as_ref())
                 .await
@@ -399,16 +394,14 @@ pub type RenameFn = Box<dyn Fn(&str) -> String + Send + Sync>;
 
 /// Generate webfonts from SVG files.
 ///
-/// This is the pure Rust async entry point. Requires a tokio runtime. Multi-variant input is
-/// resolved, loaded, renamed, joined into logical glyphs, assigned shared codepoints and metrics,
-/// and processed according to its missing-glyph policy before returning an unsupported-operation
-/// error.
+/// This is the pure Rust async entry point. Requires a tokio runtime. Multi-variant input generates
+/// one shared variable font per requested modern format.
 pub async fn generate(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
-    if options.variants.is_some() {
+    let result = if options.variants.is_some() {
         let mut resolved_options = resolve_generate_webfonts_options(options)?;
         let variant_paths = resolved_options
             .variants
@@ -419,20 +412,20 @@ pub async fn generate(
             .map(|variant| variant.files.clone())
             .collect::<Vec<_>>();
         let source_files = load_variant_svg_files(&variant_paths, rename.as_deref()).await?;
-        let preparation = tokio::task::spawn_blocking(move || {
-            prepare_variant_family(&mut resolved_options, source_files)
+        let generation = tokio::task::spawn_blocking(move || {
+            let (family, source_files) =
+                prepare_variant_family(&mut resolved_options, source_files)?;
+            generate_variant_webfonts_sync(resolved_options, source_files, family)
         });
-        let _family = preparation.await.map_err(std::io::Error::other)??;
-        return Err(unavailable_variant_generation());
-    }
-    let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
-    let mut resolved_options = resolve_generate_webfonts_options(options)?;
-    finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
-
-    let result =
+        generation.await.map_err(std::io::Error::other)??
+    } else {
+        let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
+        let mut resolved_options = resolve_generate_webfonts_options(options)?;
+        finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
         tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
             .await
-            .map_err(std::io::Error::other)??;
+            .map_err(std::io::Error::other)??
+    };
 
     if result.options.write_files
         && let Some(written) = write_generate_webfonts_result(&result).await?
