@@ -6,6 +6,11 @@ mod tables;
 #[cfg(test)]
 mod tests;
 mod types;
+#[allow(
+    dead_code,
+    reason = "variant SFNT output is connected to public formats in a later phase"
+)]
+mod variants;
 
 use std::io::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -15,6 +20,11 @@ use crate::pipeline::TtfGlyphCache;
 use crate::svg::types::ProcessedGlyph;
 
 pub(crate) use types::{CachedCompiledGlyph, TtfOptions};
+#[allow(
+    unused_imports,
+    reason = "variant SFNT output is connected to public formats in a later phase"
+)]
+pub(crate) use variants::{VariantFontBuild, build_variant};
 
 use glyphs::{
     build_glyf_table, compile_and_dedup_glyphs, compile_and_dedup_glyphs_cached,
