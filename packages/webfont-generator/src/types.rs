@@ -36,6 +36,11 @@ pub struct GlyphChangeEntry {
 #[cfg_attr(feature = "napi", napi(string_enum = "lowercase"))]
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
 pub enum FontType {
     /// SVG font (`.svg`). Legacy format; intermediate representation that all
     /// other formats are derived from.
@@ -54,6 +59,11 @@ pub enum FontType {
 /// One named SVG design in a multi-variant icon family.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "camelCase", deny_unknown_fields)
+)]
 pub struct FontVariant {
     /// User-facing variant name, used to derive CSS modifier classes.
     pub name: String,
@@ -69,6 +79,11 @@ pub struct FontVariant {
 /// Family-wide behavior when a logical glyph is absent from a variant.
 #[cfg_attr(feature = "napi", napi(string_enum = "lowercase"))]
 #[derive(Clone, Copy, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "lowercase")
+)]
 pub enum MissingGlyphBehavior {
     /// Use an empty outline while retaining the logical glyph's advance.
     Blank,
@@ -81,6 +96,11 @@ pub enum MissingGlyphBehavior {
 /// Family-wide missing-glyph policy for multi-variant generation.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "camelCase", deny_unknown_fields)
+)]
 pub struct MissingGlyphOptions {
     /// Missing-glyph behavior. Variant mode defaults to [`MissingGlyphBehavior::Blank`] when this
     /// object is omitted.
@@ -120,6 +140,11 @@ impl FontType {
 /// path processing that feeds every other format.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "camelCase", deny_unknown_fields)
+)]
 pub struct SvgFormatOptions {
     /// SVG-format override of the top-level `centerVertically` option. When set,
     /// it wins over the top-level value; centers each glyph vertically inside
@@ -144,6 +169,11 @@ pub struct SvgFormatOptions {
 /// and `head` tables.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "camelCase", deny_unknown_fields)
+)]
 pub struct TtfFormatOptions {
     /// Copyright string written to the TTF `name` table (record id 0).
     pub copyright: Option<String>,
@@ -162,6 +192,11 @@ pub struct TtfFormatOptions {
 /// WOFF-format–specific options. Affects only WOFF1 output; WOFF2 ignores these.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "camelCase", deny_unknown_fields)
+)]
 pub struct WoffFormatOptions {
     /// XML string embedded in the WOFF1 metadata block.
     pub metadata: Option<String>,
@@ -170,6 +205,11 @@ pub struct WoffFormatOptions {
 /// WOFF2-format–specific options. Affects only WOFF2 output.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "camelCase", deny_unknown_fields)
+)]
 pub struct Woff2FormatOptions {
     /// Brotli compression quality used when encoding WOFF2, from `0` (fastest,
     /// largest output) to `11` (slowest, smallest output). This tunes compression
@@ -184,6 +224,11 @@ pub struct Woff2FormatOptions {
 /// to the corresponding output format.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "camelCase", deny_unknown_fields)
+)]
 pub struct FormatOptions {
     /// SVG-format options.
     pub svg: Option<SvgFormatOptions>,
@@ -278,8 +323,14 @@ pub struct HtmlContext {
 
 /// Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
 /// `files` or `variants`, are required. Every other field has a sensible default.
+/// With the `cli` feature, options deserialize from camelCase JSON with unknown fields rejected.
 #[cfg_attr(feature = "napi", napi(object))]
 #[derive(Clone, Default)]
+#[cfg_attr(
+    feature = "cli",
+    derive(serde::Deserialize),
+    serde(rename_all = "camelCase", deny_unknown_fields)
+)]
 pub struct GenerateWebfontsOptions {
     /// Font ascent in font units. Overrides the value computed from the source
     /// glyphs.
@@ -311,6 +362,7 @@ pub struct GenerateWebfontsOptions {
     /// Output directory for generated font files. Required.
     pub dest: String,
     /// Paths to the SVG files to include in an ordinary font. Must be empty when `variants` is set.
+    #[cfg_attr(feature = "cli", serde(default))]
     pub files: Vec<String>,
     /// When `true`, produces a monospace font sized to the widest glyph.
     pub fixed_width: Option<bool>,
