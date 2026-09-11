@@ -72,14 +72,17 @@ export interface CssContext {
    * declarations like `content: "\f101"`.
    */
   codepoints: Record<string, string>
-  /** Ordered resolved variants; absent in ordinary mode unless supplied by template options. */
-  variants?: Array<TemplateVariant>
+  /**
+   * Ordered resolved variants; absent in ordinary mode unless supplied by template options.
+   * The mode-independent Node declaration is unknown because ordinary template data is arbitrary.
+   */
+  variants?: unknown
   /** Modifier class prefix, supplied in variant mode. */
-  variantClassPrefix?: string
+  variantClassPrefix?: unknown
   /** Resolved default weight, supplied in variant mode. */
-  defaultWeight?: number
+  defaultWeight?: unknown
   /** Resolved font style, supplied in variant mode. */
-  fontStyle?: string
+  fontStyle?: unknown
 }
 
 /**
@@ -347,14 +350,17 @@ export interface HtmlContext {
    * string for embedding into CSS `content` declarations.
    */
   codepoints: Record<string, number>
-  /** Ordered resolved variants; absent in ordinary mode unless supplied by template options. */
-  variants?: Array<TemplateVariant>
+  /**
+   * Ordered resolved variants; absent in ordinary mode unless supplied by template options.
+   * The mode-independent Node declaration is unknown because ordinary template data is arbitrary.
+   */
+  variants?: unknown
   /** Modifier class prefix, supplied in variant mode. */
-  variantClassPrefix?: string
+  variantClassPrefix?: unknown
   /** Resolved default weight, supplied in variant mode. */
-  defaultWeight?: number
+  defaultWeight?: unknown
   /** Resolved font style, supplied in variant mode. */
-  fontStyle?: string
+  fontStyle?: unknown
 }
 
 /** Family-wide behavior when a logical glyph is absent from a variant. */

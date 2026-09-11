@@ -104,9 +104,14 @@ conservative nullable getters.
 `GenerateWebfontsResult<Possible, Guaranteed>` describes these two sets of formats; the second
 parameter defaults to the first for explicitly known outputs. Async regeneration preserves both.
 
-`CssContext` and `HtmlContext` include optional `variants: TemplateVariant[]`,
-`variantClassPrefix: string`, `defaultWeight: number`, and `fontStyle: string`. These fields are
-provided in variant mode and absent by default in ordinary mode. `TemplateVariant` contains
+Variant options infer `CssContext<true>` and `HtmlContext<true>` for callbacks, with
+`variants: TemplateVariant[]`, `variantClassPrefix: string`, `defaultWeight: number`, and
+`fontStyle: string`. Plain `CssContext` and `HtmlContext` keep these fields `unknown`, as ordinary
+`templateOptions` can supply arbitrary values under those names. Narrow or validate ordinary
+metadata before accessing it. `GenerateWebfontsBaseOptions<true>` describes shared options with
+variant callbacks; its default type parameter uses the conservative contexts.
+
+`TemplateVariant` contains
 `name: string`, `weight: number`, `default: boolean`, `className: string`, and `selector: string`.
 The selector is an escaped CSS identifier without a leading dot.
 

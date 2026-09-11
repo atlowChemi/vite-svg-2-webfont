@@ -71,8 +71,8 @@ calls expose non-null EOT/WOFF/WOFF2, and variant calls expose non-null WOFF/WOF
 are `null`. A dynamically selected format array has nullable getters because its contents are
 not known statically. Variables typed as the ordinary/variant options union are also accepted.
 
-CSS/HTML callback types include optional `variants: TemplateVariant[]`, `variantClassPrefix`,
-`defaultWeight`, and `fontStyle`. Variant generation supplies these fields; ordinary generation
+Variant options infer `CssContext<true>` / `HtmlContext<true>` callbacks with typed `variants: TemplateVariant[]`, `variantClassPrefix`,
+`defaultWeight`, and `fontStyle`. Plain `CssContext` / `HtmlContext` keep these fields `unknown` because ordinary template options may supply arbitrary values. Variant generation supplies these fields; ordinary generation
 does not supply them by default. Each `TemplateVariant` has `name`, `weight`, `default`,
 `className`, and `selector` (an escaped CSS identifier without a leading dot).
 
