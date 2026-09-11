@@ -228,12 +228,17 @@ pub struct CssContext {
     /// declarations like `content: "\f101"`.
     pub codepoints: HashMap<String, String>,
     /// Ordered resolved variants; absent in ordinary mode unless supplied by template options.
+    /// The mode-independent Node declaration is unknown because ordinary template data is arbitrary.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
     pub variants: Option<Vec<TemplateVariant>>,
     /// Modifier class prefix, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
     pub variant_class_prefix: Option<String>,
     /// Resolved default weight, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
     pub default_weight: Option<u32>,
     /// Resolved font style, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
     pub font_style: Option<String>,
 }
 
@@ -257,12 +262,17 @@ pub struct HtmlContext {
     /// string for embedding into CSS `content` declarations.
     pub codepoints: HashMap<String, u32>,
     /// Ordered resolved variants; absent in ordinary mode unless supplied by template options.
+    /// The mode-independent Node declaration is unknown because ordinary template data is arbitrary.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
     pub variants: Option<Vec<TemplateVariant>>,
     /// Modifier class prefix, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
     pub variant_class_prefix: Option<String>,
     /// Resolved default weight, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
     pub default_weight: Option<u32>,
     /// Resolved font style, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
     pub font_style: Option<String>,
 }
 

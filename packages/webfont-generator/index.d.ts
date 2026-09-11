@@ -33,22 +33,30 @@ export interface MissingGlyphOptions {
     variant?: string;
 }
 
+type VariantTemplateMetadata = {
+    variants: TemplateVariant[];
+    variantClassPrefix: string;
+    defaultWeight: number;
+    fontStyle: string;
+};
 /**
  * Context object passed to the `cssContext` callback. The named fields are
- * supplied by the native engine; variant fields are optional in ordinary mode. The index signature accommodates
+ * supplied by the native engine. Use `CssContext<true>` for variant mode; otherwise variant metadata is unknown. The index signature accommodates
  * arbitrary keys merged in from user-supplied `templateOptions`.
  */
-export type CssContext = RawCssContext & { [key: string]: unknown };
+export type CssContext<IsVariant extends boolean = false> = Omit<RawCssContext, keyof VariantTemplateMetadata> &
+    (IsVariant extends true ? VariantTemplateMetadata : { [K in keyof VariantTemplateMetadata]?: unknown }) & { [key: string]: unknown };
 
 /**
  * Context object passed to the `htmlContext` callback. The named fields are
- * supplied by the native engine; variant fields are optional in ordinary mode. The index signature accommodates
+ * supplied by the native engine. Use `HtmlContext<true>` for variant mode; otherwise variant metadata is unknown. The index signature accommodates
  * arbitrary keys merged in from user-supplied `templateOptions`.
  */
-export type HtmlContext = RawHtmlContext & { [key: string]: unknown };
+export type HtmlContext<IsVariant extends boolean = false> = Omit<RawHtmlContext, keyof VariantTemplateMetadata> &
+    (IsVariant extends true ? VariantTemplateMetadata : { [K in keyof VariantTemplateMetadata]?: unknown }) & { [key: string]: unknown };
 
 /** Options shared by ordinary and multi-variant generation. */
-export interface GenerateWebfontsBaseOptions extends Omit<
+export interface GenerateWebfontsBaseOptions<IsVariant extends boolean = false> extends Omit<
     RawGenerateWebfontsOptions,
     'files' | 'fontWeight' | 'incremental' | 'missingGlyphs' | 'order' | 'types' | 'variantClassPrefix' | 'variants'
 > {
@@ -56,12 +64,12 @@ export interface GenerateWebfontsBaseOptions extends Omit<
      * Mutate the Handlebars context before CSS rendering. Modify `context`
      * in-place; the return value is ignored.
      */
-    cssContext?: (context: CssContext) => void;
+    cssContext?: (context: CssContext<IsVariant>) => void;
     /**
      * Mutate the Handlebars context before HTML preview rendering. Modify
      * `context` in-place; the return value is ignored.
      */
-    htmlContext?: (context: HtmlContext) => void;
+    htmlContext?: (context: HtmlContext<IsVariant>) => void;
     /**
      * Derive a custom glyph name from each SVG file path. Receives the file
      * path; must return the glyph name.
@@ -84,7 +92,7 @@ export interface GenerateWebfontsFileOptions<T extends FontType = FontType> exte
 /**
  * Generate one shared variable TTF/WOFF/WOFF2 per requested format.
  */
-export interface GenerateWebfontsVariantOptions<T extends MultiVariantFontType = MultiVariantFontType> extends GenerateWebfontsBaseOptions {
+export interface GenerateWebfontsVariantOptions<T extends MultiVariantFontType = MultiVariantFontType> extends GenerateWebfontsBaseOptions<true> {
     files?: never;
     fontWeight?: never;
     incremental?: false;

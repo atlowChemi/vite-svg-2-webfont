@@ -28,7 +28,7 @@ it('exports the public generator API', () => {
         readonly Fallback: 'fallback';
     }>();
     expectTypeOf<GenerateWebfontsFileOptions>().toExtend<GenerateWebfontsBaseOptions & { files: string[] }>();
-    expectTypeOf<GenerateWebfontsVariantOptions>().toExtend<GenerateWebfontsBaseOptions & { variants: FontVariant[] }>();
+    expectTypeOf<GenerateWebfontsVariantOptions>().toExtend<GenerateWebfontsBaseOptions<true> & { variants: FontVariant[] }>();
     expectTypeOf<{ dest: string }>().not.toExtend<GenerateWebfontsInputOptions>();
     expectTypeOf<{ dest: string; files: string[]; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsInputOptions>();
     expectTypeOf<GenerateWebfontsOptions>().toEqualTypeOf<GenerateWebfontsInputOptions>();
@@ -135,17 +135,52 @@ it('keeps dynamic format selections nullable and accepts options unions', async 
 });
 
 it('types resolved variant template metadata without casts', () => {
-    expectTypeOf<CssContext['variants']>().toEqualTypeOf<HtmlContext['variants']>();
-    expectTypeOf<NonNullable<CssContext['variants']>[number]>().toEqualTypeOf<{
+    expectTypeOf<CssContext<true>['variants']>().toEqualTypeOf<HtmlContext<true>['variants']>();
+    expectTypeOf<CssContext<true>['variants'][number]>().toEqualTypeOf<{
         name: string;
         weight: number;
         default: boolean;
         className: string;
         selector: string;
     }>();
-    expectTypeOf<CssContext['defaultWeight']>().toEqualTypeOf<number | undefined>();
-    expectTypeOf<CssContext['fontStyle']>().toEqualTypeOf<string | undefined>();
-    expectTypeOf<HtmlContext['variantClassPrefix']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<CssContext<true>['defaultWeight']>().toEqualTypeOf<number>();
+    expectTypeOf<CssContext<true>['fontStyle']>().toEqualTypeOf<string>();
+    expectTypeOf<HtmlContext<true>['variantClassPrefix']>().toEqualTypeOf<string>();
+    void generateWebfonts({
+        dest: 'fonts',
+        variants: [],
+        cssContext(context) {
+            expectTypeOf(context).toEqualTypeOf<CssContext<true>>();
+            context.variants[0].weight.toFixed();
+        },
+        htmlContext(context) {
+            expectTypeOf(context).toEqualTypeOf<HtmlContext<true>>();
+            context.defaultWeight.toFixed();
+        },
+    });
+});
+
+it('keeps ordinary and unspecified variant metadata unknown', () => {
+    type MetadataKey = 'variants' | 'defaultWeight' | 'fontStyle' | 'variantClassPrefix';
+    expectTypeOf<CssContext[MetadataKey]>().toBeUnknown();
+    expectTypeOf<HtmlContext[MetadataKey]>().toBeUnknown();
+    expectTypeOf<import('../binding.js').CssContext[MetadataKey]>().toBeUnknown();
+    expectTypeOf<import('../binding.js').HtmlContext[MetadataKey]>().toBeUnknown();
+    void generateWebfonts({
+        dest: 'fonts',
+        files: ['icon.svg'],
+        templateOptions: { variants: [{ name: 'unrelated' }] },
+        cssContext(context) {
+            expectTypeOf(context.variants).toBeUnknown();
+            // @ts-expect-error Ordinary template data does not guarantee a weight.
+            context.variants?.[0].weight.toFixed();
+        },
+        htmlContext(context) {
+            expectTypeOf(context.defaultWeight).toBeUnknown();
+            // @ts-expect-error Ordinary template data does not guarantee a numeric default.
+            context.defaultWeight.toFixed();
+        },
+    });
 });
 
 it('rejects invalid format combinations and callbacks', () => {
