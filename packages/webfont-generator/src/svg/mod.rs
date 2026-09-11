@@ -13,12 +13,17 @@ use std::io::{Error, ErrorKind};
 
 pub(crate) use incremental::{prepare_svg_font_incremental, source_content_hash};
 use parse::parse_svg_glyph;
-use process::process_glyph;
+use process::{glyph_scale, process_glyph};
 pub(crate) use serialize::build_svg_font;
 pub(crate) use serialize::rounded_coordinate;
-use types::{GlyphWorkItem, ParsedGlyph, PreparedSvgFont, ProcessedGlyph, SvgOptions};
+use types::{
+    GlyphWorkItem, ParsedGlyph, PreparedSvgFont, PreparedVariantFamily, ProcessedGlyph,
+    ProcessedVariantGlyph, SvgOptions,
+};
 
-use crate::input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::input::{
+    LoadedSvgFile, ResolvedGenerateWebfontsOptions, VariantFamilySources, VariantGlyphSource,
+};
 use crate::types::FontType;
 
 struct FinalizePlan {
@@ -81,6 +86,95 @@ pub(crate) fn prepare_svg_font(
 ) -> Result<PreparedSvgFont, Error> {
     let glyphs = parse_glyphs(options, source_files)?;
     finalize_glyphs(options, glyphs)
+}
+
+pub(crate) fn prepare_variant_svg_family(
+    options: &SvgOptions,
+    family: &VariantFamilySources,
+) -> Result<PreparedVariantFamily, Error> {
+    let parsed_variants = family
+        .variants
+        .iter()
+        .map(|files| parse_glyphs(options, files))
+        .collect::<Result<Vec<_>, _>>()?;
+    let parsed = parsed_variants.iter().flatten().collect::<Vec<_>>();
+    let plan = finalize_plan(options, &parsed, |glyph| glyph.height, |glyph| glyph.width);
+    let mut advances = family
+        .glyphs
+        .iter()
+        .map(|glyph| {
+            glyph
+                .sources
+                .iter()
+                .filter_map(
+                    |source| match source.expect("missing glyphs must be resolved") {
+                        VariantGlyphSource::Source {
+                            variant_index,
+                            source_index,
+                        } => {
+                            let parsed = &parsed_variants[variant_index][source_index];
+                            Some(
+                                parsed.width
+                                    * glyph_scale(
+                                        parsed.width,
+                                        parsed.height,
+                                        plan.normalize,
+                                        plan.max_glyph_height,
+                                        plan.font_height,
+                                    ),
+                            )
+                        }
+                        VariantGlyphSource::Blank => None,
+                    },
+                )
+                .fold(0.0_f64, f64::max)
+        })
+        .collect::<Vec<_>>();
+    if plan.fixed_width {
+        let family_advance = advances.iter().copied().fold(0.0_f64, f64::max);
+        advances.fill(family_advance);
+    }
+
+    let glyphs = family
+        .glyphs
+        .iter()
+        .zip(advances)
+        .enumerate()
+        .map(|(glyph_index, (glyph, advance_width))| {
+            let outlines = glyph
+                .sources
+                .iter()
+                .map(
+                    |source| match source.expect("missing glyphs must be resolved") {
+                        VariantGlyphSource::Source {
+                            variant_index,
+                            source_index,
+                        } => {
+                            let mut parsed = parsed_variants[variant_index][source_index].clone();
+                            parsed.name.clone_from(&glyph.name);
+                            parsed.codepoint = glyph.codepoint;
+                            parsed.index = glyph_index;
+                            process_glyph_with_advance(parsed, &plan, advance_width).map(Some)
+                        }
+                        VariantGlyphSource::Blank => Ok(None),
+                    },
+                )
+                .collect::<Result<Box<[_]>, Error>>()?;
+            Ok(ProcessedVariantGlyph {
+                name: glyph.name.clone(),
+                codepoint: glyph.codepoint,
+                advance_width,
+                outlines,
+            })
+        })
+        .collect::<Result<Vec<_>, Error>>()?;
+
+    Ok(PreparedVariantFamily {
+        ascent: plan.ascent,
+        descent: plan.descent,
+        font_height: plan.font_height,
+        glyphs,
+    })
 }
 
 /// Parse each SVG file into a [`ParsedGlyph`] (geometry + assigned codepoint/index/name). This
@@ -229,6 +323,28 @@ fn process_glyph_with_plan(
         plan.max_glyph_height,
         plan.font_height,
         plan.font_width,
+        plan.descent,
+        plan.optimize_output,
+        plan.serialize_path,
+        plan.structure_path,
+    )
+}
+
+fn process_glyph_with_advance(
+    glyph: ParsedGlyph,
+    plan: &FinalizePlan,
+    advance_width: f64,
+) -> Result<ProcessedGlyph, Error> {
+    process_glyph(
+        glyph,
+        plan.normalize,
+        true,
+        plan.center_horizontally,
+        plan.center_vertically,
+        plan.round,
+        plan.max_glyph_height,
+        plan.font_height,
+        advance_width,
         plan.descent,
         plan.optimize_output,
         plan.serialize_path,
