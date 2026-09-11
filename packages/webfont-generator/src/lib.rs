@@ -101,9 +101,21 @@ use rendering::{
 use result::to_napi_err;
 pub use result::{GenerateWebfontsResult, RegenerateError};
 pub use types::{
-    CssContext, FontType, FormatOptions, GenerateWebfontsOptions, GlyphChange, GlyphChangeEntry,
-    HtmlContext, SvgFormatOptions, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
+    CssContext, FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, GlyphChange,
+    GlyphChangeEntry, HtmlContext, MissingGlyphBehavior, MissingGlyphOptions, SvgFormatOptions,
+    TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
 };
+
+fn reject_unavailable_variant_generation(options: &GenerateWebfontsOptions) -> std::io::Result<()> {
+    if options.variants.is_some() {
+        resolve_generate_webfonts_options(options.clone())?;
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::Unsupported,
+            "Multi-variant generation is not available yet; this release only validates the input contract.",
+        ));
+    }
+    Ok(())
+}
 
 #[cfg(all(test, feature = "napi"))]
 #[unsafe(no_mangle)]
@@ -121,6 +133,9 @@ extern "C" fn napi_call_threadsafe_function(
 /// `options.types` formats, optionally writes them (along with the CSS and
 /// HTML preview) to `options.dest`, and returns a `GenerateWebfontsResult`
 /// holding the font bytes and template-rendering methods.
+///
+/// Multi-variant input is validated and resolved, then returns an unsupported-operation error;
+/// variant font generation is not available yet.
 ///
 /// Optional callbacks:
 /// - `rename(paths)` — derive custom glyph names for the batch of SVG file paths.
@@ -153,6 +168,7 @@ pub async fn generate_webfonts(
     >,
 ) -> napi::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
+    reject_unavailable_variant_generation(&options)?;
     let source_files = load_svg_files_napi(&options.files, rename.as_ref()).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
@@ -227,12 +243,14 @@ pub type RenameFn = Box<dyn Fn(&str) -> String + Send + Sync>;
 
 /// Generate webfonts from SVG files.
 ///
-/// This is the pure Rust async entry point. Requires a tokio runtime.
+/// This is the pure Rust async entry point. Requires a tokio runtime. Multi-variant input is
+/// validated and resolved, then returns an unsupported-operation error.
 pub async fn generate(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     validate_generate_webfonts_options(&options)?;
+    reject_unavailable_variant_generation(&options)?;
     let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
     let mut resolved_options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
@@ -252,7 +270,8 @@ pub async fn generate(
     Ok(result)
 }
 
-/// Synchronous version of [`generate`]. Spawns a tokio runtime internally.
+/// Synchronous version of [`generate`]. Spawns a tokio runtime internally and has the same
+/// validation-only behavior for multi-variant input.
 pub fn generate_sync(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
