@@ -163,6 +163,27 @@ does not stop already-started blocking work and the consumed result cannot be re
 
 ## CLI
 
+Use a complete JSON configuration for ordinary or multi-weight generation:
+
+```sh
+webfont-generator --config icons.webfont.json
+```
+
+```json
+{
+    "dest": "dist/fonts",
+    "fontName": "icons",
+    "variants": [
+        { "name": "outline", "files": ["icons/outline"], "weight": 300, "default": true },
+        { "name": "filled", "files": ["icons/filled"], "weight": 700 }
+    ]
+}
+```
+
+Manifest keys use the generator's camelCase option names. Relative input, output, and template paths resolve against the manifest directory. Input directories expand non-recursively into sorted lowercase `.svg` files at their array position; globs are not expanded. Duplicate normalized paths within a variant and nonexistent inputs are errors. Unknown fields and invalid values produce manifest-specific diagnostics.
+
+`--config` cannot be combined with positional inputs or generation flags; only `--help` and `--version` coexist. Ordinary manifests use `files` and retain SVG/EOT support. Variant manifests default to WOFF/WOFF2 and accept only TTF/WOFF/WOFF2. JSON callbacks are unsupported; use the Node API for callbacks. See the [CLI reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/cli) for the complete manifest contract.
+
 The CLI is available as an opt-in feature (to avoid pulling in `clap` for library users):
 
 ```bash
