@@ -2,8 +2,13 @@ use std::sync::Arc;
 
 use kurbo::{BezPath, Point};
 use write_fonts::read::tables::glyf::Glyph;
+use write_fonts::read::tables::gsub::{
+    SingleSubst as ReadSingleSubst, SubstitutionLookup as ReadSubstitutionLookup,
+};
+use write_fonts::read::tables::layout::Condition as ReadCondition;
 use write_fonts::read::tables::stat::AxisValue as ReadAxisValue;
 use write_fonts::read::{FontRef, TableProvider};
+use write_fonts::types::{F2Dot14, MajorMinor};
 
 use crate::input::resolve_generate_webfonts_options;
 use crate::svg::types::{PreparedVariantFamily, ProcessedGlyph, ProcessedVariantGlyph};
@@ -105,7 +110,7 @@ fn options() -> TtfOptions<'static> {
         font_name: "Variant Test",
         font_style: None,
         font_weight: None,
-        ligature: true,
+        ligature: false,
         manufacturer_url: None,
         ts: Some(0),
         version: None,
@@ -177,8 +182,174 @@ fn builds_deterministic_ordered_variant_glyph_store_and_default_cmap() {
             .unwrap(),
         Some(Glyph::Simple(_))
     ));
-    assert!(font.gsub().is_err());
+    assert!(font.gsub().is_ok());
     assert!(font.table_data(Tag::new(b"gvar")).is_none());
+}
+
+#[test]
+fn writes_weight_conditioned_direct_and_ligature_substitutions() {
+    let variants = resolved_variants();
+    let mut options = options();
+    options.ligature = true;
+    let built = build_variant(options, &family(), &variants).unwrap();
+    let font = FontRef::new(built.tables.ttf()).unwrap();
+    let gsub = font.gsub().unwrap();
+
+    assert_eq!(gsub.version(), MajorMinor::VERSION_1_1);
+    assert_eq!(
+        gsub.feature_list().unwrap().get(0).unwrap().tag,
+        Tag::new(b"liga")
+    );
+    assert_eq!(
+        gsub.feature_list().unwrap().get(1).unwrap().tag,
+        Tag::new(b"rvrn")
+    );
+    assert!(font.cmap().unwrap().map_codepoint(u32::from('b')).is_some());
+    assert_eq!(font.os2().unwrap().us_first_char_index(), u16::from(b'-'));
+    assert_eq!(font.os2().unwrap().us_last_char_index(), 0xe002);
+
+    let default_liga = gsub.feature_list().unwrap().get(0).unwrap();
+    assert_eq!(
+        ligature_target(&gsub, default_liga.lookup_list_indices()[0].get()),
+        2
+    );
+
+    let variations = gsub.feature_variations().unwrap().unwrap();
+    let expected = [
+        (F2Dot14::NEG_ONE, F2Dot14::from_bits(-8193), [3, 2]),
+        (F2Dot14::from_f64(0.5), F2Dot14::ONE, [4, 5]),
+    ];
+    assert_eq!(
+        variations.feature_variation_record_count(),
+        expected.len() as u32
+    );
+    for (record, (minimum, maximum, targets)) in
+        variations.feature_variation_records().iter().zip(expected)
+    {
+        let condition_set = record
+            .condition_set(variations.offset_data())
+            .unwrap()
+            .unwrap();
+        let ReadCondition::Format1AxisRange(condition) = condition_set.conditions().get(0).unwrap()
+        else {
+            panic!("expected an axis-range condition")
+        };
+        assert_eq!(condition.filter_range_min_value(), minimum);
+        assert_eq!(condition.filter_range_max_value(), maximum);
+
+        let substitutions = record
+            .feature_table_substitution(variations.offset_data())
+            .unwrap()
+            .unwrap();
+        assert_eq!(substitutions.substitution_count(), 2);
+        let liga = substitutions.substitutions()[0]
+            .alternate_feature(substitutions.offset_data())
+            .unwrap();
+        assert_eq!(substitutions.substitutions()[0].feature_index(), 0);
+        assert_eq!(
+            ligature_target(&gsub, liga.lookup_list_indices()[0].get()),
+            targets[1]
+        );
+
+        let rvrn = substitutions.substitutions()[1]
+            .alternate_feature(substitutions.offset_data())
+            .unwrap();
+        assert_eq!(substitutions.substitutions()[1].feature_index(), 1);
+        let lookup = gsub
+            .lookup_list()
+            .unwrap()
+            .lookups()
+            .get(usize::from(rvrn.lookup_list_indices()[0].get()))
+            .unwrap();
+        let ReadSubstitutionLookup::Single(lookup) = lookup else {
+            panic!("expected rvrn to use single substitution")
+        };
+        let ReadSingleSubst::Format2(single) = lookup.subtables().get(0).unwrap() else {
+            panic!("expected explicit variant glyph substitutions")
+        };
+        assert_eq!(
+            single
+                .coverage()
+                .unwrap()
+                .iter()
+                .map(|gid| gid.to_u16())
+                .collect::<Vec<_>>(),
+            vec![1, 2]
+        );
+        assert_eq!(
+            single
+                .substitute_glyph_ids()
+                .iter()
+                .map(|gid| gid.get().to_u16())
+                .collect::<Vec<_>>(),
+            targets
+        );
+    }
+}
+
+#[test]
+fn quantizes_asymmetric_ranges_and_handles_a_maximum_default() {
+    let mut variants = resolved_variants();
+    variants.variants[0].weight = 100;
+    variants.variants[1].weight = 200;
+    variants.variants[2].weight = 400;
+    variants.variants.push(variants.variants[2].clone());
+    variants.variants[3].weight = 1000;
+    variants.default_index = 2;
+
+    let first_boundary = F2Dot14::from_f64(-5.0 / 6.0);
+    let second_boundary = F2Dot14::from_f64(-1.0 / 3.0);
+    assert_eq!(
+        variant_range(&variants, 0),
+        (
+            F2Dot14::NEG_ONE,
+            F2Dot14::from_bits(first_boundary.to_bits() - 1)
+        )
+    );
+    assert_eq!(
+        variant_range(&variants, 1),
+        (
+            first_boundary,
+            F2Dot14::from_bits(second_boundary.to_bits() - 1)
+        )
+    );
+    assert_eq!(
+        variant_range(&variants, 3),
+        (F2Dot14::from_f64(0.5), F2Dot14::ONE)
+    );
+
+    variants.default_index = 3;
+    assert_eq!(
+        variant_range(&variants, 2),
+        (
+            F2Dot14::from_f64(-7.0 / 9.0),
+            F2Dot14::from_bits(F2Dot14::from_f64(-1.0 / 3.0).to_bits() - 1)
+        )
+    );
+}
+
+fn ligature_target(gsub: &write_fonts::read::tables::gsub::Gsub<'_>, lookup_index: u16) -> u16 {
+    let lookup = gsub
+        .lookup_list()
+        .unwrap()
+        .lookups()
+        .get(usize::from(lookup_index))
+        .unwrap();
+    let ReadSubstitutionLookup::Ligature(lookup) = lookup else {
+        panic!("expected liga to use ligature substitution")
+    };
+    lookup
+        .subtables()
+        .get(0)
+        .unwrap()
+        .ligature_sets()
+        .get(0)
+        .unwrap()
+        .ligatures()
+        .get(0)
+        .unwrap()
+        .ligature_glyph()
+        .to_u16()
 }
 
 #[test]
@@ -422,8 +593,16 @@ fn rejects_invalid_variant_metadata_and_glyph_matrix() {
     assert_eq!(error.kind(), ErrorKind::InvalidInput);
 
     let variants = resolved_variants();
-    let mut family = family();
-    family.glyphs[0].outlines = vec![None].into_boxed_slice();
-    let error = build_variant(options(), &family, &variants).err().unwrap();
+    let mut malformed_family = family();
+    malformed_family.glyphs[0].outlines = vec![None].into_boxed_slice();
+    let error = build_variant(options(), &malformed_family, &variants)
+        .err()
+        .unwrap();
     assert_eq!(error.kind(), ErrorKind::InvalidInput);
+
+    let mut family = family();
+    family.glyphs[1].codepoint = family.glyphs[0].codepoint;
+    let error = build_variant(options(), &family, &variants).err().unwrap();
+    assert_eq!(error.kind(), ErrorKind::InvalidData);
+    assert!(error.to_string().starts_with("Failed to build cmap table:"));
 }
