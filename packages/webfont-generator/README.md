@@ -71,6 +71,10 @@ calls expose non-null EOT/WOFF/WOFF2, and variant calls expose non-null WOFF/WOF
 are `null`. A dynamically selected format array has nullable getters because its contents are
 not known statically. Variables typed as the ordinary/variant options union are also accepted.
 
+Explicit single-format generics, such as `generateWebfonts<'svg'>({ files, dest, types: ['svg'] })`,
+retain a non-null getter with a nonempty `types` tuple. Modern variant formats behave the same;
+explicit union generics and widened arrays retain conservative nullable getters.
+
 Variant options infer `CssContext<true>` / `HtmlContext<true>` callbacks with typed `variants: TemplateVariant[]`, `variantClassPrefix`,
 `defaultWeight`, and `fontStyle`. Plain `CssContext` / `HtmlContext` keep these fields `unknown` because ordinary template options may supply arbitrary values. Variant generation supplies these fields; ordinary generation
 does not supply them by default. Each `TemplateVariant` has `name`, `weight`, `default`,
