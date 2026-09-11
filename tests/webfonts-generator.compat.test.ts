@@ -14,9 +14,11 @@ import {
     templates as newCoreTemplates,
     type FontType,
     type GenerateWebfontsFileOptions as GenerateWebfontsInputOptions,
-    type GenerateWebfontsResult,
+    type GenerateWebfontsResult as TypedGenerateWebfontsResult,
     MissingGlyphBehavior,
 } from '@atlowchemi/webfont-generator';
+
+type GenerateWebfontsResult = TypedGenerateWebfontsResult<FontType, never>;
 
 type ImplementationTarget = {
     enabled: boolean;
@@ -175,7 +177,13 @@ function collectAttributeValues(source: string, tagName: string, attributeName: 
     return values;
 }
 
-function parseSvgSemanticSummary(svg: string) {
+function fontBuffer(font: string | Uint8Array | null) {
+    if (font === null) throw new Error('Expected a generated font');
+    return Buffer.from(font);
+}
+
+function parseSvgSemanticSummary(svg: string | null) {
+    if (svg === null) throw new Error('Expected a generated SVG font');
     return {
         ascent: collectAttributeValues(svg, 'font-face', 'ascent')[0] ?? '',
         descent: collectAttributeValues(svg, 'font-face', 'descent')[0] ?? '',
@@ -829,8 +837,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });
@@ -969,8 +977,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });
@@ -984,7 +992,7 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        expect(summarizeTtf(Buffer.from(newCore.ttf))).toEqual(summarizeTtf(Buffer.from(upstream.ttf)));
+        expect(summarizeTtf(fontBuffer(newCore.ttf))).toEqual(summarizeTtf(fontBuffer(upstream.ttf)));
     });
 
     it('matches parsed ttf codepoints and ligature semantics', async () => {
@@ -998,9 +1006,9 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        expect(summarizeTtf(Buffer.from(newCore.ttf))).toEqual(summarizeTtf(Buffer.from(upstream.ttf)));
-        expect(summarizeTtfLigatureResolution(Buffer.from(newCore.ttf), ['back', 'close', 'string'])).toEqual(
-            summarizeTtfLigatureResolution(Buffer.from(upstream.ttf), ['back', 'close', 'string']),
+        expect(summarizeTtf(fontBuffer(newCore.ttf))).toEqual(summarizeTtf(fontBuffer(upstream.ttf)));
+        expect(summarizeTtfLigatureResolution(fontBuffer(newCore.ttf), ['back', 'close', 'string'])).toEqual(
+            summarizeTtfLigatureResolution(fontBuffer(upstream.ttf), ['back', 'close', 'string']),
         );
     });
 
@@ -1022,7 +1030,7 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        expect(summarizeTtf(Buffer.from(newCore.ttf))).toEqual(summarizeTtf(Buffer.from(upstream.ttf)));
+        expect(summarizeTtf(fontBuffer(newCore.ttf))).toEqual(summarizeTtf(fontBuffer(upstream.ttf)));
     });
 
     it('deduplicates identical glyphs in ttf by mapping multiple codepoints to a single outline', async () => {
@@ -1042,8 +1050,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upSummary = summarizeTtf(Buffer.from(upstream.ttf));
-        const ncSummary = summarizeTtf(Buffer.from(newCore.ttf));
+        const upSummary = summarizeTtf(fontBuffer(upstream.ttf));
+        const ncSummary = summarizeTtf(fontBuffer(newCore.ttf));
 
         expect(ncSummary.glyphCount).toBe(upSummary.glyphCount);
         expect(ncSummary.glyphs).toEqual(upSummary.glyphs);
@@ -1058,7 +1066,7 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        expect(summarizeEot(Buffer.from(newCore.eot))).toEqual(summarizeEot(Buffer.from(upstream.eot)));
+        expect(summarizeEot(fontBuffer(newCore.eot))).toEqual(summarizeEot(fontBuffer(upstream.eot)));
     });
 
     it('matches woff header and parsed font semantics for the native woff path', async () => {
@@ -1070,7 +1078,7 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        expect(summarizeWoff(Buffer.from(newCore.woff))).toEqual(summarizeWoff(Buffer.from(upstream.woff)));
+        expect(summarizeWoff(fontBuffer(newCore.woff))).toEqual(summarizeWoff(fontBuffer(upstream.woff)));
     });
 
     it('matches woff2 header presence and paired ttf semantics for the native woff2 path', async () => {
@@ -1082,8 +1090,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        expect(summarizeWoff2(Buffer.from(newCore.woff2))).toEqual(summarizeWoff2(Buffer.from(upstream.woff2)));
-        expect(summarizeTtf(Buffer.from(newCore.ttf))).toEqual(summarizeTtf(Buffer.from(upstream.ttf)));
+        expect(summarizeWoff2(fontBuffer(newCore.woff2))).toEqual(summarizeWoff2(fontBuffer(upstream.woff2)));
+        expect(summarizeTtf(fontBuffer(newCore.ttf))).toEqual(summarizeTtf(fontBuffer(upstream.ttf)));
     });
 
     it('matches ttf2woff metadata behavior for parsed woff output', async () => {
@@ -1101,7 +1109,7 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        expect(summarizeWoff(Buffer.from(newCore.woff))).toEqual(summarizeWoff(Buffer.from(upstream.woff)));
+        expect(summarizeWoff(fontBuffer(newCore.woff))).toEqual(summarizeWoff(fontBuffer(upstream.woff)));
     });
 
     it('matches duplicate explicit codepoint semantics', async () => {
@@ -1117,8 +1125,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });
@@ -1135,8 +1143,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });
@@ -1153,8 +1161,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });
@@ -1171,8 +1179,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });
@@ -1570,8 +1578,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });
@@ -1589,8 +1597,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });
@@ -1609,8 +1617,8 @@ describe('compat:webfonts-generator:side-by-side', () => {
             }),
         );
 
-        const upstreamSvg = typeof upstream.svg === 'string' ? upstream.svg : Buffer.from(upstream.svg).toString('utf8');
-        const newCoreSvg = typeof newCore.svg === 'string' ? newCore.svg : Buffer.from(newCore.svg).toString('utf8');
+        const upstreamSvg = fontBuffer(upstream.svg).toString('utf8');
+        const newCoreSvg = fontBuffer(newCore.svg).toString('utf8');
 
         expect(parseSvgSemanticSummary(newCoreSvg)).toEqual(parseSvgSemanticSummary(upstreamSvg));
     });

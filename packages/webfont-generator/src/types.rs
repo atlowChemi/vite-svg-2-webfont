@@ -195,7 +195,23 @@ pub struct FormatOptions {
     pub woff2: Option<Woff2FormatOptions>,
 }
 
-/// Guaranteed fields supplied to a `cssContext` callback. Additional keys from
+/// Resolved variant metadata supplied to CSS and HTML template callbacks.
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Clone)]
+pub struct TemplateVariant {
+    /// User-provided variant name.
+    pub name: String,
+    /// Resolved CSS weight coordinate.
+    pub weight: u32,
+    /// Whether this is the family's default design.
+    pub default: bool,
+    /// Unescaped modifier class for use in HTML.
+    pub class_name: String,
+    /// CSS-escaped modifier class identifier, without a leading dot.
+    pub selector: String,
+}
+
+/// Fields supplied to a `cssContext` callback. Additional keys from
 /// user-supplied `templateOptions` are merged into the same object at runtime,
 /// so the JS-side type widens this with an open-ended index signature.
 #[cfg_attr(feature = "napi", napi(object))]
@@ -211,9 +227,22 @@ pub struct CssContext {
     /// (e.g. `"add" -> "f101"`), suitable for use inside CSS `content`
     /// declarations like `content: "\f101"`.
     pub codepoints: HashMap<String, String>,
+    /// Ordered resolved variants; absent in ordinary mode unless supplied by template options.
+    /// The mode-independent Node declaration is unknown because ordinary template data is arbitrary.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
+    pub variants: Option<Vec<TemplateVariant>>,
+    /// Modifier class prefix, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
+    pub variant_class_prefix: Option<String>,
+    /// Resolved default weight, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
+    pub default_weight: Option<u32>,
+    /// Resolved font style, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
+    pub font_style: Option<String>,
 }
 
-/// Guaranteed fields supplied to an `htmlContext` callback. Additional keys
+/// Fields supplied to an `htmlContext` callback. Additional keys
 /// from user-supplied `templateOptions` are merged into the same object at
 /// runtime, so the JS-side type widens this with an open-ended index signature.
 #[cfg_attr(feature = "napi", napi(object))]
@@ -232,6 +261,19 @@ pub struct HtmlContext {
     /// (e.g. `"add" -> 0xF101`). Use the CSS context's hex form if you need a
     /// string for embedding into CSS `content` declarations.
     pub codepoints: HashMap<String, u32>,
+    /// Ordered resolved variants; absent in ordinary mode unless supplied by template options.
+    /// The mode-independent Node declaration is unknown because ordinary template data is arbitrary.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
+    pub variants: Option<Vec<TemplateVariant>>,
+    /// Modifier class prefix, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
+    pub variant_class_prefix: Option<String>,
+    /// Resolved default weight, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
+    pub default_weight: Option<u32>,
+    /// Resolved font style, supplied in variant mode.
+    #[cfg_attr(feature = "napi", napi(ts_type = "unknown"))]
+    pub font_style: Option<String>,
 }
 
 /// Top-level options controlling webfont generation. `dest` and exactly one source, ordinary

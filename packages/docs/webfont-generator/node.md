@@ -93,6 +93,33 @@ Non-exact weights follow CSS font matching: for faces at 300, 400, and 700, requ
 select 300, 450/500 select 400, and 600/900 select 700. Generated pseudo-elements set their own
 weight; inherited weights do not override it.
 
+### TypeScript output inference
+
+Literal `types` lists infer non-null getters for the requested formats and `null` for the rest.
+Omitting `types` infers EOT/WOFF/WOFF2 for ordinary calls and WOFF/WOFF2 for variant calls.
+Widened arrays, such as `FontType[]`, produce nullable getters for possible formats. Options
+variables typed as `GenerateWebfontsOptions` (the ordinary/variant union) are accepted with
+conservative nullable getters.
+
+Explicit single-format calls such as `generateWebfonts<'svg'>({ files, dest, types: ['svg'] })`
+also retain non-null getters when `types` is a nonempty tuple. This applies to modern variant
+formats as well. Explicit union generics and widened arrays remain conservative: a list whose
+element type is a union does not guarantee that every member was requested.
+
+`GenerateWebfontsResult<Possible, Guaranteed>` describes these two sets of formats; the second
+parameter defaults to the first for explicitly known outputs. Async regeneration preserves both.
+
+Variant options infer `CssContext<true>` and `HtmlContext<true>` for callbacks, with
+`variants: TemplateVariant[]`, `variantClassPrefix: string`, `defaultWeight: number`, and
+`fontStyle: string`. Plain `CssContext` and `HtmlContext` keep these fields `unknown`, as ordinary
+`templateOptions` can supply arbitrary values under those names. Narrow or validate ordinary
+metadata before accessing it. `GenerateWebfontsBaseOptions<true>` describes shared options with
+variant callbacks; its default type parameter uses the conservative contexts.
+
+`TemplateVariant` contains
+`name: string`, `weight: number`, `default: boolean`, `className: string`, and `selector: string`.
+The selector is an escaped CSS identifier without a leading dot.
+
 ### `files`
 
 - **Required for ordinary generation**

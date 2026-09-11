@@ -64,6 +64,22 @@ Non-exact weights use CSS font matching, not interpolation: with faces at 300, 4
 requests for 100/350 select 300, 450/500 select 400, and 600/900 select 700. Generated
 pseudo-elements explicitly set their weight, so inherited weights do not override them.
 
+### TypeScript inference and callback metadata
+
+TypeScript infers output getters from literal `types` lists. With `types` omitted, ordinary
+calls expose non-null EOT/WOFF/WOFF2, and variant calls expose non-null WOFF/WOFF2; other getters
+are `null`. A dynamically selected format array has nullable getters because its contents are
+not known statically. Variables typed as the ordinary/variant options union are also accepted.
+
+Explicit single-format generics, such as `generateWebfonts<'svg'>({ files, dest, types: ['svg'] })`,
+retain a non-null getter with a nonempty `types` tuple. Modern variant formats behave the same;
+explicit union generics and widened arrays retain conservative nullable getters.
+
+Variant options infer `CssContext<true>` / `HtmlContext<true>` callbacks with typed `variants: TemplateVariant[]`, `variantClassPrefix`,
+`defaultWeight`, and `fontStyle`. Plain `CssContext` / `HtmlContext` keep these fields `unknown` because ordinary template options may supply arbitrary values. Variant generation supplies these fields; ordinary generation
+does not supply them by default. Each `TemplateVariant` has `name`, `weight`, `default`,
+`className`, and `selector` (an escaped CSS identifier without a leading dot).
+
 ### Incremental regeneration
 
 ```js
