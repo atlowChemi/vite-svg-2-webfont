@@ -137,7 +137,7 @@ fn generate_sync_rejects_variant_generation_until_the_pipeline_is_available() {
 }
 
 #[test]
-fn generate_sync_validates_shared_variant_options_before_the_pipeline_guard() {
+fn generate_sync_resolves_variant_options_before_the_pipeline_guard() {
     let mut options = variant_options();
     options.order = Some(vec![FontType::Eot]);
     let error = webfont_generator::generate_sync(options, None)
@@ -156,6 +156,34 @@ fn generate_sync_validates_shared_variant_options_before_the_pipeline_guard() {
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     assert!(error.to_string().contains("options.cssTemplate"));
+
+    let mut options = variant_options();
+    options.variants = Some(vec![
+        FontVariant {
+            name: "heavy".to_owned(),
+            files: vec!["heavy.svg".to_owned()],
+            weight: Some(500),
+            default: None,
+        },
+        FontVariant {
+            name: "medium".to_owned(),
+            files: vec!["medium.svg".to_owned()],
+            weight: None,
+            default: None,
+        },
+        FontVariant {
+            name: "regular".to_owned(),
+            files: vec!["regular.svg".to_owned()],
+            weight: None,
+            default: Some(true),
+        },
+    ]);
+    let error = webfont_generator::generate_sync(options, None)
+        .err()
+        .expect("conflicting weight anchors should fail before the pipeline guard");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("weight"));
 }
 
 fn variant_options() -> GenerateWebfontsOptions {
