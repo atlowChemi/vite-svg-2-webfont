@@ -75,9 +75,7 @@ fn render_default_css_inner(ctx: &Map<String, Value>, font_name: &str, src: &str
     if let Some(variants) = ctx
         .get("variants")
         .and_then(Value::as_array)
-        .filter(|variants| {
-            ctx.get("__webfontVariantMode") == Some(&Value::Bool(true)) && !variants.is_empty()
-        })
+        .filter(|_| ctx.get("__webfontVariantMode") == Some(&Value::Bool(true)))
     {
         let style = crate::rendering::ctx_str(ctx, "fontStyle", "normal");
         let default_weight = &ctx["defaultWeight"];
