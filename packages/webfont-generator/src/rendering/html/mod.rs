@@ -50,12 +50,20 @@ pub(crate) fn build_html_context_with_css(
             build_css_context_with_fonts_url(options, shared, Some(&html_css_fonts_url(options)));
         css_ctx.insert("src".to_owned(), html_css["src"].clone());
     }
-    build_html_context(
+    let mut html_ctx = build_html_context(
         options,
         shared,
         source_files,
         Some(render_css_with_context(shared, &css_ctx)?),
-    )
+    )?;
+    for field in ["baseSelector", "classPrefix"] {
+        if let Some(value) = finalized_css.get(field) {
+            html_ctx.insert(field.to_owned(), value.clone());
+        } else {
+            html_ctx.remove(field);
+        }
+    }
+    Ok(html_ctx)
 }
 
 /// Render HTML using a pre-built Handlebars Context (no serialization).

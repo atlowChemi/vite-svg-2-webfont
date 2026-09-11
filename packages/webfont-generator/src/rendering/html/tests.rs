@@ -64,12 +64,20 @@ fn finalized_css_preserves_mutations_and_rebases_only_default_src() {
     let shared = SharedTemplateData::new(&options, &files).unwrap();
     let mut css = crate::rendering::css::build_css_context(&options, &shared);
     css.insert("fontName".to_owned(), serde_json::json!("callback-family"));
+    css.insert("baseSelector".to_owned(), serde_json::json!(".preview"));
+    css.insert("classPrefix".to_owned(), serde_json::json!("preview-"));
     let html = super::build_html_context_with_css(&options, &shared, &files, &css).unwrap();
     let styles = html["styles"].as_str().unwrap();
+    assert_eq!(html["baseSelector"], ".preview");
+    assert_eq!(html["classPrefix"], "preview-");
     assert!(styles.contains("callback-family"));
     assert!(styles.contains("../fonts/iconfont.woff2"));
     css.insert("src".to_owned(), serde_json::json!("url(/callback.woff2)"));
+    css.remove("baseSelector");
+    css.remove("classPrefix");
     let html = super::build_html_context_with_css(&options, &shared, &files, &css).unwrap();
+    assert!(!html.contains_key("baseSelector"));
+    assert!(!html.contains_key("classPrefix"));
     assert!(
         html["styles"]
             .as_str()

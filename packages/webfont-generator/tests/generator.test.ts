@@ -144,6 +144,8 @@ describe('generateWebfonts', () => {
             writeFiles: true,
             cssContext(context) {
                 context.fontStyle = 'italic';
+                context.baseSelector = '.preview';
+                context.classPrefix = 'preview-';
                 context.defaultWeight = 350;
                 (context.variants as Array<{ weight: number }>)[0].weight = 350;
             },
@@ -157,6 +159,10 @@ describe('generateWebfonts', () => {
         }
         expect(css).toContain('url("iconfont.woff2?');
         expect(html).toContain('../../iconfont.woff2');
+        expect(html).toContain('class="preview preview-plus"');
+        expect(html).toContain('.preview-plus:before');
+        expect(html).not.toContain('class="icon icon-plus"');
+        expect(result.generateHtml({ woff2: '/override.woff2' })).toContain('class="preview preview-plus"');
         expect(result.generateHtml({ woff2: '/override.woff2' })).toContain('/override.woff2');
         expect(result.generateHtml()).toBe(html);
         expect(await readFile(join(dest, 'preview', 'nested', 'icons.html'), 'utf8')).toBe(html);
