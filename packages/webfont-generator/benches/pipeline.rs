@@ -248,6 +248,34 @@ fn bench_pipeline_slices(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_ordinary_generation_baseline(c: &mut Criterion) {
+    let mut group = c.benchmark_group("ordinary_generation_baseline");
+    for size in [1, 100, 600] {
+        let fixture = fixtures(size);
+        group.bench_function(format!("all_formats/{size}"), |b| {
+            b.iter(|| {
+                webfont_generator::generate_sync(
+                    options(
+                        fixture.paths.clone(),
+                        vec![
+                            FontType::Svg,
+                            FontType::Ttf,
+                            FontType::Eot,
+                            FontType::Woff,
+                            FontType::Woff2,
+                        ],
+                        10,
+                        false,
+                    ),
+                    None,
+                )
+                .unwrap()
+            })
+        });
+    }
+    group.finish();
+}
+
 fn bench_pipeline_stages(c: &mut Criterion) {
     let mut group = c.benchmark_group("pipeline_stages");
     for size in SIZES {
@@ -592,6 +620,7 @@ fn bench_woff2_encoder_compare(c: &mut Criterion) {
 
 criterion::criterion_group!(
     benches,
+    bench_ordinary_generation_baseline,
     bench_pipeline_slices,
     bench_pipeline_stages,
     bench_woff2_quality,

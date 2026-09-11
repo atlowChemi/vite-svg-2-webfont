@@ -65,6 +65,22 @@ jobs:
                   cache: true
             - run: vp run @atlowchemi/vite-svg-webfont-docs#build
 
+    test-browser:
+        name: test browser font compatibility
+        needs: [ci]
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: voidzero-dev/setup-vp@1b32467adbe183473499fd9d5d372c3ed9641754 # v1.18.0
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - name: Install browsers
+              run: vp exec playwright install --with-deps chromium firefox webkit
+            - name: Run browser tests
+              run: vp run @atlowchemi/webfont-generator#test:browser
+
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
         needs: [build]
@@ -106,7 +122,7 @@ jobs:
             - name: Build plugin
               run: pnpm --filter vite-svg-2-webfont exec vp pack
             - name: Run tests
-              run: pnpm exec vp test --run
+              run: pnpm exec vp test --run --project='!webfont-generator-browser*'
 
     test-docker:
         name: test ${{ matrix.arch }}-linux-musl
@@ -157,7 +173,7 @@ jobs:
                         npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && \
                         sed -i '/^configDependencies:/,/^$/d' pnpm-workspace.yaml && \
                         pnpm install --frozen-lockfile --ignore-scripts && \
-                        pnpm exec vp test --run"
+                        pnpm exec vp test --run --project='!webfont-generator-browser*'"
 
     test-vite-compat:
         name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
@@ -218,7 +234,7 @@ jobs:
                   esac
             - name: Run coverage
               if: ${{ matrix.primary }}
-              run: vp test --coverage --reporter=default --reporter=junit --outputFile.junit=junit.xml
+              run: vp test --project='!webfont-generator-browser*' --coverage --reporter=default --reporter=junit --outputFile.junit=junit.xml
             - name: Upload coverage reports to Codecov
               if: ${{ matrix.primary }}
               uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
@@ -235,7 +251,7 @@ jobs:
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Run tests
               if: ${{ !matrix.primary }}
-              run: vp test
+              run: vp test --project='!webfont-generator-browser*'
             - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
               if: ${{ matrix.primary }}
               with:
@@ -249,7 +265,7 @@ jobs:
     required-checks:
         name: Required checks
         if: always()
-        needs: [ci, build, docs, test-host, test-docker, test-vite-compat]
+        needs: [ci, build, docs, test-browser, test-host, test-docker, test-vite-compat]
         runs-on: ubuntu-latest
         steps:
             - name: Verify all dependent jobs succeeded

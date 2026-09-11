@@ -5,16 +5,17 @@
 use std::collections::HashMap;
 use std::path::Path;
 
-use webfont_generator::{FontType, GenerateWebfontsOptions};
+use webfont_generator::{FontType, FormatOptions, GenerateWebfontsOptions, TtfFormatOptions};
 
 fn fixture_files() -> Vec<String> {
-    let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/svg/fixtures/icons/cleanicons");
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = root.join("src/svg/fixtures/icons/cleanicons");
     let mut files: Vec<String> = std::fs::read_dir(&dir)
         .expect("fixture dir should exist")
         .filter_map(|e| e.ok())
         .map(|e| e.path())
         .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("svg"))
-        .map(|p| p.to_string_lossy().into_owned())
+        .map(|p| p.strip_prefix(root).unwrap().to_string_lossy().into_owned())
         .collect();
     files.sort();
     files
@@ -29,6 +30,98 @@ fn temp_dest(prefix: &str) -> String {
         .join(format!("{prefix}-{unique}"))
         .to_string_lossy()
         .into_owned()
+}
+
+#[test]
+fn ordinary_generation_matches_phase_zero_hashes() {
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            css: Some(true),
+            dest: temp_dest("phase-zero-baseline"),
+            files: fixture_files(),
+            font_name: Some("phase-zero-baseline".to_owned()),
+            format_options: Some(FormatOptions {
+                ttf: Some(TtfFormatOptions {
+                    copyright: None,
+                    description: None,
+                    ts: Some(1_700_000_000),
+                    url: None,
+                    version: None,
+                }),
+                ..Default::default()
+            }),
+            html: Some(true),
+            types: Some(vec![
+                FontType::Svg,
+                FontType::Ttf,
+                FontType::Eot,
+                FontType::Woff,
+                FontType::Woff2,
+            ]),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("phase zero baseline generation should succeed");
+
+    let css = result.generate_css_pure(None).unwrap();
+    let html = result.generate_html_pure(None).unwrap();
+    let actual = [
+        ("svg", md5::compute(result.svg_string().unwrap()).0),
+        ("ttf", md5::compute(result.ttf_bytes().unwrap()).0),
+        ("eot", md5::compute(result.eot_bytes().unwrap()).0),
+        ("woff", md5::compute(result.woff_bytes().unwrap()).0),
+        ("woff2", md5::compute(result.woff2_bytes().unwrap()).0),
+        ("css", md5::compute(css).0),
+        ("html", md5::compute(html).0),
+    ];
+    let expected = [
+        (
+            "svg",
+            [
+                199, 206, 239, 60, 169, 99, 69, 51, 97, 109, 232, 248, 251, 123, 19, 192,
+            ],
+        ),
+        (
+            "ttf",
+            [
+                255, 206, 122, 45, 52, 125, 240, 12, 113, 20, 196, 197, 246, 93, 40, 47,
+            ],
+        ),
+        (
+            "eot",
+            [
+                245, 159, 116, 132, 174, 243, 11, 213, 104, 14, 171, 215, 218, 97, 15, 76,
+            ],
+        ),
+        (
+            "woff",
+            [
+                80, 83, 70, 35, 101, 165, 57, 182, 73, 159, 232, 131, 42, 37, 255, 166,
+            ],
+        ),
+        (
+            "woff2",
+            [
+                137, 228, 3, 21, 92, 5, 66, 254, 126, 248, 15, 109, 156, 10, 126, 214,
+            ],
+        ),
+        (
+            "css",
+            [
+                136, 250, 105, 82, 209, 134, 135, 142, 228, 57, 77, 116, 3, 226, 169, 47,
+            ],
+        ),
+        (
+            "html",
+            [
+                76, 103, 148, 169, 227, 75, 202, 234, 64, 0, 178, 137, 20, 186, 173, 91,
+            ],
+        ),
+    ];
+
+    assert_eq!(actual, expected, "ordinary Phase 0 output hashes changed");
 }
 
 // --- generate_sync tests ---
