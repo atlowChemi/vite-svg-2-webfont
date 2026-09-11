@@ -1,8 +1,26 @@
+{{#if __webfontVariantMode}}
+{{#each variants}}
+@font-face {
+	font-family: "{{../fontName}}";
+	font-display: block;
+	font-style: {{../fontStyle}};
+	font-weight: {{weight}};
+	src: {{{../src}}};
+}
+
+{{/each}}
+$webfont-variants: (
+{{#each variants}}
+	'{{{sassString selector}}}': {{weight}},
+{{/each}}
+);
+{{else}}
 @font-face {
 	font-family: "{{fontName}}";
 	font-display: block;
 	src: {{{src}}};
 }
+{{/if}}
 
 @if not variable-exists('webfont-icons') {
 	$webfont-icons: () !global;
@@ -10,7 +28,7 @@
 
 $webfont-icons: map-merge($webfont-icons, (
 	{{#each codepoints}}
-		'{{@key}}': ('{{../fontName}}' '{{this}}'),
+		'{{@key}}': ('{{../fontName}}' '{{this}}'{{#if ../__webfontVariantMode}} {{../defaultWeight}} '{{../fontStyle}}' $webfont-variants{{/if}}),
 	{{/each}}
 ));
 
@@ -18,11 +36,28 @@ $webfont-icons: map-merge($webfont-icons, (
 	line-height: 1;
 
 	$icon: map-get($webfont-icons, $name);
+	@if length($icon) > 4 {
+		@each $selector, $weight in nth($icon, 5) {
+			&.#{$selector}:before {
+				font-weight: $weight !important;
+			}
+		}
+	}
 	&:before {
 		font-family: nth($icon, 1) !important;
-		font-style: normal;
-		font-weight: normal !important;
+		@if length($icon) > 2 {
+			font-style: unquote(nth($icon, 4));
+			font-weight: nth($icon, 3);
+			font-synthesis: none;
+		} @else {
+			font-style: normal;
+			font-weight: normal !important;
+		}
 		vertical-align: top;
-		content: str-slice('\x', 1, 1) + nth($icon, 2);
+		@if length($icon) > 2 {
+			content: unquote('"\\#{nth($icon, 2)}"');
+		} @else {
+			content: str-slice('\x', 1, 1) + nth($icon, 2);
+		}
 	}
 }

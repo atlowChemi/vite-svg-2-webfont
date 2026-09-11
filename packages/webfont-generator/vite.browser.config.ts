@@ -1,7 +1,9 @@
 import { defineProject } from 'vite-plus';
 import { playwright } from 'vite-plus/test/browser-playwright';
+import { generatedWeightFixture } from './tests/browser/generated-weight-fixture';
 
 export default defineProject({
+    plugins: [generatedWeightFixture()],
     publicDir: 'tests/browser/fixtures',
     test: {
         name: 'webfont-generator-browser',

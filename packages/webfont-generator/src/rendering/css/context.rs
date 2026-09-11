@@ -99,8 +99,21 @@ pub(super) fn make_ctx(
     ]);
 
     ctx.extend(shared.template_options.clone());
+    // Engine-owned: arbitrary template data must not switch the rendering mode.
+    ctx.insert(
+        "__webfontVariantMode".to_owned(),
+        Value::Bool(options.variants.is_some()),
+    );
 
     if let Some(variants) = &options.variants {
+        ctx.insert(
+            "defaultWeight".to_owned(),
+            Value::Number(variants.variants[variants.default_index].weight.into()),
+        );
+        ctx.insert(
+            "fontStyle".to_owned(),
+            Value::String(options.font_style.as_deref().unwrap_or("normal").to_owned()),
+        );
         ctx.insert(
             "variants".to_owned(),
             Value::Array(
@@ -222,6 +235,8 @@ impl SharedTemplateData {
             Some(source) => {
                 let result = self.css_registry_cache.get_or_init(|| {
                     let mut registry = Handlebars::new();
+                    handlebars::handlebars_helper!(sass_string: |value: str| value.replace('\\', "\\\\").replace('\'', "\\'"));
+                    registry.register_helper("sassString", Box::new(sass_string));
                     registry
                         .register_template_string("css", source)
                         .map_err(|error| format!("Failed to compile CSS template: {error}"))?;

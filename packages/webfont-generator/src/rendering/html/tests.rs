@@ -52,6 +52,41 @@ fn render_html_renders_the_template_with_generated_styles_and_names() {
 }
 
 #[test]
+fn finalized_css_preserves_mutations_and_rebases_only_default_src() {
+    let options = resolve_options(GenerateWebfontsOptions {
+        dest: "artifacts/fonts".to_owned(),
+        html_dest: Some("artifacts/preview/icons.html".to_owned()),
+        files: vec![crate::test_helpers::webfont_fixture("add.svg")],
+        types: Some(vec![FontType::Woff2]),
+        ..Default::default()
+    });
+    let files = fixture_source_files(&options);
+    let shared = SharedTemplateData::new(&options, &files).unwrap();
+    let mut css = crate::rendering::css::build_css_context(&options, &shared);
+    css.insert("fontName".to_owned(), serde_json::json!("callback-family"));
+    css.insert("baseSelector".to_owned(), serde_json::json!(".preview"));
+    css.insert("classPrefix".to_owned(), serde_json::json!("preview-"));
+    let html = super::build_html_context_with_css(&options, &shared, &files, &css).unwrap();
+    let styles = html["styles"].as_str().unwrap();
+    assert_eq!(html["baseSelector"], ".preview");
+    assert_eq!(html["classPrefix"], "preview-");
+    assert!(styles.contains("callback-family"));
+    assert!(styles.contains("../fonts/iconfont.woff2"));
+    css.insert("src".to_owned(), serde_json::json!("url(/callback.woff2)"));
+    css.remove("baseSelector");
+    css.remove("classPrefix");
+    let html = super::build_html_context_with_css(&options, &shared, &files, &css).unwrap();
+    assert!(!html.contains_key("baseSelector"));
+    assert!(!html.contains_key("classPrefix"));
+    assert!(
+        html["styles"]
+            .as_str()
+            .unwrap()
+            .contains("url(/callback.woff2)")
+    );
+}
+
+#[test]
 fn relative_path_resolves_from_html_dest_to_font_dest() {
     let relative = relative_path(
         Path::new("/artifacts/preview"),
