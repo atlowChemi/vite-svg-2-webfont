@@ -483,9 +483,10 @@ fn add_presentation(
             physical.push(CompiledGlyph {
                 advance_width,
                 bbox,
-                // Temporary unique values keep the shared static assembler's cmap valid; the
-                // variant cmap below replaces it before these tables are returned.
-                codepoint: index as u32,
+                // Physical presentations have no Unicode mapping of their own. The shared
+                // assembler omits non-scalars, avoiding collisions with ligature characters
+                // in its temporary cmap. The final cmap uses logical glyph codepoints.
+                codepoint: u32::MAX,
                 left_side_bearing: bbox.x_min,
                 name: presentation_name(logical.name.as_str(), variant_index, is_default),
                 outline: CompiledGlyphOutline::Inline(outline),

@@ -288,6 +288,71 @@ fn writes_weight_conditioned_direct_and_ligature_substitutions() {
 }
 
 #[test]
+fn large_variant_families_do_not_collide_with_ligature_characters() {
+    let variants = resolved_variants();
+    let mut family = family();
+    family.glyphs = (0..100)
+        .map(|index| {
+            let name = format!("icon-{index}");
+            let codepoint = 0xf101 + index;
+            let glyph = outline(&name, codepoint, 30.0, 20.0);
+            ProcessedVariantGlyph {
+                name,
+                codepoint,
+                advance_width: 30.0,
+                outlines: vec![Some(glyph.clone()); 3].into_boxed_slice(),
+            }
+        })
+        .collect();
+    let mut options = options();
+    options.ligature = true;
+    let built = build_variant(options, &family, &variants).unwrap();
+    let font = FontRef::new(built.tables.ttf()).unwrap();
+    let cmap = font.cmap().unwrap();
+    for (index, glyph) in family.glyphs.iter().enumerate() {
+        assert_eq!(
+            cmap.map_codepoint(glyph.codepoint).unwrap().to_u32(),
+            u32::from(built.presentation_gids[index][variants.default_index].to_u16())
+        );
+    }
+    for character in "icon-0123456789".chars() {
+        assert!(cmap.map_codepoint(u32::from(character)).unwrap().to_u32() > 100);
+    }
+    assert!(cmap.map_codepoint(0_u32).is_none());
+    let gsub = font.gsub().unwrap();
+    let lookup_index = gsub
+        .feature_list()
+        .unwrap()
+        .get(0)
+        .unwrap()
+        .lookup_list_indices()[0]
+        .get();
+    let ReadSubstitutionLookup::Ligature(lookup) = gsub
+        .lookup_list()
+        .unwrap()
+        .lookups()
+        .get(usize::from(lookup_index))
+        .unwrap()
+    else {
+        panic!("expected ligatures");
+    };
+    let subtable = lookup.subtables().get(0).unwrap();
+    let ligatures = subtable.ligature_sets().get(0).unwrap();
+    let mut targets = (0..ligatures.ligature_count())
+        .map(|index| {
+            ligatures
+                .ligatures()
+                .get(usize::from(index))
+                .unwrap()
+                .ligature_glyph()
+                .to_u16()
+        })
+        .collect::<Vec<_>>();
+    targets.sort_unstable();
+    assert_eq!(targets, (1..=100).collect::<Vec<_>>());
+}
+
+#[test]
 fn quantizes_asymmetric_ranges_and_handles_a_maximum_default() {
     let mut variants = resolved_variants();
     variants.variants[0].weight = 100;
