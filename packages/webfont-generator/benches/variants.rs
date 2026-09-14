@@ -20,7 +20,7 @@ const WEIGHTS: [u16; 3] = [300, 400, 700];
 
 struct Fixtures {
     root: PathBuf,
-    files: [Vec<String>; 3],
+    files: Vec<Vec<String>>,
 }
 
 impl Drop for Fixtures {
@@ -30,35 +30,66 @@ impl Drop for Fixtures {
 }
 
 impl Fixtures {
-    fn new(sources: &[(String, String)], count: usize, shared_percent: usize) -> Self {
+    fn new(
+        sources: &[(String, String)],
+        count: usize,
+        shared_percent: usize,
+        designs: usize,
+    ) -> Self {
         let root = std::env::temp_dir().join(format!(
-            "webfont-variants-bench-{}-{count}-{shared_percent}",
+            "webfont-variants-bench-{}-{count}-{shared_percent}-{designs}",
             std::process::id()
         ));
         let shared = count * shared_percent / 100;
-        let files = std::array::from_fn(|variant| {
+        let files = (0..designs).map(|variant| {
             let directory = root.join(variant.to_string());
             std::fs::create_dir_all(&directory).unwrap();
             sources[..count].iter().enumerate().map(|(index, (_, source))| {
                 // Controlled synthetic designs of real Iconify artwork. Shared cells
                 // have exactly the same SVG bytes and logical filename at different paths.
                 let design = if index < shared { 0 } else { variant };
-                let transform = ["matrix(1 0 0 1 0 0)", "matrix(.9 0 .03 .9 .5 .5)", "matrix(.8 .02 0 .85 1 1)"][design];
+                let transform = match design {
+                    0 => "matrix(1 0 0 1 0 0)".to_owned(),
+                    1 => "matrix(.9 0 .03 .9 .5 .5)".to_owned(),
+                    2 => "matrix(.8 .02 0 .85 1 1)".to_owned(),
+                    _ => {
+                        let scale = 1.0 / (1.0 + design as f64 * 0.15);
+                        format!("matrix({scale} 0 0 {scale} 1 1)")
+                    }
+                };
                 let source = source.replacen("<svg ", "<svg width=\"24\" height=\"24\" ", 1);
                 let svg = format!("<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\"><g transform=\"{transform}\">{source}</g></svg>");
                 let path = directory.join(format!("icon-{index:04}.svg"));
                 std::fs::write(&path, svg).unwrap();
                 path.to_string_lossy().into_owned()
             }).collect()
-        });
-        Self { root, files }
+        }).collect();
+        let fixtures = Self { root, files };
+        // Fail before timing if distinct designs accidentally reuse the same inputs.
+        for index in 0..count {
+            let contents: std::collections::HashSet<_> = fixtures
+                .files
+                .iter()
+                .map(|files| std::fs::read(&files[index]).unwrap())
+                .collect();
+            assert_eq!(
+                contents.len(),
+                if index < shared { 1 } else { designs },
+                "unexpected artwork sharing for logical icon {index}"
+            );
+            let paths: std::collections::HashSet<_> =
+                fixtures.files.iter().map(|files| &files[index]).collect();
+            assert_eq!(
+                paths.len(),
+                designs,
+                "each design must have its own input path"
+            );
+        }
+        fixtures
     }
 
-    fn options(
-        &self,
-        types: &[FontType],
-    ) -> (GenerateWebfontsOptions, Vec<GenerateWebfontsOptions>) {
-        let base = GenerateWebfontsOptions {
+    fn base_options(&self, types: &[FontType]) -> GenerateWebfontsOptions {
+        GenerateWebfontsOptions {
             dest: self
                 .root
                 .join("unused-output")
@@ -86,7 +117,15 @@ impl Fixtures {
                 ..Default::default()
             }),
             ..Default::default()
-        };
+        }
+    }
+
+    fn options(
+        &self,
+        types: &[FontType],
+    ) -> (GenerateWebfontsOptions, Vec<GenerateWebfontsOptions>) {
+        assert_eq!(self.files.len(), WEIGHTS.len());
+        let base = self.base_options(types);
         let variants = GenerateWebfontsOptions {
             variants: Some(
                 self.files
@@ -156,7 +195,7 @@ fn compare(c: &mut Criterion) {
     let mut sizes = Vec::new();
     for count in SIZES {
         for shared_percent in [0, 50, 100] {
-            let fixtures = Fixtures::new(&sources, count, shared_percent);
+            let fixtures = Fixtures::new(&sources, count, shared_percent, 3);
             for (format, types) in [
                 ("ttf", vec![FontType::Ttf]),
                 ("woff2", vec![FontType::Woff2]),
@@ -224,13 +263,13 @@ fn compare(c: &mut Criterion) {
     std::fs::write(output, serde_json::to_vec_pretty(&sizes).unwrap()).unwrap();
 }
 
-// Eight designs exercises a practical upper-end family without multiplying the
-// three-font comparison. Sparse designs omit alternating icons; design 0 is complete.
+// Each non-shared icon has distinct artwork for every design. Sparse designs omit
+// alternating icons; design 0 is complete.
 fn workloads(c: &mut Criterion) {
     let sources = support::iconify_svgs(600).expect("install the Iconify benchmark dataset");
     for count in [100, 600] {
-        let fixtures = Fixtures::new(&sources, count, 50);
         for designs in [2, 3, 8] {
+            let fixtures = Fixtures::new(&sources, count, 50, designs);
             for coverage in ["full", "blank", "fallback"] {
                 for ligature in [false, true] {
                     for (format, types) in [
@@ -241,13 +280,13 @@ fn workloads(c: &mut Criterion) {
                             vec![FontType::Ttf, FontType::Woff, FontType::Woff2],
                         ),
                     ] {
-                        let (mut options, _) = fixtures.options(&types);
+                        let mut options = fixtures.base_options(&types);
                         options.ligature = Some(ligature);
                         options.variants = Some(
                             (0..designs)
                                 .map(|design| FontVariant {
                                     name: format!("design-{design}"),
-                                    files: fixtures.files[design % 3]
+                                    files: fixtures.files[design]
                                         .iter()
                                         .enumerate()
                                         .filter(|(index, _)| {
