@@ -28,6 +28,11 @@ pub(super) struct Woff2TransformPayload {
 }
 
 impl Woff2TransformCache {
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.entries.len()
+    }
+
     pub(super) fn transformed(&self, key: &u64) -> Option<Woff2TransformPayload> {
         self.entries.get(key).cloned()
     }

@@ -160,6 +160,7 @@ export declare function generateWebfonts(options: GenerateWebfontsOptions, renam
 /**
  * Top-level options controlling webfont generation. `dest` and exactly one source, ordinary
  * `files` or `variants`, are required. Every other field has a sensible default.
+ * With the `cli` feature, options deserialize from camelCase JSON with unknown fields rejected.
  */
 export interface GenerateWebfontsOptions {
   /**
