@@ -82,7 +82,17 @@ export default defineConfig({
         },
     },
     vite: {
-        plugins: [groupIconVitePlugin(), llmstxt()],
+        plugins: [
+            groupIconVitePlugin({
+                customIcon: {
+                    '.tsx': 'vscode-icons:file-type-reactts',
+                    '.hbs': 'vscode-icons:file-type-handlebars',
+                    '.handlebars': 'vscode-icons:file-type-handlebars',
+                    handlebars: 'vscode-icons:file-type-handlebars',
+                },
+            }),
+            llmstxt(),
+        ],
         resolve: {
             preserveSymlinks: true,
             alias: {
@@ -127,6 +137,7 @@ export default defineConfig({
                         { text: 'Node.js', link: '/webfont-generator/node' },
                         { text: 'Rust', link: '/webfont-generator/rust' },
                         { text: 'CLI', link: '/webfont-generator/cli' },
+                        { text: 'Templates', link: '/webfont-generator/templates' },
                         { text: 'Changelog', link: '/webfont-generator/changelog' },
                     ],
                 },
