@@ -73,7 +73,7 @@ mod variant_tests {
         })
         .unwrap();
         let files = load_variant_svg_files(&paths, None).await.unwrap();
-        let (family, _) = crate::prepare_variant_family(&mut options, files).unwrap();
+        let (family, _, _) = crate::prepare_variant_family(&mut options, files).unwrap();
         let outputs = build_variant_font_outputs(&options, &family).unwrap();
         let variable = FontRef::new(outputs.ttf_font.as_ref().unwrap()).unwrap();
         let decoded = ::woff::version2::decompress(outputs.woff2_font.as_ref().unwrap()).unwrap();
@@ -157,6 +157,8 @@ pub(crate) fn generate_webfonts_sync(
     };
     let fonts = build_font_outputs(&options, &svg_options, &prepared, ttf_cache.as_mut())?;
     let regeneration_state = glyph_cache.map(|glyph_cache| RegenerationState {
+        variant_cache: None,
+        variant_write_pending: false,
         caches_dirty: false,
         glyph_cache,
         ttf_cache,
@@ -179,8 +181,21 @@ pub(crate) fn generate_variant_webfonts_sync(
     options: ResolvedGenerateWebfontsOptions,
     source_files: Vec<LoadedSvgFile>,
     family: crate::svg::types::PreparedVariantFamily,
+    cache: Option<crate::svg::VariantGlyphCache>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     let fonts = build_variant_font_outputs(&options, &family)?;
+    let regeneration_state = if options.incremental {
+        Some(RegenerationState {
+            variant_cache: cache,
+            variant_write_pending: false,
+            caches_dirty: false,
+            glyph_cache: GlyphCache::default(),
+            ttf_cache: None,
+            written_outputs: HashMap::new(),
+        })
+    } else {
+        None
+    };
     Ok(GenerateWebfontsResult {
         cached: std::sync::OnceLock::new(),
         carried_render: None,
@@ -188,7 +203,7 @@ pub(crate) fn generate_variant_webfonts_sync(
         fonts,
         html_context: None,
         options: Arc::new(options),
-        regeneration_state: Arc::new(std::sync::Mutex::new(None)),
+        regeneration_state: Arc::new(std::sync::Mutex::new(regeneration_state)),
         source_files: Arc::new(source_files),
     })
 }
@@ -334,16 +349,23 @@ pub(crate) fn build_variant_font_outputs(
         .and_then(|formats| formats.woff2.as_ref())
         .and_then(|woff2| woff2.compression_quality)
         .unwrap_or(11);
+    let ttf_font = wants_ttf.then(|| variable.ttf_arc());
+    let (woff_font, woff2_font) = join(
+        || {
+            wants_woff
+                .then(|| woff1::tables_to_woff1(&variable, metadata))
+                .transpose()
+        },
+        || {
+            wants_woff2
+                .then(|| woff2::tables_to_woff2(&variable, quality, None))
+                .transpose()
+        },
+    );
     Ok(FontOutputs {
-        ttf_font: wants_ttf.then(|| variable.ttf_arc()),
-        woff_font: wants_woff
-            .then(|| woff1::tables_to_woff1(&variable, metadata))
-            .transpose()?
-            .map(Arc::new),
-        woff2_font: wants_woff2
-            .then(|| woff2::tables_to_woff2(&variable, quality, None))
-            .transpose()?
-            .map(Arc::new),
+        ttf_font,
+        woff_font: woff_font?.map(Arc::new),
+        woff2_font: woff2_font?.map(Arc::new),
         ..Default::default()
     })
 }

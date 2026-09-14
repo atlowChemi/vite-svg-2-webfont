@@ -17,6 +17,8 @@ import {
     type HtmlContext,
     MissingGlyphBehavior,
     type MissingGlyphOptions,
+    type RegenerationFiles,
+    type VariantFileSet,
 } from '../index.js';
 
 it('exports the public generator API', () => {
@@ -32,7 +34,7 @@ it('exports the public generator API', () => {
     expectTypeOf<{ dest: string }>().not.toExtend<GenerateWebfontsInputOptions>();
     expectTypeOf<{ dest: string; files: string[]; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsInputOptions>();
     expectTypeOf<GenerateWebfontsOptions>().toEqualTypeOf<GenerateWebfontsInputOptions>();
-    expectTypeOf<{ dest: string; incremental: true; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
+    expectTypeOf<{ dest: string; incremental: true; variants: FontVariant[] }>().toExtend<GenerateWebfontsVariantOptions>();
     expectTypeOf<{ dest: string; incremental: false; variants: FontVariant[] }>().toExtend<GenerateWebfontsVariantOptions>();
     expectTypeOf<{ dest: string; types: ['svg']; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
     expectTypeOf<{ dest: string; types: ['eot']; variants: FontVariant[] }>().not.toExtend<GenerateWebfontsVariantOptions>();
@@ -94,7 +96,77 @@ it('narrows generated formats from the input', async () => {
     expectTypeOf(result.woff).toBeNull();
     expectTypeOf(result.generateCss({ svg: '/font.svg' })).toBeString();
     expectTypeOf(result.generateHtml()).toBeString();
-    expectTypeOf(result.regenerateAsync(['icon.svg'])).resolves.toEqualTypeOf<typeof result>();
+    expectTypeOf(result.regenerateAsync({ files: ['icon.svg'] })).resolves.toEqualTypeOf<typeof result>();
+});
+
+it('accepts variant regeneration inputs and preserves exact output formats', async () => {
+    const result = await generateWebfonts({
+        dest: 'fonts',
+        incremental: true,
+        types: ['ttf', 'woff2'],
+        variants: [
+            { name: 'light', files: ['light/add.svg'], default: true },
+            { name: 'bold', files: ['bold/add.svg'] },
+        ],
+    });
+    const files = {
+        variants: [
+            { variant: 'light', files: ['light/add.svg'] },
+            { variant: 'bold', files: ['bold/add.svg'] },
+        ],
+    };
+    const changes = [{ path: 'bold/add.svg', changeType: 'changed' as const, name: 'add' }];
+    expectTypeOf(result.regenerate(files, changes)).toBeVoid();
+    expectTypeOf(result.regenerate(files)).toBeVoid();
+    expectTypeOf(result.regenerate(files, null)).toBeVoid();
+    expectTypeOf(result.regenerateAsync(files, changes)).toEqualTypeOf<Promise<GenerateWebfontsResult<'ttf' | 'woff2'>>>();
+    expectTypeOf(result.regenerateAsync(files)).toEqualTypeOf<Promise<GenerateWebfontsResult<'ttf' | 'woff2'>>>();
+    expectTypeOf(result.regenerateAsync(files, null)).toEqualTypeOf<Promise<GenerateWebfontsResult<'ttf' | 'woff2'>>>();
+    const replacement = await result.regenerateAsync(files, changes);
+    expectTypeOf(replacement.ttf).toEqualTypeOf<Uint8Array>();
+    expectTypeOf(replacement.woff2).toEqualTypeOf<Uint8Array>();
+    expectTypeOf(replacement.woff).toBeNull();
+    expectTypeOf(replacement.svg).toBeNull();
+    expectTypeOf(replacement.eot).toBeNull();
+});
+
+it('preserves guaranteed and nullable formats through variant regeneration', async () => {
+    const selected: ['woff' | 'woff2', 'ttf'] = ['woff2', 'ttf'];
+    const result = await generateWebfonts({ dest: 'fonts', incremental: true, variants: [], types: selected });
+    const files = { variants: [{ variant: 'light', files: ['light/add.svg'] }] };
+    expectTypeOf(result.regenerate(files, [])).toBeVoid();
+    expectTypeOf(result.regenerateAsync(files, [])).toEqualTypeOf<Promise<GenerateWebfontsResult<'ttf' | 'woff' | 'woff2', 'ttf'>>>();
+    const replacement = await result.regenerateAsync(files);
+    expectTypeOf(replacement.ttf).toEqualTypeOf<Uint8Array>();
+    expectTypeOf(replacement.woff).toEqualTypeOf<Uint8Array | null>();
+    expectTypeOf(replacement.woff2).toEqualTypeOf<Uint8Array | null>();
+    const types: Array<'woff' | 'woff2'> = ['woff2'];
+    const dynamic = await generateWebfonts({ dest: 'fonts', incremental: true, variants: [], types });
+    expectTypeOf(dynamic.regenerateAsync(files)).toEqualTypeOf<Promise<GenerateWebfontsResult<'woff' | 'woff2', never>>>();
+});
+
+it('fixes the regeneration source contract and rejects malformed variant inputs', () => {
+    type ExpectedFiles = { files: string[]; variants?: never } | { files?: never; variants: { variant: string; files: string[] }[] };
+    type ExpectedChanges = { path: string; changeType: 'added' | 'changed' | 'removed'; name?: string }[];
+    expectTypeOf<VariantFileSet>().toEqualTypeOf<{ variant: string; files: string[] }>();
+    expectTypeOf<RegenerationFiles>().toEqualTypeOf<ExpectedFiles>();
+    expectTypeOf<GenerateWebfontsResult['regenerate']>().parameters.toEqualTypeOf<[files: ExpectedFiles, changes?: ExpectedChanges | null]>();
+    expectTypeOf<GenerateWebfontsResult['regenerateAsync']>().parameters.toEqualTypeOf<[files: ExpectedFiles, changes?: ExpectedChanges | null]>();
+    const result = {} as GenerateWebfontsResult<'woff2'>;
+    // @ts-expect-error Each design requires its variant name.
+    result.regenerate({ variants: [{ files: ['add.svg'] }] });
+    // @ts-expect-error Each design requires its complete file list.
+    void result.regenerateAsync({ variants: [{ variant: 'bold' }] });
+    // @ts-expect-error Variant file lists contain paths, not numeric IDs.
+    result.regenerate({ variants: [{ variant: 'bold', files: [1] }] });
+    // @ts-expect-error The source modes are mutually exclusive.
+    result.regenerate({ files: [], variants: [] });
+    // @ts-expect-error The async method also rejects mixed source modes.
+    void result.regenerateAsync({ files: [], variants: [] });
+    // @ts-expect-error Change kinds retain their literal union for variant inputs.
+    result.regenerate({ variants: [] }, [{ path: 'add.svg', changeType: 'renamed' }]);
+    // @ts-expect-error Async change kinds retain their literal union too.
+    void result.regenerateAsync({ variants: [] }, [{ path: 'add.svg', changeType: 'renamed' }]);
 });
 
 it('uses runtime format defaults when types are omitted', async () => {
@@ -136,7 +208,7 @@ it('keeps dynamic format selections nullable and accepts options unions', async 
     const dynamic = await generateWebfonts({ dest: 'fonts', files: ['icon.svg'], types });
     expectTypeOf(dynamic.svg).toEqualTypeOf<string | null>();
     expectTypeOf(dynamic.ttf).toEqualTypeOf<Uint8Array | null>();
-    expectTypeOf(dynamic.regenerateAsync([])).resolves.toEqualTypeOf<typeof dynamic>();
+    expectTypeOf(dynamic.regenerateAsync({ files: [] })).resolves.toEqualTypeOf<typeof dynamic>();
     const narrowTypes: Array<'woff' | 'woff2'> = ['woff2'];
     const variants = await generateWebfonts({ dest: 'fonts', variants: [], types: narrowTypes });
     expectTypeOf(variants.ttf).toBeNull();
@@ -225,6 +297,12 @@ it('keeps the generated NAPI declarations compatible', () => {
     >();
     expectTypeOf<NativeGenerateWebfontsResult['svg']>().toEqualTypeOf<string | null>();
     expectTypeOf<NativeGenerateWebfontsResult['woff2']>().toEqualTypeOf<Uint8Array | null>();
-    expectTypeOf<NativeGenerateWebfontsResult['regenerate']>().parameters.toEqualTypeOf<[files: string[], changes?: GlyphChangeEntry[] | null]>();
+    type ExpectedNativeParameters = [
+        files: { files?: string[]; variants?: { variant: string; files: string[] }[] },
+        changes?: { path: string; changeType: 'added' | 'changed' | 'removed'; name?: string }[] | null,
+    ];
+    expectTypeOf<NativeGenerateWebfontsResult['regenerate']>().parameters.toEqualTypeOf<ExpectedNativeParameters>();
+    expectTypeOf<NativeGenerateWebfontsResult['regenerate']>().returns.toBeVoid();
+    expectTypeOf<NativeGenerateWebfontsResult['regenerateAsync']>().parameters.toEqualTypeOf<ExpectedNativeParameters>();
     expectTypeOf<NativeGenerateWebfontsResult['regenerateAsync']>().returns.toEqualTypeOf<Promise<NativeGenerateWebfontsResult>>();
 });

@@ -26,8 +26,8 @@ pub(crate) struct LoadedSvgFile {
     dead_code,
     reason = "variant sources are consumed by later generation phases"
 )]
-pub(crate) struct VariantFamilySources {
-    pub variants: Vec<Vec<LoadedSvgFile>>,
+pub(crate) struct VariantFamilySources<Files = Vec<LoadedSvgFile>> {
+    pub variants: Vec<Files>,
     pub glyphs: Vec<LogicalGlyphSources>,
 }
 
@@ -203,16 +203,16 @@ fn split_loaded_variant_files(
     Ok(variants)
 }
 
-pub(crate) fn build_variant_family_sources(
-    variants: Vec<Vec<LoadedSvgFile>>,
+pub(crate) fn build_variant_family_sources<Files: AsRef<[LoadedSvgFile]>>(
+    variants: Vec<Files>,
     explicit_codepoints: &BTreeMap<String, u32>,
     start_codepoint: u32,
-) -> std::io::Result<(VariantFamilySources, BTreeMap<String, u32>)> {
+) -> std::io::Result<(VariantFamilySources<Files>, BTreeMap<String, u32>)> {
     let mut name_to_index = HashMap::new();
     let mut glyphs = Vec::<(String, Box<[Option<VariantGlyphSource>]>)>::new();
 
     for (variant_index, files) in variants.iter().enumerate() {
-        for (source_index, file) in files.iter().enumerate() {
+        for (source_index, file) in files.as_ref().iter().enumerate() {
             let glyph_index = *name_to_index
                 .entry(file.glyph_name.clone())
                 .or_insert_with(|| {
@@ -247,8 +247,8 @@ pub(crate) fn build_variant_family_sources(
     Ok((VariantFamilySources { variants, glyphs }, codepoints))
 }
 
-pub(crate) fn resolve_missing_glyphs(
-    family: &mut VariantFamilySources,
+pub(crate) fn resolve_missing_glyphs<Files>(
+    family: &mut VariantFamilySources<Files>,
     behavior: MissingGlyphBehavior,
     fallback_index: Option<usize>,
     variant_names: &[&str],

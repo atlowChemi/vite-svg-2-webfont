@@ -206,18 +206,22 @@ fn variant_writes_match_shared_modern_getters() {
 #[test]
 fn variant_regeneration_has_a_stable_unsupported_error() {
     let mut result = webfont_generator::generate_sync(variant_options(), None).unwrap();
-    let error = result.regenerate(&[], &[]).unwrap_err();
+    let error = result
+        .regenerate(&webfont_generator::RegenerationFiles::Single(vec![]), &[])
+        .unwrap_err();
 
     assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
     assert_eq!(
         error.to_string(),
-        "Multi-variant regeneration is not yet available."
+        "Single file lists do not support variant results; supply complete variant file sets."
     );
-    let error = result.regenerate_all(&[]).unwrap_err();
+    let error = result
+        .regenerate_all(&webfont_generator::RegenerationFiles::Single(vec![]))
+        .unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
     assert_eq!(
         error.to_string(),
-        "Multi-variant regeneration is not yet available."
+        "Single file lists do not support variant results; supply complete variant file sets."
     );
 }
 

@@ -96,7 +96,7 @@ to assign weights automatically, or supply increasing weights from 1–1000.
 
 Multi-variant output supports TTF, WOFF, and WOFF2, defaulting to WOFF/WOFF2. For icons that
 appear in only some designs, choose a [missing-glyph policy](#missingglyphs). Incremental
-regeneration is not currently available for these families.
+regeneration is available with `incremental: true`; use the [variant methods](#variant-regeneration).
 
 Custom templates receive extra family metadata; see the [template context comparison](./templates#template-context).
 For stylesheet customization and SCSS, see [Templates](./templates).
@@ -473,18 +473,18 @@ shows one icon grid using the default design. See [HTML previews](./templates#ht
 
 ### `regenerate(files, changes?)`
 
-- Type: `(files: string[], changes?: GlyphChangeEntry[] | null) => void`
+- Type: `(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null) => void`
 - Requires: the result was produced with [`incremental: true`](#incremental) (throws otherwise).
-- Supported input: single-variant results only; multi-variant results reject regeneration.
+- Supported input: `{ files: string[] }` for ordinary fonts, or `{ variants: VariantFileSet[] }` for multi-variant families. Supply exactly one source, matching the result's mode.
 - Description: Rebuilds every requested font format after file changes, reusing cached geometry for the glyphs that didn't change (and reusing the rendered CSS/HTML when the glyph names and codepoints are unchanged). `files` is the complete file set after the change, in the order a fresh build would use (e.g. your glob result); the rebuilt glyphs are ordered to match it, so the result is byte-identical to a fresh `generateWebfonts()` of that set — additions included. Any file omitted from `files` is dropped; added/changed files named in `changes` are read from disk and re-parsed. Omit `changes` or pass `null` to re-read/hash every current file and infer added/changed/removed paths automatically. Outputs are refreshed in memory, and — when the result was created with [`writeFiles: true`](#writefiles) — refreshed fonts are written to disk too, while unchanged CSS/HTML companion files are skipped. Results generated with `cssContext` or `htmlContext` callbacks cannot be regenerated because those JavaScript callbacks cannot be re-run by the synchronous method. Intended for dev/watch rebuilds.
 
 ```ts
 let files = ['/icons/add.svg', '/icons/search.svg'];
 const result = await generateWebfonts({ files, dest, incremental: true });
 // ...on a watch event:
-result.regenerate(files, [{ path: '/icons/add.svg', changeType: 'changed' }]);
+result.regenerate({ files }, [{ path: '/icons/add.svg', changeType: 'changed' }]);
 // ...or when watcher hints are unavailable/untrusted:
-result.regenerate(files);
+result.regenerate({ files });
 result.woff2; // refreshed bytes
 ```
 
@@ -502,16 +502,97 @@ interface GlyphChangeEntry {
 
 ### `regenerateAsync(files, changes?)`
 
-- Type: `(files: string[], changes?: GlyphChangeEntry[] | null) => Promise<GenerateWebfontsResult>`
+- Type: `(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null) => Promise<GenerateWebfontsResult>`
 - Requires: the result was produced with [`incremental: true`](#incremental) (rejects otherwise).
-- Supported input: single-variant results only; multi-variant results reject regeneration.
+- Supported input: the same complete source shape as `regenerate`.
 - Description: Performs the same rebuild as [`regenerate()`](#regenerate-files-changes) off the Node.js event loop and resolves with a replacement result. The receiver remains readable and unchanged while the rebuild runs and after failure. Assign the replacement before starting another rebuild; overlapping calls from the same result lineage reject. In-memory state is replaced only on success, but writes made with [`writeFiles: true`](#writefiles) are not transactional.
 
 ```ts
 let files = ['/icons/add.svg', '/icons/search.svg'];
 let result = await generateWebfonts({ files, dest, incremental: true });
-result = await result.regenerateAsync(files, [{ path: '/icons/add.svg', changeType: 'changed' }]);
+result = await result.regenerateAsync({ files }, [{ path: '/icons/add.svg', changeType: 'changed' }]);
 ```
+
+### Variant regeneration
+
+Generate with `incremental: true` to retain per-design geometry caches. Regeneration keeps the
+configured designs and weights fixed; adding, removing, or reordering designs requires a fresh
+generation. Changes to SVG membership, names, and contents are supported within each design.
+
+```ts
+type RegenerationFiles = { files: string[]; variants?: never } | { files?: never; variants: VariantFileSet[] };
+
+interface VariantFileSet {
+    variant: string;
+    files: string[];
+}
+```
+
+```ts
+import { generateWebfonts, type RegenerationFiles } from '@atlowchemi/webfont-generator';
+
+let result = await generateWebfonts({
+    dest: './dist/fonts',
+    incremental: true,
+    variants: [
+        { name: 'light', files: ['light/add.svg'], default: true },
+        { name: 'bold', files: ['bold/add.svg'] },
+    ],
+});
+
+const files: RegenerationFiles = {
+    variants: [
+        { variant: 'light', files: ['light/add.svg'] },
+        { variant: 'bold', files: ['bold/add.svg'] },
+    ],
+};
+result = await result.regenerateAsync(files, [{ path: 'bold/add.svg', changeType: 'changed' }]);
+// Omit changes to read every file and infer changes, including additions and removals.
+result = await result.regenerateAsync(files);
+```
+
+Every call requires every configured design exactly once. Each `files` list is authoritative
+for that design's membership and order. Lists may share paths and use different orders; their
+position in the update does not change configured design order. Unknown/duplicate design names,
+empty lists, duplicate paths within a design, duplicate change hints, and inconsistent change
+types are rejected before sources are read.
+
+Change hints describe paths across the family: `added` means new to the family, `changed` means
+an existing path still used in the final family, and `removed` means no design uses it afterward.
+A content or `name` hint applies to every final design referencing that path. To add an existing
+path to another design, move it, or remove only one membership, edit the per-design file lists;
+no change hint is needed unless the contents or name also changed. New memberships are loaded
+even with an explicit empty changes list. Existing unhinted files retain their contents and
+names; full re-diff reads all files, preserves existing names, and derives new names from filenames.
+
+Effective changes rebuild the requested shared font outputs while reusing eligible parsed and
+processed geometry. Union membership, codepoints, shared metrics, and fallback dependencies are
+recomputed. No-op updates reuse in-memory outputs; pending disk writes can still be retried.
+
+Validation, loading, and font-build failures preserve the previous result. Synchronous write
+failures leave the new in-memory result committed and may leave partial disk output; retry the
+update or re-diff to finish writing. Async calls leave the receiver unchanged on failure and
+return a replacement only on success; retry from the receiver after rejection. Overlapping
+calls and regeneration from a replaced result are rejected. Writes are not transactional, so
+an async rejection may still follow partial disk writes. Callback-created results cannot be
+regenerated.
+
+### Migrating regeneration calls
+
+The regeneration input is a **breaking change** for both methods. Wrap ordinary file arrays in
+`{ files }`; the optional second argument keeps its existing shape.
+
+```ts
+// Before
+result.regenerate(files, changes);
+result = await result.regenerateAsync(files);
+
+// After
+result.regenerate({ files }, changes);
+result = await result.regenerateAsync({ files });
+```
+
+Use `{ variants: [...] }` for families as shown above. A bare array is no longer accepted.
 
 ## Templates
 

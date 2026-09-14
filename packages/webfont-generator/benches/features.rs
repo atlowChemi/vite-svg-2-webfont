@@ -382,8 +382,9 @@ fn bench_write_paths(c: &mut Criterion) {
                 webfont_generator::GlyphChange::Changed { name: None },
             )];
 
+            let files = webfont_generator::RegenerationFiles::Single(fixture.paths.clone());
             repeated_batch_timing(iters, WRITE_SKIP_REPEATS, || {
-                result.regenerate(&fixture.paths, &change).unwrap();
+                result.regenerate(&files, &change).unwrap();
             })
         })
     });

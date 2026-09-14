@@ -11,7 +11,7 @@ fn regenerate_after_content_change_matches_fresh() {
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -31,7 +31,7 @@ async fn regenerate_async_matches_fresh_and_recovers_after_failure() {
     std::fs::remove_file(&b).unwrap();
     let error = match result
         .regenerate_async(
-            files.clone(),
+            crate::RegenerationFiles::Single(files.clone()),
             vec![(b.clone(), GlyphChange::Changed { name: None })],
         )
         .await
@@ -46,7 +46,7 @@ async fn regenerate_async_matches_fresh_and_recovers_after_failure() {
     write_icon(&dir, "b", D_CHANGED);
     let result = result
         .regenerate_async(
-            files.clone(),
+            crate::RegenerationFiles::Single(files.clone()),
             vec![(b, GlyphChange::Changed { name: None })],
         )
         .await
@@ -64,7 +64,10 @@ async fn regenerate_all_async_matches_fresh() {
     let result = generate(files.clone(), true);
 
     write_icon(&dir, "b", D_CHANGED);
-    let result = result.regenerate_all_async(files.clone()).await.unwrap();
+    let result = result
+        .regenerate_all_async(crate::RegenerationFiles::Single(files.clone()))
+        .await
+        .unwrap();
 
     assert_same(&result, &generate(files, false));
     std::fs::remove_dir_all(&dir).ok();
@@ -80,7 +83,7 @@ fn regenerate_after_add_matches_fresh() {
     let c = write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(
                 c.clone(),
                 GlyphChange::Added {
@@ -104,7 +107,7 @@ fn regenerate_after_mid_order_add_matches_fresh() {
     let a = write_icon(&dir, "a", D1);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(a.clone(), GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -122,7 +125,10 @@ fn regenerate_after_remove_matches_fresh() {
 
     let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
     result
-        .regenerate(&[a.clone(), c.clone()], &[(b, GlyphChange::Removed)])
+        .regenerate(
+            &crate::RegenerationFiles::Single(vec![a.clone(), c.clone()]),
+            &[(b, GlyphChange::Removed)],
+        )
         .unwrap();
 
     assert_same(&result, &generate(vec![a, c], false));
@@ -139,7 +145,11 @@ fn regenerate_all_after_content_change_matches_fresh() {
     let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
     write_icon(&dir, "b", D_CHANGED);
     result
-        .regenerate_all(&[a.clone(), b.clone(), c.clone()])
+        .regenerate_all(&crate::RegenerationFiles::Single(vec![
+            a.clone(),
+            b.clone(),
+            c.clone(),
+        ]))
         .unwrap();
 
     assert_same(&result, &generate(vec![a, b, c], false));
@@ -154,7 +164,12 @@ fn regenerate_all_after_add_and_remove_matches_fresh() {
     let c = write_icon(&dir, "c", D3);
 
     let mut result = generate(vec![a.clone(), b], true);
-    result.regenerate_all(&[a.clone(), c.clone()]).unwrap();
+    result
+        .regenerate_all(&crate::RegenerationFiles::Single(vec![
+            a.clone(),
+            c.clone(),
+        ]))
+        .unwrap();
 
     assert_same(&result, &generate(vec![a, c], false));
     std::fs::remove_dir_all(&dir).ok();
@@ -165,7 +180,9 @@ fn regenerate_all_without_incremental_errors() {
     let dir = temp_dir();
     let a = write_icon(&dir, "a", D1);
     let mut result = generate(vec![a.clone()], false);
-    let error = result.regenerate_all(&[a]).unwrap_err();
+    let error = result
+        .regenerate_all(&crate::RegenerationFiles::Single(vec![a]))
+        .unwrap_err();
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     std::fs::remove_dir_all(&dir).ok();
@@ -178,7 +195,7 @@ fn regenerate_without_incremental_errors() {
     let mut result = generate(vec![a.clone()], false);
     let changes = [(a.clone(), GlyphChange::Changed { name: None })];
     let error = result
-        .regenerate(std::slice::from_ref(&a), &changes)
+        .regenerate(&crate::RegenerationFiles::Single(vec![a.clone()]), &changes)
         .unwrap_err();
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     std::fs::remove_dir_all(&dir).ok();
@@ -192,7 +209,7 @@ fn regenerate_with_context_callback_state_errors() {
     result.css_context = Some(Default::default());
 
     let error = result
-        .regenerate(&[a], &[])
+        .regenerate(&crate::RegenerationFiles::Single(vec![a]), &[])
         .expect_err("regenerate must reject pre-mutated callback contexts");
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
@@ -212,7 +229,7 @@ fn regenerate_failure_preserves_incremental_state_for_retry() {
 
     let error = result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(
                 c.clone(),
                 GlyphChange::Added {
@@ -236,7 +253,7 @@ fn regenerate_failure_preserves_incremental_state_for_retry() {
     write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(
                 c.clone(),
                 GlyphChange::Added {
@@ -260,7 +277,7 @@ fn regenerate_rejects_duplicate_glyph_names() {
 
     let error = result
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(
                 b.clone(),
                 GlyphChange::Changed {

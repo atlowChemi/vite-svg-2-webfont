@@ -30,15 +30,21 @@ Performance scales better with glyph count — for larger icon sets the native p
 
 ### Incremental regeneration
 
+Multi-weight families also support incremental builds. Set `incremental: true`, then use
+`regenerateAsync({ variants: [{ variant: 'bold', files: [...] }, ...] }, changes)`
+with every configured design's complete file list. Omit `changes` to re-diff every design. See the
+[variant regeneration reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/node#variant-regeneration)
+for input shapes, synchronous alternatives, and failure semantics.
+
 ```js
 let files = ['./icons/home.svg', './icons/search.svg'];
 let result = await generateWebfonts({ files, dest, fontName: 'my-icons', incremental: true });
 
 // On a watch event, rebuild reusing cached geometry for unchanged glyphs. Pass the full file set
 // (in fresh-build order) so additions land in the right position, plus what changed:
-result = await result.regenerateAsync(files, [{ path: './icons/home.svg', changeType: 'changed' }]);
+result = await result.regenerateAsync({ files }, [{ path: './icons/home.svg', changeType: 'changed' }]);
 // Or omit changes when watcher hints are unavailable/untrusted:
-result = await result.regenerateAsync(files);
+result = await result.regenerateAsync({ files });
 result.woff2; // refreshed bytes
 ```
 
@@ -100,9 +106,9 @@ Async generation and incremental regeneration are available for Tokio applicatio
 regeneration consumes the old result, preventing stale-result reuse, and returns the next result:
 
 ```rust
-let result = result.regenerate_async(files.clone(), changes).await?;
+let result = result.regenerate_async(webfont_generator::RegenerationFiles::Single(files.clone()), changes).await?;
 // Or re-diff the complete file set:
-let result = result.regenerate_all_async(files).await?;
+let result = result.regenerate_all_async(webfont_generator::RegenerationFiles::Single(files)).await?;
 ```
 
 On failure, `RegenerateError::into_result()` recovers the consumed result for retry when the

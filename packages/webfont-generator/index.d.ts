@@ -9,6 +9,7 @@ import type {
     SvgFormatOptions,
     TemplateVariant,
     TtfFormatOptions,
+    VariantFileSet,
     Woff2FormatOptions,
     WoffFormatOptions,
 } from './binding';
@@ -95,7 +96,7 @@ export interface GenerateWebfontsFileOptions<T extends FontType = FontType> exte
 export interface GenerateWebfontsVariantOptions<T extends MultiVariantFontType = MultiVariantFontType> extends GenerateWebfontsBaseOptions<true> {
     files?: never;
     fontWeight?: never;
-    incremental?: false;
+    incremental?: boolean;
     missingGlyphs?: MissingGlyphOptions;
     order?: NoInfer<T>[];
     types?: T[];
@@ -134,9 +135,13 @@ type GuaranteedFormats<Formats extends readonly FontType[]> = {
  */
 export type GenerateWebfontsResult<T extends FontType = FontType, Guaranteed extends T = T> = {
     [F in FontType]: F extends Guaranteed ? FontValue<F> : F extends T ? FontValue<F> | null : null;
-} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml' | 'regenerate'> & {
-        regenerateAsync(files: string[], changes?: GlyphChangeEntry[] | null): Promise<GenerateWebfontsResult<T, Guaranteed>>;
+} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml'> & {
+        regenerate(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null): void;
+        regenerateAsync(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null): Promise<GenerateWebfontsResult<T, Guaranteed>>;
     };
+
+/** Complete input membership and ordering. Supply every configured variant exactly once. */
+export type RegenerationFiles = { files: string[]; variants?: never } | { files?: never; variants: VariantFileSet[] };
 
 /**
  * Generate a webfont from ordinary SVG files or ordered multi-weight variants.
@@ -182,6 +187,7 @@ export declare namespace generateWebfonts {
 }
 
 export {
+    VariantFileSet,
     FormatOptions,
     FontVariant,
     GlyphChangeEntry,

@@ -17,7 +17,6 @@ function validateOptions(options) {
     if (options.files?.length) throw new Error('"options.files" must be empty when "options.variants" is provided.');
     if (variants.length < 2) throw new Error('"options.variants" must contain at least two variants.');
     if (options.types?.some(type => type === 'svg' || type === 'eot')) throw new Error('"options.types" cannot include "svg" or "eot" with "options.variants".');
-    if (options.incremental === true) throw new Error('"options.incremental" cannot be true with "options.variants".');
     if (options.fontWeight != null) throw new Error('"options.fontWeight" cannot be used with "options.variants".');
     if (Object.hasOwn(options.templateOptions ?? {}, 'variantClassPrefix')) {
         throw new Error('"options.templateOptions.variantClassPrefix" cannot be used with "options.variants"; use "options.variantClassPrefix".');

@@ -57,7 +57,7 @@ fn regenerate_reuses_provided_url_css_on_content_edit() {
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -86,7 +86,10 @@ fn async_snapshot_carries_reusable_render_cache() {
     let mut replacement = result.snapshot_for_regeneration(state);
     write_icon(&dir, "b", D_CHANGED);
     replacement
-        .regenerate(&[a, b.clone()], &[(b, GlyphChange::Changed { name: None })])
+        .regenerate(
+            &crate::RegenerationFiles::Single(vec![a, b.clone()]),
+            &[(b, GlyphChange::Changed { name: None })],
+        )
         .unwrap();
 
     assert!(replacement.has_carried_css_no_urls_for_test());
@@ -108,7 +111,7 @@ fn consecutive_async_snapshots_invalidate_codepoint_dependent_css() {
     write_icon(&dir, "b", D_CHANGED);
     first
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -119,7 +122,7 @@ fn consecutive_async_snapshots_invalidate_codepoint_dependent_css() {
     let c = write_icon(&dir, "c", D3);
     second
         .regenerate(
-            &[a, b, c.clone()],
+            &crate::RegenerationFiles::Single(vec![a, b, c.clone()]),
             &[(c, GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -142,7 +145,7 @@ fn consecutive_async_snapshots_invalidate_name_dependent_html() {
     write_icon(&dir, "b", D_CHANGED);
     first
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -152,7 +155,7 @@ fn consecutive_async_snapshots_invalidate_name_dependent_html() {
     let mut second = first.snapshot_for_regeneration(state);
     second
         .regenerate(
-            &[a, b.clone()],
+            &crate::RegenerationFiles::Single(vec![a, b.clone()]),
             &[(
                 b,
                 GlyphChange::Changed {
@@ -177,7 +180,7 @@ fn regenerate_rerenders_default_css_on_content_edit() {
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -204,7 +207,7 @@ fn regenerate_rerenders_css_on_rename() {
 
     result
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(
                 b.clone(),
                 GlyphChange::Changed {
@@ -236,7 +239,7 @@ fn regenerate_carries_css_for_template_that_ignores_changed_glyph_data() {
     let c = write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(c.clone(), GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -265,7 +268,7 @@ fn regenerate_drops_css_for_template_that_reads_codepoints() {
     let c = write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(c.clone(), GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -291,7 +294,7 @@ fn regenerate_carries_html_for_template_that_ignores_names_and_styles() {
     let c = write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(c.clone(), GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -317,7 +320,7 @@ fn regenerate_drops_html_for_template_that_reads_names() {
     let c = write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(c.clone(), GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -348,7 +351,7 @@ fn regenerate_drops_html_for_template_that_reads_root_styles() {
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -381,7 +384,7 @@ fn regenerate_drops_html_for_template_that_reads_trimmed_styles() {
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -420,7 +423,7 @@ fn regenerate_drops_html_for_lookup_subexpression_template() {
     let c = write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(c.clone(), GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -462,7 +465,7 @@ fn regenerate_drops_html_for_block_param_template() {
     let c = write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(c.clone(), GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -495,7 +498,7 @@ fn regenerate_drops_html_for_whole_context_template() {
     let c = write_icon(&dir, "c", D3);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(c.clone(), GlyphChange::Added { name: None })],
         )
         .unwrap();
@@ -524,7 +527,7 @@ fn regenerate_drops_dynamic_css_template_cache_conservatively() {
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();

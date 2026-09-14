@@ -245,8 +245,8 @@ describe('generateWebfonts', () => {
 
         expect(names).toEqual(['small', 'large']);
         expect(htmlNames).toEqual(['plus']);
-        expect(() => result.regenerate([], [])).toThrow('Multi-variant regeneration is not yet available.');
-        await expect(result.regenerateAsync([], [])).rejects.toThrow('Multi-variant regeneration is not yet available.');
+        expect(() => result.regenerate({ files: [] }, [])).toThrow('Single file lists do not support variant results');
+        await expect(result.regenerateAsync({ files: [] }, [])).rejects.toThrow(/Single file lists|incremental/);
     });
 
     it('renders complete variant URL overrides and validates them', async () => {
@@ -266,10 +266,10 @@ describe('generateWebfonts', () => {
     it('rejects sync and async regeneration for variant results', async () => {
         const result = await generateWebfonts(variantOptions);
 
-        expect(() => result.regenerate([], [])).toThrow(/Multi-variant regeneration/);
-        expect(() => result.regenerate([])).toThrow(/Multi-variant regeneration/);
-        await expect(result.regenerateAsync([], [])).rejects.toThrow(/Multi-variant regeneration/);
-        await expect(result.regenerateAsync([])).rejects.toThrow(/Multi-variant regeneration/);
+        expect(() => result.regenerate({ files: [] }, [])).toThrow(/Single file lists do not support variant results/);
+        expect(() => result.regenerate({ files: [] })).toThrow(/Single file lists do not support variant results/);
+        await expect(result.regenerateAsync({ files: [] }, [])).rejects.toThrow(/Single file lists|incremental/);
+        await expect(result.regenerateAsync({ files: [] })).rejects.toThrow(/Single file lists|incremental/);
     });
 
     it('rejects an invalid variant rename batch length', async () => {
@@ -925,7 +925,7 @@ describe('regenerate (incremental)', () => {
         const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b, c]), incremental: true });
 
         await writeFile(b, regenIcon(REGEN_PATHS.changed));
-        result.regenerate([a, b, c], [{ path: b, changeType: 'changed' }]);
+        result.regenerate({ files: [a, b, c] }, [{ path: b, changeType: 'changed' }]);
 
         expect(result).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
     });
@@ -936,7 +936,7 @@ describe('regenerate (incremental)', () => {
         const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b]), incremental: true });
 
         const c = await writeRegenIcon(dir, 'c', 'c');
-        result.regenerate([a, b, c], [{ path: c, changeType: 'added' }]);
+        result.regenerate({ files: [a, b, c] }, [{ path: c, changeType: 'added' }]);
 
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, b, c]));
         expect(result).toEqualFont(fresh);
@@ -950,7 +950,7 @@ describe('regenerate (incremental)', () => {
 
         const a = await writeRegenIcon(dir, 'a', 'a');
         // The fresh-build order is [a, b, c]; passing it ensures the addition lands first, not at the tail.
-        result.regenerate([a, b, c], [{ path: a, changeType: 'added' }]);
+        result.regenerate({ files: [a, b, c] }, [{ path: a, changeType: 'added' }]);
 
         expect(result).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a, b, c])));
     });
@@ -960,7 +960,7 @@ describe('regenerate (incremental)', () => {
         const [a, b, c] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b'), writeRegenIcon(dir, 'c', 'c')]);
         const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b, c]), incremental: true });
 
-        result.regenerate([a, c], [{ path: b, changeType: 'removed' }]);
+        result.regenerate({ files: [a, c] }, [{ path: b, changeType: 'removed' }]);
 
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, c]));
         expect(result).toEqualFont(fresh);
@@ -974,7 +974,7 @@ describe('regenerate (incremental)', () => {
 
         await writeFile(b, regenIcon(REGEN_PATHS.changed));
         const c = await writeRegenIcon(dir, 'c', 'c');
-        result.regenerate([a, b, c]);
+        result.regenerate({ files: [a, b, c] });
 
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, b, c]));
         expect(result).toEqualFont(fresh);
@@ -987,7 +987,7 @@ describe('regenerate (incremental)', () => {
         const result = await generateWebfonts({ ...regenBaseOpts(dir, [a, b, c]), incremental: true });
 
         await writeFile(c, regenIcon(REGEN_PATHS.changed));
-        result.regenerate([a, c], null);
+        result.regenerate({ files: [a, c] }, null);
 
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, c]));
         expect(result).toEqualFont(fresh);
@@ -1003,13 +1003,13 @@ describe('regenerate (incremental)', () => {
 
         // Content edit keeps names/codepoints → CSS reused verbatim and equal to a fresh build.
         await writeFile(b, regenIcon(REGEN_PATHS.changed));
-        result.regenerate([a, b], [{ path: b, changeType: 'changed' }]);
+        result.regenerate({ files: [a, b] }, [{ path: b, changeType: 'changed' }]);
         expect(result.generateCss(urls)).toBe(before);
         const fresh = await generateWebfonts(regenBaseOpts(dir, [a, b]));
         expect(result.generateCss(urls)).toBe(fresh.generateCss(urls));
 
         // A rename changes a glyph name the template reads → CSS must re-render.
-        result.regenerate([a, b], [{ path: b, changeType: 'changed', name: 'renamed' }]);
+        result.regenerate({ files: [a, b] }, [{ path: b, changeType: 'changed', name: 'renamed' }]);
         expect(result.generateCss(urls)).not.toBe(before);
         expect(result.generateCss(urls)).toContain('renamed');
     });
@@ -1026,7 +1026,7 @@ describe('regenerate (incremental)', () => {
         const [woff2Before, cssBefore] = await Promise.all([readFile(woff2Path), readFile(cssPath)]);
 
         await writeFile(b, regenIcon(REGEN_PATHS.changed));
-        result.regenerate([a, b], [{ path: b, changeType: 'changed' }]);
+        result.regenerate({ files: [a, b] }, [{ path: b, changeType: 'changed' }]);
 
         const [woff2After, cssAfter] = await Promise.all([readFile(woff2Path), readFile(cssPath)]);
         expect(woff2After).not.toEqual(woff2Before);
@@ -1039,7 +1039,7 @@ describe('regenerate (incremental)', () => {
         // A no-op regenerate reproduces identical output, so the write is skipped: a deleted file
         // is not recreated.
         await rm(woff2Path);
-        result.regenerate([a, b], [{ path: b, changeType: 'changed' }]);
+        result.regenerate({ files: [a, b] }, [{ path: b, changeType: 'changed' }]);
         await expect(readFile(woff2Path)).rejects.toThrow(/ENOENT/);
     });
 
@@ -1048,7 +1048,7 @@ describe('regenerate (incremental)', () => {
         const a = await writeRegenIcon(dir, 'a', 'a');
         const result = await generateWebfonts(regenBaseOpts(dir, [a]));
 
-        expect(() => result.regenerate([a], [{ path: a, changeType: 'changed' }])).toThrow(/incremental/);
+        expect(() => result.regenerate({ files: [a] }, [{ path: a, changeType: 'changed' }])).toThrow(/incremental/);
     });
 });
 
@@ -1061,8 +1061,8 @@ describe('regenerateAsync (incremental)', () => {
 
         await writeFile(b, regenIcon(REGEN_PATHS.changed));
         const changes = [{ path: b, changeType: 'changed' as const }];
-        syncResult.regenerate([a, b], changes);
-        const asyncResult = await asyncSource.regenerateAsync([a, b], changes);
+        syncResult.regenerate({ files: [a, b] }, changes);
+        const asyncResult = await asyncSource.regenerateAsync({ files: [a, b] }, changes);
 
         expect(asyncResult).toEqualFont(syncResult);
         expect(asyncResult).toEqualCss(syncResult);
@@ -1076,12 +1076,12 @@ describe('regenerateAsync (incremental)', () => {
         const before = result.svg;
 
         await writeFile(b, regenIcon(REGEN_PATHS.changed));
-        const replacement = await result.regenerateAsync([a, b], [{ path: b, changeType: 'changed' }]);
+        const replacement = await result.regenerateAsync({ files: [a, b] }, [{ path: b, changeType: 'changed' }]);
 
         expect(result.svg).toBe(before);
         expect(replacement.svg).not.toBe(before);
         expect(replacement).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a, b])));
-        await expect(result.regenerateAsync([a, b])).rejects.toThrow(/replaced/);
+        await expect(result.regenerateAsync({ files: [a, b] })).rejects.toThrow(/replaced/);
     });
 
     it('keeps the original readable after a failed rebuild', async () => {
@@ -1091,11 +1091,11 @@ describe('regenerateAsync (incremental)', () => {
         const before = result.svg;
 
         await rm(a);
-        await expect(result.regenerateAsync([a], [{ path: a, changeType: 'changed' }])).rejects.toThrow(/No such file|ENOENT|cannot find the file/i);
+        await expect(result.regenerateAsync({ files: [a] }, [{ path: a, changeType: 'changed' }])).rejects.toThrow(/No such file|ENOENT|cannot find the file/i);
         expect(result.svg).toBe(before);
 
         await writeRegenIcon(dir, 'a', 'a');
-        const replacement = await result.regenerateAsync([a], [{ path: a, changeType: 'changed' }]);
+        const replacement = await result.regenerateAsync({ files: [a] }, [{ path: a, changeType: 'changed' }]);
         expect(replacement).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a])));
     });
 
@@ -1103,9 +1103,9 @@ describe('regenerateAsync (incremental)', () => {
         const dir = await createTempDir('regen-async-overlap-');
         const a = await writeRegenIcon(dir, 'a', 'a');
         const result = await generateWebfonts({ ...regenBaseOpts(dir, [a]), incremental: true });
-        const replacement = await result.regenerateAsync([a]);
+        const replacement = await result.regenerateAsync({ files: [a] });
 
-        const outcomes = await Promise.allSettled([replacement.regenerateAsync([a]), replacement.regenerateAsync([a])]);
+        const outcomes = await Promise.allSettled([replacement.regenerateAsync({ files: [a] }), replacement.regenerateAsync({ files: [a] })]);
 
         expect(outcomes.filter(outcome => outcome.status === 'fulfilled')).toHaveLength(1);
         expect(outcomes.filter(outcome => outcome.status === 'rejected')).toEqual([
@@ -1119,7 +1119,7 @@ describe('regenerateAsync (incremental)', () => {
         const result = await generateWebfonts({ ...regenBaseOpts(dir, files), incremental: true });
 
         await writeFile(files[0], regenIcon(REGEN_PATHS.changed));
-        const regeneration = result.regenerateAsync(files, [{ path: files[0], changeType: 'changed' }]);
+        const regeneration = result.regenerateAsync({ files }, [{ path: files[0], changeType: 'changed' }]);
         const published = {
             svg: result.svg,
             ttf: result.ttf,

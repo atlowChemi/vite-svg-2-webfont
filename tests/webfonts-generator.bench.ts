@@ -351,7 +351,7 @@ describe.each([100, 300, 600])('changed event with unchanged contents — %i gly
 
     bench('upstream — full regen', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
     bench('new core — full regen (legacy)', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
-    bench('new core — incremental regenerate', () => expect(result.regenerate(files, change)).toBeUndefined(), benchOpts);
+    bench('new core — incremental regenerate', () => expect(result.regenerate({ files }, change)).toBeUndefined(), benchOpts);
 });
 
 const contentEditFiles = new Map<number, string[]>();
@@ -396,7 +396,7 @@ describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyph
         () => {
             toggle = !toggle;
             writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
-            expect(result.regenerate(files, change)).toBeUndefined();
+            expect(result.regenerate({ files }, change)).toBeUndefined();
         },
         benchOpts,
     );
@@ -405,7 +405,7 @@ describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyph
         async () => {
             asyncToggle = !asyncToggle;
             writeFileSync(asyncFiles[0]!, asyncToggle ? EDIT_SVG_B : EDIT_SVG_A);
-            asyncResult = await asyncResult.regenerateAsync(asyncFiles, asyncChange);
+            asyncResult = await asyncResult.regenerateAsync({ files: asyncFiles }, asyncChange);
             expect(asyncResult).toBeDefined();
         },
         benchOpts,
@@ -415,7 +415,7 @@ describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyph
         () => {
             rediffToggle = !rediffToggle;
             writeFileSync(rediffFiles[0]!, rediffToggle ? EDIT_SVG_B : EDIT_SVG_A);
-            expect(rediffResult.regenerate(rediffFiles)).toBeUndefined();
+            expect(rediffResult.regenerate({ files: rediffFiles })).toBeUndefined();
         },
         benchOpts,
     );
@@ -467,7 +467,7 @@ describe.each([100, 300, 600])('batched vs separate content edits — %i glyphs'
         () => {
             twoToggle = !twoToggle;
             separateTwoChanges.forEach(change => writeFileSync(change.path, twoToggle ? EDIT_SVG_B : EDIT_SVG_C));
-            expect(separateTwoChanges.map(change => separateTwo.regenerate(separateTwoFiles, [change]))).toEqual(Array.from({ length: separateTwoChanges.length }));
+            expect(separateTwoChanges.map(change => separateTwo.regenerate({ files: separateTwoFiles }, [change]))).toEqual(Array.from({ length: separateTwoChanges.length }));
         },
         benchOpts,
     );
@@ -476,7 +476,7 @@ describe.each([100, 300, 600])('batched vs separate content edits — %i glyphs'
         () => {
             tenToggle = !tenToggle;
             separateTenChanges.forEach(change => writeFileSync(change.path, tenToggle ? EDIT_SVG_B : EDIT_SVG_C));
-            expect(separateTenChanges.map(change => separateTen.regenerate(separateTenFiles, [change]))).toEqual(Array.from({ length: separateTenChanges.length }));
+            expect(separateTenChanges.map(change => separateTen.regenerate({ files: separateTenFiles }, [change]))).toEqual(Array.from({ length: separateTenChanges.length }));
         },
         benchOpts,
     );
@@ -485,7 +485,7 @@ describe.each([100, 300, 600])('batched vs separate content edits — %i glyphs'
         () => {
             batchedToggle = !batchedToggle;
             batchedChanges.forEach(change => writeFileSync(change.path, batchedToggle ? EDIT_SVG_B : EDIT_SVG_C));
-            expect(batched.regenerate(batchedFiles, batchedChanges)).toBeUndefined();
+            expect(batched.regenerate({ files: batchedFiles }, batchedChanges)).toBeUndefined();
         },
         benchOpts,
     );
@@ -525,7 +525,7 @@ describe.each([100, 300, 600])('changed event + CSS with unchanged contents — 
     bench(
         'new core — incremental regenerate + reuse CSS',
         () => {
-            result.regenerate(files, change);
+            result.regenerate({ files }, change);
             expect(result.generateCss(RENDER_URLS)).toBeDefined();
         },
         benchOpts,
@@ -557,7 +557,7 @@ describe.each([100, 300, 600])('rebuild + CSS after a 1-file content edit — %i
         () => {
             toggle = !toggle;
             writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
-            result.regenerate(files, change);
+            result.regenerate({ files }, change);
             expect(result.generateCss(RENDER_URLS)).toBeDefined();
         },
         benchOpts,
@@ -585,7 +585,7 @@ describe.each([100, 300, 600])('rebuild + writeFiles after a 1-file change — %
         () => expect(generateWebfonts(baseOpts(files, { writeFiles: true, dest: join(bulkFixtureDir, `full-write-${numGlyphs}`), ...DEV_FORMAT }))).resolves.toBeDefined(),
         benchOpts,
     );
-    bench('new core — incremental regenerate + writeFiles', () => expect(result.regenerate(files, change)).toBeUndefined(), benchOpts);
+    bench('new core — incremental regenerate + writeFiles', () => expect(result.regenerate({ files }, change)).toBeUndefined(), benchOpts);
 });
 
 const contentEditWriteFiles = new Map<number, string[]>();
@@ -617,7 +617,7 @@ describe.each([100, 300, 600])('rebuild + writeFiles after a 1-file content edit
         () => {
             toggle = !toggle;
             writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
-            expect(result.regenerate(files, change)).toBeUndefined();
+            expect(result.regenerate({ files }, change)).toBeUndefined();
         },
         benchOpts,
     );
@@ -656,7 +656,7 @@ describe.each([100, 300, 600])('write-skip on unchanged outputs — %i glyphs', 
             ).resolves.toBeDefined(),
         benchOpts,
     );
-    bench('new core — incremental regenerate + write-skip', () => expect(result.regenerate(files, change)).toBeUndefined(), benchOpts);
+    bench('new core — incremental regenerate + write-skip', () => expect(result.regenerate({ files }, change)).toBeUndefined(), benchOpts);
 });
 
 // Ordered regenerate should keep adds/removes byte-identical at any insertion point.
@@ -686,9 +686,9 @@ describe.each([100, 300, 600])('ordered add/remove regenerate — %i glyphs', nu
             'new core — incremental add/remove toggle',
             () => {
                 if (hasExtra) {
-                    result.regenerate(files, [{ path: extra, changeType: 'removed' }]);
+                    result.regenerate({ files }, [{ path: extra, changeType: 'removed' }]);
                 } else {
-                    result.regenerate(filesWithExtra, [{ path: extra, changeType: 'added', name: `icon-extra-${position}` }]);
+                    result.regenerate({ files: filesWithExtra }, [{ path: extra, changeType: 'added', name: `icon-extra-${position}` }]);
                 }
                 hasExtra = !hasExtra;
                 expect(result.svg).toBeDefined();
@@ -756,9 +756,9 @@ describe.each([15, 100, 300, 600])('dependency-aware render reuse add/remove tog
             `new core — ${label} toggle`,
             () => {
                 if (hasExtra) {
-                    result.regenerate(files, [{ path: extra, changeType: 'removed' }]);
+                    result.regenerate({ files }, [{ path: extra, changeType: 'removed' }]);
                 } else {
-                    result.regenerate(filesWithExtra, [{ path: extra, changeType: 'added', name: 'icon-extra-end' }]);
+                    result.regenerate({ files: filesWithExtra }, [{ path: extra, changeType: 'added', name: 'icon-extra-end' }]);
                 }
                 hasExtra = !hasExtra;
                 expect(render(result)).toBeDefined();

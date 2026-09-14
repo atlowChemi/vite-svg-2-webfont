@@ -23,7 +23,6 @@ it.each([
     { name: 'variant weights', patch: { variants: [{ ...variants[0], weight: 1001 }, variants[1]] }, field: 'options.variants[0].weight' },
     { name: 'missing default', patch: { variants: variants.map(variant => ({ ...variant, default: false })) }, field: 'options.variants' },
     { name: 'unsupported formats', patch: { types: ['eot'] }, field: 'options.types' },
-    { name: 'incremental mode', patch: { incremental: true }, field: 'options.incremental' },
     { name: 'fallback reference', patch: { missingGlyphs: { behavior: 'fallback', variant: 'unknown' } }, field: 'options.missingGlyphs.variant' },
 ])('preserves Node/native error parity for $name', async ({ patch, field }) => {
     const options = { dest: 'artifacts', files: [], variants, writeFiles: false, ...patch };
