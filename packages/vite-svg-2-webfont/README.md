@@ -55,3 +55,19 @@ import 'virtual:vite-svg-2-webfont.css';
 ```
 
 In that example, `icon-add` is controlled by `classPrefix` and `icon` is controlled by `baseSelector`. See the [configuration reference](https://atlowChemi.github.io/vite-svg-2-webfont/configuration#classprefix) and [base selector option](https://atlowChemi.github.io/vite-svg-2-webfont/configuration#baseselector).
+
+## Multi-weight icon families
+
+Generate multi variant families, such as light and bold designs, inline, outline, and solid designs, as shared font assets by configuring variants with matching SVG filenames:
+
+```ts
+viteSvgToWebfont({
+    context: './src/icons',
+    variants: [
+        { name: 'light', context: 'light', weight: 300, default: true },
+        { name: 'bold', context: 'bold', weight: 700 },
+    ],
+});
+```
+
+Keep the same virtual CSS import and use `class="icon icon-add icon--bold"` to select bold. Families default to WOFF/WOFF2, optionally support TTF, and update during development when either design changes. See the [multi-weight guide](https://atlowChemi.github.io/vite-svg-2-webfont/usage#multi-weight-icon-families) for sparse designs, nested globs, and output options.

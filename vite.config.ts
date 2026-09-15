@@ -84,7 +84,7 @@ const config: UserConfig = defineConfig({
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             coverage: {
-                command: "vp test --coverage --project='!webfont-generator-browser*'",
+                command: "vp test --coverage --project='!*-browser*'",
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
         },
@@ -99,7 +99,7 @@ const config: UserConfig = defineConfig({
         },
         projects: [
             'packages/!(example)/vite.config.ts',
-            'packages/webfont-generator/vite.browser.config.ts',
+            'packages/!(example)/vite.browser.config.ts',
             {
                 test: {
                     name: 'compat',

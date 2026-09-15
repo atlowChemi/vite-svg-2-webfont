@@ -8,7 +8,7 @@ import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevSer
 import { build, createServer, normalizePath, preview } from 'vite';
 import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from 'vite-plus/test';
 import { viteSvgToWebfont } from './index';
-import type { IconPluginOptions } from './optionParser';
+import type { IconPluginFileOptions } from './optionParser';
 import type { AddressInfo } from 'node:net';
 
 const { generateWebfontsMock } = vi.hoisted(() => ({
@@ -65,7 +65,7 @@ const enum ConfigType {
     PreloadInline,
 }
 
-const getConfig = (configType: ConfigType, overrides?: Partial<IconPluginOptions>): InlineConfig => {
+const getConfig = (configType: ConfigType, overrides?: Partial<IconPluginFileOptions>): InlineConfig => {
     const base: InlineConfig = {
         logLevel: 'silent',
         root: fileURLToNormalizedPath(root),
@@ -800,6 +800,13 @@ describe('build:preloadFormats inlined-asset short-circuit', () => {
     });
 });
 
+function createObservedServer(config: InlineConfig, observe: (server: ViteDevServer) => void) {
+    return createServer({
+        ...config,
+        plugins: [{ name: 'observe-font-reloads', enforce: 'pre', configureServer: observe }, ...(config.plugins ?? [])],
+    });
+}
+
 describe('serve - regenerates css when a new svg is added', () => {
     const filename = '__watcher-test__.svg';
     const watcherSvgUrl = new URL(`webfont-test/svg/${filename}`, root);
@@ -812,22 +819,25 @@ describe('serve - regenerates css when a new svg is added', () => {
         setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
             watcherHandler = handler;
         });
-        const created = await createServer({
-            logLevel: 'silent',
-            root: fileURLToNormalizedPath(root),
-            configFile: false,
-            plugins: [viteSvgToWebfont({ context: webfontFolder })],
-        });
-        const originalReload = created.reloadModule.bind(created);
-        created.reloadModule = async mod => {
-            reloadedIds.push(mod.id ?? '');
-            if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
-            return originalReload(mod);
-        };
+        const created = await createObservedServer(
+            {
+                logLevel: 'silent',
+                root: fileURLToNormalizedPath(root),
+                configFile: false,
+                plugins: [viteSvgToWebfont({ context: webfontFolder })],
+            },
+            observed => {
+                const originalReload = observed.reloadModule.bind(observed);
+                observed.reloadModule = async mod => {
+                    reloadedIds.push(mod.id ?? '');
+                    if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
+                    return originalReload(mod);
+                };
+            },
+        );
         server = await created.listen();
-        // Hit the font middleware so the plugin captures moduleGraph + reloadModule…
         await fetchBufferContent(server, '/iconfont.woff2');
-        // …and load the virtual module so getModuleById finds it after the watch handler fires.
+        // Load the virtual module so getModuleById finds it after the watch handler fires.
         await fetchTextContent(server, '/@id/__x00__virtual:vite-svg-2-webfont.css');
     });
 
@@ -858,13 +868,17 @@ describe('serve - swallows reloadModule rejection from the watcher', () => {
         setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
             watcherHandler = handler;
         });
-        const created = await createServer({
-            logLevel: 'silent',
-            root: fileURLToNormalizedPath(root),
-            configFile: false,
-            plugins: [viteSvgToWebfont({ context: webfontFolder })],
-        });
-        created.reloadModule = rejectingReload;
+        const created = await createObservedServer(
+            {
+                logLevel: 'silent',
+                root: fileURLToNormalizedPath(root),
+                configFile: false,
+                plugins: [viteSvgToWebfont({ context: webfontFolder })],
+            },
+            observed => {
+                observed.reloadModule = rejectingReload;
+            },
+        );
         server = await created.listen();
         await fetchBufferContent(server, '/iconfont.woff2');
         await fetchTextContent(server, '/@id/__x00__virtual:vite-svg-2-webfont.css');
@@ -908,18 +922,22 @@ describe('serve - incrementally regenerates on a content edit', () => {
             };
             return trackRegeneration(await realGen(options));
         });
-        const created = await createServer({
-            logLevel: 'silent',
-            root: fileURLToNormalizedPath(root),
-            configFile: false,
-            plugins: [viteSvgToWebfont({ context: webfontFolder })],
-        });
-        const originalReload = created.reloadModule.bind(created);
-        created.reloadModule = async mod => {
-            reloadedIds.push(mod.id ?? '');
-            if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
-            return originalReload(mod);
-        };
+        const created = await createObservedServer(
+            {
+                logLevel: 'silent',
+                root: fileURLToNormalizedPath(root),
+                configFile: false,
+                plugins: [viteSvgToWebfont({ context: webfontFolder })],
+            },
+            observed => {
+                const originalReload = observed.reloadModule.bind(observed);
+                observed.reloadModule = async mod => {
+                    reloadedIds.push(mod.id ?? '');
+                    if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
+                    return originalReload(mod);
+                };
+            },
+        );
         server = await created.listen();
         await fetchBufferContent(server, '/iconfont.woff2');
         await fetchTextContent(server, '/@id/__x00__virtual:vite-svg-2-webfont.css');
@@ -1009,18 +1027,22 @@ describe('serve - falls back to full regenerate when incremental is unavailable'
         setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
             watcherHandler = handler;
         });
-        const created = await createServer({
-            logLevel: 'silent',
-            root: fileURLToNormalizedPath(root),
-            configFile: false,
-            plugins: [viteSvgToWebfont({ context: webfontFolder, cssContext: () => undefined })],
-        });
-        const originalReload = created.reloadModule.bind(created);
-        created.reloadModule = async mod => {
-            reloadedIds.push(mod.id ?? '');
-            if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
-            return originalReload(mod);
-        };
+        const created = await createObservedServer(
+            {
+                logLevel: 'silent',
+                root: fileURLToNormalizedPath(root),
+                configFile: false,
+                plugins: [viteSvgToWebfont({ context: webfontFolder, cssContext: () => undefined })],
+            },
+            observed => {
+                const originalReload = observed.reloadModule.bind(observed);
+                observed.reloadModule = async mod => {
+                    reloadedIds.push(mod.id ?? '');
+                    if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
+                    return originalReload(mod);
+                };
+            },
+        );
         server = await created.listen();
         await fetchBufferContent(server, '/iconfont.woff2');
         await fetchTextContent(server, '/@id/__x00__virtual:vite-svg-2-webfont.css');
@@ -1056,18 +1078,22 @@ describe('serve - falls back when regenerate throws', () => {
             result.regenerateAsync = async () => Promise.reject(new Error('intentional regenerate failure'));
             return result;
         });
-        const created = await createServer({
-            logLevel: 'silent',
-            root: fileURLToNormalizedPath(root),
-            configFile: false,
-            plugins: [viteSvgToWebfont({ context: webfontFolder })],
-        });
-        const originalReload = created.reloadModule.bind(created);
-        created.reloadModule = async mod => {
-            reloadedIds.push(mod.id ?? '');
-            if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
-            return originalReload(mod);
-        };
+        const created = await createObservedServer(
+            {
+                logLevel: 'silent',
+                root: fileURLToNormalizedPath(root),
+                configFile: false,
+                plugins: [viteSvgToWebfont({ context: webfontFolder })],
+            },
+            observed => {
+                const originalReload = observed.reloadModule.bind(observed);
+                observed.reloadModule = async mod => {
+                    reloadedIds.push(mod.id ?? '');
+                    if (mod.id?.includes('vite-svg-2-webfont.css')) markCssReloaded();
+                    return originalReload(mod);
+                };
+            },
+        );
         server = await created.listen();
         await fetchBufferContent(server, '/iconfont.woff2');
         await fetchTextContent(server, '/@id/__x00__virtual:vite-svg-2-webfont.css');

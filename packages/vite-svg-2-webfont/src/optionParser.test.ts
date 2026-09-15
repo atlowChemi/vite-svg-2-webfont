@@ -1,20 +1,91 @@
-import { resolve, sep } from 'node:path';
+import { resolve, sep, join } from 'node:path';
+import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import * as optionParser from './optionParser';
-import type { globSync as GlobSyncFn } from 'node:fs';
-import { describe, it, expect, vi, afterEach, beforeAll } from 'vite-plus/test';
+import { globSync } from 'node:fs';
+import { describe, it, expect, vi, afterEach, beforeEach, beforeAll } from 'vite-plus/test';
 import { NoIconsAvailableError, InvalidWriteFilesTypeError } from './errors';
 import type { FontType } from '@atlowchemi/webfont-generator';
 
-const globSyncMock = vi.hoisted(() => vi.fn<typeof GlobSyncFn>());
+const globSyncMock = vi.mocked(globSync);
 vi.mock('node:fs', async importActual => {
     const actual = await importActual<typeof import('node:fs')>();
-    return { ...actual, globSync: globSyncMock };
+    return { ...actual, globSync: vi.fn(actual.globSync) };
 });
 const cssContext = () => {
     throw new Error("Shouldn't be called!");
 };
 
+async function fixture() {
+    await using cleanup = new AsyncDisposableStack();
+    const context = await mkdtemp(join(tmpdir(), 'plugin-variant-options-'));
+    cleanup.defer(() => rm(context, { recursive: true, force: true }));
+    await mkdir(join(context, 'bold'));
+    await Promise.all(['z.svg', 'a.svg', 'bold/a.svg'].map(path => writeFile(join(context, path), '<svg/>')));
+    const ownedCleanup = cleanup.move();
+    return {
+        [Symbol.asyncDispose]: () => ownedCleanup.disposeAsync(),
+        context,
+        variants: [
+            { name: 'light', default: true, files: ['*.svg', 'a.svg'] },
+            { name: 'bold', context: join(context, 'bold') },
+        ],
+    };
+}
+
 describe('optionParser', () => {
+    describe('variant options', () => {
+        beforeEach(() => {
+            globSyncMock.mockReset();
+        });
+
+        it('resolves inherited and absolute contexts, ordered/deduplicated globs, and modern defaults', async () => {
+            await using options = await fixture();
+            const parsed = optionParser.parseOptions(options);
+            expect(parsed.types).toEqual(['woff', 'woff2']);
+            expect(parsed.variants?.map(variant => variant.files)).toEqual([
+                [join(options.context, 'a.svg'), join(options.context, 'z.svg')],
+                [join(options.context, 'bold/a.svg')],
+            ]);
+            expect(parsed.files).toBeUndefined();
+            expect(optionParser.parseOptions({ ...options, types: 'ttf', missingGlyphs: { behavior: 'blank' }, variantClassPrefix: 'weight-' })).toMatchObject({
+                types: ['ttf'],
+                missingGlyphs: { behavior: 'blank' },
+                variantClassPrefix: 'weight-',
+            });
+        });
+
+        it('accepts the documented single-glob shorthand in both input modes', async () => {
+            await using options = await fixture();
+            const { context } = options;
+            expect(optionParser.parseOptions({ context, files: '*.svg' }).files).toEqual(optionParser.parseOptions({ context, files: ['*.svg'] }).files);
+            const variants = [{ name: 'light', default: true, files: '*.svg' }];
+            expect(optionParser.resolveSources({ context, variants })).toEqual(optionParser.resolveSources({ context, variants: [{ ...variants[0]!, files: ['*.svg'] }] }));
+            expect(() => optionParser.resolveSources({ context, variants: [{ ...variants[0]!, files: '../*.svg' }] })).toThrow(/within its context/);
+        });
+
+        it('rejects ambiguous sources, empty designs, escaping globs, and unsupported formats', async () => {
+            await using options = await fixture();
+            // @ts-expect-error Mutually exclusive source modes also reject at runtime.
+            expect(() => optionParser.parseOptions({ ...options, files: ['*.svg'] })).toThrow(/not both/);
+            // @ts-expect-error Legacy output is unavailable for variant families.
+            expect(() => optionParser.parseOptions({ ...options, types: ['eot'] })).toThrow(/only ttf/);
+            expect(() => optionParser.resolveSources({ ...options, variants: [] })).toThrow(/At least one/);
+            expect(() => optionParser.resolveSources({ ...options, variants: [{ name: 'empty', default: true, files: ['missing.svg'] }] })).toThrow(/Variant "empty"/);
+            expect(() => optionParser.resolveSources({ ...options, variants: [{ name: 'escape', default: true, files: ['../*.svg'] }] })).toThrow(/within its context/);
+        });
+
+        it('keeps published source snapshots independent when nested membership changes', async () => {
+            await using options = await fixture();
+            options.variants[0]!.files = ['**/*.svg'];
+            const before = optionParser.resolveSources(options);
+            await mkdir(join(options.context, 'new'));
+            await writeFile(join(options.context, 'new/new.svg'), '<svg/>');
+            const after = optionParser.resolveSources(options);
+            expect(before.variants?.[0]?.files).not.toContain(join(options.context, 'new/new.svg'));
+            expect(after.variants?.[0]?.files).toContain(join(options.context, 'new/new.svg'));
+        });
+    });
     describe.concurrent('parseIconTypesOption', () => {
         it.concurrent('returns arrays as received', () => {
             const types: FontType[] = ['eot', 'svg', 'ttf'];
@@ -54,6 +125,9 @@ describe('optionParser', () => {
     });
 
     describe('parseFiles', () => {
+        beforeEach(() => {
+            globSyncMock.mockReset();
+        });
         afterEach(() => {
             vi.resetAllMocks();
         });

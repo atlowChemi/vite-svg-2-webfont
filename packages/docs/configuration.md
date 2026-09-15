@@ -17,6 +17,40 @@ The plugin API consists of one required option and multiple optional options for
 - Type: `string | string[]`
 - Description: Glob or array of globs for SVG files inside [`context`](#context).
 - Default: `['*.svg']`
+- Mutually exclusive with [`variants`](#variants).
+
+## `variants`
+
+- Type: `IconPluginVariant[]`
+- Default: omitted (ordinary single-design mode)
+- Description: Ordered SVG designs forming one shared font per format. Match SVG filenames across designs to identify the same logical icon. Cannot be combined with top-level `files`.
+
+Each variant accepts:
+
+| Field     | Type                 | Default                | Description                                                                                                                                                                                         |
+| --------- | -------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`    | `string`             | Required               | Unique design name used by CSS modifiers.                                                                                                                                                           |
+| `context` | `string`             | Top-level `context`    | Relative to the top-level context, or an absolute directory.                                                                                                                                        |
+| `files`   | `string \| string[]` | `['*.svg']`            | Glob or globs within the variant context; parent traversal and absolute globs are rejected. Use an absolute context for external input directories. Matches are deduplicated and sorted per design. |
+| `weight`  | `number`             | Automatically assigned | Explicit increasing weight from 1–1000; follows the generator's weight rules.                                                                                                                       |
+| `default` | `boolean`            | `false`                | Exactly one design must be the default.                                                                                                                                                             |
+
+Every design must resolve at least one file. Variant directories are watched recursively, including nested matching directories created during development. Multiple designs can reference the same physical SVG.
+
+See [multi-weight usage](./usage#multi-weight-icon-families) and the [generator's variant reference](/webfont-generator/node#multi-variant-fonts).
+
+## `missingGlyphs`
+
+- Type: `{ behavior: 'error' | 'blank' | 'fallback'; variant?: string }`
+- Availability: variant mode only
+- Description: Generator policy for icons missing from a design. See the [generator reference](/webfont-generator/node#missingglyphs) for defaults and fallback rules.
+
+## `variantClassPrefix`
+
+- Type: `string`
+- Availability: variant mode only
+- Default: Derived by the generator from `classPrefix` (normally `icon--`).
+- Description: Prefix for design modifier classes, such as `icon--bold`. A modifier accompanies the base and icon classes; it does not emit an icon by itself.
 
 ## `fontName`
 
@@ -51,6 +85,7 @@ The plugin API consists of one required option and multiple optional options for
 ## `cssContext`
 
 - Type: `(context: CssContext) => void`
+- Variant configurations infer `CssContext<true>`, including named designs, default weight, and family rendering metadata. Context callbacks use full generation on watch updates rather than incremental regeneration.
 - Description: Hook for mutating the rendering context passed to the CSS template before the CSS file is generated. The `context` argument carries the named fields documented on [`CssContext`](/webfont-generator/node#csscontext) (`fontName`, `src`, `codepoints`) plus the [`baseSelector`](#baseselector) and [`classPrefix`](#classprefix) keys the plugin forwards to the underlying generator.
 - Reference: [`@atlowchemi/webfont-generator#cssContext`](/webfont-generator/node#csscontext)
 
@@ -179,6 +214,7 @@ The plugin API consists of one required option and multiple optional options for
     - `woff2`
     - `eot`
 - Default: `['eot', 'woff', 'woff2', 'ttf', 'svg']`
+- Variant mode: only `ttf`, `woff`, and `woff2` are supported; default is `['woff', 'woff2']`.
 - Reference: [`@atlowchemi/webfont-generator#types`](/webfont-generator/node#types)
 
 ## `preloadFormats`
