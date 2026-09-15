@@ -137,6 +137,55 @@ fn generate_sync_rejects_variant_generation_until_the_pipeline_is_available() {
 }
 
 #[test]
+fn generate_sync_loads_and_renames_variants_before_the_pipeline_guard() {
+    let options = variant_options();
+    let expected_paths = options
+        .variants
+        .as_ref()
+        .unwrap()
+        .iter()
+        .flat_map(|variant| variant.files.clone())
+        .collect::<Vec<_>>();
+    let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let rename_calls = calls.clone();
+    let rename: webfont_generator::RenameFn = Box::new(move |path| {
+        rename_calls.lock().unwrap().push(path.to_owned());
+        Path::new(path)
+            .file_stem()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    });
+
+    let error = webfont_generator::generate_sync(options, Some(rename))
+        .err()
+        .expect("variant generation should remain unavailable");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+    assert_eq!(*calls.lock().unwrap(), expected_paths);
+}
+
+#[test]
+fn generate_sync_reports_variant_loading_errors_before_the_pipeline_guard() {
+    let mut missing = variant_options();
+    missing.variants.as_mut().unwrap()[0].files[0] = "missing.svg".to_owned();
+    let error = webfont_generator::generate_sync(missing, None)
+        .err()
+        .expect("missing variant files should fail");
+    assert_ne!(error.kind(), std::io::ErrorKind::Unsupported);
+    assert!(error.to_string().contains("Failed to read source SVG file"));
+
+    let mut duplicate = variant_options();
+    let repeated = duplicate.variants.as_ref().unwrap()[0].files[0].clone();
+    duplicate.variants.as_mut().unwrap()[0].files = vec![repeated.clone(), repeated];
+    let error = webfont_generator::generate_sync(duplicate, None)
+        .err()
+        .expect("duplicate names within one variant should fail");
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("must be unique"));
+}
+
+#[test]
 fn generate_sync_resolves_variant_options_before_the_pipeline_guard() {
     let mut options = variant_options();
     options.order = Some(vec![FontType::Eot]);
@@ -187,6 +236,7 @@ fn generate_sync_resolves_variant_options_before_the_pipeline_guard() {
 }
 
 fn variant_options() -> GenerateWebfontsOptions {
+    let files = fixture_files();
     GenerateWebfontsOptions {
         dest: "artifacts".to_owned(),
         files: vec![],
@@ -194,13 +244,13 @@ fn variant_options() -> GenerateWebfontsOptions {
         variants: Some(vec![
             FontVariant {
                 name: "small".to_owned(),
-                files: vec!["small.svg".to_owned()],
+                files: files[..2].to_vec(),
                 weight: Some(300),
                 default: Some(true),
             },
             FontVariant {
                 name: "large".to_owned(),
-                files: vec!["large.svg".to_owned()],
+                files: files[..2].to_vec(),
                 weight: Some(700),
                 default: None,
             },
