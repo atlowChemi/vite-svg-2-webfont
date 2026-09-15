@@ -1,6 +1,8 @@
 #[cfg(test)]
 mod tests;
 
+mod variants;
+
 use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
 use std::path::Path;
@@ -12,9 +14,11 @@ use crate::pipeline::{TtfGlyphCache, build_font_outputs};
 use crate::result::{GenerateWebfontsResult, RegenerateError};
 use crate::svg::types::GlyphCache;
 use crate::svg::{prepare_svg_font_incremental, source_content_hash, svg_options_from_options};
-use crate::types::GlyphChange;
+use crate::types::{GlyphChange, RegenerationFiles};
 
 pub(crate) struct RegenerationState {
+    pub(crate) variant_cache: Option<crate::svg::VariantGlyphCache>,
+    pub(crate) variant_write_pending: bool,
     pub(crate) caches_dirty: bool,
     pub(crate) glyph_cache: GlyphCache,
     pub(crate) ttf_cache: Option<TtfGlyphCache>,
@@ -41,6 +45,7 @@ impl Drop for RegenerationStateLease {
     fn drop(&mut self) {
         let mut state = self.state.take().unwrap();
         if !self.keep_caches && state.caches_dirty {
+            state.variant_cache = None;
             state.glyph_cache = GlyphCache::default();
             if state.ttf_cache.is_some() {
                 state.ttf_cache = Some(TtfGlyphCache::default());
@@ -62,17 +67,25 @@ impl GenerateWebfontsResult {
 
     /// Rebuild after a batch of file changes, reusing cached glyph geometry for files whose
     /// contents are unchanged. Requires the result to have been generated with `incremental`
-    /// enabled. `ordered_paths` is the complete file set after the changes, in the order a fresh
+    /// enabled. `files` selects the matching ordinary or variant input mode. Each contained list
+    /// is the complete file set after the changes, in the order a fresh
     /// build would use (e.g. the glob result); the rebuilt glyphs are ordered to match it, so
     /// auto-assigned codepoints and glyph order — and therefore the output bytes — are identical
     /// to a fresh `generate` of that set, including for additions that sort before existing
     /// glyphs. `changes` describes what to do per affected file: added/changed files are read from
-    /// disk and re-parsed; any file absent from `ordered_paths` is dropped (an explicit `Removed`
+    /// disk and re-parsed; any file absent from its list is dropped (an explicit `Removed`
     /// is optional but harmless). Every requested format is rebuilt in memory, and — matching
     /// `generate` — when the result was built with `write_files` enabled the refreshed fonts are
     /// written to disk too, while CSS/HTML companion files are skipped if their rendered bytes are
     /// unchanged from the previous write. Rendered CSS/HTML is reused when the glyph names and
     /// codepoints the templates read are unchanged (a content edit), and re-rendered otherwise.
+    ///
+    /// For families, supply every configured variant exactly once. Each design's file order is
+    /// independent. Hints describe family-wide paths: `Added` is new to the family, `Changed`
+    /// applies to every final consumer, and `Removed` must be absent from every final list.
+    /// Membership-only changes need no hint; newly assigned paths are loaded automatically.
+    /// Invalid batches and font-build failures preserve the previous result. Variant writes
+    /// occur after the new state commits, so write errors leave retryable new in-memory output.
     ///
     /// ```rust,no_run
     /// use webfont_generator::{
@@ -97,7 +110,7 @@ impl GenerateWebfontsResult {
     /// )?;
     ///
     /// result.regenerate(
-    ///     &files,
+    ///     &webfont_generator::RegenerationFiles::Single(files),
     ///     &[(
     ///         "icons/add.svg".to_owned(),
     ///         GlyphChange::Changed { name: None },
@@ -108,9 +121,15 @@ impl GenerateWebfontsResult {
     /// ```
     pub fn regenerate(
         &mut self,
-        ordered_paths: &[String],
+        files: &RegenerationFiles,
         changes: &[(String, GlyphChange)],
     ) -> std::io::Result<()> {
+        let ordered_paths = match files {
+            RegenerationFiles::Single(files) => files.as_slice(),
+            RegenerationFiles::Variants(sets) => {
+                return self.regenerate_variant_files(sets, Some(changes));
+            }
+        };
         self.require_ordinary_regeneration()?;
         if self.css_context.is_some() || self.html_context.is_some() {
             return Err(std::io::Error::new(
@@ -145,7 +164,7 @@ impl GenerateWebfontsResult {
     ///     ..Default::default()
     /// }, None)?;
     /// let result = result.regenerate_async(
-    ///     files.clone(),
+    ///     webfont_generator::RegenerationFiles::Single(files.clone()),
     ///     vec![(files[0].clone(), GlyphChange::Changed { name: None })],
     /// ).await?;
     /// # let _ = result;
@@ -154,11 +173,10 @@ impl GenerateWebfontsResult {
     /// ```
     pub async fn regenerate_async(
         self,
-        ordered_paths: Vec<String>,
+        files: RegenerationFiles,
         changes: Vec<(String, GlyphChange)>,
     ) -> Result<Self, RegenerateError> {
-        self.regenerate_in_background(ordered_paths, Some(changes))
-            .await
+        self.regenerate_in_background(files, Some(changes)).await
     }
 
     fn regenerate_with_state(
@@ -334,11 +352,15 @@ impl GenerateWebfontsResult {
     ///     incremental: Some(true),
     ///     ..Default::default()
     /// }, None)?;
-    /// result.regenerate_all(&files)?;
+    /// result.regenerate_all(&webfont_generator::RegenerationFiles::Single(files))?;
     /// # Ok(())
     /// # }
     /// ```
-    pub fn regenerate_all(&mut self, ordered_paths: &[String]) -> std::io::Result<()> {
+    pub fn regenerate_all(&mut self, files: &RegenerationFiles) -> std::io::Result<()> {
+        let ordered_paths = match files {
+            RegenerationFiles::Single(files) => files.as_slice(),
+            RegenerationFiles::Variants(sets) => return self.regenerate_variant_files(sets, None),
+        };
         self.require_ordinary_regeneration()?;
         if !self.options.incremental {
             return Err(std::io::Error::new(
@@ -381,7 +403,7 @@ impl GenerateWebfontsResult {
         }
 
         drop(state);
-        self.regenerate(ordered_paths, &changes)
+        self.regenerate(files, &changes)
     }
 
     /// Asynchronously re-diff and rebuild on Tokio's blocking pool, consuming the old result and
@@ -399,27 +421,27 @@ impl GenerateWebfontsResult {
     ///     incremental: Some(true),
     ///     ..Default::default()
     /// }, None)?;
-    /// let result = result.regenerate_all_async(files).await?;
+    /// let result = result.regenerate_all_async(webfont_generator::RegenerationFiles::Single(files)).await?;
     /// # let _ = result;
     /// # Ok(())
     /// # }
     /// ```
     pub async fn regenerate_all_async(
         self,
-        ordered_paths: Vec<String>,
+        files: RegenerationFiles,
     ) -> Result<Self, RegenerateError> {
-        self.regenerate_in_background(ordered_paths, None).await
+        self.regenerate_in_background(files, None).await
     }
 
     async fn regenerate_in_background(
         mut self,
-        ordered_paths: Vec<String>,
+        files: RegenerationFiles,
         changes: Option<Vec<(String, GlyphChange)>>,
     ) -> Result<Self, RegenerateError> {
         let task = tokio::task::spawn_blocking(move || {
             let outcome = match changes {
-                Some(changes) => self.regenerate(&ordered_paths, &changes),
-                None => self.regenerate_all(&ordered_paths),
+                Some(changes) => self.regenerate(&files, &changes),
+                None => self.regenerate_all(&files),
             };
             match outcome {
                 Ok(()) => Ok(self),

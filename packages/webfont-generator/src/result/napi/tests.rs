@@ -170,11 +170,22 @@ fn synchronous_regeneration_accepts_explicit_and_omitted_changes() {
 
     result
         .regenerate_from_js(
-            files.clone(),
+            crate::types::RegenerationFileOptions {
+                files: Some(files.clone()),
+                variants: None,
+            },
             Some(vec![change(files[0].clone(), "changed", None)]),
         )
         .unwrap();
-    result.regenerate_from_js(files, None).unwrap();
+    result
+        .regenerate_from_js(
+            crate::types::RegenerationFileOptions {
+                files: Some(files),
+                variants: None,
+            },
+            None,
+        )
+        .unwrap();
     assert!(result.svg().unwrap().contains("glyph-name=\"add\""));
 }
 
@@ -183,7 +194,13 @@ async fn asynchronous_regeneration_succeeds_and_restores_state_after_failure() {
     let result = incremental_result();
     let files = result.options.files.clone();
     let replacement = result
-        .regenerate_async_from_js(files.clone(), None)
+        .regenerate_async_from_js(
+            crate::types::RegenerationFileOptions {
+                files: Some(files.clone()),
+                variants: None,
+            },
+            None,
+        )
         .await
         .unwrap();
     assert!(replacement.svg().is_some());
@@ -194,14 +211,26 @@ async fn asynchronous_regeneration_succeeds_and_restores_state_after_failure() {
         std::process::id()
     );
     let error = replacement
-        .regenerate_async_from_js(files.clone(), Some(vec![change(missing, "changed", None)]))
+        .regenerate_async_from_js(
+            crate::types::RegenerationFileOptions {
+                files: Some(files.clone()),
+                variants: None,
+            },
+            Some(vec![change(missing, "changed", None)]),
+        )
         .await
         .err()
         .unwrap();
     assert!(!error.reason.is_empty());
 
     let retried = replacement
-        .regenerate_async_from_js(files, None)
+        .regenerate_async_from_js(
+            crate::types::RegenerationFileOptions {
+                files: Some(files),
+                variants: None,
+            },
+            None,
+        )
         .await
         .unwrap();
     assert!(retried.svg().is_some());

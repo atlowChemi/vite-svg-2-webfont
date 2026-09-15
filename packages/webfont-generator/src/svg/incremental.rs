@@ -12,7 +12,7 @@ use super::types::{
 use super::{finalize_plan, process_glyph_with_plan};
 use crate::input::LoadedSvgFile;
 
-enum IncrementalGlyph {
+pub(super) enum IncrementalGlyph {
     Fresh(ParsedGlyph),
     Cached {
         codepoint: u32,
@@ -23,7 +23,7 @@ enum IncrementalGlyph {
 }
 
 impl IncrementalGlyph {
-    fn dimensions(&self) -> (f64, f64) {
+    pub(super) fn dimensions(&self) -> (f64, f64) {
         match self {
             Self::Fresh(glyph) => (glyph.height, glyph.width),
             Self::Cached { glyph, .. } => (glyph.height, glyph.width),
@@ -37,7 +37,7 @@ impl IncrementalGlyph {
         }
     }
 
-    fn into_parsed(self) -> ParsedGlyph {
+    pub(super) fn into_parsed(self) -> ParsedGlyph {
         match self {
             Self::Fresh(glyph) => glyph,
             Self::Cached {
@@ -53,6 +53,22 @@ impl IncrementalGlyph {
                 paths: glyph.paths.clone(),
                 width: glyph.width,
             },
+        }
+    }
+
+    /// Materialize geometry only when a variant presentation misses the processed cache.
+    pub(super) fn to_parsed(&self, codepoint: u32, index: usize, name: &str) -> ParsedGlyph {
+        let (height, width, paths) = match self {
+            Self::Fresh(glyph) => (glyph.height, glyph.width, &glyph.paths),
+            Self::Cached { glyph, .. } => (glyph.height, glyph.width, &glyph.paths),
+        };
+        ParsedGlyph {
+            codepoint,
+            height,
+            index,
+            name: name.to_owned(),
+            paths: paths.clone(),
+            width,
         }
     }
 }
@@ -76,7 +92,7 @@ pub(crate) fn source_content_hash(contents: &str) -> [u8; 16] {
     md5::compute(contents.as_bytes()).0
 }
 
-fn parse_glyphs_incremental(
+pub(super) fn parse_glyphs_incremental(
     options: &SvgOptions,
     source_files: &[LoadedSvgFile],
     cache: &mut GlyphCache,
@@ -204,7 +220,7 @@ fn parse_glyphs_incremental(
     Ok(glyphs)
 }
 
-fn processed_glyph_cache_signature(plan: &super::FinalizePlan) -> [u8; 16] {
+pub(super) fn processed_glyph_cache_signature(plan: &super::FinalizePlan) -> [u8; 16] {
     let mut bytes = Vec::with_capacity(8 * 5 + 7);
     bytes.extend_from_slice(&[
         plan.normalize as u8,

@@ -165,10 +165,10 @@ fn variant_defaults_request_only_modern_web_formats() {
 }
 
 #[test]
-fn rejects_incremental_mode_with_variants() {
+fn accepts_incremental_mode_with_variants() {
     let mut options = variant_options();
     options.incremental = Some(true);
-    validation_error(options, "options.incremental");
+    validate_generate_webfonts_options(&options).unwrap();
 }
 
 #[test]

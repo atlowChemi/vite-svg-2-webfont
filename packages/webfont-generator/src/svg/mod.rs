@@ -88,17 +88,80 @@ pub(crate) fn prepare_svg_font(
     finalize_glyphs(options, glyphs)
 }
 
-pub(crate) fn prepare_variant_svg_family(
+pub(crate) fn prepare_variant_svg_family<Files: AsRef<[LoadedSvgFile]>>(
     options: &SvgOptions,
-    family: &VariantFamilySources,
+    family: &VariantFamilySources<Files>,
 ) -> Result<PreparedVariantFamily, Error> {
+    prepare_variant_svg_family_cached(options, family, None)
+}
+
+#[derive(Default)]
+pub(crate) struct VariantGlyphCache {
+    pub(crate) parsed: Vec<types::GlyphCache>,
+    pub(crate) processed:
+        std::collections::HashMap<(usize, String, u64), types::CachedProcessedGlyph>,
+    signature: Option<[u8; 16]>,
+    #[cfg(test)]
+    pub(crate) process_count: usize,
+    #[cfg(test)]
+    pub(crate) materialize_count: usize,
+}
+
+pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgFile]>>(
+    options: &SvgOptions,
+    family: &VariantFamilySources<Files>,
+    mut cache: Option<&mut VariantGlyphCache>,
+) -> Result<PreparedVariantFamily, Error> {
+    if let Some(cache) = cache.as_mut() {
+        cache
+            .parsed
+            .resize_with(family.variants.len(), Default::default);
+    }
     let parsed_variants = family
         .variants
         .iter()
-        .map(|files| parse_glyphs(options, files))
+        .enumerate()
+        .map(|(variant_index, files)| {
+            let files = files.as_ref();
+            if let Some(cache) = cache.as_mut() {
+                let parsed_cache = &mut cache.parsed[variant_index];
+                for file in files {
+                    if parsed_cache.content_hashes.get(&file.path)
+                        != Some(&source_content_hash(&file.contents))
+                    {
+                        parsed_cache.entries.remove(&file.path);
+                        parsed_cache.content_hashes.remove(&file.path);
+                        cache.processed.retain(|(index, path, _), _| {
+                            *index != variant_index || path != &file.path
+                        });
+                    }
+                }
+                incremental::parse_glyphs_incremental(options, files, parsed_cache)
+            } else {
+                parse_glyphs(options, files).map(|glyphs| {
+                    glyphs
+                        .into_iter()
+                        .map(incremental::IncrementalGlyph::Fresh)
+                        .collect()
+                })
+            }
+        })
         .collect::<Result<Vec<_>, _>>()?;
     let parsed = parsed_variants.iter().flatten().collect::<Vec<_>>();
-    let plan = finalize_plan(options, &parsed, |glyph| glyph.height, |glyph| glyph.width);
+    let plan = finalize_plan(
+        options,
+        &parsed,
+        |glyph| glyph.dimensions().0,
+        |glyph| glyph.dimensions().1,
+    );
+    if let Some(cache) = cache.as_mut() {
+        let signature = incremental::processed_glyph_cache_signature(&plan);
+        if cache.signature != Some(signature) {
+            cache.processed.clear();
+            cache.signature = Some(signature);
+        }
+    }
+    let mut used = std::collections::HashSet::new();
     let mut advances = family
         .glyphs
         .iter()
@@ -112,12 +175,13 @@ pub(crate) fn prepare_variant_svg_family(
                             variant_index,
                             source_index,
                         } => {
-                            let parsed = &parsed_variants[variant_index][source_index];
+                            let (height, width) =
+                                parsed_variants[variant_index][source_index].dimensions();
                             Some(
-                                parsed.width
+                                width
                                     * glyph_scale(
-                                        parsed.width,
-                                        parsed.height,
+                                        width,
+                                        height,
                                         plan.normalize,
                                         plan.max_glyph_height,
                                         plan.font_height,
@@ -141,25 +205,68 @@ pub(crate) fn prepare_variant_svg_family(
         .zip(advances)
         .enumerate()
         .map(|(glyph_index, (glyph, advance_width))| {
-            let outlines = glyph
-                .sources
-                .iter()
-                .map(
-                    |source| match source.expect("missing glyphs must be resolved") {
-                        VariantGlyphSource::Source {
-                            variant_index,
-                            source_index,
-                        } => {
-                            let mut parsed = parsed_variants[variant_index][source_index].clone();
-                            parsed.name.clone_from(&glyph.name);
-                            parsed.codepoint = glyph.codepoint;
-                            parsed.index = glyph_index;
-                            process_glyph_with_advance(parsed, &plan, advance_width).map(Some)
-                        }
-                        VariantGlyphSource::Blank => Ok(None),
-                    },
-                )
-                .collect::<Result<Box<[_]>, Error>>()?;
+            let outlines =
+                glyph
+                    .sources
+                    .iter()
+                    .map(
+                        |source| match source.expect("missing glyphs must be resolved") {
+                            VariantGlyphSource::Source {
+                                variant_index,
+                                source_index,
+                            } => {
+                                let key = (
+                                    variant_index,
+                                    family.variants[variant_index].as_ref()[source_index]
+                                        .path
+                                        .clone(),
+                                    advance_width.to_bits(),
+                                );
+                                used.insert(key.clone());
+                                if let Some(cached) =
+                                    cache.as_ref().and_then(|cache| cache.processed.get(&key))
+                                {
+                                    return Ok(Some(types::ProcessedGlyph {
+                                        name: glyph.name.clone(),
+                                        codepoint: glyph.codepoint,
+                                        index: glyph_index,
+                                        height: cached.height,
+                                        width: cached.width,
+                                        path_data: cached.path_data.clone(),
+                                        ttf_path: cached.ttf_path.clone(),
+                                        ttf_path_hash: cached.ttf_path_hash,
+                                    }));
+                                }
+                                let parsed = parsed_variants[variant_index][source_index]
+                                    .to_parsed(glyph.codepoint, glyph_index, &glyph.name);
+                                #[cfg(test)]
+                                if let Some(cache) = cache.as_mut() {
+                                    cache.materialize_count += 1;
+                                }
+                                let processed =
+                                    process_glyph_with_advance(parsed, &plan, advance_width)?;
+                                if let Some(cache) = cache.as_mut() {
+                                    cache.processed.insert(
+                                        key,
+                                        types::CachedProcessedGlyph {
+                                            height: processed.height,
+                                            width: processed.width,
+                                            path_data: processed.path_data.clone(),
+                                            ttf_path: processed.ttf_path.clone(),
+                                            ttf_path_hash: processed.ttf_path_hash,
+                                        },
+                                    );
+                                    #[cfg(test)]
+                                    {
+                                        cache.process_count += 1;
+                                    }
+                                }
+                                Ok(Some(processed))
+                            }
+                            VariantGlyphSource::Blank => Ok(None),
+                        },
+                    )
+                    .collect::<Result<Box<[_]>, Error>>()?;
             Ok(ProcessedVariantGlyph {
                 name: glyph.name.clone(),
                 codepoint: glyph.codepoint,
@@ -169,6 +276,9 @@ pub(crate) fn prepare_variant_svg_family(
         })
         .collect::<Result<Vec<_>, Error>>()?;
 
+    if let Some(cache) = cache.as_mut() {
+        cache.processed.retain(|key, _| used.contains(key));
+    }
     Ok(PreparedVariantFamily {
         ascent: plan.ascent,
         descent: plan.descent,

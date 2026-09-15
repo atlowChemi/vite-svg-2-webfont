@@ -30,6 +30,36 @@ pub struct GlyphChangeEntry {
     pub name: Option<String>,
 }
 
+/// Complete ordered input membership for a regeneration operation. The case must match the
+/// result's generation mode. Synchronous methods borrow this value; async methods consume it.
+pub enum RegenerationFiles {
+    /// Single-design font inputs, in the order a fresh generation would use.
+    Single(Vec<String>),
+    /// Complete file sets for every configured variant, each named exactly once. The order of
+    /// these entries does not change configured design order. Paths can be shared between
+    /// designs; each design's file list independently determines its membership and order.
+    Variants(Vec<VariantFileSet>),
+}
+
+/// Complete file set for one configured variant during regeneration.
+#[cfg_attr(feature = "napi", napi(object))]
+pub struct VariantFileSet {
+    /// Existing variant name. Full re-diff requires every configured variant exactly once.
+    pub variant: String,
+    /// Complete ordered file set for this variant.
+    pub files: Vec<String>,
+}
+
+/// Node regeneration input. Supply exactly one of `files` or `variants`.
+#[cfg(feature = "napi")]
+#[napi(object)]
+pub struct RegenerationFileOptions {
+    /// Complete single-design input file list.
+    pub files: Option<Vec<String>>,
+    /// Complete per-design file lists for a multi-variant family.
+    pub variants: Option<Vec<VariantFileSet>>,
+}
+
 /// Font output format. Used in the `types` and `order` options to control which
 /// formats are generated and the order they appear in the CSS `@font-face`
 /// `src:` descriptor.
@@ -378,6 +408,8 @@ pub struct GenerateWebfontsOptions {
     /// Retain parsed glyph data on the result so `regenerate` can rebuild after file changes
     /// without re-parsing unchanged glyphs. Defaults to `false`; enable for watch/dev. One-shot
     /// builds (CLI, production) should leave it off to avoid holding the parsed geometry in memory.
+    /// Multi-variant results retain per-design parse/process caches. Pass
+    /// `RegenerationFiles::Variants` to the same regeneration methods for these results.
     pub incremental: Option<bool>,
     /// Explicit output font height in units per em. Overrides the height
     /// computed from the source glyphs.

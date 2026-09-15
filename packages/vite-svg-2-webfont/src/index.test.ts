@@ -934,7 +934,7 @@ describe('serve - incrementally regenerates on a content edit', () => {
         await waitForCssReload;
         expect(regenerateCalls).toHaveLength(1);
         const [files, changes] = regenerateCalls[0]!;
-        expect(files).toContain(pathJoin(webfontFolder, 'add.svg'));
+        expect(files.files).toContain(pathJoin(webfontFolder, 'add.svg'));
         expect(changes).toEqual([{ path: pathJoin(webfontFolder, 'add.svg'), changeType: 'changed' }]);
         expect(reloadedIds.some(id => id.includes('vite-svg-2-webfont.css'))).toBe(true);
     });

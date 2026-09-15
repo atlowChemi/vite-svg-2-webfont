@@ -103,14 +103,36 @@ use result::to_napi_err;
 pub use result::{GenerateWebfontsResult, RegenerateError};
 pub use types::{
     CssContext, FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, GlyphChange,
-    GlyphChangeEntry, HtmlContext, MissingGlyphBehavior, MissingGlyphOptions, SvgFormatOptions,
-    TemplateVariant, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
+    GlyphChangeEntry, HtmlContext, MissingGlyphBehavior, MissingGlyphOptions, RegenerationFiles,
+    SvgFormatOptions, TemplateVariant, TtfFormatOptions, VariantFileSet, Woff2FormatOptions,
+    WoffFormatOptions,
 };
+
+type PreparedVariantInput = (
+    svg::types::PreparedVariantFamily,
+    Vec<input::LoadedSvgFile>,
+    Option<svg::VariantGlyphCache>,
+);
 
 fn prepare_variant_family(
     options: &mut ResolvedGenerateWebfontsOptions,
     source_files: Vec<Vec<input::LoadedSvgFile>>,
-) -> std::io::Result<(svg::types::PreparedVariantFamily, Vec<input::LoadedSvgFile>)> {
+) -> std::io::Result<PreparedVariantInput> {
+    let mut cache = options.incremental.then(svg::VariantGlyphCache::default);
+    let family = prepare_variant_family_cached(
+        options,
+        source_files.iter().map(Vec::as_slice).collect(),
+        cache.as_mut(),
+    )?;
+    let sources = source_files.into_iter().flatten().collect();
+    Ok((family, sources, cache))
+}
+
+fn prepare_variant_family_cached(
+    options: &mut ResolvedGenerateWebfontsOptions,
+    source_files: Vec<&[input::LoadedSvgFile]>,
+    cache: Option<&mut svg::VariantGlyphCache>,
+) -> std::io::Result<svg::types::PreparedVariantFamily> {
     let (mut family, codepoints) = build_variant_family_sources(
         source_files,
         &options.explicit_codepoints,
@@ -138,10 +160,12 @@ fn prepare_variant_family(
         &variant_names,
     )?;
     options.codepoints = codepoints;
-    let prepared =
-        svg::prepare_variant_svg_family(&svg::svg_options_from_options(options), &family)?;
-    let source_files = family.variants.into_iter().flatten().collect();
-    Ok((prepared, source_files))
+    let svg_options = svg::svg_options_from_options(options);
+    let prepared = match cache {
+        Some(cache) => svg::prepare_variant_svg_family_cached(&svg_options, &family, Some(cache))?,
+        None => svg::prepare_variant_svg_family(&svg_options, &family)?,
+    };
+    Ok(prepared)
 }
 
 #[cfg(feature = "napi")]
@@ -314,9 +338,9 @@ pub async fn generate_webfonts(
             .collect::<Vec<_>>();
         let source_files = load_variant_svg_files_napi(&variant_paths, rename.as_ref()).await?;
         let generation = tokio::task::spawn_blocking(move || {
-            let (family, source_files) =
+            let (family, source_files, cache) =
                 prepare_variant_family(&mut resolved_options, source_files)?;
-            generate_variant_webfonts_sync(resolved_options, source_files, family)
+            generate_variant_webfonts_sync(resolved_options, source_files, family, cache)
         });
         generation.await.map_err(variant_preparation_join_error)??
     } else {
@@ -427,9 +451,9 @@ pub async fn generate(
             .collect::<Vec<_>>();
         let source_files = load_variant_svg_files(&variant_paths, rename.as_deref()).await?;
         let generation = tokio::task::spawn_blocking(move || {
-            let (family, source_files) =
+            let (family, source_files, cache) =
                 prepare_variant_family(&mut resolved_options, source_files)?;
-            generate_variant_webfonts_sync(resolved_options, source_files, family)
+            generate_variant_webfonts_sync(resolved_options, source_files, family, cache)
         });
         generation.await.map_err(std::io::Error::other)??
     } else {

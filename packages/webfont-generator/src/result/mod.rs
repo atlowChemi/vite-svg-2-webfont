@@ -116,14 +116,13 @@ impl GenerateWebfontsResult {
         if self.options.variants.is_some() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Unsupported,
-                "Multi-variant regeneration is not yet available.",
+                "Single file lists do not support variant results; supply complete variant file sets.",
             ));
         }
         Ok(())
     }
 
     pub(crate) fn take_regeneration_state(&self) -> std::io::Result<RegenerationState> {
-        self.require_ordinary_regeneration()?;
         if !self.options.incremental {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -157,7 +156,7 @@ impl GenerateWebfontsResult {
     #[cfg(feature = "bench")]
     pub fn regenerate_owned_for_bench(
         &self,
-        files: &[String],
+        files: &crate::RegenerationFiles,
         changes: &[(String, GlyphChange)],
     ) -> std::io::Result<Self> {
         let state = self.take_regeneration_state()?;

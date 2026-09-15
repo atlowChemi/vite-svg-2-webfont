@@ -23,6 +23,7 @@ const TEST_TTF_TIMESTAMP: i64 = 1_700_000_000;
 struct FixtureSet {
     dir: PathBuf,
     paths: Vec<String>,
+    regeneration_files: webfont_generator::RegenerationFiles,
     sources: Vec<BenchSvgSource>,
 }
 
@@ -115,6 +116,7 @@ fn fixtures(size: usize) -> FixtureSet {
         });
     }
     FixtureSet {
+        regeneration_files: webfont_generator::RegenerationFiles::Single(paths.clone()),
         dir,
         paths,
         sources,
@@ -234,7 +236,7 @@ fn bench_regenerate(c: &mut Criterion) {
             b.iter(|| {
                 result
                     .regenerate(
-                        &fixture.paths,
+                        &fixture.regeneration_files,
                         &[(changed.clone(), GlyphChange::Changed { name: None })],
                     )
                     .unwrap()
@@ -243,7 +245,11 @@ fn bench_regenerate(c: &mut Criterion) {
         let mut rediff_noop_result =
             webfont_generator::generate_sync(options(fixture.paths.clone(), true), None).unwrap();
         group.bench_function(format!("rediff_noop/{size}"), |b| {
-            b.iter(|| rediff_noop_result.regenerate_all(&fixture.paths).unwrap())
+            b.iter(|| {
+                rediff_noop_result
+                    .regenerate_all(&fixture.regeneration_files)
+                    .unwrap()
+            })
         });
 
         group.bench_function(format!("full_content_edit/{size}"), |b| {
@@ -278,7 +284,7 @@ fn bench_regenerate(c: &mut Criterion) {
                 |(fixture, mut result, changed)| {
                     result
                         .regenerate(
-                            &fixture.paths,
+                            &fixture.regeneration_files,
                             &[(changed, GlyphChange::Changed { name: None })],
                         )
                         .unwrap()
@@ -303,7 +309,7 @@ fn bench_regenerate(c: &mut Criterion) {
                 |(fixture, result, changed)| {
                     result
                         .regenerate_owned_for_bench(
-                            &fixture.paths,
+                            &fixture.regeneration_files,
                             &[(changed, GlyphChange::Changed { name: None })],
                         )
                         .unwrap()
@@ -325,7 +331,7 @@ fn bench_regenerate(c: &mut Criterion) {
                     std::fs::write(&changed, svg(&changed_path_data())).unwrap();
                     (fixture, result)
                 },
-                |(fixture, mut result)| result.regenerate_all(&fixture.paths).unwrap(),
+                |(fixture, mut result)| result.regenerate_all(&fixture.regeneration_files).unwrap(),
                 BatchSize::SmallInput,
             )
         });
@@ -368,7 +374,7 @@ fn bench_regenerate_batches(c: &mut Criterion) {
                             std::fs::write(&changed, svg(&changed_path_data())).unwrap();
                             result
                                 .regenerate(
-                                    &fixture.paths,
+                                    &fixture.regeneration_files,
                                     &[(changed, GlyphChange::Changed { name: None })],
                                 )
                                 .unwrap();
@@ -403,7 +409,9 @@ fn bench_regenerate_batches(c: &mut Criterion) {
                             .into_iter()
                             .map(|path| (path, GlyphChange::Changed { name: None }))
                             .collect::<Vec<_>>();
-                        result.regenerate(&fixture.paths, &changes).unwrap();
+                        result
+                            .regenerate(&fixture.regeneration_files, &changes)
+                            .unwrap();
                     },
                     BatchSize::SmallInput,
                 )
@@ -427,6 +435,8 @@ fn bench_add_remove(c: &mut Criterion) {
                             &changed_path_data(),
                         );
                         fixture.paths = insert_position(&fixture.paths, added, position);
+                        fixture.regeneration_files =
+                            webfont_generator::RegenerationFiles::Single(fixture.paths.clone());
                         fixture
                     },
                     |fixture| {
@@ -455,12 +465,14 @@ fn bench_add_remove(c: &mut Criterion) {
                         )
                         .unwrap();
                         fixture.paths = insert_position(&fixture.paths, added.clone(), position);
+                        fixture.regeneration_files =
+                            webfont_generator::RegenerationFiles::Single(fixture.paths.clone());
                         (fixture, result, added)
                     },
                     |(fixture, mut result, added)| {
                         result
                             .regenerate(
-                                &fixture.paths,
+                                &fixture.regeneration_files,
                                 &[(added, GlyphChange::Added { name: None })],
                             )
                             .unwrap()
@@ -475,6 +487,8 @@ fn bench_add_remove(c: &mut Criterion) {
                         let mut fixture = fixtures(size);
                         let (ordered, _) = remove_position(&fixture.paths, position);
                         fixture.paths = ordered;
+                        fixture.regeneration_files =
+                            webfont_generator::RegenerationFiles::Single(fixture.paths.clone());
                         fixture
                     },
                     |fixture| {
@@ -499,11 +513,16 @@ fn bench_add_remove(c: &mut Criterion) {
                         .unwrap();
                         let (ordered, removed) = remove_position(&fixture.paths, position);
                         fixture.paths = ordered;
+                        fixture.regeneration_files =
+                            webfont_generator::RegenerationFiles::Single(fixture.paths.clone());
                         (fixture, result, removed)
                     },
                     |(fixture, mut result, removed)| {
                         result
-                            .regenerate(&fixture.paths, &[(removed, GlyphChange::Removed)])
+                            .regenerate(
+                                &fixture.regeneration_files,
+                                &[(removed, GlyphChange::Removed)],
+                            )
                             .unwrap()
                     },
                     BatchSize::SmallInput,
@@ -534,7 +553,7 @@ fn bench_render_cache_after_regenerate(c: &mut Criterion) {
             |(fixture, mut result, changed)| {
                 result
                     .regenerate(
-                        &fixture.paths,
+                        &fixture.regeneration_files,
                         &[(changed, GlyphChange::Changed { name: None })],
                     )
                     .unwrap();
@@ -559,7 +578,7 @@ fn bench_render_cache_after_regenerate(c: &mut Criterion) {
             |(fixture, mut result, changed)| {
                 result
                     .regenerate(
-                        &fixture.paths,
+                        &fixture.regeneration_files,
                         &[(
                             changed,
                             GlyphChange::Changed {
@@ -585,12 +604,14 @@ fn bench_render_cache_after_regenerate(c: &mut Criterion) {
                 result.generate_html_pure(None).unwrap();
                 let added = write_icon(&fixture.dir, "added-html-reuse", &changed_path_data());
                 fixture.paths.push(added.clone());
+                fixture.regeneration_files =
+                    webfont_generator::RegenerationFiles::Single(fixture.paths.clone());
                 (fixture, result, added)
             },
             |(fixture, mut result, added)| {
                 result
                     .regenerate(
-                        &fixture.paths,
+                        &fixture.regeneration_files,
                         &[(added, GlyphChange::Added { name: None })],
                     )
                     .unwrap();
@@ -611,12 +632,14 @@ fn bench_render_cache_after_regenerate(c: &mut Criterion) {
                 result.generate_html_pure(None).unwrap();
                 let added = write_icon(&fixture.dir, "added-html-rerender", &changed_path_data());
                 fixture.paths.push(added.clone());
+                fixture.regeneration_files =
+                    webfont_generator::RegenerationFiles::Single(fixture.paths.clone());
                 (fixture, result, added)
             },
             |(fixture, mut result, added)| {
                 result
                     .regenerate(
-                        &fixture.paths,
+                        &fixture.regeneration_files,
                         &[(added, GlyphChange::Added { name: None })],
                     )
                     .unwrap();
@@ -648,7 +671,7 @@ fn bench_incremental_write_content_edit(c: &mut Criterion) {
             |(fixture, mut result, changed)| {
                 result
                     .regenerate(
-                        &fixture.paths,
+                        &fixture.regeneration_files,
                         &[(changed, GlyphChange::Changed { name: None })],
                     )
                     .unwrap()
@@ -677,7 +700,7 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
                 |(fixture, mut result, changed)| {
                     result
                         .regenerate(
-                            &fixture.paths,
+                            &fixture.regeneration_files,
                             &[(
                                 changed,
                                 GlyphChange::Changed {
@@ -708,7 +731,7 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
             |(fixture, mut result, changed)| {
                 result
                     .regenerate(
-                        &fixture.paths,
+                        &fixture.regeneration_files,
                         &[(
                             changed,
                             GlyphChange::Changed {
@@ -737,7 +760,7 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
             |(fixture, mut result, changed)| {
                 result
                     .regenerate(
-                        &fixture.paths,
+                        &fixture.regeneration_files,
                         &[(
                             changed,
                             GlyphChange::Changed {
@@ -764,12 +787,14 @@ fn bench_specialized_incremental_paths(c: &mut Criterion) {
                     )
                     .unwrap();
                     fixture.paths.push(duplicate.clone());
+                    fixture.regeneration_files =
+                        webfont_generator::RegenerationFiles::Single(fixture.paths.clone());
                     (fixture, result, duplicate)
                 },
                 |(fixture, mut result, duplicate)| {
                     result
                         .regenerate(
-                            &fixture.paths,
+                            &fixture.regeneration_files,
                             &[(duplicate, GlyphChange::Added { name: None })],
                         )
                         .unwrap()
@@ -838,7 +863,7 @@ fn bench_regenerate_by_format(c: &mut Criterion) {
                     |(fixture, mut result, changed)| {
                         result
                             .regenerate(
-                                &fixture.paths,
+                                &fixture.regeneration_files,
                                 &[(changed, GlyphChange::Changed { name: None })],
                             )
                             .unwrap()

@@ -31,7 +31,7 @@ fn ligature_regeneration_invalidates_name_dependent_tables_and_skips_single_char
 
     result
         .regenerate(
-            &[ab.clone(), x.clone()],
+            &crate::RegenerationFiles::Single(vec![ab.clone(), x.clone()]),
             &[(
                 ab.clone(),
                 GlyphChange::Changed {
@@ -77,7 +77,7 @@ fn regenerate_reuses_compiled_ttf_glyphs_for_stable_metrics() {
     write_icon(&dir, "b", D_CHANGED);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -124,7 +124,7 @@ fn regenerate_reuses_unchanged_ttf_tables_on_rename() {
     });
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(
                 b.clone(),
                 GlyphChange::Changed {
@@ -179,7 +179,7 @@ fn regenerate_recompiles_compiled_ttf_glyphs_after_metric_shift() {
     write_icon_with_viewbox(&dir, "b", 24, 48, D_CHANGED);
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(b.clone(), GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -208,7 +208,9 @@ fn regenerate_all_noop_returns_before_parsing() {
     let mut result = generate(vec![a.clone(), b.clone()], true);
     let before = with_regeneration_state(&result, |state| state.glyph_cache.parse_count);
 
-    result.regenerate_all(&[a, b]).unwrap();
+    result
+        .regenerate_all(&crate::RegenerationFiles::Single(vec![a, b]))
+        .unwrap();
 
     assert_eq!(
         with_regeneration_state(&result, |state| state.glyph_cache.parse_count),
@@ -254,7 +256,7 @@ fn regenerate_noop_changed_event_returns_before_parsing() {
 
     result
         .regenerate(
-            &[a.clone(), b.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
             &[(b, GlyphChange::Changed { name: None })],
         )
         .unwrap();
@@ -278,7 +280,7 @@ fn regenerate_added_duplicate_reuses_content_addressed_cache() {
 
     result
         .regenerate(
-            &[a.clone(), b.clone(), c.clone()],
+            &crate::RegenerationFiles::Single(vec![a.clone(), b.clone(), c.clone()]),
             &[(
                 c.clone(),
                 GlyphChange::Added {
@@ -306,7 +308,10 @@ fn regenerate_remove_prunes_inactive_cache_entries() {
     let mut result = generate(vec![a.clone(), b.clone(), c.clone()], true);
 
     result
-        .regenerate(&[a.clone(), c.clone()], &[(b, GlyphChange::Removed)])
+        .regenerate(
+            &crate::RegenerationFiles::Single(vec![a.clone(), c.clone()]),
+            &[(b, GlyphChange::Removed)],
+        )
         .unwrap();
 
     with_regeneration_state(&result, |state| {
@@ -334,7 +339,7 @@ fn regenerate_add_remove_cycles_do_not_grow_cache() {
         let with_extra = vec![a.clone(), b.clone(), extra.clone()];
         result
             .regenerate(
-                &with_extra,
+                &crate::RegenerationFiles::Single(with_extra.clone()),
                 &[(extra.clone(), GlyphChange::Added { name: None })],
             )
             .unwrap();
@@ -346,7 +351,10 @@ fn regenerate_add_remove_cycles_do_not_grow_cache() {
         });
 
         result
-            .regenerate(&[a.clone(), b.clone()], &[(extra, GlyphChange::Removed)])
+            .regenerate(
+                &crate::RegenerationFiles::Single(vec![a.clone(), b.clone()]),
+                &[(extra, GlyphChange::Removed)],
+            )
             .unwrap();
 
         with_regeneration_state(&result, |state| {
@@ -373,7 +381,10 @@ fn alternating_edits_match_fresh_fonts_and_bound_all_retained_caches() {
         let (height, path) = if index % 2 == 0 { (24, D1) } else { (48, D2) };
         write_icon_with_viewbox(&dir, "icon-a", 24, height, path);
         result
-            .regenerate(&files, &[(a.clone(), GlyphChange::Changed { name: None })])
+            .regenerate(
+                &crate::RegenerationFiles::Single(files.clone()),
+                &[(a.clone(), GlyphChange::Changed { name: None })],
+            )
             .unwrap();
         let fresh = generate_with_ligatures(files.clone(), true, true, true);
         assert_same(&result, &fresh);

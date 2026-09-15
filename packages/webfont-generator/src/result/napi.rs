@@ -72,7 +72,9 @@ impl GenerateWebfontsResult {
 
     /// Rebuild the font after a batch of file changes, reusing cached glyph geometry for files
     /// whose contents are unchanged. Requires the font to have been generated with
-    /// `incremental: true`. `files` is the complete file set after the changes, in the order a
+    /// `incremental: true`. Supply `{ files: [...] }` for an ordinary font or
+    /// `{ variants: [{ variant, files }, ...] }` with every configured design for a family.
+    /// Each list is the complete file set after the changes, in the order a
     /// fresh build would use (e.g. the glob result) — the rebuilt glyphs are ordered to match it,
     /// so the output bytes are identical to a fresh `generateWebfonts` of that set. `changes`
     /// describes the affected files: added/changed files are re-read from disk; any file absent
@@ -84,9 +86,10 @@ impl GenerateWebfontsResult {
     #[napi(js_name = "regenerate")]
     pub fn regenerate_from_js(
         &mut self,
-        files: Vec<String>,
+        files: crate::types::RegenerationFileOptions,
         changes: Option<Vec<GlyphChangeEntry>>,
     ) -> napi::Result<()> {
+        let files = parse_regeneration_files(files)?;
         let changes = parse_glyph_changes(changes)?;
         match changes {
             Some(changes) => self.regenerate(&files, &changes),
@@ -102,11 +105,14 @@ impl GenerateWebfontsResult {
     #[napi(js_name = "regenerateAsync")]
     pub async fn regenerate_async_from_js(
         &self,
-        files: Vec<String>,
+        files: crate::types::RegenerationFileOptions,
         changes: Option<Vec<GlyphChangeEntry>>,
     ) -> napi::Result<GenerateWebfontsResult> {
+        let files = parse_regeneration_files(files)?;
         let changes = parse_glyph_changes(changes)?;
         let state = self.take_regeneration_state().map_err(to_napi_err)?;
+        let original_sources = Arc::clone(&self.source_files);
+        let is_variant = self.options.variants.is_some();
         let original_state = Arc::clone(&self.regeneration_state);
         let mut replacement = self.snapshot_for_regeneration(state);
         tokio::task::spawn_blocking(move || -> std::io::Result<GenerateWebfontsResult> {
@@ -114,20 +120,25 @@ impl GenerateWebfontsResult {
                 Some(changes) => replacement.regenerate(&files, &changes),
                 None => replacement.regenerate_all(&files),
             }));
+            if !matches!(result, Ok(Ok(()))) {
+                let mut state = replacement.take_regeneration_state().ok();
+                if let Some(state) = state.as_mut()
+                    && is_variant
+                    && !Arc::ptr_eq(&original_sources, &replacement.source_files)
+                {
+                    // Authoritative sources belong to the receiver, not this movable cache
+                    // state. Discard caches for the failed replacement's committed sources.
+                    state.variant_cache = None;
+                    // The write map describes actual successful writes, including partial
+                    // ones. A no-op retry must reconcile disk output with the old receiver.
+                    state.variant_write_pending = replacement.options.write_files;
+                }
+                *original_state.lock().unwrap() = state;
+            }
             match result {
                 Ok(Ok(())) => Ok(replacement),
-                Ok(Err(error)) => {
-                    if let Ok(state) = replacement.take_regeneration_state() {
-                        *original_state.lock().unwrap() = Some(state);
-                    }
-                    Err(error)
-                }
-                Err(payload) => {
-                    if let Ok(state) = replacement.take_regeneration_state() {
-                        *original_state.lock().unwrap() = Some(state);
-                    }
-                    std::panic::resume_unwind(payload)
-                }
+                Ok(Err(error)) => Err(error),
+                Err(payload) => std::panic::resume_unwind(payload),
             }
         })
         .await
@@ -135,6 +146,18 @@ impl GenerateWebfontsResult {
             napi::Error::from_reason(format!("Native webfont regeneration task failed: {error}"))
         })?
         .map_err(to_napi_err)
+    }
+}
+
+fn parse_regeneration_files(
+    input: crate::types::RegenerationFileOptions,
+) -> napi::Result<crate::RegenerationFiles> {
+    match (input.files, input.variants) {
+        (Some(files), None) => Ok(crate::RegenerationFiles::Single(files)),
+        (None, Some(variants)) => Ok(crate::RegenerationFiles::Variants(variants)),
+        _ => Err(to_napi_err(
+            "Regeneration input requires exactly one of files or variants.",
+        )),
     }
 }
 

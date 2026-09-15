@@ -188,12 +188,6 @@ fn validate_variants(
             "\"options.types\" cannot include \"svg\" or \"eot\" with \"options.variants\".",
         ));
     }
-    if options.incremental == Some(true) {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "\"options.incremental\" cannot be true with \"options.variants\".",
-        ));
-    }
     if options.font_weight.is_some() {
         return Err(Error::new(
             ErrorKind::InvalidInput,

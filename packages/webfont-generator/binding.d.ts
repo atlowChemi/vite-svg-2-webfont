@@ -32,7 +32,9 @@ export declare class GenerateWebfontsResult {
   /**
    * Rebuild the font after a batch of file changes, reusing cached glyph geometry for files
    * whose contents are unchanged. Requires the font to have been generated with
-   * `incremental: true`. `files` is the complete file set after the changes, in the order a
+   * `incremental: true`. Supply `{ files: [...] }` for an ordinary font or
+   * `{ variants: [{ variant, files }, ...] }` with every configured design for a family.
+   * Each list is the complete file set after the changes, in the order a
    * fresh build would use (e.g. the glob result) — the rebuilt glyphs are ordered to match it,
    * so the output bytes are identical to a fresh `generateWebfonts` of that set. `changes`
    * describes the affected files: added/changed files are re-read from disk; any file absent
@@ -42,14 +44,14 @@ export declare class GenerateWebfontsResult {
    * refreshed fonts are written to disk too, while CSS/HTML companion files are skipped if their
    * rendered bytes are unchanged since the last write.
    */
-  regenerate(files: Array<string>, changes?: Array<GlyphChangeEntry> | undefined | null): void
+  regenerate(files: RegenerationFileOptions, changes?: Array<GlyphChangeEntry> | undefined | null): void
   /**
    * Rebuild off the Node.js event loop and resolve with a replacement result. The receiver
    * remains readable and unchanged while regeneration runs and after failure. Assign the
    * resolved result before starting another regeneration. Overlapping calls on the same result
    * lineage are rejected, and disk writes remain non-transactional.
    */
-  regenerateAsync(files: Array<string>, changes?: Array<GlyphChangeEntry> | undefined | null): Promise<GenerateWebfontsResult>
+  regenerateAsync(files: RegenerationFileOptions, changes?: Array<GlyphChangeEntry> | undefined | null): Promise<GenerateWebfontsResult>
 }
 
 /**
@@ -227,6 +229,8 @@ export interface GenerateWebfontsOptions {
    * Retain parsed glyph data on the result so `regenerate` can rebuild after file changes
    * without re-parsing unchanged glyphs. Defaults to `false`; enable for watch/dev. One-shot
    * builds (CLI, production) should leave it off to avoid holding the parsed geometry in memory.
+   * Multi-variant results retain per-design parse/process caches. Pass
+   * `RegenerationFiles::Variants` to the same regeneration methods for these results.
    */
   incremental?: boolean
   /**
@@ -388,6 +392,14 @@ export interface MissingGlyphOptions {
   variant?: string
 }
 
+/** Node regeneration input. Supply exactly one of `files` or `variants`. */
+export interface RegenerationFileOptions {
+  /** Complete single-design input file list. */
+  files?: Array<string>
+  /** Complete per-design file lists for a multi-variant family. */
+  variants?: Array<VariantFileSet>
+}
+
 /**
  * SVG-format–specific options for the intermediate SVG font and the per-glyph
  * path processing that feeds every other format.
@@ -453,6 +465,14 @@ export interface TtfFormatOptions {
   url?: string
   /** Version string written to the TTF `name` table (record id 5). */
   version?: string
+}
+
+/** Complete file set for one configured variant during regeneration. */
+export interface VariantFileSet {
+  /** Existing variant name. Full re-diff requires every configured variant exactly once. */
+  variant: string
+  /** Complete ordered file set for this variant. */
+  files: Array<string>
 }
 
 /** WOFF2-format–specific options. Affects only WOFF2 output. */

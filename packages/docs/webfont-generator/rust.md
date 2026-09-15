@@ -188,7 +188,7 @@ This generates `my-icons.woff` and `my-icons.woff2`, plus `my-icons.css`. With t
 `class="icon icon-add"` uses the light design and `class="icon icon-add icon--bold"` uses bold.
 TTF is also supported; SVG and EOT are not available for multi-variant families.
 For sparse designs, set [`missing_glyphs`](#missingglyphoptions). Incremental regeneration is
-not currently available for multi-variant results.
+available with `incremental: Some(true)` through the [variant methods](#variant-regeneration).
 
 See [Templates](./templates) for CSS customization, SCSS, and the
 [additional template context fields](./templates#template-context).
@@ -310,21 +310,74 @@ Both methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter
 multi-variant results reject SVG/EOT URL overrides. See the shared [Templates reference](./templates)
 for context fields, generated CSS, HTML previews, and SCSS usage.
 
+### Variant regeneration
+
+Enable `incremental: Some(true)` when generating a family to retain per-design parse/process
+caches. The same [incremental methods](#incremental-rebuild) support ordinary fonts and families.
+Select the matching source mode with `RegenerationFiles`:
+
+```rust
+use webfont_generator::{GlyphChange, RegenerationFiles, VariantFileSet};
+
+let files = RegenerationFiles::Variants(vec![
+    VariantFileSet { variant: "light".into(), files: vec!["light/add.svg".into()] },
+    VariantFileSet { variant: "bold".into(), files: vec!["bold/add.svg".into()] },
+]);
+let changes = vec![("bold/add.svg".into(), GlyphChange::Changed { name: None })];
+result = result.regenerate_async(files, changes).await?;
+```
+
+#### `RegenerationFiles`
+
+| Case       | Payload               | Meaning                                                |
+| ---------- | --------------------- | ------------------------------------------------------ |
+| `Single`   | `Vec<String>`         | Complete ordered inputs for an ordinary font           |
+| `Variants` | `Vec<VariantFileSet>` | Complete ordered file sets for every configured design |
+
+#### `VariantFileSet`
+
+| Field     | Type          | Meaning                                                          |
+| --------- | ------------- | ---------------------------------------------------------------- |
+| `variant` | `String`      | Existing design name, present exactly once per update            |
+| `files`   | `Vec<String>` | Nonempty, duplicate-free authoritative file list for this design |
+
+Every update supplies every configured design. The update's design order does not change the
+configured order; file ordering is independent within each design. Regeneration cannot change
+the design list or weights themselves. Unknown/duplicate design names and invalid lists fail
+before reading sources.
+
+`GlyphChange` hints apply to paths across the family. `Added` introduces a path not previously
+used by any design; `Changed` updates every final consumer of an existing path; `Removed`
+requires that no design retain the path. Optional names apply to all consumers too. Membership
+changes, including moving or sharing an existing path, need only changes to the file lists.
+New memberships are loaded even without a hint. Use `regenerate_all` or `regenerate_all_async`
+to read every file and infer additions, changes, and removals.
+
+Successful updates match a fresh build of the final inputs, including union/codepoint assignment,
+shared metrics, and fallback consumers. Unchanged parse/process work is reused; effective changes
+reassemble the shared font bundle. No-op updates retain in-memory output and can retry writes.
+
+Validation, source loading, and font-build failures preserve the previous state. State commits
+before writes: a write failure leaves the new in-memory output available and may leave partial
+disk files. Retry to complete output writes. Async methods consume `self`; recover the result
+with `RegenerateError::into_result` on failure. Dropping the future does not cancel started
+blocking work or its writes. Results created through Node context callbacks reject regeneration.
+
 ### Incremental rebuild
 
-| Method                                     | Return type                     | Description                                                          |
-| ------------------------------------------ | ------------------------------- | -------------------------------------------------------------------- |
-| `regenerate(ordered_paths, changes)`       | `io::Result<()>`                | Rebuild after known file changes, reusing unchanged glyphs           |
-| `regenerate_all(ordered_paths)`            | `io::Result<()>`                | Re-read/hash the full file set and infer added/changed/removed paths |
-| `regenerate_async(ordered_paths, changes)` | `Result<Self, RegenerateError>` | Consume the result and rebuild on Tokio's blocking pool              |
-| `regenerate_all_async(ordered_paths)`      | `Result<Self, RegenerateError>` | Consume the result, re-diff, and rebuild on Tokio's blocking pool    |
+| Method                             | Return type                     | Description                                                          |
+| ---------------------------------- | ------------------------------- | -------------------------------------------------------------------- |
+| `regenerate(files, changes)`       | `io::Result<()>`                | Rebuild after known file changes, reusing unchanged glyphs           |
+| `regenerate_all(files)`            | `io::Result<()>`                | Re-read/hash the full file set and infer added/changed/removed paths |
+| `regenerate_async(files, changes)` | `Result<Self, RegenerateError>` | Consume the result and rebuild on Tokio's blocking pool              |
+| `regenerate_all_async(files)`      | `Result<Self, RegenerateError>` | Consume the result, re-diff, and rebuild on Tokio's blocking pool    |
 
 Requires the result to have been generated with `incremental: Some(true)` (errors otherwise).
-Multi-variant results reject these methods with `io::ErrorKind::Unsupported`.
-`ordered_paths: &[String]` is the complete file set after the changes, in the order a fresh build
+Synchronous methods take `files: &RegenerationFiles`; async methods take an owned `RegenerationFiles`.
+Each contained file list is the complete file set after the changes, in the order a fresh build
 would use (e.g. the glob result); the rebuilt glyphs are ordered to match it, so the result is
 byte-identical to a fresh build of that set — additions included, even when they sort before
-existing glyphs. Any path absent from `ordered_paths` is dropped. `changes: &[(String, GlyphChange)]`
+existing glyphs. Any path absent from its list is dropped. `changes: &[(String, GlyphChange)]`
 names the affected files: added/changed files are re-read from disk. Every format is refreshed in
 memory, and — when the result was built with `write_files` — refreshed fonts are written to disk
 too, while unchanged CSS/HTML companion files are skipped. Rendered
@@ -332,7 +385,7 @@ CSS/HTML is reused when glyph names and codepoints are unchanged. Use `regenerat
 the fresh ordered file set but no reliable watcher change batch; existing glyph names are preserved,
 and added paths derive their glyph name from the file stem.
 
-The async methods take owned `Vec` inputs and consume the result, so Rust rejects stale-result
+The async methods take owned inputs and consume the result, so Rust rejects stale-result
 reuse after a successful rebuild. Assign the returned generation:
 
 ```rust
@@ -356,7 +409,7 @@ pub enum GlyphChange {
 }
 
 // result built with `incremental: Some(true)`
-let files = vec!["icons/add.svg".to_owned(), "icons/remove.svg".to_owned()];
+let files = RegenerationFiles::Single(vec!["icons/add.svg".to_owned(), "icons/remove.svg".to_owned()]);
 result.regenerate(&files, &[("icons/add.svg".to_owned(), GlyphChange::Changed { name: None })])?;
 // Or re-diff the full set when watcher hints are unavailable/untrusted:
 result.regenerate_all(&files)?;

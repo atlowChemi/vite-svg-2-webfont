@@ -171,7 +171,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         try {
             const orderedFiles = parseFiles(options);
             processedOptions.files = orderedFiles;
-            const replacement = await generatedFonts.regenerateAsync(orderedFiles, changes.map(toGlyphChange));
+            const replacement = await generatedFonts.regenerateAsync({ files: orderedFiles }, changes.map(toGlyphChange));
             if (ac.signal.aborted) {
                 return;
             }

@@ -35,7 +35,10 @@ fn regenerate_writes_changed_outputs_and_skips_unchanged() {
     // This helper builds in memory only, so this first regenerate performs the initial write.
     write_icon(&dir, "b", D_CHANGED);
     result
-        .regenerate(&files, &[(b.clone(), GlyphChange::Changed { name: None })])
+        .regenerate(
+            &crate::RegenerationFiles::Single(files.clone()),
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
         .unwrap();
 
     let on_disk = std::fs::read(&woff2_path).unwrap();
@@ -48,7 +51,10 @@ fn regenerate_writes_changed_outputs_and_skips_unchanged() {
     // deleted output is NOT recreated.
     std::fs::remove_file(&woff2_path).unwrap();
     result
-        .regenerate(&files, &[(b.clone(), GlyphChange::Changed { name: None })])
+        .regenerate(
+            &crate::RegenerationFiles::Single(files.clone()),
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
         .unwrap();
     assert!(
         !woff2_path.exists(),
@@ -71,13 +77,19 @@ fn regenerate_write_failure_restores_published_output() {
     std::fs::write(&dest, "not a directory").unwrap();
     write_icon(&dir, "b", D_CHANGED);
     result
-        .regenerate(&files, &[(b.clone(), GlyphChange::Changed { name: None })])
+        .regenerate(
+            &crate::RegenerationFiles::Single(files.clone()),
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
         .expect_err("writing below a file must fail");
     assert_eq!(result.woff2_bytes().unwrap(), before);
 
     std::fs::remove_file(&dest).unwrap();
     result
-        .regenerate(&files, &[(b, GlyphChange::Changed { name: None })])
+        .regenerate(
+            &crate::RegenerationFiles::Single(files.clone()),
+            &[(b, GlyphChange::Changed { name: None })],
+        )
         .unwrap();
     assert_same(&result, &generate_with_css(files, false));
     std::fs::remove_dir_all(&dir).ok();
@@ -115,7 +127,10 @@ fn initial_write_seeds_skip_map_for_first_regenerate() {
     // No real change -> identical output -> skipped because the initial write seeded the hash.
     std::fs::remove_file(&woff2_path).unwrap();
     result
-        .regenerate(&files, &[(b.clone(), GlyphChange::Changed { name: None })])
+        .regenerate(
+            &crate::RegenerationFiles::Single(files.clone()),
+            &[(b.clone(), GlyphChange::Changed { name: None })],
+        )
         .unwrap();
     assert!(
         !woff2_path.exists(),
