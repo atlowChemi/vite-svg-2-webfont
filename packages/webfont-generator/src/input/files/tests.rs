@@ -1,9 +1,10 @@
 #[cfg(feature = "napi")]
 use super::load_svg_files_napi;
 use super::{
-    LoadedSvgFile, build_variant_family_sources, default_glyph_name_from_path,
-    glyph_name_from_path, load_svg_contents, load_variant_svg_files,
+    LoadedSvgFile, VariantGlyphSource, build_variant_family_sources, default_glyph_name_from_path,
+    glyph_name_from_path, load_svg_contents, load_variant_svg_files, resolve_missing_glyphs,
 };
+use crate::types::MissingGlyphBehavior;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
@@ -13,6 +14,13 @@ fn loaded(path: &str, glyph_name: &str) -> LoadedSvgFile {
         glyph_name: glyph_name.to_owned(),
         path: path.to_owned(),
     }
+}
+
+fn source(variant_index: usize, source_index: usize) -> Option<VariantGlyphSource> {
+    Some(VariantGlyphSource::Source {
+        variant_index,
+        source_index,
+    })
 }
 
 fn temp_svg(name: &str) -> String {
@@ -151,9 +159,9 @@ fn builds_sparse_logical_glyphs_in_first_appearance_order() {
             .collect::<Vec<_>>(),
         [41, 42, 43],
     );
-    assert_eq!(&*family.glyphs[0].sources, [Some(0), None]);
-    assert_eq!(&*family.glyphs[1].sources, [Some(1), Some(0)]);
-    assert_eq!(&*family.glyphs[2].sources, [None, Some(1)]);
+    assert_eq!(&*family.glyphs[0].sources, [source(0, 0), None]);
+    assert_eq!(&*family.glyphs[1].sources, [source(0, 1), source(1, 0)]);
+    assert_eq!(&*family.glyphs[2].sources, [None, source(1, 1)]);
     assert_eq!(family.variants[1][0].path, "large/a.svg");
     assert_eq!(
         codepoints,
@@ -189,4 +197,146 @@ fn rebuilds_union_codepoints_from_the_explicit_base() {
         changed,
         BTreeMap::from([("b".to_owned(), 100), ("c".to_owned(), 101)])
     );
+}
+
+#[test]
+fn resolves_missing_glyphs_as_explicit_blanks() {
+    let (mut family, _) = build_variant_family_sources(
+        vec![
+            vec![loaded("small/b.svg", "b"), loaded("small/a.svg", "a")],
+            vec![loaded("large/a.svg", "a"), loaded("large/c.svg", "c")],
+        ],
+        &BTreeMap::from([("a".to_owned(), 42)]),
+        41,
+    )
+    .unwrap();
+
+    resolve_missing_glyphs(
+        &mut family,
+        MissingGlyphBehavior::Blank,
+        None,
+        &["small", "large"],
+    )
+    .unwrap();
+
+    assert_eq!(
+        family
+            .glyphs
+            .iter()
+            .map(|glyph| (glyph.name.as_str(), glyph.codepoint))
+            .collect::<Vec<_>>(),
+        [("b", 41), ("a", 42), ("c", 43)]
+    );
+    assert_eq!(
+        &*family.glyphs[0].sources,
+        [source(0, 0), Some(VariantGlyphSource::Blank)]
+    );
+    assert_eq!(&*family.glyphs[1].sources, [source(0, 1), source(1, 0)]);
+    assert_eq!(
+        &*family.glyphs[2].sources,
+        [Some(VariantGlyphSource::Blank), source(1, 1)]
+    );
+}
+
+#[test]
+fn reports_all_missing_glyphs_in_glyph_then_variant_order() {
+    let (mut family, _) = build_variant_family_sources(
+        vec![
+            vec![loaded("small/a.svg", "a")],
+            vec![loaded("medium/b.svg", "b")],
+            vec![loaded("large/c.svg", "c")],
+        ],
+        &BTreeMap::new(),
+        100,
+    )
+    .unwrap();
+
+    let error = resolve_missing_glyphs(
+        &mut family,
+        MissingGlyphBehavior::Error,
+        None,
+        &["small", "medium", "large"],
+    )
+    .unwrap_err();
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Missing glyphs: \"a\" in variant \"medium\", \"a\" in variant \"large\", \"b\" in variant \"small\", \"b\" in variant \"large\", \"c\" in variant \"small\", \"c\" in variant \"medium\"."
+    );
+}
+
+#[test]
+fn resolves_only_missing_cells_from_the_fallback_variant() {
+    let (mut family, _) = build_variant_family_sources(
+        vec![
+            vec![loaded("small/a.svg", "a")],
+            vec![loaded("large/a.svg", "a"), loaded("large/b.svg", "b")],
+        ],
+        &BTreeMap::new(),
+        100,
+    )
+    .unwrap();
+
+    resolve_missing_glyphs(
+        &mut family,
+        MissingGlyphBehavior::Fallback,
+        Some(1),
+        &["small", "large"],
+    )
+    .unwrap();
+
+    assert_eq!(&*family.glyphs[0].sources, [source(0, 0), source(1, 0)]);
+    assert_eq!(&*family.glyphs[1].sources, [source(1, 1), source(1, 1)]);
+}
+
+#[test]
+fn rejects_a_glyph_missing_from_the_fallback_variant() {
+    let (mut family, _) = build_variant_family_sources(
+        vec![
+            vec![loaded("small/a.svg", "a")],
+            vec![loaded("large/b.svg", "b")],
+        ],
+        &BTreeMap::new(),
+        100,
+    )
+    .unwrap();
+
+    let error = resolve_missing_glyphs(
+        &mut family,
+        MissingGlyphBehavior::Fallback,
+        Some(1),
+        &["small", "large"],
+    )
+    .unwrap_err();
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Fallback variant \"large\" is missing glyph \"a\"."
+    );
+}
+
+#[test]
+fn leaves_complete_families_unchanged_for_every_policy() {
+    for behavior in [
+        MissingGlyphBehavior::Blank,
+        MissingGlyphBehavior::Error,
+        MissingGlyphBehavior::Fallback,
+    ] {
+        let (mut family, _) = build_variant_family_sources(
+            vec![
+                vec![loaded("small/a.svg", "a")],
+                vec![loaded("large/a.svg", "a")],
+            ],
+            &BTreeMap::new(),
+            100,
+        )
+        .unwrap();
+        let before = family.glyphs[0].sources.clone();
+
+        resolve_missing_glyphs(&mut family, behavior, Some(0), &["small", "large"]).unwrap();
+
+        assert_eq!(family.glyphs[0].sources, before);
+    }
 }
