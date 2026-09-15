@@ -35,38 +35,40 @@ afterEach(async () => {
 const svg = (width: number) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0H${width}V24H0Z"/></svg>`;
 
 async function fixture(overrides: Partial<IconPluginVariantOptions> = {}) {
-    await using cleanup = new AsyncDisposableStack();
     const root = await mkdtemp(join(tmpdir(), 'plugin-family-'));
-    cleanup.defer(() => rm(root, { recursive: true, force: true }));
-    await Promise.all(
-        ['light', 'bold'].map(async (name, index) => {
-            await mkdir(join(root, name));
-            await writeFile(join(root, name, 'add.svg'), svg(10 + index * 8));
-        }),
-    );
-    await writeFile(
-        join(root, 'index.html'),
-        '<html><head><script type="module" src="/entry.js"></script></head><body><span class="icon icon-add icon--bold"></span></body></html>',
-    );
-    await writeFile(join(root, 'entry.js'), "import 'virtual:vite-svg-2-webfont.css';");
+    const dispose = () => rm(root, { recursive: true, force: true });
+    try {
+        await Promise.all(
+            ['light', 'bold'].map(async (name, index) => {
+                await mkdir(join(root, name));
+                await writeFile(join(root, name, 'add.svg'), svg(10 + index * 8));
+            }),
+        );
+        await writeFile(
+            join(root, 'index.html'),
+            '<html><head><script type="module" src="/entry.js"></script></head><body><span class="icon icon-add icon--bold"></span></body></html>',
+        );
+        await writeFile(join(root, 'entry.js'), "import 'virtual:vite-svg-2-webfont.css';");
 
-    const options: IconPluginVariantOptions = {
-        context: root,
-        dest: join(root, 'output'),
-        fontName: 'icons',
-        variants: [
-            { name: 'light', context: 'light', default: true, weight: 300 },
-            { name: 'bold', context: 'bold', weight: 700 },
-        ],
-        formatOptions: { ttf: { ts: 1_700_000_000 }, woff2: { compressionQuality: 10 } },
-        ...overrides,
-    };
-    const ownedCleanup = cleanup.move();
-    return { root, options, [Symbol.asyncDispose]: () => ownedCleanup.disposeAsync() };
+        const options: IconPluginVariantOptions = {
+            context: root,
+            dest: join(root, 'output'),
+            fontName: 'icons',
+            variants: [
+                { name: 'light', context: 'light', default: true, weight: 300 },
+                { name: 'bold', context: 'bold', weight: 700 },
+            ],
+            formatOptions: { ttf: { ts: 1_700_000_000 }, woff2: { compressionQuality: 10 } },
+            ...overrides,
+        };
+        return { root, options, [Symbol.asyncDispose]: dispose };
+    } catch (error) {
+        await dispose();
+        throw error;
+    }
 }
 
 async function serve(options: IconPluginVariantOptions) {
-    await using cleanup = new AsyncDisposableStack();
     let reload!: MockInstance<Awaited<ReturnType<typeof createServer>>['reloadModule']>;
     let handler!: Parameters<typeof watcher>[2];
     watcher.mockImplementationOnce(async (_roots, _signal, callback) => {
@@ -89,20 +91,22 @@ async function serve(options: IconPluginVariantOptions) {
         ],
         server: { port: 0, host: '127.0.0.1' },
     });
-    cleanup.defer(() => server.close());
+    try {
+        await server.listen();
+        const addressInfo = server.httpServer!.address();
+        const port = typeof addressInfo === 'string' ? addressInfo : addressInfo?.port;
+        const url = `http://127.0.0.1:${port}`;
 
-    await server.listen();
-    const addressInfo = server.httpServer!.address();
-    const port = typeof addressInfo === 'string' ? addressInfo : addressInfo?.port;
-    const url = `http://127.0.0.1:${port}`;
+        const css = () => fetch(`${url}/@id/__x00__virtual:vite-svg-2-webfont.css`).then(response => response.text());
+        await css();
 
-    const css = () => fetch(`${url}/@id/__x00__virtual:vite-svg-2-webfont.css`).then(response => response.text());
-    await css();
+        const font = async () => new Uint8Array(await (await fetch(`${url}/icons.woff2`)).arrayBuffer());
 
-    const font = async () => new Uint8Array(await (await fetch(`${url}/icons.woff2`)).arrayBuffer());
-
-    const ownedCleanup = cleanup.move();
-    return { server, handler, reload, css, font, [Symbol.asyncDispose]: () => ownedCleanup.disposeAsync() };
+        return { server, handler, reload, css, font, [Symbol.asyncDispose]: () => server.close() };
+    } catch (error) {
+        await server.close();
+        throw error;
+    }
 }
 
 it('serves one shared font, reloads on edits, and matches a fresh family build', async () => {

@@ -17,20 +17,23 @@ const cssContext = () => {
 };
 
 async function fixture() {
-    await using cleanup = new AsyncDisposableStack();
     const context = await mkdtemp(join(tmpdir(), 'plugin-variant-options-'));
-    cleanup.defer(() => rm(context, { recursive: true, force: true }));
-    await mkdir(join(context, 'bold'));
-    await Promise.all(['z.svg', 'a.svg', 'bold/a.svg'].map(path => writeFile(join(context, path), '<svg/>')));
-    const ownedCleanup = cleanup.move();
-    return {
-        [Symbol.asyncDispose]: () => ownedCleanup.disposeAsync(),
-        context,
-        variants: [
-            { name: 'light', default: true, files: ['*.svg', 'a.svg'] },
-            { name: 'bold', context: join(context, 'bold') },
-        ],
-    };
+    const dispose = () => rm(context, { recursive: true, force: true });
+    try {
+        await mkdir(join(context, 'bold'));
+        await Promise.all(['z.svg', 'a.svg', 'bold/a.svg'].map(path => writeFile(join(context, path), '<svg/>')));
+        return {
+            [Symbol.asyncDispose]: dispose,
+            context,
+            variants: [
+                { name: 'light', default: true, files: ['*.svg', 'a.svg'] },
+                { name: 'bold', context: join(context, 'bold') },
+            ],
+        };
+    } catch (error) {
+        await dispose();
+        throw error;
+    }
 }
 
 describe('optionParser', () => {
