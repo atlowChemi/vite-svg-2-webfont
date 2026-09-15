@@ -59,7 +59,8 @@ pub struct FontVariant {
     pub name: String,
     /// SVG files that belong to this variant.
     pub files: Vec<String>,
-    /// Optional explicit CSS weight coordinate in the range 1 through 1000.
+    /// Optional explicit CSS weight coordinate in the range 1 through 1000. Automatic weights
+    /// resolve outward from the default in steps of 100, or evenly when an interval is crowded.
     pub weight: Option<u16>,
     /// Whether this is the family's default variant. Exactly one variant must set this to `true`.
     pub default: Option<bool>,
@@ -328,7 +329,8 @@ pub struct GenerateWebfontsOptions {
     /// invalid without `variants`.
     pub variant_class_prefix: Option<String>,
     /// Ordered named SVG designs for one logical icon family. Variant generation is not yet
-    /// available; valid input is resolved before returning an unsupported-operation error.
+    /// available; validated variants resolve weights and CSS selectors before returning an
+    /// unsupported-operation error.
     pub variants: Option<Vec<FontVariant>>,
     /// Whether to write generated files to disk. Set to `false` for
     /// in-memory usage. Defaults to `true`.

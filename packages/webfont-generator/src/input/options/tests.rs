@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use super::{
-    resolve_codepoints, resolve_generate_webfonts_options, resolved_font_types,
-    validate_font_type_order, validate_generate_webfonts_options,
+    resolve_codepoints, resolve_generate_webfonts_options, resolve_variant_weights,
+    resolved_font_types, serialize_css_identifier, validate_font_type_order,
+    validate_generate_webfonts_options,
 };
 use crate::input::LoadedSvgFile;
 use crate::{
@@ -192,6 +193,25 @@ fn rejects_duplicate_variant_names() {
 }
 
 #[test]
+fn serializes_css_identifiers() {
+    for (token, expected) in [
+        ("icon--small", "icon--small"),
+        ("icon--a.b", "icon--a\\.b"),
+        ("icon--a#b", "icon--a\\#b"),
+        ("icon--a:b", "icon--a\\:b"),
+        ("icon--a/b", "icon--a\\/b"),
+        ("icon--a\\b", "icon--a\\\\b"),
+        ("icon--größe", "icon--größe"),
+        ("1small", "\\31 small"),
+        ("-1small", "-\\31 small"),
+        ("\0", "�"),
+        ("-", "\\-"),
+    ] {
+        assert_eq!(serialize_css_identifier(token), expected);
+    }
+}
+
+#[test]
 fn requires_exactly_one_default_variant() {
     let mut no_default = variant_options();
     no_default.variants.as_mut().unwrap()[1].default = None;
@@ -232,6 +252,162 @@ fn accepts_mixed_automatic_and_explicit_weights_without_resolving_them() {
     let mut options = variant_options();
     options.variants.as_mut().unwrap()[0].weight = None;
     validate_generate_webfonts_options(&options).unwrap();
+}
+
+fn resolved_weights(spec: &[(Option<u16>, bool)]) -> std::io::Result<Vec<u16>> {
+    let variants = spec
+        .iter()
+        .enumerate()
+        .map(|(index, (weight, is_default))| {
+            variant(&format!("variant-{index}"), *weight, *is_default)
+        })
+        .collect::<Vec<_>>();
+    let default_index = spec.iter().position(|(_, is_default)| *is_default).unwrap();
+    resolve_variant_weights(&variants, default_index)
+}
+
+#[test]
+fn resolves_automatic_weights_from_the_default() {
+    for (spec, expected) in [
+        (vec![(None, true), (None, false)], vec![400, 500]),
+        (vec![(None, false), (None, true)], vec![300, 400]),
+        (
+            vec![(None, false), (None, true), (None, false)],
+            vec![300, 400, 500],
+        ),
+        (
+            vec![(Some(500), true), (None, false), (None, false)],
+            vec![500, 600, 700],
+        ),
+    ] {
+        assert_eq!(resolved_weights(&spec).unwrap(), expected);
+    }
+}
+
+#[test]
+fn resolves_mixed_weights_and_crowded_intervals() {
+    assert_eq!(
+        resolved_weights(&[
+            (Some(100), false),
+            (None, false),
+            (None, true),
+            (None, false),
+            (Some(700), false),
+        ])
+        .unwrap(),
+        [100, 300, 400, 500, 700],
+    );
+    assert_eq!(
+        resolved_weights(&[
+            (None, true),
+            (None, false),
+            (None, false),
+            (Some(550), false),
+        ])
+        .unwrap(),
+        [400, 450, 500, 550],
+    );
+}
+
+#[test]
+fn resolves_the_full_css_weight_range() {
+    let mut canonical = vec![(None, false); 10];
+    canonical[3].1 = true;
+    assert_eq!(
+        resolved_weights(&canonical).unwrap(),
+        (100..=1000).step_by(100).collect::<Vec<_>>()
+    );
+
+    let mut spec = vec![(None, false); 1000];
+    spec[399].1 = true;
+
+    assert_eq!(
+        resolved_weights(&spec).unwrap(),
+        (1..=1000).collect::<Vec<_>>()
+    );
+}
+
+#[test]
+fn resolves_weights_deterministically() {
+    let spec = [
+        (Some(1), false),
+        (None, false),
+        (None, true),
+        (None, false),
+        (Some(1000), false),
+    ];
+
+    assert_eq!(
+        resolved_weights(&spec).unwrap(),
+        resolved_weights(&spec).unwrap()
+    );
+}
+
+#[test]
+fn rejects_conflicting_or_exhausted_weight_intervals() {
+    for spec in [
+        vec![(None, true), (Some(400), false)],
+        vec![(Some(500), false), (None, false), (None, true)],
+    ] {
+        let error = resolved_weights(&spec).unwrap_err();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert!(error.to_string().contains("weight"));
+    }
+
+    let mut exhausted = vec![(None, false); 1001];
+    exhausted[0] = (Some(1), true);
+    let error = resolved_weights(&exhausted).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("cannot fit"));
+}
+
+#[test]
+fn resolver_rejects_variants_without_a_default() {
+    let mut options = variant_options();
+    for variant in options.variants.as_mut().unwrap() {
+        variant.default = None;
+    }
+
+    let error = resolve_generate_webfonts_options(options)
+        .err()
+        .expect("expected unresolved variants without a default to fail");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("must contain a default variant"));
+}
+
+#[test]
+fn resolves_ordered_variant_metadata() {
+    let mut options = variant_options();
+    options.variant_class_prefix = Some("weight--".to_owned());
+    options.variants = Some(vec![
+        variant("small", None, false),
+        variant("large/alt", None, true),
+    ]);
+
+    let resolved = resolve_generate_webfonts_options(options).unwrap();
+    let variants = resolved.variants.unwrap();
+
+    assert_eq!(variants.default_index, 1);
+    assert_eq!(variants.variants[0].weight, 300);
+    assert_eq!(variants.variants[0].name, "small");
+    assert_eq!(variants.variants[0].files, ["small.svg"]);
+    assert_eq!(variants.variants[0].class_name, "weight--small");
+    assert_eq!(variants.variants[0].selector, "weight--small");
+}
+
+#[test]
+fn accepts_distinct_case_sensitive_variant_names() {
+    let mut options = variant_options();
+    options.variants = Some(vec![
+        variant("small", None, true),
+        variant("Small", None, false),
+    ]);
+
+    let resolved = resolve_generate_webfonts_options(options).unwrap();
+    let variants = resolved.variants.unwrap();
+    assert_eq!(variants.variants[0].name, "small");
+    assert_eq!(variants.variants[1].name, "Small");
 }
 
 #[test]
