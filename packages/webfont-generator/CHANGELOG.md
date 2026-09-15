@@ -1,5 +1,100 @@
 # Changelog
 
+## [0.7.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.6.1...webfont-generator-v0.7.0) (2026-09-15)
+
+
+### ⚠ BREAKING CHANGES
+
+* **webfont-generator:** Incremental regeneration now requires explicit source inputs. In Node, wrap ordinary file arrays in `{ files }`; in Rust, use `RegenerationFiles::Single`. Multi-variant updates provide every configured design and its complete ordered file list.
+    #### Multi-weight icon families
+     
+    Generate multiple SVG designs, such as light and bold, as one shared font per format. Match icon filenames across designs and select a weight with the generated CSS modifier classes. Supported family formats are TTF, WOFF, and WOFF2; WOFF and WOFF2 are the defaults. Ordinary single-design generation retains SVG and EOT support.
+     
+    ```ts
+    import { generateWebfonts } from '@atlowchemi/webfont-generator';
+     
+    let result = await generateWebfonts({
+        dest: './dist/fonts',
+        fontName: 'icons',
+        incremental: true,
+        variants: [
+            { name: 'light', files: ['icons/light/add.svg'], weight: 300, default: true },
+            { name: 'bold', files: ['icons/bold/add.svg'], weight: 700 },
+        ],
+    });
+    ```
+     
+    Load the generated stylesheet and select the default or bold design:
+     
+    ```html
+    <span class="icon icon-add" aria-hidden="true"></span>
+    <span class="icon icon-add icon--bold" aria-hidden="true"></span>
+    ```
+     
+    #### Incremental updates
+     
+    The same `regenerate` and `regenerateAsync` methods support ordinary fonts and multi-variant families. Async calls return a replacement result. Provide every design on each update; paths determine membership and ordering within each design. Change hints apply to every design referencing the path. Omit hints to re-read all files and infer changes.
+     
+    ```ts
+    result = await result.regenerateAsync({
+        variants: [
+            { variant: 'light', files: ['icons/light/add.svg'] },
+            { variant: 'bold', files: ['icons/bold/add.svg'] },
+        ],
+    }, [{ path: 'icons/bold/add.svg', changeType: 'changed' }]);
+    ```
+     
+    #### Migrating ordinary regeneration calls
+     
+    The optional Node change entries retain their existing shape. Enable `incremental: true` during generation as before.
+     
+    ```ts
+    // Before
+    result.regenerate(files, changes);
+    result = await result.regenerateAsync(files);
+     
+    // After
+    result.regenerate({ files }, changes);
+    result = await result.regenerateAsync({ files });
+    ```
+     
+    Rust callers wrap the file list and retain the existing change enum:
+     
+    ```rust
+    // Before
+    result.regenerate(&paths, &changes)?;
+    result = result.regenerate_all_async(paths).await?;
+     
+    // After
+    use webfont_generator::RegenerationFiles;
+     
+    let files = RegenerationFiles::Single(paths);
+    result.regenerate(&files, &changes)?;
+    result = result.regenerate_all_async(files).await?;
+    ```
+     
+    For families, use `RegenerationFiles::Variants` with `VariantFileSet { variant, files }` entries. Rust async methods consume the result; recover it through `RegenerateError::into_result` after a recoverable failure. Node async failures leave the receiver available for retry. Filesystem writes remain non-transactional. Results created with CSS/HTML context callbacks cannot be regenerated.
+     
+    #### Templates, sparse designs, and CLI
+     
+    Family CSS selects exact design weights and disables synthetic weights. CSS, HTML preview, and SCSS templates expose family metadata. Sparse icon sets can reject missing glyphs, leave blanks, or use a configured fallback design. CLI JSON manifests support complete variant configurations and manifest-relative input paths.
+     
+    See the [Node reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/node), [Rust reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/rust), [CLI reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/cli), and [template guide](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/templates) for details.
+
+### Features
+
+* **webfont-generator:** add multi-weight icon fonts ([b345cf0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/b345cf0f95d5b1b9400b3522d063f664345fe604))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate write-fonts to 0.53.0 ([#449](https://github.com/atlowChemi/vite-svg-2-webfont/issues/449)) ([d1178d0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/d1178d06576075b511da5ef5a6af2ac534e51166))
+
+
+### Performance Improvements
+
+* **webfont-generator:** disable unused usvg features ([#398](https://github.com/atlowChemi/vite-svg-2-webfont/issues/398)) ([c628ce1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/c628ce1705f7dddacd2d0ab41794567539be951f))
+
 ## [0.6.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.6.0...webfont-generator-v0.6.1) (2026-08-24)
 
 ### Performance Improvements
