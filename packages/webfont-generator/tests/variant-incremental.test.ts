@@ -40,10 +40,14 @@ test('async variant regeneration preserves receiver and format inference; overla
     const result = await generateWebfonts(options);
     const old = result.ttf;
     await writeFile(variants[1].files[0], svg(18));
-    const pending = result.regenerateAsync(fileSets, updates);
-    const overlap = result.regenerateAsync(fileSets, updates);
-    await expect(overlap).rejects.toThrow(/regenerating|replaced/);
-    const next = await pending;
+    // Native tasks may acquire the regeneration state in either invocation order.
+    const outcomes = await Promise.allSettled([result.regenerateAsync(fileSets, updates), result.regenerateAsync(fileSets, updates)]);
+    const fulfilled = outcomes.filter(outcome => outcome.status === 'fulfilled');
+    expect(fulfilled).toHaveLength(1);
+    expect(outcomes.filter(outcome => outcome.status === 'rejected')).toEqual([
+        expect.objectContaining({ reason: expect.objectContaining({ message: expect.stringMatching(/regenerating|replaced/) }) }),
+    ]);
+    const next = fulfilled[0].value;
     expect(result.ttf).toEqual(old);
     expect(next.ttf).not.toEqual(old);
     const fresh = await generateWebfonts({ ...options, incremental: false });
