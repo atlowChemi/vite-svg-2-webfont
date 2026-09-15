@@ -12,11 +12,13 @@ cargo add webfont-generator
 
 ## Feature flags
 
-| Feature | Default | Description                                                        |
-| ------- | ------- | ------------------------------------------------------------------ |
-| (none)  | yes     | Library-only build                                                 |
-| `cli`   | no      | Builds the `webfont-generator` CLI binary (adds `clap` dependency) |
-| `napi`  | no      | Enables Node.js NAPI bindings for use as a native addon            |
+| Feature | Default | Description                                                                       |
+| ------- | ------- | --------------------------------------------------------------------------------- |
+| (none)  | yes     | Library-only build                                                                |
+| `cli`   | no      | Builds the CLI with JSON manifest support (adds `clap` and `serde_path_to_error`) |
+| `napi`  | no      | Enables Node.js NAPI bindings for use as a native addon                           |
+
+With `cli` enabled, `GenerateWebfontsOptions` and its input types implement `serde::Deserialize` using camelCase field names and rejecting unknown fields. Deserialization alone does not expand directories or rebase paths; those operations belong to the [CLI manifest loader](./cli#json-manifest).
 
 ## Async API
 

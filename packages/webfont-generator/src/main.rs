@@ -3,6 +3,10 @@ use std::process::ExitCode;
 
 use clap::{ArgAction, Parser, builder::styling};
 use webfont_generator::{FontType, GenerateWebfontsOptions};
+mod manifest;
+
+#[cfg(test)]
+mod cli_tests;
 
 const STYLES: styling::Styles = styling::Styles::styled()
     .header(styling::AnsiColor::Green.on_default().bold())
@@ -18,13 +22,16 @@ const STYLES: styling::Styles = styling::Styles::styled()
     about = "Generate webfonts from SVG icons"
 )]
 struct Cli {
+    /// Complete JSON configuration; paths are relative to this file
+    #[arg(long, exclusive = true)]
+    config: Option<String>,
     /// SVG files or directories containing SVG files
-    #[arg(required = true)]
+    #[arg(required_unless_present = "config")]
     files: Vec<String>,
 
     /// Output directory
-    #[arg(short, long)]
-    dest: String,
+    #[arg(short, long, required_unless_present = "config")]
+    dest: Option<String>,
 
     /// Font name
     #[arg(short = 'n', long, default_value = "iconfont")]
@@ -118,6 +125,16 @@ fn collect_svg_files(paths: &[String]) -> std::io::Result<Vec<String>> {
 fn main() -> ExitCode {
     let cli = Cli::parse();
 
+    if let Some(path) = &cli.config {
+        return match manifest::load(Path::new(path)) {
+            Ok(options) => generate(options, Some(path)),
+            Err(error) => {
+                eprintln!("Error: {path}: {error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
+
     let files = match collect_svg_files(&cli.files) {
         Ok(files) => files,
         Err(error) => {
@@ -148,7 +165,7 @@ fn main() -> ExitCode {
         css_template: cli.css_template,
         css_fonts_url: cli.css_fonts_url,
         descent: cli.descent,
-        dest: cli.dest,
+        dest: cli.dest.unwrap(),
         files,
         font_height: cli.font_height,
         font_name: Some(cli.font_name),
@@ -161,6 +178,10 @@ fn main() -> ExitCode {
         ..Default::default()
     };
 
+    generate(options, None)
+}
+
+fn generate(options: GenerateWebfontsOptions, manifest: Option<&str>) -> ExitCode {
     match webfont_generator::generate_sync(options, None) {
         Ok(result) => {
             let mut generated = Vec::new();
@@ -183,7 +204,11 @@ fn main() -> ExitCode {
             ExitCode::SUCCESS
         }
         Err(error) => {
-            eprintln!("Error: {error}");
+            if let Some(path) = manifest {
+                eprintln!("Error: {path}: {error}");
+            } else {
+                eprintln!("Error: {error}");
+            }
             ExitCode::FAILURE
         }
     }
