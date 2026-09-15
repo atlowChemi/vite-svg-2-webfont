@@ -158,6 +158,18 @@ describe.each([15, 100, 300, 600])('%i glyphs', numGlyphs => {
             bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
         });
 
+        describe('WOFF2 only', () => {
+            const opts = baseOpts(files, { types: ['woff2'], optimizeOutput });
+            bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
+            bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+        });
+
+        describe('WOFF + WOFF2', () => {
+            const opts = baseOpts(files, { types: ['woff', 'woff2'], optimizeOutput });
+            bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
+            bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+        });
+
         describe('SVG only', () => {
             const opts = baseOpts(files, { types: ['svg'], optimizeOutput });
             bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
