@@ -67,14 +67,19 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 
 ## Options reference
 
-::: warning Multi-variant contract preview
-The wrapper accepts and validates `variants`, `variantClassPrefix`, and `missingGlyphs`, but variant
-font generation is not available yet. The native binding loads valid variant files, applies `rename`
-in variant and file order, joins matching names into one logical glyph, and assigns shared
-codepoints before resolving the configured missing-glyph behavior. It then parses and processes the
-SVGs with shared family metrics and stable logical advances before returning an
-unsupported-operation error.
-:::
+Multi-variant generation returns one shared variable TTF/WOFF/WOFF2 per requested format through
+the existing getters. SVG/EOT getters return `null`. Files use the existing `fontName.extension`
+names. Writes are non-transactional and may leave a partial bundle on failure.
+
+Use the existing `generateCss(urls?)` and `generateHtml(urls?)` methods with a flat shared URL map.
+Omitting the map uses generated URLs; supplying one is a complete override, with omitted entries
+empty. Variant SVG/EOT URL overrides are rejected. Regeneration methods reject variant results.
+
+Custom-template contexts receive ordered `variants` entries (`name`, `weight`, `default`,
+`className`, `selector`) and `variantClassPrefix`. These values describe resolved weights/classes,
+not additional font resources. Multi-face default rendering is the next phase; currently variant
+CSS/HTML companion files are not written and in-memory default rendering uses the ordinary
+single-face template.
 
 ### `files`
 

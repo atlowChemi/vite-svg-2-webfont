@@ -6,8 +6,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use webfont_generator::{
-    FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
-    MissingGlyphOptions, TtfFormatOptions,
+    FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, TtfFormatOptions,
 };
 
 fn fixture_files() -> Vec<String> {
@@ -128,32 +127,34 @@ fn ordinary_generation_matches_phase_zero_hashes() {
 }
 
 #[test]
-fn generate_sync_rejects_variant_generation_until_the_pipeline_is_available() {
-    let error = webfont_generator::generate_sync(variant_options(), None)
-        .err()
-        .expect("variant generation should be unavailable");
-
-    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
-    assert!(error.to_string().contains("not available yet"));
-}
-
-#[test]
-fn generate_sync_resolves_fallback_before_the_pipeline_guard() {
+fn generate_sync_returns_ordered_variant_results() {
     let mut options = variant_options();
-    options.missing_glyphs = Some(MissingGlyphOptions {
-        behavior: MissingGlyphBehavior::Fallback,
-        variant: Some("small".to_owned()),
-    });
+    options.types = Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]);
+    let result =
+        webfont_generator::generate_sync(options, None).expect("variant generation should succeed");
 
-    let error = webfont_generator::generate_sync(options, None)
-        .err()
-        .expect("variant generation should remain unavailable");
-
-    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+    assert!(result.ttf_bytes().is_some());
+    assert!(result.woff_bytes().is_some());
+    assert!(result.woff2_bytes().is_some());
+    assert!(result.eot_bytes().is_none());
+    assert!(result.svg_string().is_none());
 }
 
 #[test]
-fn generate_sync_loads_and_renames_variants_before_the_pipeline_guard() {
+fn generate_sync_defaults_variants_to_woff_and_woff2() {
+    let mut options = variant_options();
+    options.types = None;
+    let result = webfont_generator::generate_sync(options, None).unwrap();
+
+    assert!(result.eot_bytes().is_none());
+    assert!(result.svg_string().is_none());
+    assert!(result.ttf_bytes().is_none());
+    assert!(result.woff_bytes().is_some());
+    assert!(result.woff2_bytes().is_some());
+}
+
+#[test]
+fn generate_sync_loads_and_renames_variants_in_variant_file_order() {
     let options = variant_options();
     let expected_paths = options
         .variants
@@ -173,16 +174,55 @@ fn generate_sync_loads_and_renames_variants_before_the_pipeline_guard() {
             .into_owned()
     });
 
-    let error = webfont_generator::generate_sync(options, Some(rename))
-        .err()
-        .expect("variant generation should remain unavailable");
+    webfont_generator::generate_sync(options, Some(rename)).unwrap();
 
-    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
     assert_eq!(*calls.lock().unwrap(), expected_paths);
 }
 
 #[test]
-fn generate_sync_reports_variant_loading_errors_before_the_pipeline_guard() {
+fn variant_writes_match_shared_modern_getters() {
+    let dest = temp_dest("variant-write");
+    let mut options = variant_options();
+    options.dest = dest.clone();
+    options.css = Some(false);
+    options.types = Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]);
+    options.write_files = Some(true);
+
+    let result = webfont_generator::generate_sync(options, None).unwrap();
+    for (filename, bytes) in [
+        ("iconfont.ttf", result.ttf_bytes()),
+        ("iconfont.woff", result.woff_bytes()),
+        ("iconfont.woff2", result.woff2_bytes()),
+    ] {
+        assert_eq!(
+            std::fs::read(Path::new(&dest).join(filename)).unwrap(),
+            bytes.unwrap()
+        );
+    }
+    assert!(!Path::new(&dest).join("iconfont.eot").exists());
+    std::fs::remove_dir_all(dest).unwrap();
+}
+
+#[test]
+fn variant_regeneration_has_a_stable_unsupported_error() {
+    let mut result = webfont_generator::generate_sync(variant_options(), None).unwrap();
+    let error = result.regenerate(&[], &[]).unwrap_err();
+
+    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+    assert_eq!(
+        error.to_string(),
+        "Multi-variant regeneration is not yet available."
+    );
+    let error = result.regenerate_all(&[]).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+    assert_eq!(
+        error.to_string(),
+        "Multi-variant regeneration is not yet available."
+    );
+}
+
+#[test]
+fn generate_sync_reports_variant_loading_errors() {
     let mut missing = variant_options();
     missing.variants.as_mut().unwrap()[0].files[0] = "missing.svg".to_owned();
     let error = webfont_generator::generate_sync(missing, None)
@@ -202,12 +242,12 @@ fn generate_sync_reports_variant_loading_errors_before_the_pipeline_guard() {
 }
 
 #[test]
-fn generate_sync_resolves_variant_options_before_the_pipeline_guard() {
+fn generate_sync_resolves_variant_options_before_generation() {
     let mut options = variant_options();
     options.order = Some(vec![FontType::Eot]);
     let error = webfont_generator::generate_sync(options, None)
         .err()
-        .expect("invalid shared options should fail before the pipeline guard");
+        .expect("invalid shared options should fail before generation");
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     assert!(error.to_string().contains("not present in 'types'"));
@@ -217,7 +257,7 @@ fn generate_sync_resolves_variant_options_before_the_pipeline_guard() {
     options.css_template = Some(String::new());
     let error = webfont_generator::generate_sync(options, None)
         .err()
-        .expect("empty template paths should fail before the pipeline guard");
+        .expect("empty template paths should fail before generation");
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     assert!(error.to_string().contains("options.cssTemplate"));
@@ -245,7 +285,7 @@ fn generate_sync_resolves_variant_options_before_the_pipeline_guard() {
     ]);
     let error = webfont_generator::generate_sync(options, None)
         .err()
-        .expect("conflicting weight anchors should fail before the pipeline guard");
+        .expect("conflicting weight anchors should fail before generation");
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     assert!(error.to_string().contains("weight"));
@@ -271,11 +311,81 @@ fn variant_options() -> GenerateWebfontsOptions {
                 default: None,
             },
         ]),
+        write_files: Some(false),
         ..Default::default()
     }
 }
 
 // --- generate_sync tests ---
+
+#[test]
+fn variant_templates_expose_ordered_metadata_and_deduplicated_names() {
+    let dest = temp_dest("variant-template-contexts");
+    std::fs::create_dir_all(&dest).unwrap();
+    let css_path = Path::new(&dest).join("css.hbs");
+    let html_path = Path::new(&dest).join("html.hbs");
+    let metadata = "{{#each variants}}{{name}}:{{weight}}:{{default}}:{{className}}:{{{selector}}};{{/each}}|{{variantClassPrefix}}|";
+    std::fs::write(&css_path, format!("{metadata}{{{{{{src}}}}}}")).unwrap();
+    std::fs::write(
+        &html_path,
+        format!("{metadata}{{{{#each names}}}}{{{{this}}}};{{{{/each}}}}|{{{{{{styles}}}}}}"),
+    )
+    .unwrap();
+    let mut options = variant_options();
+    let files = fixture_files();
+    options.variants.as_mut().unwrap()[1].files = files[1..3].to_vec();
+    options.variant_class_prefix = Some("weight--".to_owned());
+    options.css_template = Some(css_path.to_string_lossy().into_owned());
+    options.html_template = Some(html_path.to_string_lossy().into_owned());
+    options.html = Some(true);
+    let result = webfont_generator::generate_sync(options, None).unwrap();
+    let expected = "small:300:true:weight--small:weight--small;large:700:false:weight--large:weight--large;|weight--|";
+    let names = files[..3]
+        .iter()
+        .map(|file| {
+            format!(
+                "{};",
+                Path::new(file).file_stem().unwrap().to_str().unwrap()
+            )
+        })
+        .collect::<String>();
+    let default_css = result.generate_css_pure(None).unwrap();
+    let default_html = result.generate_html_pure(None).unwrap();
+    assert!(default_css.starts_with(expected));
+    assert!(default_html.starts_with(&format!("{expected}{names}|{expected}")));
+    for url in ["/first.woff2", "/second.woff2", "/first.woff2"] {
+        let urls = HashMap::from([(FontType::Woff2, url.to_owned())]);
+        let css = result.generate_css_pure(Some(urls.clone())).unwrap();
+        let html = result.generate_html_pure(Some(urls)).unwrap();
+        assert_eq!(css, format!("{expected}url(\"{url}\") format(\"woff2\")"));
+        assert_eq!(html, format!("{expected}{names}|{css}"));
+    }
+    assert_eq!(result.generate_css_pure(None).unwrap(), default_css);
+    assert_eq!(result.generate_html_pure(None).unwrap(), default_html);
+    std::fs::remove_dir_all(dest).unwrap();
+}
+
+#[test]
+fn variant_rendering_rejects_legacy_urls_before_using_cached_results() {
+    let result = webfont_generator::generate_sync(variant_options(), None).unwrap();
+    let css = result.generate_css_pure(None).unwrap();
+    let html = result.generate_html_pure(None).unwrap();
+    for format in [FontType::Svg, FontType::Eot] {
+        let urls = HashMap::from([(format, "/unsupported".to_owned())]);
+        for error in [
+            result.generate_css_pure(Some(urls.clone())).unwrap_err(),
+            result.generate_html_pure(Some(urls)).unwrap_err(),
+        ] {
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+            assert_eq!(
+                error.to_string(),
+                "SVG and EOT URLs are unsupported for variant results."
+            );
+        }
+    }
+    assert_eq!(result.generate_css_pure(None).unwrap(), css);
+    assert_eq!(result.generate_html_pure(None).unwrap(), html);
+}
 
 #[test]
 fn generate_sync_produces_all_default_font_types() {

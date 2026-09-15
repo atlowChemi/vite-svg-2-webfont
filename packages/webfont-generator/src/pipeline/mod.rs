@@ -17,6 +17,110 @@ use crate::svg::{
 };
 use crate::types::FontType;
 
+#[cfg(test)]
+mod variant_tests {
+    use super::*;
+    use crate::input::{load_variant_svg_files, resolve_generate_webfonts_options};
+    use crate::{FontVariant, GenerateWebfontsOptions};
+    use flate2::read::ZlibDecoder;
+    use std::io::Read;
+    use write_fonts::read::{FontRef, TableProvider};
+    use write_fonts::types::Tag;
+
+    fn woff1_table(woff: &[u8], wanted: [u8; 4]) -> Vec<u8> {
+        let count = usize::from(u16::from_be_bytes(woff[12..14].try_into().unwrap()));
+        let entry = (0..count)
+            .map(|index| 44 + index * 20)
+            .find(|entry| woff[*entry..*entry + 4] == wanted)
+            .unwrap();
+        let offset = u32::from_be_bytes(woff[entry + 4..entry + 8].try_into().unwrap()) as usize;
+        let compressed =
+            u32::from_be_bytes(woff[entry + 8..entry + 12].try_into().unwrap()) as usize;
+        let original =
+            u32::from_be_bytes(woff[entry + 12..entry + 16].try_into().unwrap()) as usize;
+        let bytes = &woff[offset..offset + compressed];
+        if compressed == original {
+            bytes.to_vec()
+        } else {
+            let mut decoded = Vec::with_capacity(original);
+            ZlibDecoder::new(bytes).read_to_end(&mut decoded).unwrap();
+            decoded
+        }
+    }
+
+    #[tokio::test]
+    async fn variant_bundle_preserves_modern_tables_and_filters_formats() {
+        let paths = vec![vec![crate::test_helpers::webfont_fixture("add.svg")]; 2];
+        let mut options = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+            dest: "artifacts".to_owned(),
+            variants: Some(vec![
+                FontVariant {
+                    name: "Light".to_owned(),
+                    files: paths[0].clone(),
+                    weight: Some(300),
+                    default: None,
+                },
+                FontVariant {
+                    name: "Bold".to_owned(),
+                    files: paths[1].clone(),
+                    weight: Some(700),
+                    default: Some(true),
+                },
+            ]),
+            types: Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]),
+            write_files: Some(false),
+            ..Default::default()
+        })
+        .unwrap();
+        let files = load_variant_svg_files(&paths, None).await.unwrap();
+        let (family, _) = crate::prepare_variant_family(&mut options, files).unwrap();
+        let outputs = build_variant_font_outputs(&options, &family).unwrap();
+        let variable = FontRef::new(outputs.ttf_font.as_ref().unwrap()).unwrap();
+        let decoded = ::woff::version2::decompress(outputs.woff2_font.as_ref().unwrap()).unwrap();
+        let decoded = FontRef::new(&decoded).unwrap();
+        // WOFF1 preserves loca byte-for-byte, including small uncompressed tables.
+        // WOFF2 reconstruction may change glyf padding and therefore loca offsets.
+        assert_eq!(
+            woff1_table(outputs.woff_font.as_ref().unwrap(), *b"loca"),
+            variable.table_data(Tag::new(b"loca")).unwrap().as_bytes()
+        );
+        for tag in [*b"fvar", *b"STAT", *b"GSUB", *b"maxp"] {
+            let expected = variable.table_data(Tag::new(&tag)).unwrap();
+            assert_eq!(
+                woff1_table(outputs.woff_font.as_ref().unwrap(), tag),
+                expected.as_bytes()
+            );
+            assert_eq!(
+                decoded.table_data(Tag::new(&tag)).unwrap().as_bytes(),
+                expected.as_bytes()
+            );
+        }
+        for types in [
+            vec![],
+            vec![FontType::Ttf],
+            vec![FontType::Woff],
+            vec![FontType::Woff2],
+        ] {
+            options.types = types;
+            let outputs = build_variant_font_outputs(&options, &family).unwrap();
+            assert_eq!(
+                outputs.ttf_font.is_some(),
+                options.types.contains(&FontType::Ttf)
+            );
+            assert_eq!(
+                outputs.woff_font.is_some(),
+                options.types.contains(&FontType::Woff)
+            );
+            assert_eq!(
+                outputs.woff2_font.is_some(),
+                options.types.contains(&FontType::Woff2)
+            );
+            assert!(outputs.svg_font.is_none());
+            assert!(outputs.eot_font.is_none());
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct TtfGlyphCache {
     pub(crate) entries: HashMap<u64, Arc<CachedCompiledGlyph>>,
@@ -68,6 +172,24 @@ pub(crate) fn generate_webfonts_sync(
         options: std::sync::Arc::new(options),
         regeneration_state: std::sync::Arc::new(std::sync::Mutex::new(regeneration_state)),
         source_files: std::sync::Arc::new(source_files),
+    })
+}
+
+pub(crate) fn generate_variant_webfonts_sync(
+    options: ResolvedGenerateWebfontsOptions,
+    source_files: Vec<LoadedSvgFile>,
+    family: crate::svg::types::PreparedVariantFamily,
+) -> std::io::Result<GenerateWebfontsResult> {
+    let fonts = build_variant_font_outputs(&options, &family)?;
+    Ok(GenerateWebfontsResult {
+        cached: std::sync::OnceLock::new(),
+        carried_render: None,
+        css_context: None,
+        fonts,
+        html_context: None,
+        options: Arc::new(options),
+        regeneration_state: Arc::new(std::sync::Mutex::new(None)),
+        source_files: Arc::new(source_files),
     })
 }
 
@@ -182,5 +304,46 @@ pub(crate) fn build_font_outputs(
         woff_font,
         woff2_font,
         eot_font,
+    })
+}
+
+pub(crate) fn build_variant_font_outputs(
+    options: &ResolvedGenerateWebfontsOptions,
+    family: &crate::svg::types::PreparedVariantFamily,
+) -> std::io::Result<FontOutputs> {
+    let wants_ttf = options.types.contains(&FontType::Ttf);
+    let wants_woff = options.types.contains(&FontType::Woff);
+    let wants_woff2 = options.types.contains(&FontType::Woff2);
+    if !wants_ttf && !wants_woff && !wants_woff2 {
+        return Ok(FontOutputs::default());
+    }
+    let variants = options
+        .variants
+        .as_ref()
+        .expect("variant outputs require resolved variants");
+    let variable =
+        sfnt::build_variant(sfnt::ttf_options_from_options(options), family, variants)?.tables;
+    let metadata = options
+        .format_options
+        .as_ref()
+        .and_then(|formats| formats.woff.as_ref())
+        .and_then(|woff| woff.metadata.as_deref());
+    let quality = options
+        .format_options
+        .as_ref()
+        .and_then(|formats| formats.woff2.as_ref())
+        .and_then(|woff2| woff2.compression_quality)
+        .unwrap_or(11);
+    Ok(FontOutputs {
+        ttf_font: wants_ttf.then(|| variable.ttf_arc()),
+        woff_font: wants_woff
+            .then(|| woff1::tables_to_woff1(&variable, metadata))
+            .transpose()?
+            .map(Arc::new),
+        woff2_font: wants_woff2
+            .then(|| woff2::tables_to_woff2(&variable, quality, None))
+            .transpose()?
+            .map(Arc::new),
+        ..Default::default()
     })
 }
