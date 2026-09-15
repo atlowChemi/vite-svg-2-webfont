@@ -13,6 +13,8 @@ const config: UserProjectConfigExport = defineProject({
         },
         outputOptions: {
             exports: 'named',
+            // Develop against Vite+, while consumers use the plugin's existing Vite peer.
+            paths: { 'vite-plus': 'vite' },
         },
         plugins: [
             codecovRollupPlugin({
@@ -40,6 +42,10 @@ const config: UserProjectConfigExport = defineProject({
                 command: 'vp test',
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
+            'test:browser': {
+                command: 'vp test --config vite.browser.config.ts',
+                dependsOn: ['@atlowchemi/webfont-generator#build'],
+            },
             'test:fixtures:refresh': {
                 command: 'node ./scripts/refresh-font-fixtures.ts',
                 dependsOn: ['pack'],
@@ -52,6 +58,7 @@ const config: UserProjectConfigExport = defineProject({
         },
     },
     test: {
+        include: ['src/**/*.test.ts'],
         experimental: {
             fsModuleCache: true,
         },

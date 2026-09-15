@@ -2,10 +2,9 @@ import { createHash } from 'node:crypto';
 import { tmpdir as osTmpdir } from 'node:os';
 import { constants, rm as fsRm, mkdtempSync } from 'node:fs';
 import { resolve, dirname, join as pathJoin } from 'node:path';
-import { watch, access, mkdir, writeFile } from 'node:fs/promises';
+import { watch, access, mkdir, writeFile, stat } from 'node:fs/promises';
 import type { FontType } from '@atlowchemi/webfont-generator';
 
-let watcher: ReturnType<typeof watch> | undefined;
 export const MIME_TYPES: Record<FontType, string> = {
     eot: 'application/vnd.ms-fontobject',
     svg: 'image/svg+xml',
@@ -70,7 +69,7 @@ function coalesceChange(previous: WatchedChange | undefined, next: WatchedChange
 }
 
 export async function setupWatcher(
-    folderPath: string,
+    folderPath: string | string[],
     signal: AbortSignal,
     onChange: (changes: WatchedChangeBatch) => void | Promise<void>,
     _handleWatchEvent: typeof handleWatchEvent = handleWatchEvent,
@@ -111,20 +110,43 @@ export async function setupWatcher(
         }, WATCH_BATCH_DELAY_MS);
     };
 
-    try {
-        watcher = watch(folderPath, { signal });
+    const folders = typeof folderPath === 'string' ? [folderPath] : [...new Set(folderPath)];
+    const recursive = Array.isArray(folderPath);
+    const lifetime = new AbortController();
+    const watchSignal = AbortSignal.any([signal, lifetime.signal]);
+    const consume = async (folder: string) => {
+        const watcher = watch(folder, { signal: watchSignal, ...(recursive && { recursive: true }) });
         for await (const event of watcher) {
+            if (
+                recursive &&
+                (event.filename === null ||
+                    (event.eventType === 'rename' &&
+                        !event.filename.endsWith('.svg') &&
+                        (!hasFileExtension(event.filename) ||
+                            (await stat(pathJoin(folder, event.filename)).then(
+                                info => info.isDirectory(),
+                                () => false,
+                            )))))
+            ) {
+                // Directory creation/removal can change glob membership without an SVG event.
+                queueChange({ path: folder, kind: 'changed' });
+                continue;
+            }
             // A single failed event classification (e.g. an unreadable file) must not tear down the watcher.
-            await _handleWatchEvent(folderPath, event, queueChange).catch(() => undefined);
+            await _handleWatchEvent(folder, event, queueChange).catch(() => undefined);
         }
-        await drain();
-    } catch (err: unknown) {
-        await drain();
-        if (err && typeof err === 'object' && 'name' in err && err.name === 'AbortError') {
-            return;
-        }
-        throw err;
-    }
+    };
+    const outcomes = await Promise.allSettled(
+        folders.map(folder =>
+            consume(folder).catch(error => {
+                lifetime.abort();
+                throw error;
+            }),
+        ),
+    );
+    await drain();
+    const failure = outcomes.find(outcome => outcome.status === 'rejected' && outcome.reason?.name !== 'AbortError');
+    if (failure?.status === 'rejected') throw failure.reason;
 }
 
 export function getBufferHash(buf: Buffer): string {

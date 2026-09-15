@@ -1,11 +1,12 @@
 import { join as pathJoin } from 'node:path';
-import type { ModuleGraph, ModuleNode, Plugin } from 'vite';
+import type { ModuleGraph, ModuleNode, Plugin } from 'vite-plus';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
-import { parseOptions, parseFiles, parsePreloadFormatsOption } from './optionParser';
+import { parseOptions, resolveSources, parsePreloadFormatsOption } from './optionParser';
+import { createGenerationQueue, regenerationFiles, reconcileChanges, watchRoots } from './regeneration';
 import * as templatesImport from '@atlowchemi/webfont-generator/templates';
 import type { WatchedChangeBatch } from './utils';
-import type { FontType, GenerateWebfontsResult, GlyphChangeEntry } from '@atlowchemi/webfont-generator';
-import type { IconPluginOptions } from './optionParser';
+import type { FontType, GenerateWebfontsResult, MultiVariantFontType } from '@atlowchemi/webfont-generator';
+import type { IconPluginOptions, IconPluginFileOptions, IconPluginVariantOptions } from './optionParser';
 import type { GeneratedWebfont } from './types/generatedWebfont';
 import type { PublicApi } from './types/publicApi';
 
@@ -22,9 +23,6 @@ function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${
     return `\0${virtualModuleId}`;
 }
 
-const toGlyphChange = (change: WatchedChangeBatch[number]): GlyphChangeEntry =>
-    change.kind === 'removed' ? { path: change.path, changeType: 'removed' } : { path: change.path, changeType: change.kind };
-
 /** Ensure vp doesn't crash locally and in CI if the native binding doesn't exist yet.  */
 let _generateWebfonts: (typeof import('@atlowchemi/webfont-generator'))['generateWebfonts'] | undefined;
 async function getGenerateWebfonts() {
@@ -37,16 +35,21 @@ async function getGenerateWebfonts() {
  * The plugin uses the {@link https://www.npmjs.com/package/@atlowchemi/webfont-generator @atlowchemi/webfont-generator} native engine to create fonts in any format.
  * It also generates CSS files that allow using the icons directly in your HTML output, using CSS classes per-icon.
  */
+export function viteSvgToWebfont<T extends MultiVariantFontType = MultiVariantFontType>(options: IconPluginVariantOptions<T>): Plugin<PublicApi>;
+export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPluginFileOptions<T>): Plugin<PublicApi>;
+export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPluginOptions<T>): Plugin<PublicApi>;
 export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPluginOptions<T>): Plugin<PublicApi> {
     const ac = new AbortController();
+    const generationQueue = createGenerationQueue(ac.signal);
     const tmpDir = getTmpDir();
     const processedOptions = parseOptions(options);
-    const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type));
+    const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type as any));
     let isBuild: boolean;
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph | undefined;
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
     let generatedFonts: GenerateWebfontsResult<T, never> | undefined;
+    let publishedSources = regenerationFiles(processedOptions);
     let watcherTask: Promise<void> | undefined;
     const generatedFontBuffers = new Map<T, Buffer>();
     const generatedWebfonts: GeneratedWebfont[] = [];
@@ -81,7 +84,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                 continue;
             }
 
-            const fontType = processedOptions.types.find(type => fileName.endsWith(`.${type}`));
+            const fontType = (processedOptions.types as T[]).find(type => fileName.endsWith(`.${type}`));
             /* v8 ignore next 3 -- guard against malformed bundle chunks; never reached by Vite in practice */
             if (!fontType || resolvedWebfonts.has(fontType)) {
                 continue;
@@ -115,44 +118,51 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         if (processedOptions.css) {
             const css = inline(generatedFonts!.generateCss());
             if (css !== lastCssOutput) {
-                lastCssOutput = css;
-                tasks.push(ensureDirExistsAndWriteFile(css, processedOptions.cssDest));
+                tasks.push(
+                    ensureDirExistsAndWriteFile(css, processedOptions.cssDest).then(() => {
+                        lastCssOutput = css;
+                        return undefined;
+                    }),
+                );
             }
         }
         if (processedOptions.html) {
             const html = generatedFonts!.generateHtml();
             if (html !== lastHtmlOutput) {
-                lastHtmlOutput = html;
-                tasks.push(ensureDirExistsAndWriteFile(html, processedOptions.htmlDest));
+                tasks.push(
+                    ensureDirExistsAndWriteFile(html, processedOptions.htmlDest).then(() => {
+                        lastHtmlOutput = html;
+                        return undefined;
+                    }),
+                );
             }
         }
         await Promise.all(tasks);
     };
 
-    const reloadVirtualModule = () => {
+    const reloadVirtualModule = async () => {
         const module = _moduleGraph?.getModuleById(resolvedVirtualModuleId);
         if (module && _reloadModule) {
-            _reloadModule(module).catch(() => null);
+            await _reloadModule(module).catch(() => null);
         }
     };
 
     const generate = async (updateFiles?: boolean) => {
-        if (updateFiles) {
-            processedOptions.files = parseFiles(options);
-        }
+        const sources = updateFiles ? resolveSources(options) : undefined;
         if (isBuild && !options.allowWriteFilesInBuild) {
             processedOptions.writeFiles = false;
         }
         const generateWebfonts = await getGenerateWebfonts();
-        const replacement = await generateWebfonts(processedOptions);
-        if (updateFiles && ac.signal.aborted) {
+        const replacement = await generateWebfonts({ ...processedOptions, ...sources } as Parameters<typeof generateWebfonts>[0]);
+        if (ac.signal.aborted) {
             return;
         }
-        generatedFonts = replacement;
+        generatedFonts = replacement as GenerateWebfontsResult<T, never>;
+        if (sources) publishedSources = regenerationFiles(sources);
         generatedFontBuffers.clear();
         await writeDevFiles();
         if (updateFiles && !ac.signal.aborted) {
-            reloadVirtualModule();
+            await reloadVirtualModule();
         }
     };
 
@@ -169,13 +179,15 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             return;
         }
         try {
-            const orderedFiles = parseFiles(options);
-            processedOptions.files = orderedFiles;
-            const replacement = await generatedFonts.regenerateAsync({ files: orderedFiles }, changes.map(toGlyphChange));
+            const sources = regenerationFiles(resolveSources(options));
+            const hints = options.variants ? reconcileChanges(publishedSources, sources, changes) : changes.map(change => ({ path: change.path, changeType: change.kind }));
+            if (hints?.length === 0 && JSON.stringify(sources) === JSON.stringify(publishedSources)) return;
+            const replacement = await generatedFonts.regenerateAsync(sources, hints);
             if (ac.signal.aborted) {
                 return;
             }
             generatedFonts = replacement;
+            publishedSources = sources;
             generatedFontBuffers.clear();
         } catch {
             if (ac.signal.aborted) {
@@ -188,7 +200,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         if (ac.signal.aborted) {
             return;
         }
-        reloadVirtualModule();
+        await reloadVirtualModule();
     };
     return {
         name: 'vite-svg-2-webfont',
@@ -267,14 +279,24 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             return resolvedVirtualModuleId;
         },
         async buildStart() {
+            const initial = generationQueue.run(() => generate());
             if (!isBuild) {
-                watcherTask = setupWatcher(options.context, ac.signal, changes => regenerateFromWatch(changes)).catch(() => undefined);
+                watcherTask = setupWatcher(watchRoots(options), ac.signal, changes =>
+                    generationQueue
+                        .run(() => regenerateFromWatch(changes))
+                        .catch(error => {
+                            this.warn(`Font regeneration failed: ${String(error)}`);
+                            throw error;
+                        }),
+                ).catch(error => {
+                    this.warn(`Font watcher failed: ${String(error)}`);
+                });
             }
-            await generate();
+            await initial;
             if (isBuild && !options.inline) {
                 const emitted = await Promise.all(
                     processedOptions.types.map(async (type): Promise<[T, string]> => {
-                        const fileContents = getGeneratedFont(type);
+                        const fileContents = getGeneratedFont(type as T);
                         if (!fileContents) {
                             throw new Error(`Failed to generate font of type ${type}`);
                         }
@@ -286,7 +308,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                         // flushed by then the asset is silently dropped from the bundle.
                         await ensureDirExistsAndWriteFile(fileContents, filePath);
 
-                        return [type, filePath];
+                        return [type as T, filePath];
                     }),
                 );
                 fileRefs = Object.fromEntries(emitted) as {
@@ -295,21 +317,22 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
         },
         configureServer(server) {
+            const { moduleGraph } = server;
+            _moduleGraph = moduleGraph;
+            _reloadModule = server.reloadModule.bind(server);
             if (options.inline) {
                 return;
             }
-            const { moduleGraph, middlewares } = server;
+            const { middlewares } = server;
             for (const fontType of processedOptions.types) {
                 const fileName = `${processedOptions.fontName}.${fontType}`;
                 middlewares.use(`/${fileName}`, (_req, res) => {
-                    _moduleGraph = moduleGraph;
-                    _reloadModule = server.reloadModule.bind(server);
                     /* v8 ignore next 4 -- buildStart awaits generate() before the server listens, so generatedFonts is always set by the time middleware fires */
                     if (!generatedFonts) {
                         res.statusCode = 404;
                         return res.end();
                     }
-                    const font = getGeneratedFont(fontType);
+                    const font = getGeneratedFont(fontType as T);
                     res.setHeader('content-type', MIME_TYPES[fontType]);
                     res.setHeader('content-length', font!.length);
                     res.statusCode = 200;
@@ -320,6 +343,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         async buildEnd() {
             ac.abort();
             await watcherTask;
+            await generationQueue.idle();
             watcherTask = undefined;
             rmDir(tmpDir);
             generatedFonts = undefined;
@@ -332,6 +356,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
 }
 export default viteSvgToWebfont;
 export { type GeneratedWebfont, type PublicApi };
+export type { IconPluginOptions, IconPluginFileOptions, IconPluginVariantOptions, IconPluginVariant } from './optionParser';
 
 /**
  * Paths of default templates available for use.

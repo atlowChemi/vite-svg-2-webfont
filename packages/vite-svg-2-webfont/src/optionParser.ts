@@ -2,13 +2,23 @@ import { join, resolve, sep } from 'node:path';
 import { globSync } from 'node:fs';
 import { hasFileExtension } from './utils';
 import { InvalidWriteFilesTypeError, NoIconsAvailableError } from './errors';
-import type { CssContext, FontType, FormatOptions, GenerateWebfontsFileOptions } from '@atlowchemi/webfont-generator';
-import type { IndexHtmlTransformContext } from 'vite';
+import type {
+    CssContext,
+    FontType,
+    FormatOptions,
+    GenerateWebfontsFileOptions,
+    GenerateWebfontsVariantOptions,
+    GenerateWebfontsInputOptions,
+    MultiVariantFontType,
+    FontVariant,
+    MissingGlyphOptions,
+} from '@atlowchemi/webfont-generator';
+import type { IndexHtmlTransformContext } from 'vite-plus';
 
 const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
 type FileType = (typeof FILE_TYPE_OPTIONS)[number];
 
-export interface IconPluginOptions<T extends FontType = FontType> {
+export interface CommonIconPluginOptions<T extends FontType = FontType, IsVariant extends boolean = false> {
     /** Context directory in which the SVG files will be read from */
     context: string;
     /**
@@ -90,7 +100,7 @@ export interface IconPluginOptions<T extends FontType = FontType> {
      * The `context` object includes the named fields documented on {@link CssContext} (`fontName`, `src`, `codepoints`),
      * plus the {@link baseSelector} and {@link classPrefix} keys the plugin forwards to the underlying generator.
      */
-    cssContext?: (context: CssContext) => void;
+    cssContext?: (context: CssContext<IsVariant>) => void;
     /**
      * Fonts path used in CSS file.
      * @default options.cssDest
@@ -126,12 +136,8 @@ export interface IconPluginOptions<T extends FontType = FontType> {
      */
     formatOptions?: FormatOptions;
     /**
-     * An array of globs, of the SVG files to add into the webfont
-     * @default ['*.svg']
-     */
-    files?: string[];
-    /**
      * Font file types to generate. Possible values: `svg`, `ttf`, `woff`, `woff2`, `eot`.
+     * Variant families support only TTF/WOFF/WOFF2 and default to WOFF/WOFF2.
      * @default ['eot', 'woff', 'woff2', 'ttf', 'svg']
      */
     types?: T | T[];
@@ -179,6 +185,33 @@ export interface IconPluginOptions<T extends FontType = FontType> {
     allowWriteFilesInBuild?: boolean;
 }
 
+/** One design's globs, relative to its context (which defaults to the family root). */
+export interface IconPluginVariant extends Omit<FontVariant, 'files'> {
+    /** Relative to the top-level context, or an absolute directory. */
+    context?: string;
+    /** SVG globs within this design's context. @default ['*.svg'] */
+    files?: string | string[];
+}
+
+export interface IconPluginFileOptions<T extends FontType = FontType> extends CommonIconPluginOptions<T> {
+    /** SVG globs relative to context. @default ['*.svg'] */
+    files?: string | string[];
+    variants?: never;
+    missingGlyphs?: never;
+    variantClassPrefix?: never;
+}
+
+export interface IconPluginVariantOptions<T extends MultiVariantFontType = MultiVariantFontType> extends CommonIconPluginOptions<T, true> {
+    files?: never;
+    /** Ordered designs sharing one font per format. Defaults to WOFF/WOFF2 output. */
+    variants: IconPluginVariant[];
+    missingGlyphs?: MissingGlyphOptions;
+    /** CSS modifier prefix; defaults to the generator's derived prefix. */
+    variantClassPrefix?: string;
+}
+
+export type IconPluginOptions<T extends FontType = FontType> = IconPluginFileOptions<T> | IconPluginVariantOptions<Extract<T, MultiVariantFontType>>;
+
 function parseGeneratedFontTypeOption<T extends FontType = FontType>(types?: T | T[]): T[] {
     if (Array.isArray(types)) {
         return types;
@@ -189,12 +222,15 @@ function parseGeneratedFontTypeOption<T extends FontType = FontType>(types?: T |
     return [];
 }
 
-export function parseIconTypesOption<T extends FontType = FontType>({ types }: Pick<IconPluginOptions<T>, 'types'>): T[] {
+export function parseIconTypesOption<T extends FontType = FontType>({ types, variants }: Pick<IconPluginOptions<T>, 'types' | 'variants'>): T[] {
     const parsedTypes = parseGeneratedFontTypeOption(types);
+    if (variants && parsedTypes.some(type => type === 'svg' || type === 'eot')) {
+        throw new Error('Variant fonts support only ttf, woff, and woff2.');
+    }
     if (parsedTypes.length) {
         return parsedTypes;
     }
-    return ['eot', 'woff', 'woff2', 'ttf', 'svg'] as T[];
+    return (variants ? ['woff', 'woff2'] : ['eot', 'woff', 'woff2', 'ttf', 'svg']) as T[];
 }
 
 export function parsePreloadFormatsOption<T extends FontType = FontType>({ preloadFormats }: Pick<IconPluginOptions<T>, 'preloadFormats'>): T[] {
@@ -218,7 +254,7 @@ function resolveCssFontsUrl(dest: string, cssFontsUrl: string): string {
 
 export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' | 'context'>): string[] {
     files ||= ['*.svg'];
-    const resolvedFiles = globSync(files, { cwd: context })?.map(file => join(context, file)) || [];
+    const resolvedFiles = globSync(files, { cwd: context }).map(file => join(context, file));
     if (!resolvedFiles.length) {
         throw new NoIconsAvailableError('The specified file globs did not resolve any files in the context.');
     }
@@ -272,19 +308,19 @@ type RequiredKeys =
     | 'types'
     | 'order'
     | 'fontName';
-interface ParsedOptions<T extends FontType = FontType> extends Omit<GenerateWebfontsFileOptions<T>, RequiredKeys>, Required<Pick<GenerateWebfontsFileOptions<T>, RequiredKeys>> {}
+type ParsedMode<O extends GenerateWebfontsInputOptions> = Omit<O, RequiredKeys> & Required<Pick<O, RequiredKeys>>;
+export type ParsedOptions = ParsedMode<GenerateWebfontsFileOptions> | ParsedMode<GenerateWebfontsVariantOptions>;
 
-export function parseOptions<T extends FontType = FontType>(options: IconPluginOptions<T>): ParsedOptions<T> {
+export function parseOptions<T extends FontType = FontType>(options: IconPluginOptions<T>): ParsedOptions {
     const formats = parseIconTypesOption<T>(options);
-    const files = parseFiles(options);
+    const sources = resolveSources(options);
     const generateFilesOptions = parseGenerateFilesOption(options);
     const formatOptions = options.formatOptions;
     const svgFormatOptions = formatOptions?.svg;
     const woff2FormatOptions = formatOptions?.woff2;
     options.dest ||= resolve(options.context, '..', 'artifacts');
     options.fontName ||= 'iconfont';
-    return {
-        files,
+    const base = {
         types: formats,
         order: formats,
         fontName: options.fontName,
@@ -326,5 +362,34 @@ export function parseOptions<T extends FontType = FontType>(options: IconPluginO
         ...(typeof options.normalize !== 'undefined' && { normalize: options.normalize }),
         ...(typeof options.round !== 'undefined' && { round: options.round }),
         ...(typeof options.descent !== 'undefined' && { descent: options.descent }),
-    } satisfies GenerateWebfontsFileOptions<T>;
+    } satisfies Omit<ParsedOptions, 'files' | 'variants'>;
+    return Object.assign(base, sources as ParsedOptions);
+}
+
+/** Resolve complete inputs without changing the last successful generation's membership. */
+export function resolveSources(
+    options: IconPluginOptions,
+): { files: string[]; variants?: never } | (Pick<GenerateWebfontsVariantOptions, 'variants' | 'missingGlyphs' | 'variantClassPrefix'> & { files?: never }) {
+    if (options.variants !== undefined) {
+        if (options.files !== undefined) {
+            throw new Error('Supply files or variants, not both.');
+        }
+        if (!options.variants.length) {
+            throw new Error('At least one variant is required.');
+        }
+        const variants = options.variants.map(({ context, files, ...variant }) => {
+            const root = resolve(options.context, context ?? '.');
+            const patterns = typeof files === 'string' ? [files] : files;
+            if (patterns?.some(pattern => pattern.startsWith('/') || pattern.split(/[/\\]/).includes('..') || /^[a-z]:/i.test(pattern))) {
+                throw new Error(`Variant "${variant.name}" globs must stay within its context; use an absolute context for external inputs.`);
+            }
+            try {
+                return { ...variant, files: new Set(parseFiles({ context: root, files })).values().toArray().toSorted() };
+            } catch (error) {
+                throw new Error(`Variant "${variant.name}": ${String(error)}`, { cause: error });
+            }
+        });
+        return { variants, missingGlyphs: options.missingGlyphs, variantClassPrefix: options.variantClassPrefix };
+    }
+    return { files: parseFiles(options) };
 }

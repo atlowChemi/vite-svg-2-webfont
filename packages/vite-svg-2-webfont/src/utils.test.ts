@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import { addAbortListener } from 'node:events';
 import { join as pathJoin } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
@@ -7,7 +8,7 @@ import * as utils from './utils';
 vi.mock('fs/promises', async () => {
     const fsPromises = await vi.importActual<typeof import('fs/promises')>('fs/promises');
     const access = vi.fn().mockRejectedValueOnce(new Error());
-    return { ...fsPromises, access, watch: vi.fn(fsPromises.watch), mkdir: vi.fn(), writeFile: vi.fn() };
+    return { ...fsPromises, access, watch: vi.fn(fsPromises.watch), stat: vi.fn(fsPromises.stat), mkdir: vi.fn(), writeFile: vi.fn() };
 });
 
 describe('utils', () => {
@@ -75,6 +76,138 @@ describe('utils', () => {
     });
 
     describe('setupWatcher', () => {
+        describe('family watcher', () => {
+            beforeEach(() => {
+                vi.mocked(fs.watch).mockReset();
+                vi.mocked(fs.access).mockReset();
+            });
+            afterEach(() => {
+                vi.mocked(fs.stat).mockReset();
+                vi.mocked(fs.watch).mockReset();
+                vi.mocked(fs.access).mockReset();
+                vi.useRealTimers();
+            });
+
+            it('rescans dotted directories while ignoring generated-file rename notifications', async () => {
+                const actual = await vi.importActual<typeof import('node:fs/promises')>('node:fs/promises');
+                vi.mocked(fs.stat).mockResolvedValueOnce(await actual.stat(import.meta.dirname));
+                vi.mocked(fs.stat).mockResolvedValueOnce(await actual.stat(import.meta.filename));
+                vi.mocked(fs.watch).mockImplementation(() =>
+                    (async function* () {
+                        yield { eventType: 'rename' as const, filename: 'design.v2' };
+                        yield { eventType: 'rename' as const, filename: 'icons.woff2' };
+                        return undefined;
+                    })(),
+                );
+                const onChange = vi.fn();
+                await utils.setupWatcher(['icons'], new AbortController().signal, onChange);
+                expect(fs.stat).toHaveBeenNthCalledWith(1, pathJoin('icons', 'design.v2'));
+                expect(fs.stat).toHaveBeenNthCalledWith(2, pathJoin('icons', 'icons.woff2'));
+                expect(onChange).toHaveBeenCalledExactlyOnceWith([{ path: 'icons', kind: 'changed' }]);
+            });
+
+            it('continues processing SVG edits after a non-SVG path cannot be inspected', async () => {
+                vi.mocked(fs.stat).mockRejectedValueOnce(new Error('path disappeared'));
+                vi.mocked(fs.watch).mockImplementation(() =>
+                    (async function* () {
+                        yield { eventType: 'rename' as const, filename: 'icons.css' };
+                        yield { eventType: 'change' as const, filename: 'a.svg' };
+                        return undefined;
+                    })(),
+                );
+                const onChange = vi.fn();
+                await utils.setupWatcher(['icons'], new AbortController().signal, onChange);
+                expect(onChange).toHaveBeenCalledExactlyOnceWith([{ path: pathJoin('icons', 'a.svg'), kind: 'changed' }]);
+            });
+
+            it('coalesces events across all roots into one family batch', async () => {
+                vi.mocked(fs.watch).mockImplementation(root =>
+                    (async function* () {
+                        yield { eventType: 'change' as const, filename: root === 'light' ? 'a.svg' : 'b.svg' };
+                        yield { eventType: 'change' as const, filename: root === 'light' ? 'a.svg' : 'b.svg' };
+                        return undefined;
+                    })(),
+                );
+                const onChange = vi.fn();
+                await utils.setupWatcher(['light', 'bold'], new AbortController().signal, onChange);
+                expect(onChange).toHaveBeenCalledExactlyOnceWith([
+                    { path: pathJoin('light', 'a.svg'), kind: 'changed' },
+                    { path: pathJoin('bold', 'b.svg'), kind: 'changed' },
+                ]);
+                expect(fs.watch).toHaveBeenCalledTimes(2);
+                expect(fs.watch).toHaveBeenNthCalledWith(1, 'light', expect.objectContaining({ recursive: true }));
+                expect(fs.watch).toHaveBeenNthCalledWith(2, 'bold', expect.objectContaining({ recursive: true }));
+            });
+
+            it('requests a re-diff for directory and missing-filename notifications', async () => {
+                vi.mocked(fs.watch).mockImplementation(() =>
+                    (async function* () {
+                        yield { eventType: 'rename' as const, filename: 'new-directory' };
+                        yield { eventType: 'rename' as const, filename: null };
+                        yield { eventType: 'change' as const, filename: 'irrelevant.txt' };
+                        return undefined;
+                    })(),
+                );
+                const onChange = vi.fn();
+                await utils.setupWatcher(['icons', 'icons'], new AbortController().signal, onChange);
+                expect(fs.watch).toHaveBeenCalledExactlyOnceWith('icons', expect.objectContaining({ recursive: true }));
+                expect(onChange).toHaveBeenCalledExactlyOnceWith([{ path: 'icons', kind: 'changed' }]);
+            });
+
+            it('aborts other root watchers when one root fails', async () => {
+                const stopped = vi.fn();
+                vi.mocked(fs.watch).mockImplementation((root, options) =>
+                    (async function* () {
+                        if (root === 'broken') throw new Error('watch failed');
+                        if (typeof options !== 'object') throw new Error('Expected watch options');
+                        const gate = Promise.withResolvers<void>();
+                        addAbortListener(options.signal!, () => gate.resolve());
+                        if (options.signal!.aborted) gate.resolve();
+                        await gate.promise;
+                        stopped();
+                        yield* [];
+                        return undefined;
+                    })(),
+                );
+                await expect(utils.setupWatcher(['broken', 'other'], new AbortController().signal, vi.fn())).rejects.toThrow('watch failed');
+                expect(stopped).toHaveBeenCalledOnce();
+            });
+
+            it('uses controlled debounce and deferred handlers to serialize cross-root bursts', async () => {
+                vi.useFakeTimers();
+                const secondEvent = Promise.withResolvers<void>();
+                const stop = Promise.withResolvers<void>();
+                const firstBatch = Promise.withResolvers<void>();
+                const firstStarted = Promise.withResolvers<void>();
+                vi.mocked(fs.watch).mockImplementation(root =>
+                    (async function* () {
+                        if (root === 'bold') await secondEvent.promise;
+                        yield { eventType: 'change' as const, filename: 'a.svg' };
+                        await stop.promise;
+                        return undefined;
+                    })(),
+                );
+                const onChange = vi.fn().mockImplementationOnce(async () => {
+                    firstStarted.resolve();
+                    await firstBatch.promise;
+                });
+                const running = utils.setupWatcher(['light', 'bold'], new AbortController().signal, onChange);
+                try {
+                    await vi.advanceTimersByTimeAsync(25);
+                    await firstStarted.promise;
+                    secondEvent.resolve();
+                    await vi.advanceTimersByTimeAsync(25);
+                    expect(onChange).toHaveBeenCalledExactlyOnceWith([{ kind: 'changed', path: pathJoin('light', 'a.svg') }]);
+                } finally {
+                    secondEvent.resolve();
+                    firstBatch.resolve();
+                    stop.resolve();
+                    await running;
+                }
+                expect(onChange).toHaveBeenCalledTimes(2);
+            });
+        });
+
         const folderPath = './test-folder';
         const handler = vi.fn();
         let ac: AbortController;
