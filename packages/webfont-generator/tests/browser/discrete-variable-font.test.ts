@@ -1,6 +1,7 @@
 import { expect, test } from 'vite-plus/test';
 
 const codepoint = '\ue001';
+const ligature = 'ab';
 const proofFontUrl = '/discrete-rvrn.woff2';
 
 test('switches unrelated outlines by font weight', async () => {
@@ -13,16 +14,25 @@ test('switches unrelated outlines by font weight', async () => {
     document.fonts.add(face);
     await face.load();
 
-    const light = render(300);
-    const heavy = render(700);
+    const samples = [100, 300, 400, 500, 600, 700, 900].map(weight => ({
+        direct: render(codepoint, weight),
+        ligature: render(ligature, weight),
+        weight,
+    }));
+    const light = samples[0].direct;
+    const heavy = samples.at(-1)!.direct;
 
-    expect(light.opaquePixels).toBeGreaterThan(0);
-    expect(heavy.opaquePixels).toBeGreaterThan(0);
+    for (const sample of samples) {
+        expect(sample.direct.opaquePixels).toBeGreaterThan(0);
+        expect(sample.ligature).toEqual(sample.direct);
+    }
     expect(light.width).toEqual(heavy.width);
     expect(heavy.centroidX - light.centroidX).toBeGreaterThan(40);
+    expect(samples[2].direct.centroidX).toBeCloseTo(light.centroidX, 0);
+    expect(samples[3].direct.centroidX).toBeCloseTo(heavy.centroidX, 0);
 });
 
-function render(weight: number) {
+function render(text: string, weight: number) {
     const canvas = document.createElement('canvas');
     canvas.width = 128;
     canvas.height = 128;
@@ -32,8 +42,8 @@ function render(weight: number) {
     context.font = `${weight} 100px "Discrete rvrn proof"`;
     context.fillStyle = '#000';
     context.textBaseline = 'top';
-    const width = context.measureText(codepoint).width;
-    context.fillText(codepoint, 0, 0);
+    const width = context.measureText(text).width;
+    context.fillText(text, 0, 0);
 
     const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
     let opaquePixels = 0;
