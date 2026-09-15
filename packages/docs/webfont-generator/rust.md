@@ -212,6 +212,14 @@ CSS font matching: for faces at 300, 400, and 700, requests for 100/350 select 3
 select 400, and 600/900 select 700. Generated pseudo-elements explicitly set their weight
 rather than inheriting it.
 
+## Template callback metadata
+
+`CssContext` and `HtmlContext` declare optional `variants`, `variant_class_prefix`,
+`default_weight`, and `font_style` fields. Variant rendering supplies them; ordinary rendering
+does not supply them by default. `TemplateVariant` describes each resolved entry with `name`,
+`weight`, `default`, `class_name`, and `selector`. The selector is a CSS-escaped identifier
+without a leading dot. The NAPI declarations expose the corresponding camelCase names.
+
 ## `FontType`
 
 ```rust

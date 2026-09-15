@@ -46,7 +46,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     let fileRefs: { [Ref in T]: string } | undefined;
     let _moduleGraph: ModuleGraph | undefined;
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
-    let generatedFonts: GenerateWebfontsResult<T> | undefined;
+    let generatedFonts: GenerateWebfontsResult<T, never> | undefined;
     let watcherTask: Promise<void> | undefined;
     const generatedFontBuffers = new Map<T, Buffer>();
     const generatedWebfonts: GeneratedWebfont[] = [];

@@ -84,8 +84,8 @@ describe('validateOptions', () => {
 
     it('validates explicit weights', () => {
         expect(() => validateOptions(options({ variants: [{ ...variants()[0], weight: 1.5 }, variants()[1]] }))).toThrow('integer between 1 and 1000');
-        expect(() => validateOptions(options({ variants: [{ ...variants()[0], weight: 0 }, variants()[1]] }))).toThrow('integer between 1 and 1000');
-        expect(() => validateOptions(options({ variants: [{ ...variants()[0], weight: 1001 }, variants()[1]] }))).toThrow('integer between 1 and 1000');
+        expect(() => validateOptions(options({ variants: [{ ...variants()[0], weight: 0 }, variants()[1]] }))).toThrow('between 1 and 1000');
+        expect(() => validateOptions(options({ variants: [{ ...variants()[0], weight: 1001 }, variants()[1]] }))).toThrow('between 1 and 1000');
         expect(() => validateOptions(options({ variants: [variants()[0], { ...variants()[1], weight: 200 }] }))).toThrow('preceding explicit weight');
     });
 
