@@ -24,6 +24,11 @@ pub(crate) struct Woff1PayloadCache {
 }
 
 impl Woff1PayloadCache {
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.entries.len()
+    }
+
     pub(crate) fn woff1_payload(&self, key: &u64) -> Option<Vec<u8>> {
         self.entries.get(key).cloned()
     }

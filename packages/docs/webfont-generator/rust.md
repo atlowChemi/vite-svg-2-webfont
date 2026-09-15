@@ -4,6 +4,10 @@ description: API reference for the webfont-generator Rust crate, including async
 
 # Rust Usage
 
+Multi-weight generation uses the `wght` axis to select discrete designs, without outline
+interpolation. It is available through the generator's Rust, Node, and CLI APIs; the Vite
+plugin does not yet expose it.
+
 ## Installation
 
 ```sh
@@ -190,6 +194,20 @@ filenames; all variants share one resource per requested modern format.
 `MissingGlyphBehavior::Blank` is the default. `Fallback` requires an existing variant that contains
 every logical glyph in the family; `Blank` and `Error` reject a fallback name. SVG/EOT output and
 incremental mode are invalid with variants.
+
+```rust
+use webfont_generator::{MissingGlyphBehavior, MissingGlyphOptions};
+
+let blank = MissingGlyphOptions { behavior: MissingGlyphBehavior::Blank, variant: None };
+let error = MissingGlyphOptions { behavior: MissingGlyphBehavior::Error, variant: None };
+let fallback = MissingGlyphOptions {
+    behavior: MissingGlyphBehavior::Fallback,
+    variant: Some("Regular".to_owned()),
+};
+```
+
+Set `missing_glyphs: Some(fallback)` (or another policy) in the generation options. The fallback
+design must contain every logical icon; blank cells retain the logical icon's advance.
 
 `generate()` and `generate_sync()` produce one shared variable font per requested modern format.
 Existing `ttf_bytes()`, `woff_bytes()`, and `woff2_bytes()` return those resources; SVG/EOT getters

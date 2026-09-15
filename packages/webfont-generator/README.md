@@ -29,6 +29,10 @@ Performance scales better with glyph count — for larger icon sets the native p
 
 ### Multi-weight variants
 
+Multi-weight generation is available through the generator's Node, Rust, and CLI APIs.
+The Vite plugin does not yet expose this feature. The `wght` axis selects discrete designs;
+outlines switch between designs rather than interpolating.
+
 Variant formats default to WOFF/WOFF2; TTF is also supported. Ordinary format defaults are unchanged.
 
 The Rust and Node APIs support multi-variant input through
@@ -40,6 +44,17 @@ intervals. Final weights must follow variant order and remain unique. Variant na
 modifier classes, not output filenames. The default
 missing-glyph behavior is `blank`; `fallback` requires an existing variant that contains every
 logical glyph in the family. SVG/EOT output and incremental mode are invalid with variants.
+
+For example, with a complete `Regular` design, choose one missing-glyph policy:
+
+```js
+import { MissingGlyphBehavior } from '@atlowchemi/webfont-generator';
+
+const blank = { behavior: MissingGlyphBehavior.Blank }; // Empty outline, retained advance.
+const error = { behavior: MissingGlyphBehavior.Error }; // Reject missing variant/icon pairs.
+const fallback = { behavior: MissingGlyphBehavior.Fallback, variant: 'Regular' };
+// Pass one of these objects as missingGlyphs alongside variants.
+```
 
 Generation returns one shared variable font per requested modern format through the existing
 TTF/WOFF/WOFF2 getters and writes `fontName.ttf`, `fontName.woff`, and `fontName.woff2`.

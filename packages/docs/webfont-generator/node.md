@@ -141,6 +141,9 @@ Use a non-empty array for ordinary generation. Omit this field when `variants` i
 Variant names produce CSS modifier classes with CSSOM-escaped selectors. Names do not form output
 filenames; all variants share one resource per requested modern format.
 
+The `wght` axis selects discrete designs, without outline interpolation. Multi-weight generation
+is exposed by the generator's Node, Rust, and CLI APIs; the Vite plugin does not yet expose it.
+
 ### `variantClassPrefix`
 
 - Type: `string`
@@ -155,6 +158,17 @@ filenames; all variants share one resource per requested modern format.
 - Description: Family-wide policy for glyphs missing from a variant. `fallback` requires the name
   of an existing variant that contains every logical glyph in the family; other behaviors reject
   `variant`. Import `MissingGlyphBehavior` from the package for the enum values.
+
+```ts
+import { MissingGlyphBehavior } from '@atlowchemi/webfont-generator';
+
+const blank = { behavior: MissingGlyphBehavior.Blank };
+const error = { behavior: MissingGlyphBehavior.Error };
+const fallback = { behavior: MissingGlyphBehavior.Fallback, variant: 'Regular' };
+```
+
+Pass one object as `missingGlyphs`. Blank cells retain the logical icon's advance; error mode
+rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must contain every icon.
 
 ### `dest`
 

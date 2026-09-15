@@ -361,3 +361,42 @@ fn regenerate_add_remove_cycles_do_not_grow_cache() {
     assert_same(&result, &generate(vec![a, b], false));
     std::fs::remove_dir_all(&dir).ok();
 }
+
+#[test]
+fn alternating_edits_match_fresh_fonts_and_bound_all_retained_caches() {
+    let dir = temp_dir();
+    let a = write_icon(&dir, "icon-a", D1);
+    let b = write_icon(&dir, "icon-b", D2);
+    let files = vec![a.clone(), b];
+    let mut result = generate_with_ligatures(files.clone(), true, true, true);
+    for index in 0..20 {
+        let (height, path) = if index % 2 == 0 { (24, D1) } else { (48, D2) };
+        write_icon_with_viewbox(&dir, "icon-a", 24, height, path);
+        result
+            .regenerate(&files, &[(a.clone(), GlyphChange::Changed { name: None })])
+            .unwrap();
+        let fresh = generate_with_ligatures(files.clone(), true, true, true);
+        assert_same(&result, &fresh);
+        let cache_sizes = |state: &RegenerationState| {
+            let ttf = state.ttf_cache.as_ref().unwrap();
+            (
+                state.glyph_cache.entries.len(),
+                state.glyph_cache.content_hashes.len(),
+                state.glyph_cache.by_content_hash.len(),
+                ttf.entries.len(),
+                ttf.tables.len(),
+                ttf.woff1_payloads.len(),
+                ttf.woff2_transforms.len(),
+            )
+        };
+        assert_eq!(
+            with_regeneration_state(&result, cache_sizes),
+            with_regeneration_state(&fresh, cache_sizes)
+        );
+        assert_same(
+            &result,
+            &generate_with_ligatures(files.clone(), false, true, true),
+        );
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}

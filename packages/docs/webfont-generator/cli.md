@@ -4,6 +4,10 @@ description: CLI reference for the webfont-generator command-line tool, includin
 
 # CLI Usage
 
+Multi-weight generation uses the `wght` axis to select discrete designs, without outline
+interpolation. It is available through the generator's CLI, Node, and Rust APIs; the Vite
+plugin does not yet expose it.
+
 ## Installation
 
 ```sh
