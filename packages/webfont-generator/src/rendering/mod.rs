@@ -9,6 +9,8 @@ use serde_json::{Map, Value};
 pub(crate) use css::render_css_with_hbs_context;
 #[cfg(feature = "napi")]
 pub(crate) use css::{SharedTemplateData, apply_context_function, build_css_context};
+#[cfg(feature = "napi")]
+pub(crate) use html::build_html_context_with_css;
 pub(crate) use html::render_html_with_hbs_context;
 #[cfg(feature = "napi")]
 pub(crate) use html::{build_html_context, build_html_registry_and_dependencies};

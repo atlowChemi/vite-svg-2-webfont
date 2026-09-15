@@ -76,8 +76,7 @@ pub(super) fn collect_write_outputs(
     }
 
     // Only render CSS/HTML templates when those files need to be written.
-    // Multi-face companion rendering is implemented in Phase 9.
-    if result.options.variants.is_none() && (result.options.css || result.options.html) {
+    if result.options.css || result.options.html {
         let cached = result.get_cached_io()?;
         if result.options.css {
             let ctx = cached.css_hbs_context.lock().unwrap();

@@ -23,6 +23,7 @@ export default defineProject({
             'test:browser': {
                 cache: false,
                 command: 'vp test --root ../.. --project=webfont-generator-browser',
+                dependsOn: ['build'],
             },
             'test:coverage': {
                 ...cargoCache,

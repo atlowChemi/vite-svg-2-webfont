@@ -77,9 +77,21 @@ empty. Variant SVG/EOT URL overrides are rejected. Regeneration methods reject v
 
 Custom-template contexts receive ordered `variants` entries (`name`, `weight`, `default`,
 `className`, `selector`) and `variantClassPrefix`. These values describe resolved weights/classes,
-not additional font resources. Multi-face default rendering is the next phase; currently variant
-CSS/HTML companion files are not written and in-memory default rendering uses the ordinary
-single-face template.
+not additional font resources. `defaultWeight` and `fontStyle` expose the resolved default weight
+and style (default `normal`). Default CSS emits one exact-weight face per variant sharing the
+modern URLs. Icon pseudo-elements use the default weight and `font-synthesis: none`; add a
+modifier such as `icon--bold` alongside the glyph class to select a variant. A modifier alone
+emits no glyph. CSS/HTML companion files are written when enabled; HTML shows one default grid.
+
+The SCSS `webfont-icon($name)` mixin retains its signature and reads each family's default weight
+and style from its five-item icon-map entry `(family, codepoint, weight, style, variantsMap)`.
+`variantsMap` maps CSS-escaped modifier identifiers (without a leading dot) to numeric weights;
+the mixin reads this fifth item to emit modifiers scoped to its caller's selector. Ordinary two-item entries
+remain supported. Generated modifier classes select other variants.
+
+Non-exact weights follow CSS font matching: for faces at 300, 400, and 700, requests for 100/350
+select 300, 450/500 select 400, and 600/900 select 700. Generated pseudo-elements set their own
+weight; inherited weights do not override it.
 
 ### `files`
 
