@@ -2,17 +2,15 @@
 
 ## [8.3.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.2.0...vite-svg-2-webfont-v8.3.0) (2026-09-15)
 
-
 ### Features
 
-* **vite-svg-2-webfont:** add multi-weight icon families with per-design SVG sources, shared font assets, and incremental HMR ([19b4f1b](https://github.com/atlowChemi/vite-svg-2-webfont/commit/19b4f1b4ab3d7e127581abe1002c1434c1cb4a44))
-
+- **vite-svg-2-webfont:** add multi-weight icon families with per-design SVG sources, shared font assets, and incremental HMR ([19b4f1b](https://github.com/atlowChemi/vite-svg-2-webfont/commit/19b4f1b4ab3d7e127581abe1002c1434c1cb4a44))
 
 ### Dependencies
 
-* The following workspace dependencies were updated
-  * dependencies
-    * @atlowchemi/webfont-generator bumped to 0.7.0
+- The following workspace dependencies were updated
+    - dependencies
+        - @atlowchemi/webfont-generator bumped to 0.7.0
 
 ## [8.2.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.1.1...vite-svg-2-webfont-v8.2.0) (2026-08-09)
 
