@@ -1,16 +1,23 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use super::types::GlyphCache;
+use kurbo::Shape;
+use write_fonts::read::tables::glyf::Glyph;
+use write_fonts::read::{FontRef, TableProvider};
+use write_fonts::types::{GlyphId, Tag};
+
+use super::types::{GlyphCache, PreparedVariantFamily, ProcessedGlyph};
 use super::{
-    build_svg_font, prepare_svg_font, prepare_svg_font_incremental, source_content_hash,
-    svg_options_from_options,
+    build_svg_font, glyph_scale, prepare_svg_font, prepare_svg_font_incremental,
+    prepare_variant_svg_family, source_content_hash, svg_options_from_options,
 };
 
-use crate::input::LoadedSvgFile;
-use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
-use crate::{FormatOptions, GenerateWebfontsOptions, SvgFormatOptions};
+use crate::input::{self, LoadedSvgFile, ResolvedGenerateWebfontsOptions, VariantFamilySources};
+use crate::{
+    FontType, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior, SvgFormatOptions,
+};
 
 #[derive(Clone, Copy)]
 struct SvgParityCase {
@@ -67,11 +74,11 @@ impl SvgParityCase {
 }
 
 fn generate_svg_font(options: GenerateWebfontsOptions) -> String {
-    let mut resolved_options = resolve_generate_webfonts_options(options)
+    let mut resolved_options = input::resolve_generate_webfonts_options(options)
         .unwrap_or_else(|error| panic!("native options should resolve: {error}"));
     resolved_options.types = vec![crate::FontType::Svg];
     let source_files = load_source_files(&resolved_options.files);
-    finalize_generate_webfonts_options(&mut resolved_options, &source_files)
+    input::finalize_generate_webfonts_options(&mut resolved_options, &source_files)
         .unwrap_or_else(|error| panic!("native codepoints should resolve: {error}"));
     let svg_options = svg_options_from_options(&resolved_options);
     let prepared = prepare_svg_font(&svg_options, &source_files)
@@ -309,6 +316,12 @@ fn assert_snapshot(name: &str, actual_svg: &str) {
 }
 
 #[test]
+fn zero_dimensions_keep_the_default_glyph_scale() {
+    assert_eq!(glyph_scale(0.0, 0.0, true, 0.0, 1000.0), 1.0);
+    assert_eq!(glyph_scale(0.0, 0.0, false, 0.0, 1000.0), 1.0);
+}
+
+#[test]
 fn explicit_codepoints_are_used_without_ligatures() {
     let options = GenerateWebfontsOptions {
         codepoints: Some(HashMap::from([("add".to_string(), 0xF201)])),
@@ -324,10 +337,10 @@ fn explicit_codepoints_are_used_without_ligatures() {
         ..Default::default()
     };
     let result = generate_svg_font(options.clone());
-    let mut resolved_options = resolve_generate_webfonts_options(options.clone())
+    let mut resolved_options = input::resolve_generate_webfonts_options(options.clone())
         .unwrap_or_else(|error| panic!("native options should resolve: {error}"));
     let source_files = load_source_files(&resolved_options.files);
-    finalize_generate_webfonts_options(&mut resolved_options, &source_files)
+    input::finalize_generate_webfonts_options(&mut resolved_options, &source_files)
         .unwrap_or_else(|error| panic!("native codepoints should resolve: {error}"));
     let svg_options = svg_options_from_options(&resolved_options);
     let prepared = prepare_svg_font(&svg_options, &source_files)
@@ -595,9 +608,9 @@ fn incremental_prepare_matches_full_prepare_and_reuses_cache() {
         ..Default::default()
     };
 
-    let mut resolved = resolve_generate_webfonts_options(make_options()).unwrap();
+    let mut resolved = input::resolve_generate_webfonts_options(make_options()).unwrap();
     let mut source_files = load_source_files(&resolved.files);
-    finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+    input::finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
     let renamed_codepoint = resolved.codepoints[&source_files[0].glyph_name];
     resolved
         .codepoints
@@ -681,7 +694,7 @@ fn incremental_prepare_matches_full_prepare_and_reuses_cache() {
 #[test]
 fn incremental_prepare_prunes_stale_content_hash_entries() {
     let dir = icons_root().join("cleanicons");
-    let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+    let mut resolved = input::resolve_generate_webfonts_options(GenerateWebfontsOptions {
         css: Some(false),
         dest: "artifacts".to_string(),
         files: svg_files(&dir),
@@ -692,7 +705,7 @@ fn incremental_prepare_prunes_stale_content_hash_entries() {
     })
     .unwrap();
     let mut source_files = load_source_files(&resolved.files);
-    finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+    input::finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
     let svg_options = svg_options_from_options(&resolved);
 
     let mut cache = GlyphCache::default();
@@ -718,7 +731,7 @@ fn winding_glyph_path_data(file: &str) -> String {
         .join(file)
         .to_string_lossy()
         .into_owned();
-    let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+    let mut resolved = input::resolve_generate_webfonts_options(GenerateWebfontsOptions {
         css: Some(false),
         html: Some(false),
         dest: "artifacts".to_string(),
@@ -729,7 +742,7 @@ fn winding_glyph_path_data(file: &str) -> String {
     .unwrap();
     resolved.types = vec![crate::FontType::Svg];
     let source_files = load_source_files(&resolved.files);
-    finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
+    input::finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
     let svg_options = svg_options_from_options(&resolved);
     let prepared = prepare_svg_font(&svg_options, &source_files).unwrap();
     prepared.processed_glyphs[0].path_data.to_string()
@@ -950,5 +963,286 @@ fn quadratic_tiny_paths_are_rounded_and_fully_hashed() {
             &[make_path(1.4, 5.6)],
             1.0,
         ))
+    );
+}
+
+fn variant_svg(path: &str, name: &str, width: u32, height: u32, shape_width: u32) -> LoadedSvgFile {
+    LoadedSvgFile {
+        contents: format!(
+            "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"><rect width=\"{shape_width}\" height=\"{height}\"/></svg>"
+        )
+        .into(),
+        glyph_name: name.to_owned(),
+        path: path.to_owned(),
+    }
+}
+
+fn resolved_family(
+    variants: Vec<Vec<LoadedSvgFile>>,
+    behavior: MissingGlyphBehavior,
+    fallback_index: Option<usize>,
+    variant_names: &[&str],
+) -> (VariantFamilySources, BTreeMap<String, u32>) {
+    let (mut family, codepoints) =
+        input::build_variant_family_sources(variants, &BTreeMap::new(), 0xe001).unwrap();
+    input::resolve_missing_glyphs(&mut family, behavior, fallback_index, variant_names).unwrap();
+    (family, codepoints)
+}
+
+fn prepare_family(
+    family: &VariantFamilySources,
+    codepoints: BTreeMap<String, u32>,
+    configure: impl FnOnce(&mut ResolvedGenerateWebfontsOptions),
+) -> PreparedVariantFamily {
+    let mut options = input::resolve_generate_webfonts_options(GenerateWebfontsOptions {
+        dest: "artifacts".to_owned(),
+        files: vec!["unused.svg".to_owned()],
+        types: Some(vec![FontType::Ttf]),
+        write_files: Some(false),
+        ..Default::default()
+    })
+    .unwrap();
+    options.codepoints = codepoints;
+    configure(&mut options);
+
+    prepare_variant_svg_family(&svg_options_from_options(&options), family).unwrap()
+}
+
+#[test]
+fn variant_family_uses_shared_metrics_and_logical_advances() {
+    let (family, codepoints) = resolved_family(
+        vec![
+            vec![
+                variant_svg("small/a.svg", "a", 10, 20, 10),
+                variant_svg("small/b.svg", "b", 4, 10, 4),
+            ],
+            vec![variant_svg("large/a.svg", "a", 30, 10, 30)],
+        ],
+        MissingGlyphBehavior::Blank,
+        None,
+        &["small", "large"],
+    );
+    let prepared = prepare_family(&family, codepoints.clone(), |_| {});
+
+    assert_eq!(
+        (prepared.ascent, prepared.descent, prepared.font_height),
+        (20.0, 0.0, 20.0)
+    );
+    assert_eq!(prepared.glyphs[0].advance_width, 20.0);
+    assert_eq!(prepared.glyphs[1].advance_width, 8.0);
+    assert_eq!(prepared.glyphs[0].outlines[0].as_ref().unwrap().width, 20.0);
+    assert_eq!(prepared.glyphs[0].outlines[1].as_ref().unwrap().width, 20.0);
+    assert_eq!(prepared.glyphs[1].outlines[0].as_ref().unwrap().width, 8.0);
+    assert!(prepared.glyphs[1].outlines[1].is_none());
+
+    let fixed = prepare_family(&family, codepoints, |options| {
+        options.fixed_width = Some(true);
+    });
+    assert!(fixed.glyphs.iter().all(|glyph| glyph.advance_width == 20.0));
+    assert!(fixed.glyphs.iter().all(|glyph| {
+        glyph
+            .outlines
+            .iter()
+            .flatten()
+            .all(|outline| outline.width == 20.0)
+    }));
+}
+
+#[test]
+fn variant_family_applies_fallback_advances_without_overwriting_direct_outlines() {
+    let (family, codepoints) = resolved_family(
+        vec![
+            vec![
+                variant_svg("small/a.svg", "a", 10, 20, 10),
+                variant_svg("small/b.svg", "b", 4, 10, 4),
+            ],
+            vec![variant_svg("large/a.svg", "a", 30, 10, 30)],
+        ],
+        MissingGlyphBehavior::Fallback,
+        Some(0),
+        &["small", "large"],
+    );
+    let prepared = prepare_family(&family, codepoints, |_| {});
+
+    let b = &prepared.glyphs[1];
+    assert_eq!(b.advance_width, 8.0);
+    assert!(b.outlines.iter().all(Option::is_some));
+    assert_eq!(b.outlines[0].as_ref().unwrap().width, 8.0);
+    assert_eq!(b.outlines[1].as_ref().unwrap().width, 8.0);
+    assert_eq!(
+        b.outlines[0].as_ref().unwrap().ttf_path,
+        b.outlines[1].as_ref().unwrap().ttf_path
+    );
+}
+
+#[test]
+fn variant_family_metrics_are_order_independent_and_center_with_explicit_overrides() {
+    let variants = vec![
+        vec![variant_svg("small/a.svg", "a", 20, 10, 10)],
+        vec![variant_svg("large/a.svg", "a", 30, 20, 30)],
+    ];
+    let (family, codepoints) = resolved_family(
+        variants.clone(),
+        MissingGlyphBehavior::Blank,
+        None,
+        &["small", "large"],
+    );
+    let (reversed, reversed_codepoints) = resolved_family(
+        variants.into_iter().rev().collect(),
+        MissingGlyphBehavior::Blank,
+        None,
+        &["large", "small"],
+    );
+    let natural = prepare_family(&family, codepoints.clone(), |_| {});
+    let reversed_natural = prepare_family(&reversed, reversed_codepoints.clone(), |_| {});
+    assert_eq!(
+        (natural.ascent, natural.descent, natural.font_height),
+        (
+            reversed_natural.ascent,
+            reversed_natural.descent,
+            reversed_natural.font_height
+        )
+    );
+    assert_eq!(
+        natural.glyphs[0].advance_width,
+        reversed_natural.glyphs[0].advance_width
+    );
+
+    let configure = |options: &mut ResolvedGenerateWebfontsOptions| {
+        options.ascent = Some(80.0);
+        options.descent = Some(20.0);
+        options.font_height = Some(100.0);
+        options.normalize = false;
+        options.center_horizontally = Some(true);
+        options.center_vertically = Some(true);
+    };
+    let prepared = prepare_family(&family, codepoints, configure);
+    let reversed = prepare_family(&reversed, reversed_codepoints, configure);
+
+    assert_eq!(
+        (prepared.ascent, prepared.descent, prepared.font_height),
+        (80.0, 20.0, 100.0)
+    );
+    assert_eq!(prepared.glyphs[0].advance_width, 150.0);
+    assert_eq!(
+        prepared.glyphs[0].advance_width,
+        reversed.glyphs[0].advance_width
+    );
+    for outline in prepared.glyphs[0].outlines.iter().flatten() {
+        let bounds = outline.ttf_path.as_ref().unwrap().bounding_box();
+        assert!((bounds.x0 + bounds.x1 - outline.width).abs() < 0.001);
+        assert!((bounds.y0 + bounds.y1 - 60.0).abs() < 0.001);
+    }
+}
+
+fn oracle_glyphs(prepared: &PreparedVariantFamily, variant_index: usize) -> Vec<ProcessedGlyph> {
+    prepared
+        .glyphs
+        .iter()
+        .enumerate()
+        .map(|(index, glyph)| {
+            glyph.outlines[variant_index]
+                .clone()
+                .unwrap_or_else(|| ProcessedGlyph {
+                    codepoint: glyph.codepoint,
+                    height: 0.0,
+                    index,
+                    name: glyph.name.clone(),
+                    path_data: Arc::from(""),
+                    ttf_path: None,
+                    ttf_path_hash: None,
+                    width: glyph.advance_width,
+                })
+        })
+        .collect()
+}
+
+#[test]
+fn static_variant_oracles_share_metrics_codepoints_and_advances() {
+    let (family, codepoints) = resolved_family(
+        vec![
+            vec![
+                variant_svg("small/a.svg", "a", 10, 20, 10),
+                variant_svg("small/b.svg", "b", 4, 10, 4),
+            ],
+            vec![variant_svg("large/a.svg", "a", 30, 10, 30)],
+        ],
+        MissingGlyphBehavior::Blank,
+        None,
+        &["small", "large"],
+    );
+    let prepared = prepare_family(&family, codepoints, |_| {});
+    let build = |prepared: &PreparedVariantFamily, variant_index, weight| {
+        crate::sfnt::build(
+            crate::sfnt::TtfOptions {
+                ascent: Some(prepared.ascent),
+                copyright: None,
+                descent: Some(prepared.descent),
+                description: None,
+                font_height: Some(prepared.font_height),
+                font_name: "variant-oracle",
+                font_style: None,
+                font_weight: Some(weight),
+                ligature: false,
+                manufacturer_url: None,
+                ts: Some(0),
+                version: None,
+            },
+            &oracle_glyphs(&prepared, variant_index),
+            None,
+        )
+        .unwrap()
+    };
+    let small_tables = build(&prepared, 0, "300");
+    let large_tables = build(&prepared, 1, "700");
+    let small = FontRef::new(small_tables.ttf()).unwrap();
+    let large = FontRef::new(large_tables.ttf()).unwrap();
+
+    for (font, weight) in [(&small, 300), (&large, 700)] {
+        assert_eq!(font.head().unwrap().units_per_em(), 20);
+        assert_eq!(font.hhea().unwrap().ascender(), 20.into());
+        assert_eq!(font.hhea().unwrap().descender(), 0.into());
+        assert_eq!(font.os2().unwrap().us_weight_class(), weight);
+        assert!(font.cmap().unwrap().map_codepoint(0xe001_u32).is_some());
+        assert_eq!(font.hmtx().unwrap().h_metrics()[1].advance(), 20);
+        assert_eq!(font.hmtx().unwrap().h_metrics()[2].advance(), 8);
+    }
+    let glyph_bounds = |font: &FontRef<'_>, codepoint| {
+        let glyph_id = font.cmap().unwrap().map_codepoint(codepoint).unwrap();
+        let glyf = font.glyf().unwrap();
+        match font.loca(None).unwrap().get_glyf(glyph_id, &glyf).unwrap() {
+            Some(Glyph::Simple(glyph)) => {
+                Some((glyph.x_min(), glyph.y_min(), glyph.x_max(), glyph.y_max()))
+            }
+            None => None,
+            Some(Glyph::Composite(_)) => panic!("variant oracle should use simple glyphs"),
+        }
+    };
+    assert_eq!(glyph_bounds(&small, 0xe001_u32), Some((0, 0, 10, 20)));
+    assert_eq!(glyph_bounds(&large, 0xe001_u32), Some((0, 0, 20, 7)));
+    assert!(glyph_bounds(&small, 0xe002_u32).is_some());
+    assert_eq!(glyph_bounds(&large, 0xe002_u32), None);
+
+    let (fallback_family, fallback_codepoints) = resolved_family(
+        family.variants.clone(),
+        MissingGlyphBehavior::Fallback,
+        Some(0),
+        &["small", "large"],
+    );
+    let fallback = prepare_family(&fallback_family, fallback_codepoints, |_| {});
+    let fallback_large_tables = build(&fallback, 1, "700");
+    let fallback_large = FontRef::new(fallback_large_tables.ttf()).unwrap();
+    assert_eq!(
+        glyph_bounds(&fallback_large, 0xe002_u32),
+        glyph_bounds(&small, 0xe002_u32)
+    );
+
+    assert_ne!(
+        small.table_data(Tag::new(b"glyf")).unwrap().as_bytes(),
+        large.table_data(Tag::new(b"glyf")).unwrap().as_bytes()
+    );
+    assert_eq!(
+        GlyphId::new(1),
+        small.cmap().unwrap().map_codepoint(0xe001_u32).unwrap()
     );
 }

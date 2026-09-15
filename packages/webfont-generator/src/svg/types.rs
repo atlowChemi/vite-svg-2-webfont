@@ -77,6 +77,28 @@ pub(crate) struct PreparedSvgFont {
     pub processed_glyphs: Vec<ProcessedGlyph>,
 }
 
+#[allow(
+    dead_code,
+    reason = "prepared variant geometry is consumed by later generation phases"
+)]
+pub(crate) struct PreparedVariantFamily {
+    pub ascent: f64,
+    pub descent: f64,
+    pub font_height: f64,
+    pub glyphs: Vec<ProcessedVariantGlyph>,
+}
+
+#[allow(
+    dead_code,
+    reason = "processed variant glyphs are consumed by later generation phases"
+)]
+pub(crate) struct ProcessedVariantGlyph {
+    pub name: String,
+    pub codepoint: u32,
+    pub advance_width: f64,
+    pub outlines: Box<[Option<ProcessedGlyph>]>,
+}
+
 /// The content-derived geometry of one parsed glyph (everything in [`ParsedGlyph`] except the
 /// assigned `codepoint`/`index`/`name`, which are reassigned on every build). Cached so an
 /// incremental rebuild can reuse a glyph whose SVG source didn't change.
