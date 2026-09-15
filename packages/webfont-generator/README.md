@@ -24,76 +24,9 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 - A new `incremental` option (default `false`) retains parsed glyph data on the result so `result.regenerateAsync(files, changes?)` can rebuild after file changes without re-parsing the glyphs that didn't change or blocking the Node.js event loop. It refreshes the outputs in memory and, when the result was generated with `writeFiles`, writes refreshed fonts to disk too while skipping unchanged CSS/HTML companion files. You pass the full file set (in the order a fresh build would use) plus what changed, or omit `changes` to re-read/hash the full set and infer changes; the result is byte-identical to a fresh `generateWebfonts()` of that set, additions included.
 - Generated font binaries (TTF, WOFF, etc.) may differ at the byte level because a different encoder is used, but the fonts are equally valid.
 - CSS, HTML, and template output is identical.
+- A new `variants` option supports multi-weight families with discrete designs.
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
-
-### Multi-weight variants
-
-Multi-weight generation is available through the generator's Node, Rust, and CLI APIs.
-The Vite plugin does not yet expose this feature. The `wght` axis selects discrete designs;
-outlines switch between designs rather than interpolating.
-
-Variant formats default to WOFF/WOFF2; TTF is also supported. Ordinary format defaults are unchanged.
-
-The Rust and Node APIs support multi-variant input through
-`FontVariant`, `MissingGlyphBehavior`, and `MissingGlyphOptions`. Set either ordinary `files` or
-`variants`, not both; variant mode requires at least two uniquely named variants and exactly one
-default. Explicit weights are anchors in the range 1–1000. An automatic default resolves to 400;
-other automatic weights resolve outward in steps of 100, or evenly within crowded anchor
-intervals. Final weights must follow variant order and remain unique. Variant names determine CSS
-modifier classes, not output filenames. The default
-missing-glyph behavior is `blank`; `fallback` requires an existing variant that contains every
-logical glyph in the family. SVG/EOT output and incremental mode are invalid with variants.
-
-For example, with a complete `Regular` design, choose one missing-glyph policy:
-
-```js
-import { MissingGlyphBehavior } from '@atlowchemi/webfont-generator';
-
-const blank = { behavior: MissingGlyphBehavior.Blank }; // Empty outline, retained advance.
-const error = { behavior: MissingGlyphBehavior.Error }; // Reject missing variant/icon pairs.
-const fallback = { behavior: MissingGlyphBehavior.Fallback, variant: 'Regular' };
-// Pass one of these objects as missingGlyphs alongside variants.
-```
-
-Generation returns one shared variable font per requested modern format through the existing
-TTF/WOFF/WOFF2 getters and writes `fontName.ttf`, `fontName.woff`, and `fontName.woff2`.
-SVG/EOT getters are empty for variant results. Writes are non-transactional: a failure can leave a
-partial bundle. Variant regeneration, including async methods, returns an unsupported error.
-
-The existing CSS/HTML render methods accept shared flat URL maps. A supplied map completely
-overrides generated URLs; missing entries become empty. Variant SVG/EOT overrides are rejected.
-Custom-template contexts receive ordered `variants` entries with `name`, `weight`, `default`,
-`className`, and `selector`, plus `variantClassPrefix`. No extra result getters are needed.
-Default CSS emits one exact-weight `@font-face` per variant, sharing the modern URLs. Icon
-pseudo-elements use the default weight and `font-synthesis: none`; add a modifier such as
-`icon--bold` alongside the glyph class to select another variant. A modifier alone emits no glyph.
-CSS/HTML companion files are written when enabled; HTML shows one grid in the default variant.
-Contexts also expose `defaultWeight` and `fontStyle` (default `normal`). The SCSS
-`webfont-icon($name)` mixin uses each icon family's default weight; modifier classes select variants.
-Variant icon-map entries contain `(family, codepoint, weight, style, variantsMap)`. The fifth item
-maps CSS-escaped modifier identifiers (without a leading dot) to numeric weights, which the mixin
-uses to emit modifiers scoped to its caller's selector. Ordinary family/codepoint pairs remain supported.
-
-Non-exact weights use CSS font matching, not interpolation: with faces at 300, 400, and 700,
-requests for 100/350 select 300, 450/500 select 400, and 600/900 select 700. Generated
-pseudo-elements explicitly set their weight, so inherited weights do not override them.
-
-### TypeScript inference and callback metadata
-
-TypeScript infers output getters from literal `types` lists. With `types` omitted, ordinary
-calls expose non-null EOT/WOFF/WOFF2, and variant calls expose non-null WOFF/WOFF2; other getters
-are `null`. A dynamically selected format array has nullable getters because its contents are
-not known statically. Variables typed as the ordinary/variant options union are also accepted.
-
-Explicit single-format generics, such as `generateWebfonts<'svg'>({ files, dest, types: ['svg'] })`,
-retain a non-null getter with a nonempty `types` tuple. Modern variant formats behave the same;
-explicit union generics and widened arrays retain conservative nullable getters.
-
-Variant options infer `CssContext<true>` / `HtmlContext<true>` callbacks with typed `variants: TemplateVariant[]`, `variantClassPrefix`,
-`defaultWeight`, and `fontStyle`. Plain `CssContext` / `HtmlContext` keep these fields `unknown` because ordinary template options may supply arbitrary values. Variant generation supplies these fields; ordinary generation
-does not supply them by default. Each `TemplateVariant` has `name`, `weight`, `default`,
-`className`, and `selector` (an escaped CSS identifier without a leading dot).
 
 ### Incremental regeneration
 
@@ -178,7 +111,36 @@ does not stop already-started blocking work and the consumed result cannot be re
 
 ## CLI
 
-Use a complete JSON configuration for ordinary or multi-weight generation:
+The CLI is available as an opt-in feature (to avoid pulling in `clap` for library users):
+
+```bash
+cargo install webfont-generator --features cli
+```
+
+### Usage
+
+```bash
+webfont-generator [OPTIONS] --dest <DEST> <FILES>...
+# Or use a configuration file
+webfont-generator --config <PATH>
+```
+
+### Examples
+
+```bash
+# Generate default formats (eot, woff, woff2) from a directory of SVGs
+webfont-generator --dest ./dist/fonts ./icons/
+
+# Generate specific formats with a custom font name
+webfont-generator --dest ./dist/fonts --types woff2,woff --font-name my-icons ./icons/
+
+# Generate fonts with an HTML preview page
+webfont-generator --dest ./dist/fonts --html ./icons/*.svg
+```
+
+### Configuration File
+
+Use a complete JSON configuration:
 
 ```sh
 webfont-generator --config icons.webfont.json
@@ -198,31 +160,6 @@ webfont-generator --config icons.webfont.json
 Manifest keys use the generator's camelCase option names. Relative input, output, and template paths resolve against the manifest directory. Input directories expand non-recursively into sorted lowercase `.svg` files at their array position; globs are not expanded. Duplicate normalized paths within a variant and nonexistent inputs are errors. Unknown fields and invalid values produce manifest-specific diagnostics.
 
 `--config` cannot be combined with positional inputs or generation flags; only `--help` and `--version` coexist. Ordinary manifests use `files` and retain SVG/EOT support. Variant manifests default to WOFF/WOFF2 and accept only TTF/WOFF/WOFF2. JSON callbacks are unsupported; use the Node API for callbacks. See the [CLI reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/cli) for the complete manifest contract.
-
-The CLI is available as an opt-in feature (to avoid pulling in `clap` for library users):
-
-```bash
-cargo install webfont-generator --features cli
-```
-
-### Usage
-
-```
-webfont-generator [OPTIONS] --dest <DEST> <FILES>...
-```
-
-### Examples
-
-```bash
-# Generate default formats (eot, woff, woff2) from a directory of SVGs
-webfont-generator --dest ./dist/fonts ./icons/
-
-# Generate specific formats with a custom font name
-webfont-generator --dest ./dist/fonts --types woff2,woff --font-name my-icons ./icons/
-
-# Generate fonts with an HTML preview page
-webfont-generator --dest ./dist/fonts --html ./icons/*.svg
-```
 
 ### Options
 
@@ -258,7 +195,7 @@ Options:
 Default CSS, SCSS, and HTML templates are available via the `/templates` export:
 
 ```js
-import { templates } from '@atlowchemi/webfont-generator/templates';
+import * as templates from '@atlowchemi/webfont-generator/templates';
 
 console.log(templates.css); // path to default CSS template
 console.log(templates.scss); // path to default SCSS template

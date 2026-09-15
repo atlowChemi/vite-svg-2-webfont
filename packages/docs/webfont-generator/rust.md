@@ -4,10 +4,6 @@ description: API reference for the webfont-generator Rust crate, including async
 
 # Rust Usage
 
-Multi-weight generation uses the `wght` axis to select discrete designs, without outline
-interpolation. It is available through the generator's Rust, Node, and CLI APIs; the Vite
-plugin does not yet expose it.
-
 ## Installation
 
 ```sh
@@ -117,49 +113,91 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 
 ## `GenerateWebfontsOptions`
 
-`dest` is required. Use `files` for ordinary generation or `variants` for the multi-variant
-contract; all other fields are optional and implement `Default`.
+`dest` is required. Use `files` for a single design of each icon or `variants` for a
+[multi-variant family](#multi-variant-fonts). Set optional fields with `Some(...)`, or use
+`..Default::default()` for their defaults.
 
-| Field                   | Type                           | Default                 | Description                           |
-| ----------------------- | ------------------------------ | ----------------------- | ------------------------------------- |
-| `dest`                  | `String`                       | --                      | Output directory (required)           |
-| `files`                 | `Vec<String>`                  | Empty                   | Ordinary SVG file paths               |
-| `font_name`             | `Option<String>`               | `"iconfont"`            | Font family name                      |
-| `types`                 | `Option<Vec<FontType>>`        | `[Eot, Woff, Woff2]`    | Font formats to generate              |
-| `order`                 | `Option<Vec<FontType>>`        | Filtered default order  | `@font-face` src order                |
-| `css`                   | `Option<bool>`                 | `true`                  | Generate CSS file                     |
-| `html`                  | `Option<bool>`                 | `false`                 | Generate HTML preview                 |
-| `write_files`           | `Option<bool>`                 | `true`                  | Write output to disk                  |
-| `css_template`          | `Option<String>`               | Built-in template       | Custom Handlebars CSS template path   |
-| `html_template`         | `Option<String>`               | Built-in template       | Custom Handlebars HTML template path  |
-| `css_fonts_url`         | `Option<String>`               | Relative path           | URL prefix for fonts in CSS           |
-| `css_dest`              | `Option<String>`               | `dest/fontName.css`     | CSS output path                       |
-| `html_dest`             | `Option<String>`               | `dest/fontName.html`    | HTML output path                      |
-| `codepoints`            | `Option<HashMap<String, u32>>` | Empty                   | Explicit glyph codepoints             |
-| `start_codepoint`       | `Option<u32>`                  | `0xF101`                | Starting auto-codepoint               |
-| `font_height`           | `Option<f64>`                  | --                      | Explicit font height                  |
-| `ascent`                | `Option<f64>`                  | --                      | Font ascent                           |
-| `descent`               | `Option<f64>`                  | --                      | Font descent                          |
-| `normalize`             | `Option<bool>`                 | `true`                  | Normalize glyph heights               |
-| `incremental`           | `Option<bool>`                 | `false`                 | Retain parsed glyphs for `regenerate` |
-| `fixed_width`           | `Option<bool>`                 | --                      | Monospace font                        |
-| `center_horizontally`   | `Option<bool>`                 | --                      | Center glyphs horizontally            |
-| `center_vertically`     | `Option<bool>`                 | --                      | Center glyphs vertically              |
-| `ligature`              | `Option<bool>`                 | `true`                  | Enable ligatures                      |
-| `round`                 | `Option<f64>`                  | --                      | Path rounding precision               |
-| `preserve_aspect_ratio` | `Option<bool>`                 | --                      | Preserve SVG aspect ratio             |
-| `optimize_output`       | `Option<bool>`                 | --                      | Optimize SVG output                   |
-| `font_style`            | `Option<String>`               | --                      | CSS `font-style` value                |
-| `font_weight`           | `Option<String>`               | --                      | CSS `font-weight` value               |
-| `missing_glyphs`        | `Option<MissingGlyphOptions>`  | `blank` in variant mode | Missing-glyph policy                  |
-| `format_options`        | `Option<FormatOptions>`        | --                      | Per-format options                    |
-| `template_options`      | `Option<Map<String, Value>>`   | --                      | Extra template context                |
-| `variant_class_prefix`  | `Option<String>`               | `"icon--"`              | CSS variant modifier prefix           |
-| `variants`              | `Option<Vec<FontVariant>>`     | --                      | Multi-variant input contract          |
+| Field                   | Type                           | Default                                                                    | Description                                        |
+| ----------------------- | ------------------------------ | -------------------------------------------------------------------------- | -------------------------------------------------- |
+| `dest`                  | `String`                       | --                                                                         | Output directory (required)                        |
+| `files`                 | `Vec<String>`                  | Empty                                                                      | SVG paths for a single design                      |
+| `font_name`             | `Option<String>`               | `"iconfont"`                                                               | Font family name                                   |
+| `types`                 | `Option<Vec<FontType>>`        | `[Eot, Woff, Woff2]` for single-variant; `[Woff, Woff2]` for multi-variant | Font formats to generate                           |
+| `order`                 | `Option<Vec<FontType>>`        | Filtered default order                                                     | `@font-face` src order                             |
+| `css`                   | `Option<bool>`                 | `true`                                                                     | Generate CSS file                                  |
+| `html`                  | `Option<bool>`                 | `false`                                                                    | Generate HTML preview                              |
+| `write_files`           | `Option<bool>`                 | `true`                                                                     | Write output to disk                               |
+| `css_template`          | `Option<String>`               | Built-in template                                                          | Custom Handlebars CSS template path                |
+| `html_template`         | `Option<String>`               | Built-in template                                                          | Custom Handlebars HTML template path               |
+| `css_fonts_url`         | `Option<String>`               | Relative path                                                              | URL prefix for fonts in CSS                        |
+| `css_dest`              | `Option<String>`               | `dest/fontName.css`                                                        | CSS output path                                    |
+| `html_dest`             | `Option<String>`               | `dest/fontName.html`                                                       | HTML output path                                   |
+| `codepoints`            | `Option<HashMap<String, u32>>` | Empty                                                                      | Explicit glyph codepoints                          |
+| `start_codepoint`       | `Option<u32>`                  | `0xF101`                                                                   | Starting auto-codepoint                            |
+| `font_height`           | `Option<f64>`                  | --                                                                         | Explicit font height                               |
+| `ascent`                | `Option<f64>`                  | --                                                                         | Font ascent                                        |
+| `descent`               | `Option<f64>`                  | --                                                                         | Font descent                                       |
+| `normalize`             | `Option<bool>`                 | `true`                                                                     | Normalize glyph heights                            |
+| `incremental`           | `Option<bool>`                 | `false`                                                                    | Retain parsed glyphs for `regenerate`              |
+| `fixed_width`           | `Option<bool>`                 | --                                                                         | Monospace font                                     |
+| `center_horizontally`   | `Option<bool>`                 | --                                                                         | Center glyphs horizontally                         |
+| `center_vertically`     | `Option<bool>`                 | --                                                                         | Center glyphs vertically                           |
+| `ligature`              | `Option<bool>`                 | `true`                                                                     | Enable ligatures                                   |
+| `round`                 | `Option<f64>`                  | --                                                                         | Path rounding precision                            |
+| `preserve_aspect_ratio` | `Option<bool>`                 | --                                                                         | Preserve SVG aspect ratio                          |
+| `optimize_output`       | `Option<bool>`                 | --                                                                         | Optimize SVG output                                |
+| `font_style`            | `Option<String>`               | --                                                                         | CSS `font-style` value                             |
+| `font_weight`           | `Option<String>`               | --                                                                         | CSS `font-weight` value                            |
+| `missing_glyphs`        | `Option<MissingGlyphOptions>`  | `blank` in variant mode                                                    | Missing-glyph policy                               |
+| `format_options`        | `Option<FormatOptions>`        | --                                                                         | Per-format options                                 |
+| `template_options`      | `Option<Map<String, Value>>`   | --                                                                         | Extra template context                             |
+| `variant_class_prefix`  | `Option<String>`               | `"icon--"`                                                                 | CSS variant modifier prefix                        |
+| `variants`              | `Option<Vec<FontVariant>>`     | --                                                                         | Ordered designs; see [`FontVariant`](#fontvariant) |
 
-### Multi-weight variants
+## Multi-variant fonts
 
-Variant formats default to WOFF/WOFF2; TTF is also supported. Ordinary format defaults are unchanged.
+A multi-variant family groups different designs of the same icons, such as light and bold,
+into one font file per requested format. SVGs with matching filenames represent the same
+logical icon across designs. Generated CSS lets you select a design using a modifier class.
+
+```rust
+use webfont_generator::{FontVariant, GenerateWebfontsOptions};
+
+let result = webfont_generator::generate_sync(GenerateWebfontsOptions {
+    dest: "dist/fonts".to_owned(),
+    font_name: Some("my-icons".to_owned()),
+    variants: Some(vec![
+        FontVariant {
+            name: "light".to_owned(),
+            files: vec!["icons/light/add.svg".to_owned()],
+            weight: Some(300),
+            default: Some(true),
+        },
+        FontVariant {
+            name: "bold".to_owned(),
+            files: vec!["icons/bold/add.svg".to_owned()],
+            weight: Some(700),
+            default: None,
+        },
+    ]),
+    ..Default::default()
+}, None)?;
+```
+
+This generates `my-icons.woff` and `my-icons.woff2`, plus `my-icons.css`. With that CSS loaded,
+`class="icon icon-add"` uses the light design and `class="icon icon-add icon--bold"` uses bold.
+TTF is also supported; SVG and EOT are not available for multi-variant families.
+For sparse designs, set [`missing_glyphs`](#missingglyphoptions). Incremental regeneration is
+not currently available for multi-variant results.
+
+See [Templates](./templates) for CSS customization, SCSS, and the
+[additional template context fields](./templates#template-context).
+
+## `FontVariant`
+
+One design in `GenerateWebfontsOptions::variants`. Supply at least two designs, each with
+a unique name and a nonempty file list; exactly one must set `default: Some(true)`.
+Leave the top-level `files` empty when using `variants`.
 
 ```rust
 pub struct FontVariant {
@@ -168,32 +206,49 @@ pub struct FontVariant {
     pub weight: Option<u16>,
     pub default: Option<bool>,
 }
+```
 
+| Field     | Meaning                                                                              |
+| --------- | ------------------------------------------------------------------------------------ |
+| `name`    | Design name, also used in its CSS modifier class. Whitespace and NUL are rejected.   |
+| `files`   | SVG paths for this design. Match filenames across designs to identify the same icon. |
+| `weight`  | Optional weight from 1–1000. Explicit weights must increase in variant order.        |
+| `default` | Whether this design is used without a modifier class.                                |
+
+With `weight: None`, the default resolves to 400. Other automatic weights are assigned outward
+in steps of 100, or evenly within crowded explicit-weight intervals. All resolved weights must
+be unique and increasing. Variant names do not change output filenames.
+
+## `MissingGlyphBehavior`
+
+Controls what happens when an icon exists in the family but is absent from one design.
+
+```rust
 pub enum MissingGlyphBehavior {
     Blank,
     Error,
     Fallback,
 }
+```
 
+| Value      | Behavior                                                                       |
+| ---------- | ------------------------------------------------------------------------------ |
+| `Blank`    | Use an empty outline while retaining the icon's advance width. Default policy. |
+| `Error`    | Reject the family and report missing design/icon pairs.                        |
+| `Fallback` | Reuse the outline from a named design containing every icon.                   |
+
+## `MissingGlyphOptions`
+
+Sets the family-wide missing-icon policy through `GenerateWebfontsOptions::missing_glyphs`.
+
+```rust
 pub struct MissingGlyphOptions {
     pub behavior: MissingGlyphBehavior,
     pub variant: Option<String>,
 }
 ```
 
-Variant mode requires at least two uniquely named variants, exactly one default, and either all
-ordinary `files` or `variants`, never both. Every variant needs at least one SVG file. Explicit
-weights are ordered anchors in the range 1–1000. An automatic default resolves to 400; other
-automatic values resolve outward in steps of 100, or evenly within a crowded anchor interval.
-Resolved weights are unique and strictly follow variant order.
-
-Variant names reject NUL and Unicode whitespace. `variant_class_prefix` follows CSSOM identifier
-serialization, so punctuation is escaped instead of rejected. Variant names do not form output
-filenames; all variants share one resource per requested modern format.
-
-`MissingGlyphBehavior::Blank` is the default. `Fallback` requires an existing variant that contains
-every logical glyph in the family; `Blank` and `Error` reject a fallback name. SVG/EOT output and
-incremental mode are invalid with variants.
+Set `variant` to the fallback design's name only with `Fallback`; use `None` for `Blank` or `Error`.
 
 ```rust
 use webfont_generator::{MissingGlyphBehavior, MissingGlyphOptions};
@@ -208,37 +263,6 @@ let fallback = MissingGlyphOptions {
 
 Set `missing_glyphs: Some(fallback)` (or another policy) in the generation options. The fallback
 design must contain every logical icon; blank cells retain the logical icon's advance.
-
-`generate()` and `generate_sync()` produce one shared variable font per requested modern format.
-Existing `ttf_bytes()`, `woff_bytes()`, and `woff2_bytes()` return those resources; SVG/EOT getters
-return `None`. Writes use `fontName.extension` and are non-transactional: failures may leave a
-partial bundle. All regeneration methods reject variant results with `io::ErrorKind::Unsupported`.
-
-Existing rendering methods take the same flat `Option<HashMap<FontType, String>>` in both modes.
-`None` uses generated URLs; `Some` completely overrides them, with omitted entries empty.
-Variant SVG/EOT overrides are rejected. Ordered resolved variant data is available in custom
-template contexts as `variants` (`name`, `weight`, `default`, `className`, `selector`) and
-`variantClassPrefix`, plus `defaultWeight` and `fontStyle` (default `normal`). Default CSS emits
-one exact-weight face per variant sharing the modern URLs. Icon pseudo-elements use the default
-weight and `font-synthesis: none`; modifier classes such as `icon--bold` select another variant
-when combined with a glyph class. A modifier alone emits no glyph. CSS/HTML companions are
-written when enabled, and HTML shows one default grid.
-
-The SCSS `webfont-icon($name)` mixin reads five-item icon-map entries:
-`(family, codepoint, weight, style, variantsMap)`. The fifth item maps CSS-escaped modifier
-identifiers (without a leading dot) to numeric weights, used to emit modifiers scoped to the
-caller's selector. Ordinary family/codepoint pairs remain supported. Non-exact weights follow
-CSS font matching: for faces at 300, 400, and 700, requests for 100/350 select 300, 450/500
-select 400, and 600/900 select 700. Generated pseudo-elements explicitly set their weight
-rather than inheriting it.
-
-## Template callback metadata
-
-`CssContext` and `HtmlContext` declare optional `variants`, `variant_class_prefix`,
-`default_weight`, and `font_style` fields. Variant rendering supplies them; ordinary rendering
-does not supply them by default. `TemplateVariant` describes each resolved entry with `name`,
-`weight`, `default`, `class_name`, and `selector`. The selector is a CSS-escaped identifier
-without a leading dot. The NAPI declarations expose the corresponding camelCase names.
 
 ## `FontType`
 
@@ -261,6 +285,10 @@ Methods:
 
 ### Font data getters
 
+Unrequested formats return `None`. Multi-variant families return one shared resource per requested
+format; their SVG/EOT getters return `None`. Output writes are non-transactional and can leave
+a partial bundle if a write fails.
+
 | Method          | Return type     | Description         |
 | --------------- | --------------- | ------------------- |
 | `eot_bytes()`   | `Option<&[u8]>` | EOT font bytes      |
@@ -278,6 +306,10 @@ Methods:
 
 Both methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter. Results are cached internally for repeated calls with the same arguments.
 
+`None` uses generated URLs. `Some` replaces all defaults, leaving omitted entries empty;
+multi-variant results reject SVG/EOT URL overrides. See the shared [Templates reference](./templates)
+for context fields, generated CSS, HTML previews, and SCSS usage.
+
 ### Incremental rebuild
 
 | Method                                     | Return type                     | Description                                                          |
@@ -288,6 +320,7 @@ Both methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter
 | `regenerate_all_async(ordered_paths)`      | `Result<Self, RegenerateError>` | Consume the result, re-diff, and rebuild on Tokio's blocking pool    |
 
 Requires the result to have been generated with `incremental: Some(true)` (errors otherwise).
+Multi-variant results reject these methods with `io::ErrorKind::Unsupported`.
 `ordered_paths: &[String]` is the complete file set after the changes, in the order a fresh build
 would use (e.g. the glob result); the rebuilt glyphs are ordered to match it, so the result is
 byte-identical to a fresh build of that set — additions included, even when they sort before

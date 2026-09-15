@@ -65,68 +65,51 @@ const css = result.generateCss();
 const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 ```
 
+## Multi-variant fonts
+
+A multi-variant family groups several designs of the same icons, such as light and bold,
+into one font file per output format. Match SVG filenames across designs so that `add.svg`
+refers to the same icon in each variant. You can then choose a design with a CSS modifier class.
+
+```ts
+import { generateWebfonts } from '@atlowchemi/webfont-generator';
+
+const result = await generateWebfonts({
+    dest: './dist/fonts',
+    fontName: 'my-icons',
+    variants: [
+        { name: 'light', files: ['icons/light/add.svg'], weight: 300, default: true },
+        { name: 'bold', files: ['icons/bold/add.svg'], weight: 700 },
+    ],
+});
+```
+
+Load the generated `my-icons.css`, then use the icon class with an optional variant modifier:
+
+```html
+<span class="icon icon-add" aria-hidden="true"></span> <span class="icon icon-add icon--bold" aria-hidden="true"></span>
+```
+
+The first icon uses the default design (`light`); the second uses `bold`. Each design needs a
+unique name and at least one SVG, and exactly one design must be the default. Omit `weight`
+to assign weights automatically, or supply increasing weights from 1–1000.
+
+Multi-variant output supports TTF, WOFF, and WOFF2, defaulting to WOFF/WOFF2. For icons that
+appear in only some designs, choose a [missing-glyph policy](#missingglyphs). Incremental
+regeneration is not currently available for these families.
+
+Custom templates receive extra family metadata; see the [template context comparison](./templates#template-context).
+For stylesheet customization and SCSS, see [Templates](./templates).
+
 ## Options reference
-
-Multi-variant generation returns one shared variable TTF/WOFF/WOFF2 per requested format through
-the existing getters. SVG/EOT getters return `null`. Files use the existing `fontName.extension`
-names. Writes are non-transactional and may leave a partial bundle on failure.
-
-Use the existing `generateCss(urls?)` and `generateHtml(urls?)` methods with a flat shared URL map.
-Omitting the map uses generated URLs; supplying one is a complete override, with omitted entries
-empty. Variant SVG/EOT URL overrides are rejected. Regeneration methods reject variant results.
-
-Custom-template contexts receive ordered `variants` entries (`name`, `weight`, `default`,
-`className`, `selector`) and `variantClassPrefix`. These values describe resolved weights/classes,
-not additional font resources. `defaultWeight` and `fontStyle` expose the resolved default weight
-and style (default `normal`). Default CSS emits one exact-weight face per variant sharing the
-modern URLs. Icon pseudo-elements use the default weight and `font-synthesis: none`; add a
-modifier such as `icon--bold` alongside the glyph class to select a variant. A modifier alone
-emits no glyph. CSS/HTML companion files are written when enabled; HTML shows one default grid.
-
-The SCSS `webfont-icon($name)` mixin retains its signature and reads each family's default weight
-and style from its five-item icon-map entry `(family, codepoint, weight, style, variantsMap)`.
-`variantsMap` maps CSS-escaped modifier identifiers (without a leading dot) to numeric weights;
-the mixin reads this fifth item to emit modifiers scoped to its caller's selector. Ordinary two-item entries
-remain supported. Generated modifier classes select other variants.
-
-Non-exact weights follow CSS font matching: for faces at 300, 400, and 700, requests for 100/350
-select 300, 450/500 select 400, and 600/900 select 700. Generated pseudo-elements set their own
-weight; inherited weights do not override it.
-
-### TypeScript output inference
-
-Literal `types` lists infer non-null getters for the requested formats and `null` for the rest.
-Omitting `types` infers EOT/WOFF/WOFF2 for ordinary calls and WOFF/WOFF2 for variant calls.
-Widened arrays, such as `FontType[]`, produce nullable getters for possible formats. Options
-variables typed as `GenerateWebfontsOptions` (the ordinary/variant union) are accepted with
-conservative nullable getters.
-
-Explicit single-format calls such as `generateWebfonts<'svg'>({ files, dest, types: ['svg'] })`
-also retain non-null getters when `types` is a nonempty tuple. This applies to modern variant
-formats as well. Explicit union generics and widened arrays remain conservative: a list whose
-element type is a union does not guarantee that every member was requested.
-
-`GenerateWebfontsResult<Possible, Guaranteed>` describes these two sets of formats; the second
-parameter defaults to the first for explicitly known outputs. Async regeneration preserves both.
-
-Variant options infer `CssContext<true>` and `HtmlContext<true>` for callbacks, with
-`variants: TemplateVariant[]`, `variantClassPrefix: string`, `defaultWeight: number`, and
-`fontStyle: string`. Plain `CssContext` and `HtmlContext` keep these fields `unknown`, as ordinary
-`templateOptions` can supply arbitrary values under those names. Narrow or validate ordinary
-metadata before accessing it. `GenerateWebfontsBaseOptions<true>` describes shared options with
-variant callbacks; its default type parameter uses the conservative contexts.
-
-`TemplateVariant` contains
-`name: string`, `weight: number`, `default: boolean`, `className: string`, and `selector: string`.
-The selector is an escaped CSS identifier without a leading dot.
 
 ### `files`
 
-- **Required for ordinary generation**
+- **Required for single-variant generation**
 - Type: `string[]`
 - Description: Array of paths to SVG files to include in the font.
 
-Use a non-empty array for ordinary generation. Omit this field when `variants` is provided.
+Use a non-empty array when generating one design of each icon. Omit this field when `variants` is provided.
 
 ### `variants`
 
@@ -140,9 +123,6 @@ Use a non-empty array for ordinary generation. Omit this field when `variants` i
 
 Variant names produce CSS modifier classes with CSSOM-escaped selectors. Names do not form output
 filenames; all variants share one resource per requested modern format.
-
-The `wght` axis selects discrete designs, without outline interpolation. Multi-weight generation
-is exposed by the generator's Node, Rust, and CLI APIs; the Vite plugin does not yet expose it.
 
 ### `variantClassPrefix`
 
@@ -185,8 +165,8 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 ### `types`
 
 - Type: `FontType[]`
-- Default: `['eot', 'woff', 'woff2']` for ordinary input; `['woff', 'woff2']` for variants
-- Description: Font formats to generate. Ordinary input accepts `'svg'`, `'ttf'`, `'eot'`, `'woff'`, `'woff2'`. Variant input accepts only `'ttf'`, `'woff'`, and `'woff2'`.
+- Default: `['eot', 'woff', 'woff2']` for single-variant input; `['woff', 'woff2']` for variants
+- Description: Font formats to generate. Single-variant input accepts `'svg'`, `'ttf'`, `'eot'`, `'woff'`, `'woff2'`. Multi-variant input accepts only `'ttf'`, `'woff'`, and `'woff2'`.
 
 ### `order`
 
@@ -210,7 +190,7 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 
 - Type: `boolean`
 - Default: `true`
-- Description: Whether to write generated files to disk. Set to `false` for in-memory usage.
+- Description: Whether to write generated files to disk. Set to `false` for in-memory usage. Writes are non-transactional and can leave a partial bundle if a write fails.
 
 ### `cssTemplate`
 
@@ -275,7 +255,7 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 
 - Type: `boolean`
 - Default: `false`
-- Description: Retain parsed glyph data on the result so [`regenerateAsync()`](#regenerateasyncfiles-changes) or [`regenerate()`](#regeneratefiles-changes) can rebuild after file changes without re-parsing the glyphs that didn't change. Enable for watch/dev; leave it off for one-shot builds so the parsed geometry isn't held in memory.
+- Description: Retain parsed glyph data on the result so [`regenerateAsync()`](#regenerateasync-files-changes) or [`regenerate()`](#regenerate-files-changes) can rebuild after file changes without re-parsing the glyphs that didn't change. Enable for watch/dev; leave it off for one-shot builds so the parsed geometry isn't held in memory.
 
 ### `fixedWidth`
 
@@ -371,13 +351,13 @@ interface Woff2FormatOptions {
 
 ### `cssContext`
 
-- Type: `(context: Record<string, any>) => void`
-- Description: Callback to mutate the Handlebars template context before CSS rendering. Receives the context object; modify it in-place.
+- Type: `(context: CssContext) => void`, or `(context: CssContext<true>) => void` for multi-variant options
+- Description: Callback to mutate the Handlebars template context before CSS rendering. See [context fields and callback typing](./templates#node-callbacks).
 
 ### `htmlContext`
 
-- Type: `(context: Record<string, any>) => void`
-- Description: Callback to mutate the Handlebars template context before HTML rendering.
+- Type: `(context: HtmlContext) => void`, or `(context: HtmlContext<true>) => void` for multi-variant options
+- Description: Callback to mutate the Handlebars template context before HTML rendering. See [context fields and callback typing](./templates#node-callbacks).
 
 ### `rename`
 
@@ -388,6 +368,75 @@ interface Woff2FormatOptions {
 
 - Type: `Record<string, any>`
 - Description: Additional key-value pairs merged into the Handlebars template context. This is where `classPrefix` and `baseSelector` are typically set.
+
+## Input types and TypeScript inference
+
+`GenerateWebfontsOptions` accepts either `files` for a single design or `variants` for a
+multi-variant family. Use `satisfies` to check a reusable configuration without losing its
+specific input mode. Keep `types` as a tuple to guarantee the requested outputs:
+
+```ts
+import { generateWebfonts, type GenerateWebfontsOptions } from '@atlowchemi/webfont-generator';
+
+const options = {
+    files: ['icons/add.svg'],
+    dest: './dist/fonts',
+    types: ['woff2'] as ['woff2'],
+} satisfies GenerateWebfontsOptions;
+
+const result = await generateWebfonts(options);
+result.woff2; // Uint8Array
+result.ttf; // null
+```
+
+### Requested formats
+
+A literal `types` list guarantees the selected getters. With `types` omitted, single-variant
+input guarantees EOT/WOFF/WOFF2 and multi-variant input guarantees WOFF/WOFF2.
+
+```ts
+const modern = await generateWebfonts({
+    dest: './dist/fonts',
+    variants: [
+        { name: 'light', files: ['icons/light/add.svg'], default: true },
+        { name: 'bold', files: ['icons/bold/add.svg'] },
+    ],
+});
+modern.woff2; // Uint8Array
+modern.svg; // null
+
+const svg = await generateWebfonts<'svg'>({
+    files: ['icons/add.svg'],
+    dest: './dist/fonts',
+    types: ['svg'],
+});
+svg.svg; // string
+```
+
+When formats are selected at runtime, TypeScript cannot guarantee which getters contain data:
+
+```ts
+import type { FontType } from '@atlowchemi/webfont-generator';
+
+async function build(types: FontType[]) {
+    const result = await generateWebfonts({ files: ['icons/add.svg'], dest: './dist/fonts', types });
+    if (result.woff2 !== null) {
+        console.log(result.woff2.byteLength);
+    }
+}
+```
+
+Widened option unions and explicit union generics also produce conservative nullable getters.
+An explicit single-format generic guarantees its getter when `types` is a nonempty tuple;
+an explicit union does not guarantee every member was requested.
+`GenerateWebfontsResult<Possible, Guaranteed>` records the possible and guaranteed formats;
+the second parameter defaults to the first. Async regeneration preserves both sets.
+
+### Callback input types
+
+Callbacks on multi-variant options infer `CssContext<true>` and `HtmlContext<true>`.
+`GenerateWebfontsBaseOptions<true>` can describe shared options with those callback types.
+See [template context and callback typing](./templates#node-callbacks) for a comparison and examples.
 
 ## Result type
 
@@ -410,15 +459,23 @@ Each font format is available as a property on the result. Formats that were not
 - Type: `(urls?: Partial<Record<FontType, string>>) => string`
 - Description: Returns the rendered CSS string. Pass `urls` to override the default font URLs in `@font-face src`.
 
+Omit `urls` to use generated URLs. A supplied map replaces all defaults, so omitted entries
+are empty. Multi-variant results reject SVG/EOT URLs. See [generated CSS](./templates#generated-css)
+for icon selectors and variant modifiers.
+
 ### `generateHtml(urls?)`
 
 - Type: `(urls?: Partial<Record<FontType, string>>) => string`
 - Description: Returns the rendered HTML preview string. Pass `urls` to override font URLs in the embedded stylesheet.
 
+URL overrides follow the same complete-replacement rule as `generateCss`. The built-in preview
+shows one icon grid using the default design. See [HTML previews](./templates#html-previews).
+
 ### `regenerate(files, changes?)`
 
 - Type: `(files: string[], changes?: GlyphChangeEntry[] | null) => void`
 - Requires: the result was produced with [`incremental: true`](#incremental) (throws otherwise).
+- Supported input: single-variant results only; multi-variant results reject regeneration.
 - Description: Rebuilds every requested font format after file changes, reusing cached geometry for the glyphs that didn't change (and reusing the rendered CSS/HTML when the glyph names and codepoints are unchanged). `files` is the complete file set after the change, in the order a fresh build would use (e.g. your glob result); the rebuilt glyphs are ordered to match it, so the result is byte-identical to a fresh `generateWebfonts()` of that set — additions included. Any file omitted from `files` is dropped; added/changed files named in `changes` are read from disk and re-parsed. Omit `changes` or pass `null` to re-read/hash every current file and infer added/changed/removed paths automatically. Outputs are refreshed in memory, and — when the result was created with [`writeFiles: true`](#writefiles) — refreshed fonts are written to disk too, while unchanged CSS/HTML companion files are skipped. Results generated with `cssContext` or `htmlContext` callbacks cannot be regenerated because those JavaScript callbacks cannot be re-run by the synchronous method. Intended for dev/watch rebuilds.
 
 ```ts
@@ -447,7 +504,8 @@ interface GlyphChangeEntry {
 
 - Type: `(files: string[], changes?: GlyphChangeEntry[] | null) => Promise<GenerateWebfontsResult>`
 - Requires: the result was produced with [`incremental: true`](#incremental) (rejects otherwise).
-- Description: Performs the same rebuild as [`regenerate()`](#regeneratefiles-changes) off the Node.js event loop and resolves with a replacement result. The receiver remains readable and unchanged while the rebuild runs and after failure. Assign the replacement before starting another rebuild; overlapping calls from the same result lineage reject. In-memory state is replaced only on success, but writes made with [`writeFiles: true`](#writefiles) are not transactional.
+- Supported input: single-variant results only; multi-variant results reject regeneration.
+- Description: Performs the same rebuild as [`regenerate()`](#regenerate-files-changes) off the Node.js event loop and resolves with a replacement result. The receiver remains readable and unchanged while the rebuild runs and after failure. Assign the replacement before starting another rebuild; overlapping calls from the same result lineage reject. In-memory state is replaced only on success, but writes made with [`writeFiles: true`](#writefiles) are not transactional.
 
 ```ts
 let files = ['/icons/add.svg', '/icons/search.svg'];
@@ -457,10 +515,13 @@ result = await result.regenerateAsync(files, [{ path: '/icons/add.svg', changeTy
 
 ## Templates
 
+See the shared [Templates reference](./templates) for [context fields](./templates#template-context),
+[custom templates](./templates#custom-templates), and the [SCSS mixin with examples](./templates#scss).
+
 The package exports default Handlebars template paths via a subpath export:
 
 ```ts
-import { templates } from '@atlowchemi/webfont-generator/templates';
+import * as templates from '@atlowchemi/webfont-generator/templates';
 
 console.log(templates.css); // absolute path to default CSS template
 console.log(templates.scss); // absolute path to default SCSS template

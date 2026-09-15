@@ -4,9 +4,9 @@ description: CLI reference for the webfont-generator command-line tool, includin
 
 # CLI Usage
 
-Multi-weight generation uses the `wght` axis to select discrete designs, without outline
-interpolation. It is available through the generator's CLI, Node, and Rust APIs; the Vite
-plugin does not yet expose it.
+Use the CLI to turn SVG files into icon fonts from a terminal, shell script, or CI job.
+Pass a directory for a one-off build, or keep a JSON configuration in your project for
+repeatable builds with custom options. No Node.js application code is required.
 
 ## Installation
 
@@ -63,9 +63,11 @@ webfont-generator --dest ./dist/fonts --start-codepoint 0xE000 ./icons/
 
 ### JSON manifest
 
-`--config <PATH>` loads a complete JSON configuration using the camelCase [generator options](./node). It cannot be combined with positional inputs or any generation flag, even a flag set to its default. `--help` and `--version` still work.
+`--config <PATH>` loads a complete JSON configuration using the camelCase [generator options](./node#options-reference). It cannot be combined with positional inputs or any generation flag, even a flag set to its default. `--help` and `--version` still work.
 
-```json
+::: code-group
+
+```json [icons.webfont.json]
 {
     "dest": "dist/fonts",
     "fontName": "icons",
@@ -78,9 +80,11 @@ webfont-generator --dest ./dist/fonts --start-codepoint 0xE000 ./icons/
 }
 ```
 
+:::
+
 Run it with `webfont-generator --config icons.webfont.json`.
 
-- `dest` is required. Supply ordinary `files` or ordered `variants`; variant validation and automatic weights follow the generator API.
+- `dest` is required. Supply `files` for a single design or ordered `variants` for a [multi-variant family](./node#multi-variant-fonts).
 - Relative input paths, `dest`, `cssDest`, `htmlDest`, `cssTemplate`, and `htmlTemplate` resolve against the manifest directory, independent of the working directory. URL values such as `cssFontsUrl` are not rebased.
 - Input arrays preserve explicit entry order. Each directory expands at its position into sorted lowercase `.svg` files, non-recursively. JSON paths do not expand wildcards or globs.
 - Missing entries and duplicate normalized input paths within one variant (or the ordinary file list) are errors. The same source may appear in different variants.
