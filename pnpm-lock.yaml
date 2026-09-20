@@ -301,7 +301,7 @@ importers:
         version: 1.2.92
       '@napi-rs/cli':
         specifier: ^3.5.1
-        version: 3.9.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@24.13.4)(supports-color@7.2.0)
+        version: 3.10.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@24.13.4)(supports-color@7.2.0)
       '@types/node':
         specifier: ^24.0.7
         version: 24.13.4
@@ -929,8 +929,8 @@ packages:
     resolution: {integrity: sha512-K8BeapFUfrfxbRAUQAG5oBOCwo1+bNWzaVnPxTCutkfrTBn6T/j91FIhqxWJ32SUeQ9T3iy1zcmPZ5ROZEvDrg==}
     engines: {node: '>=22.12.0'}
 
-  '@napi-rs/cli@3.9.1':
-    resolution: {integrity: sha512-2DYBrM2j4n00L+O7fKAS38q19rVQK2HXz5RxSuJgFyZrd9TrdVQFmHOfqvqqsRIRBTZmqiMqBd/yzn4X1a23DQ==}
+  '@napi-rs/cli@3.10.0':
+    resolution: {integrity: sha512-Ju58bhU5MamoCTX6SANb8Gq4Dfae27yC74ynA5Q2QvTNIVJ1OFBYSYpoR8W+uSWwJKAaEskqE19zaAdsXFHGCw==}
     engines: {node: ^20.17.0 || ^22.13.0 || >= 23.5.0}
     hasBin: true
     peerDependencies:
@@ -4005,6 +4005,10 @@ packages:
     resolution: {integrity: sha512-4a+OsYv9UktOJKE+l1A4OufDgdRF9PifWj+tJnHURo/P+WOxpG4GzUFL9qCalmWauao6ogiG+QvnCovwPoyAWA==}
     engines: {node: '>=12.20.0'}
 
+  obug@3.0.0:
+    resolution: {integrity: sha512-5vvB5+W7ePv+p3uqxi+RcW1XAzLW0/hxt3/4X4Lc4qHudzOhmBiBwOY6DRob4WnanAEGvNcLjF+KNOufrUoEQw==}
+    engines: {node: '>=12.20.0'}
+
   once@1.4.0:
     resolution: {integrity: sha512-lNaJgI+2Q5URQBkccEKHTQOPaXdUxnZZElQTZY0MFUAuaEqe1E+Nyvgdz/aIyNi6Z9MzO5dv1H8n58/GELp3+w==}
 
@@ -5218,7 +5222,7 @@ snapshots:
     dependencies:
       '@chevrotain/types': 11.1.2
 
-  '@napi-rs/cli@3.9.1(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@24.13.4)(supports-color@7.2.0)':
+  '@napi-rs/cli@3.10.0(@emnapi/core@1.9.2)(@emnapi/runtime@1.9.2)(@types/node@24.13.4)(supports-color@7.2.0)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@24.13.4)
       '@napi-rs/cross-toolchain': 1.0.3(supports-color@7.2.0)
@@ -5228,7 +5232,7 @@ snapshots:
       colorette: 2.0.20
       es-toolkit: 1.50.0
       js-yaml: 5.4.2
-      obug: 2.1.4
+      obug: 3.0.0
       semver: 7.8.5
       typanion: 3.14.0
       typescript: 6.0.3
@@ -7864,6 +7868,8 @@ snapshots:
       boolbase: 1.0.0
 
   obug@2.1.4: {}
+
+  obug@3.0.0: {}
 
   once@1.4.0:
     dependencies:
