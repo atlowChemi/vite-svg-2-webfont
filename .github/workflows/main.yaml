@@ -41,7 +41,7 @@ jobs:
             - name: Run Rust coverage
               run: vp run @atlowchemi/webfont-generator#test:coverage
             - name: Upload Rust coverage reports to Codecov
-              uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+              uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
               with:
                   disable_search: true
                   files: packages/webfont-generator/rust-lcov.info
@@ -239,13 +239,13 @@ jobs:
               run: vp test --project='!*-browser*' --coverage --reporter=default --reporter=junit --outputFile.junit=junit.xml
             - name: Upload coverage reports to Codecov
               if: ${{ matrix.primary }}
-              uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+              uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
               with:
                   flags: javascript
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Upload test results to Codecov
               if: ${{ matrix.primary && !cancelled() }}
-              uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
+              uses: codecov/codecov-action@0b35c9ecc4f0529d0eb674914510c22f85b196b4 # v7.1.0
               with:
                   disable_search: true
                   files: junit.xml
