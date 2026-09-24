@@ -1,7 +1,7 @@
 ---
 description: Builds Rust benchmark targets without running benchmarks.
 mode: subagent
-color: '#aaaaaa'
+color: '#5c9cf5'
 permissions:
     - action: edit
       resource: '*'

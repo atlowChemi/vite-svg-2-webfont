@@ -1,7 +1,7 @@
 ---
 description: Runs vp fmt and reports formatting changes or failures.
 mode: subagent
-color: '#aaaaaa'
+color: '#f5a742'
 permissions:
     - action: edit
       resource: '*'

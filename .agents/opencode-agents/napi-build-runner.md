@@ -1,7 +1,7 @@
 ---
 description: Builds the webfont-generator NAPI binding and summarizes failures.
 mode: subagent
-color: '#aaaaaa'
+color: '#56b6c2'
 permissions:
     - action: edit
       resource: '*'

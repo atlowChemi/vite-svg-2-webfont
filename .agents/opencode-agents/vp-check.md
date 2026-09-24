@@ -1,7 +1,7 @@
 ---
 description: Runs vp check and reports concise failures.
 mode: subagent
-color: '#aaaaaa'
+color: '#56b6c2'
 permissions:
     - action: edit
       resource: '*'

@@ -1,7 +1,7 @@
 ---
 description: Refreshes generated webfont fixture outputs.
 mode: subagent
-color: '#aaaaaa'
+color: '#e06c75'
 permissions:
     - action: edit
       resource: '*'

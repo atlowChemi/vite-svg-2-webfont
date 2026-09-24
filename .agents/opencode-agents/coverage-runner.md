@@ -1,7 +1,7 @@
 ---
 description: Runs coverage and summarizes failures or thresholds.
 mode: subagent
-color: '#aaaaaa'
+color: '#7fd88f'
 permissions:
     - action: edit
       resource: '*'

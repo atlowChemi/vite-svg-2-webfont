@@ -1,7 +1,7 @@
 ---
 description: Runs project tests and summarizes failures.
 mode: subagent
-color: '#aaaaaa'
+color: '#9d7cd8'
 permissions:
     - action: edit
       resource: '*'
