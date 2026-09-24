@@ -3,6 +3,8 @@ import { tmpdir } from 'node:os';
 import { mkdtemp, rm, readFile, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { compileString } from 'sass';
+import { parse } from 'opentype.js';
+import sizeIcons from './fixtures/output-size/icons.json';
 import * as templates from '../templates.js';
 import { afterEach, beforeAll, describe, expect, it } from 'vite-plus/test';
 import { generateWebfonts as generateNativeBinding } from '../binding.js';
@@ -787,30 +789,15 @@ function isMuslLinux(): boolean {
 }
 
 describe('output size (deterministic)', () => {
-    // Build one font from the first 300 real icons of @iconify-json/simple-icons and generate
-    // every variant once. Output bytes are a pure function of the inputs + options, so these are
-    // exact regression guards.
-    const ICON_COUNT = 300;
+    // Keep this corpus frozen so dependency updates cannot change the size regression baseline.
+    // See fixtures/output-size/README.md for provenance and intentional corpus updates.
     const woff2ByQuality = {} as Record<`q${9 | 10 | 11}`, number>;
     const perFormat = {} as Record<FontType, number>;
 
     beforeAll(async () => {
-        const iconSet = createRequire(import.meta.url)('@iconify-json/simple-icons/icons.json') as {
-            width?: number;
-            height?: number;
-            icons: Record<string, { body: string; width?: number; height?: number }>;
-        };
         const dir = await createTempDir('vite-size-');
-        const slugs = Object.keys(iconSet.icons).slice(0, ICON_COUNT);
-        const files = slugs.map((_, i) => join(dir, `i${String(i).padStart(3, '0')}.svg`));
-        await Promise.all(
-            slugs.map((slug, i) => {
-                const icon = iconSet.icons[slug];
-                const w = icon.width ?? iconSet.width ?? 24;
-                const h = icon.height ?? iconSet.height ?? 24;
-                return writeFile(files[i], `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">${icon.body}</svg>`);
-            }),
-        );
+        const files = sizeIcons.map((_, i) => join(dir, `i${String(i).padStart(3, '0')}.svg`));
+        await Promise.all(sizeIcons.map((icon, i) => writeFile(files[i], `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width} ${icon.height}">${icon.body}</svg>`)));
 
         // `fontHeight` is pinned so the em square (and thus byte sizes) is stable.
         const base: GenerateWebfontsFileOptions = {
@@ -858,6 +845,37 @@ describe('output size (deterministic)', () => {
             "woff2": 22480,
           }
         `);
+    });
+});
+
+describe('installed Iconify compatibility', () => {
+    it.each(['simple-icons', 'logos'])('generates a readable font from @iconify-json/%s', async name => {
+        const iconSet = createRequire(import.meta.url)(`@iconify-json/${name}/icons.json`) as {
+            width?: number;
+            height?: number;
+            icons: Record<string, { body: string; width?: number; height?: number }>;
+        };
+        const icons = Object.values(iconSet.icons).slice(0, 30);
+        expect(icons).toHaveLength(30);
+        const dir = await createTempDir('vite-iconify-');
+        const files = icons.map((_, i) => join(dir, `i${String(i).padStart(3, '0')}.svg`));
+        await Promise.all(
+            icons.map((icon, i) =>
+                writeFile(
+                    files[i],
+                    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width ?? iconSet.width ?? 24} ${icon.height ?? iconSet.height ?? 24}">${icon.body}</svg>`,
+                ),
+            ),
+        );
+        const result = await generateWebfonts({ files, dest: `${dir}/`, fontName: name, startCodepoint: 0xe001, types: ['ttf'], css: false, writeFiles: false });
+        const font = parse(Uint8Array.from(result.ttf).buffer);
+        // Check the input glyphs by codepoint, independently of built-in font glyphs.
+        const glyphs = icons.map((_, i) => font.charToGlyph(String.fromCodePoint(0xe001 + i)));
+        expect(new Set(glyphs.map(glyph => glyph.index)).size).toBe(icons.length);
+        for (const glyph of glyphs) {
+            expect(glyph.index).toBeGreaterThan(0);
+            expect(glyph.path.commands.length).toBeGreaterThan(0);
+        }
     });
 });
 
