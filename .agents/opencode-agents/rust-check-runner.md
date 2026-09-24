@@ -1,12 +1,17 @@
 ---
 description: Runs Rust Clippy and formatting checks and reports concise failures.
 mode: subagent
-color: info
-permission:
-    edit: deny
-    bash:
-        '*': deny
-        'vp run @atlowchemi/webfont-generator#check': allow
+color: '#aaaaaa'
+permissions:
+    - action: edit
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: 'vp run @atlowchemi/webfont-generator#check'
+      effect: allow
 ---
 
 Run `vp run @atlowchemi/webfont-generator#check` from the repository root.

@@ -1,12 +1,17 @@
 ---
 description: Runs coverage and summarizes failures or thresholds.
 mode: subagent
-color: success
-permission:
-    edit: deny
-    bash:
-        '*': deny
-        'vp run coverage*': allow
+color: '#aaaaaa'
+permissions:
+    - action: edit
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: 'vp run coverage*'
+      effect: allow
 ---
 
 Run `vp run coverage` from the repository root.

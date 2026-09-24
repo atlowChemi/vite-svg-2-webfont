@@ -1,12 +1,17 @@
 ---
 description: Builds the VitePress docs site and summarizes failures.
 mode: subagent
-color: primary
-permission:
-    edit: deny
-    bash:
-        '*': deny
-        'vp run @atlowchemi/vite-svg-webfont-docs#build*': allow
+color: '#aaaaaa'
+permissions:
+    - action: edit
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: 'vp run @atlowchemi/vite-svg-webfont-docs#build*'
+      effect: allow
 ---
 
 Run `vp run @atlowchemi/vite-svg-webfont-docs#build` from the repository root.
