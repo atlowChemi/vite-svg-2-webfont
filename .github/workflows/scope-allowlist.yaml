@@ -1,0 +1,57 @@
+name: Scope Allowlist
+
+on:
+    pull_request:
+        paths:
+            - commitlint.config.js
+            - .github/workflows/pr-title.yaml
+            - .github/workflows/scope-allowlist.yaml
+    push:
+        branches:
+            - main
+        paths:
+            - commitlint.config.js
+            - .github/workflows/pr-title.yaml
+            - .github/workflows/scope-allowlist.yaml
+
+permissions:
+    contents: read
+
+jobs:
+    scope-allowlist:
+        name: Compare commit and PR scope allowlists
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: voidzero-dev/setup-vp@49c3e4e92c52e7f8392712a9267bbe71c5ab30e5 # v1.19.0
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - name: Verify scope allowlists are identical
+              run: |
+                  node --input-type=module <<'JS'
+                  import assert from 'node:assert/strict';
+                  import { readFile } from 'node:fs/promises';
+                  import { parse } from 'yaml';
+                  import commitlint from './commitlint.config.js';
+
+                  const workflow = parse(await readFile('.github/workflows/pr-title.yaml', 'utf8'));
+                  const steps = Object.values(workflow.jobs).flatMap(job => job.steps ?? []);
+                  const titleChecks = steps.filter(step => step.uses?.startsWith('amannn/action-semantic-pull-request@'));
+                  assert.equal(titleChecks.length, 1, 'Expected exactly one semantic PR title check');
+
+                  const rule = commitlint.rules?.['scope-enum'];
+                  assert.ok(Array.isArray(rule), 'commitlint must configure scope-enum');
+                  assert.equal(rule[0], 2, 'scope-enum must reject invalid scopes');
+                  assert.equal(rule[1], 'always', 'scope-enum must be an allowlist');
+                  const commitScopes = rule[2];
+                  assert.ok(Array.isArray(commitScopes) && commitScopes.length > 0, 'commitlint scopes must be a non-empty array');
+                  assert.ok(commitScopes.every(scope => typeof scope === 'string' && scope.length > 0), 'commitlint scopes must be non-empty strings');
+
+                  const scopes = titleChecks[0].with?.scopes;
+                  assert.equal(typeof scopes, 'string', 'PR title scopes must be a multiline string');
+                  const prScopes = scopes.split(/\r?\n/).map(scope => scope.trim()).filter(Boolean);
+                  assert.deepEqual(commitScopes, prScopes, 'Commitlint and PR title scopes must be identical, including order');
+                  console.log(`Scope allowlists match (${commitScopes.length} scopes).`);
+                  JS

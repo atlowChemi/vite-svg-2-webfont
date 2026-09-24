@@ -5,7 +5,7 @@
 - Use `vp` for normal repo workflows: `vp install`, `vp check`, `vp fmt`, `vp run test`, `vp run coverage`, `vp run <package>#<task>`. Do not call `pnpm`, `vite`, `vitest`, `oxlint`, `oxfmt`, or `vitepress` directly unless a checked-in Vite+ task itself does so.
 - Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/tests`), not from direct `vite` or `vitest` packages.
 - After pulling remote changes, run `vp install` before validation.
-- Use Conventional Commit messages if the user asks you to commit; `commitlint` enforces `type(scope): description`.
+- Use Conventional Commit messages and PR titles: `type(scope): description` or `type: description`. Before creating or editing either, read `scope-enum` in `commitlint.config.js`; use a listed scope or omit it when none fits. Validate the proposed message/title with `printf '%s\n' 'your title' | vp exec commitlint` before committing or submitting it.
 
 ## Focused Commands
 

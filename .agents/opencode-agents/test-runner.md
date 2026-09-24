@@ -1,13 +1,20 @@
 ---
 description: Runs project tests and summarizes failures.
 mode: subagent
-color: accent
-permission:
-    edit: deny
-    bash:
-        '*': deny
-        'vp run test*': allow
-        'vp run @atlowchemi/webfont-generator#test': allow
+color: '#9d7cd8'
+permissions:
+    - action: edit
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: 'vp run test*'
+      effect: allow
+    - action: shell
+      resource: 'vp run @atlowchemi/webfont-generator#test'
+      effect: allow
 ---
 
 Run `vp run test` from the repository root.

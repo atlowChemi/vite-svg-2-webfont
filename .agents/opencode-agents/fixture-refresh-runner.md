@@ -1,12 +1,17 @@
 ---
 description: Refreshes generated webfont fixture outputs.
 mode: subagent
-color: error
-permission:
-    edit: allow
-    bash:
-        '*': deny
-        'vp run vite-svg-2-webfont#test:fixtures:refresh*': allow
+color: '#e06c75'
+permissions:
+    - action: edit
+      resource: '*'
+      effect: allow
+    - action: shell
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: 'vp run vite-svg-2-webfont#test:fixtures:refresh*'
+      effect: allow
 ---
 
 Run `vp run vite-svg-2-webfont#test:fixtures:refresh` from the repository root.

@@ -1,12 +1,17 @@
 ---
 description: Runs vp fmt and reports formatting changes or failures.
 mode: subagent
-color: warning
-permission:
-    edit: allow
-    bash:
-        '*': deny
-        'vp fmt*': allow
+color: '#f5a742'
+permissions:
+    - action: edit
+      resource: '*'
+      effect: allow
+    - action: shell
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: 'vp fmt*'
+      effect: allow
 ---
 
 Run `vp fmt` from the repository root.

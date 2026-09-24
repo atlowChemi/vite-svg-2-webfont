@@ -1,12 +1,17 @@
 ---
 description: Runs vp check and reports concise failures.
 mode: subagent
-color: info
-permission:
-    edit: deny
-    bash:
-        '*': deny
-        'vp check*': allow
+color: '#56b6c2'
+permissions:
+    - action: edit
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: '*'
+      effect: deny
+    - action: shell
+      resource: 'vp check*'
+      effect: allow
 ---
 
 Run `vp check` from the repository root.
