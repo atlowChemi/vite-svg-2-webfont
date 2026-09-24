@@ -904,6 +904,15 @@ describe('serve - incrementally regenerates on a content edit', () => {
     const regenerateCalls: Array<Parameters<RegenResult['regenerateAsync']>> = [];
     let server: ViteDevServer;
 
+    const trackRegeneration = (result: RegenResult): RegenResult => {
+        const original = result.regenerateAsync.bind(result);
+        result.regenerateAsync = async (...args: Parameters<RegenResult['regenerateAsync']>) => {
+            regenerateCalls.push(args);
+            return trackRegeneration(await original(...args));
+        };
+        return result;
+    };
+
     beforeAll(async () => {
         setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
             watcherHandler = handler;
@@ -912,14 +921,6 @@ describe('serve - incrementally regenerates on a content edit', () => {
         // (not the full-rebuild fallback) for a content edit, and to capture its arguments.
         const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
         generateWebfontsMock.mockImplementationOnce(async options => {
-            const trackRegeneration = (result: RegenResult): RegenResult => {
-                const original = result.regenerateAsync.bind(result);
-                result.regenerateAsync = async (...args: Parameters<RegenResult['regenerateAsync']>) => {
-                    regenerateCalls.push(args);
-                    return trackRegeneration(await original(...args));
-                };
-                return result;
-            };
             return trackRegeneration(await realGen(options));
         });
         const created = await createObservedServer(

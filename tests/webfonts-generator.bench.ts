@@ -1,4 +1,3 @@
-// oxlint-disable jest/no-standalone-expect
 import { join } from 'node:path';
 import { rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -6,7 +5,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { mkdtemp, writeFile } from 'node:fs/promises';
-import { bench, describe, expect, type BenchOptions } from 'vite-plus/test';
+import { describe, expect, test, type BenchRunOptions as BenchOptions } from 'vite-plus/test';
 import { generateWebfonts, type GenerateWebfontsFileOptions as GenerateWebfontsInputOptions } from '@atlowchemi/webfont-generator';
 
 const require = createRequire(import.meta.url);
@@ -51,6 +50,11 @@ process.on('exit', () => {
 
 // --- Helpers ---
 
+// Include warmup and every implementation; 600-glyph batched edits can take several minutes with a debug binding.
+const BENCH_TIMEOUT = 600_000;
+// Preserve v4's sampling defaults; v5's engine defaults to 64 iterations and 1 second.
+const DEFAULT_BENCH_OPTIONS: BenchOptions = { iterations: 10, time: 500, warmupIterations: 5, warmupTime: 100 };
+
 function baseOpts(files: string[], overrides: Partial<GenerateWebfontsInputOptions> = {}): GenerateWebfontsInputOptions {
     return {
         dest: bulkFixtureDir, // throwaway dest, writeFiles defaults to true but we override below
@@ -64,19 +68,33 @@ function baseOpts(files: string[], overrides: Partial<GenerateWebfontsInputOptio
 
 // --- Benchmarks ---
 
-describe('error — empty files', () => {
+test('error — empty files', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
     const opts = baseOpts([], { dest: bulkFixtureDir });
-    bench('upstream', () => expect(upstreamDirect(opts)).rejects.toBeDefined());
-    bench('new core', () => expect(generateWebfonts(opts)).rejects.toBeDefined());
+    await bench.compare(
+        bench('upstream', async () => {
+            await expect(upstreamDirect(opts)).rejects.toBeDefined();
+        }),
+        bench('new core', async () => {
+            await expect(generateWebfonts(opts)).rejects.toBeDefined();
+        }),
+        DEFAULT_BENCH_OPTIONS,
+    );
 });
 
-describe('error — missing dest', () => {
+test('error — missing dest', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
     const opts = baseOpts(bulkFiles, { dest: undefined as never });
-    bench('upstream', () => expect(upstreamDirect(opts)).rejects.toBeDefined());
-    bench('new core', () => expect(generateWebfonts(opts)).rejects.toBeDefined());
+    await bench.compare(
+        bench('upstream', async () => {
+            await expect(upstreamDirect(opts)).rejects.toBeDefined();
+        }),
+        bench('new core', async () => {
+            await expect(generateWebfonts(opts)).rejects.toBeDefined();
+        }),
+        DEFAULT_BENCH_OPTIONS,
+    );
 });
 
-describe('with cssContext and htmlContext (css: true, html: true)', () => {
+test('with cssContext and htmlContext (css: true, html: true)', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
     const opts = baseOpts(bulkFiles, {
         css: true,
         html: true,
@@ -87,11 +105,18 @@ describe('with cssContext and htmlContext (css: true, html: true)', () => {
             ctx.custom = 'value';
         },
     });
-    bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined());
-    bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined());
+    await bench.compare(
+        bench('upstream', async () => {
+            await expect(upstreamDirect(opts)).resolves.toBeDefined();
+        }),
+        bench('new core', async () => {
+            await expect(generateWebfonts(opts)).resolves.toBeDefined();
+        }),
+        DEFAULT_BENCH_OPTIONS,
+    );
 });
 
-describe('with cssContext and htmlContext (css: false, html: false)', () => {
+test('with cssContext and htmlContext (css: false, html: false)', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
     const opts = baseOpts(bulkFiles, {
         css: false,
         html: false,
@@ -102,11 +127,18 @@ describe('with cssContext and htmlContext (css: false, html: false)', () => {
             ctx.custom = 'value';
         },
     });
-    bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined());
-    bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined());
+    await bench.compare(
+        bench('upstream', async () => {
+            await expect(upstreamDirect(opts)).resolves.toBeDefined();
+        }),
+        bench('new core', async () => {
+            await expect(generateWebfonts(opts)).resolves.toBeDefined();
+        }),
+        DEFAULT_BENCH_OPTIONS,
+    );
 });
 
-describe('with cssContext only (css: false)', () => {
+test('with cssContext only (css: false)', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
     const opts = baseOpts(bulkFiles, {
         css: false,
         html: false,
@@ -114,11 +146,18 @@ describe('with cssContext only (css: false)', () => {
             ctx.custom = 'value';
         },
     });
-    bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined());
-    bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined());
+    await bench.compare(
+        bench('upstream', async () => {
+            await expect(upstreamDirect(opts)).resolves.toBeDefined();
+        }),
+        bench('new core', async () => {
+            await expect(generateWebfonts(opts)).resolves.toBeDefined();
+        }),
+        DEFAULT_BENCH_OPTIONS,
+    );
 });
 
-describe('with htmlContext only (html: false)', () => {
+test('with htmlContext only (html: false)', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
     const opts = baseOpts(bulkFiles, {
         css: false,
         html: false,
@@ -126,17 +165,31 @@ describe('with htmlContext only (html: false)', () => {
             ctx.custom = 'value';
         },
     });
-    bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined());
-    bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined());
+    await bench.compare(
+        bench('upstream', async () => {
+            await expect(upstreamDirect(opts)).resolves.toBeDefined();
+        }),
+        bench('new core', async () => {
+            await expect(generateWebfonts(opts)).resolves.toBeDefined();
+        }),
+        DEFAULT_BENCH_OPTIONS,
+    );
 });
 
-describe('with custom CSS template', () => {
+test('with custom CSS template', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
     const opts = baseOpts(bulkFiles, {
         css: true,
         cssTemplate: join(fileURLToPath(new URL('./fixtures/templates/', import.meta.url)), 'customTemplate.hbs'),
     });
-    bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined());
-    bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined());
+    await bench.compare(
+        bench('upstream', async () => {
+            await expect(upstreamDirect(opts)).resolves.toBeDefined();
+        }),
+        bench('new core', async () => {
+            await expect(generateWebfonts(opts)).resolves.toBeDefined();
+        }),
+        DEFAULT_BENCH_OPTIONS,
+    );
 });
 
 describe.each([15, 100, 300, 600])('%i glyphs', numGlyphs => {
@@ -144,72 +197,122 @@ describe.each([15, 100, 300, 600])('%i glyphs', numGlyphs => {
     // Longer sampling windows + warmup to keep rme low (warmup discards cold-start/GC outliers).
     // Scaled by glyph count so total runtime stays bounded: bigger fonts run fewer ops/sec, so a
     // fixed time window already yields plenty of samples at small N.
-    const benchOpts: BenchOptions =
-        numGlyphs >= 300
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300
             ? { time: 10_000, warmupTime: 1_000, warmupIterations: 10 }
             : numGlyphs >= 100
               ? { time: 8_000, warmupTime: 500, warmupIterations: 20 }
-              : { time: 3_000, warmupTime: 300, warmupIterations: 50 };
+              : { time: 3_000, warmupTime: 300, warmupIterations: 50 }),
+    };
 
     describe.each([true, false])('optimize SVG: %s', optimizeOutput => {
-        describe('all formats', () => {
+        test('all formats', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
             const opts = baseOpts(files, { optimizeOutput });
-            bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-            bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+            await bench.compare(
+                bench('upstream', async () => {
+                    await expect(upstreamDirect(opts)).resolves.toBeDefined();
+                }),
+                bench('new core', async () => {
+                    await expect(generateWebfonts(opts)).resolves.toBeDefined();
+                }),
+                benchOpts,
+            );
         });
 
-        describe('WOFF2 only', () => {
+        test('WOFF2 only', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
             const opts = baseOpts(files, { types: ['woff2'], optimizeOutput });
-            bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-            bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+            await bench.compare(
+                bench('upstream', async () => {
+                    await expect(upstreamDirect(opts)).resolves.toBeDefined();
+                }),
+                bench('new core', async () => {
+                    await expect(generateWebfonts(opts)).resolves.toBeDefined();
+                }),
+                benchOpts,
+            );
         });
 
-        describe('WOFF + WOFF2', () => {
+        test('WOFF + WOFF2', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
             const opts = baseOpts(files, { types: ['woff', 'woff2'], optimizeOutput });
-            bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-            bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+            await bench.compare(
+                bench('upstream', async () => {
+                    await expect(upstreamDirect(opts)).resolves.toBeDefined();
+                }),
+                bench('new core', async () => {
+                    await expect(generateWebfonts(opts)).resolves.toBeDefined();
+                }),
+                benchOpts,
+            );
         });
 
-        describe('SVG only', () => {
+        test('SVG only', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
             const opts = baseOpts(files, { types: ['svg'], optimizeOutput });
-            bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-            bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+            await bench.compare(
+                bench('upstream', async () => {
+                    await expect(upstreamDirect(opts)).resolves.toBeDefined();
+                }),
+                bench('new core', async () => {
+                    await expect(generateWebfonts(opts)).resolves.toBeDefined();
+                }),
+                benchOpts,
+            );
         });
 
-        describe('SVG + TTF', () => {
+        test('SVG + TTF', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
             const opts = baseOpts(files, { types: ['svg', 'ttf'], optimizeOutput });
-            bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-            bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+            await bench.compare(
+                bench('upstream', async () => {
+                    await expect(upstreamDirect(opts)).resolves.toBeDefined();
+                }),
+                bench('new core', async () => {
+                    await expect(generateWebfonts(opts)).resolves.toBeDefined();
+                }),
+                benchOpts,
+            );
         });
 
-        describe('all except WOFF2', () => {
+        test('all except WOFF2', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
             const opts = baseOpts(files, { types: ['svg', 'ttf', 'eot', 'woff'], optimizeOutput });
-            bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-            bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+            await bench.compare(
+                bench('upstream', async () => {
+                    await expect(upstreamDirect(opts)).resolves.toBeDefined();
+                }),
+                bench('new core', async () => {
+                    await expect(generateWebfonts(opts)).resolves.toBeDefined();
+                }),
+                benchOpts,
+            );
         });
     });
 
-    describe('with rename callback', () => {
+    test('with rename callback', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
         const opts = baseOpts(files, {
             types: ['svg'],
             rename: (name: string) => `prefixed-${name}`,
         });
-        bench('upstream', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-        bench('new core', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
+        await bench.compare(
+            bench('upstream', async () => {
+                await expect(upstreamDirect(opts)).resolves.toBeDefined();
+            }),
+            bench('new core', async () => {
+                await expect(generateWebfonts(opts)).resolves.toBeDefined();
+            }),
+            benchOpts,
+        );
     });
 
     describe.each([true, false])('css: %s', css => {
-        describe.each([true, false])('html: %s', html => {
+        test.for([true, false])('html: %s', { timeout: BENCH_TIMEOUT }, async (html, { bench }) => {
             const upstreamDest = join(bulkFixtureDir, `write-${numGlyphs}-css${css}-html${html}-upstream`);
             const newCoreDest = join(bulkFixtureDir, `write-${numGlyphs}-css${css}-html${html}-newcore`);
-            bench(
-                'upstream',
-                () => expect(upstreamDirect(baseOpts(files, { css, html, types: ['svg'], dest: `${upstreamDest}/`, writeFiles: true }))).resolves.toBeDefined(),
-                benchOpts,
-            );
-            bench(
-                'new core',
-                () => expect(generateWebfonts(baseOpts(files, { css, html, types: ['svg'], dest: `${newCoreDest}/`, writeFiles: true }))).resolves.toBeDefined(),
+            await bench.compare(
+                bench('upstream', async () => {
+                    await expect(upstreamDirect(baseOpts(files, { css, html, types: ['svg'], dest: `${upstreamDest}/`, writeFiles: true }))).resolves.toBeDefined();
+                }),
+                bench('new core', async () => {
+                    await expect(generateWebfonts(baseOpts(files, { css, html, types: ['svg'], dest: `${newCoreDest}/`, writeFiles: true }))).resolves.toBeDefined();
+                }),
                 benchOpts,
             );
         });
@@ -256,67 +359,97 @@ const templateFixtures = await (async () => {
 const templateUrls = { svg: '/assets/font.svg', ttf: '/assets/font.ttf', woff: '/assets/font.woff', woff2: '/assets/font.woff2', eot: '/assets/font.eot' };
 
 describe.each([5, 300])('generateCss / generateHtml — %i glyphs', numGlyphs => {
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 2000 } : {};
+    const benchOpts: BenchOptions = { ...DEFAULT_BENCH_OPTIONS, ...(numGlyphs >= 300 ? { time: 2000 } : {}) };
 
     describe('default templates', () => {
         const { upstream, newCore } = templateFixtures.get(`${numGlyphs}-default`)!;
 
-        describe('generateCss()', () => {
-            bench('upstream', () => expect(upstream.generateCss()).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateCss()).toBeDefined(), benchOpts);
+        test('generateCss()', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateCss()).toBeDefined()),
+                bench('new core', () => expect(newCore.generateCss()).toBeDefined()),
+                benchOpts,
+            );
         });
 
-        describe('generateCss(urls)', () => {
-            bench('upstream', () => expect(upstream.generateCss(templateUrls)).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateCss(templateUrls)).toBeDefined(), benchOpts);
+        test('generateCss(urls)', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateCss(templateUrls)).toBeDefined()),
+                bench('new core', () => expect(newCore.generateCss(templateUrls)).toBeDefined()),
+                benchOpts,
+            );
         });
 
-        describe('generateHtml()', () => {
-            bench('upstream', () => expect(upstream.generateHtml()).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateHtml()).toBeDefined(), benchOpts);
+        test('generateHtml()', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateHtml()).toBeDefined()),
+                bench('new core', () => expect(newCore.generateHtml()).toBeDefined()),
+                benchOpts,
+            );
         });
 
-        describe('generateHtml(urls)', () => {
-            bench('upstream', () => expect(upstream.generateHtml(templateUrls)).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateHtml(templateUrls)).toBeDefined(), benchOpts);
+        test('generateHtml(urls)', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateHtml(templateUrls)).toBeDefined()),
+                bench('new core', () => expect(newCore.generateHtml(templateUrls)).toBeDefined()),
+                benchOpts,
+            );
         });
     });
 
     describe('custom templates', () => {
         const { upstream, newCore } = templateFixtures.get(`${numGlyphs}-custom`)!;
 
-        describe('generateCss()', () => {
-            bench('upstream', () => expect(upstream.generateCss()).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateCss()).toBeDefined(), benchOpts);
+        test('generateCss()', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateCss()).toBeDefined()),
+                bench('new core', () => expect(newCore.generateCss()).toBeDefined()),
+                benchOpts,
+            );
         });
 
-        describe('generateHtml()', () => {
-            bench('upstream', () => expect(upstream.generateHtml()).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateHtml()).toBeDefined(), benchOpts);
+        test('generateHtml()', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateHtml()).toBeDefined()),
+                bench('new core', () => expect(newCore.generateHtml()).toBeDefined()),
+                benchOpts,
+            );
         });
     });
 
     describe('with context callbacks (css: false, html: false)', () => {
         const { upstream, newCore } = templateFixtures.get(`${numGlyphs}-context-no-write`)!;
 
-        describe('generateCss()', () => {
-            bench('upstream', () => expect(upstream.generateCss()).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateCss()).toBeDefined(), benchOpts);
+        test('generateCss()', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateCss()).toBeDefined()),
+                bench('new core', () => expect(newCore.generateCss()).toBeDefined()),
+                benchOpts,
+            );
         });
 
-        describe('generateCss(urls)', () => {
-            bench('upstream', () => expect(upstream.generateCss(templateUrls)).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateCss(templateUrls)).toBeDefined(), benchOpts);
+        test('generateCss(urls)', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateCss(templateUrls)).toBeDefined()),
+                bench('new core', () => expect(newCore.generateCss(templateUrls)).toBeDefined()),
+                benchOpts,
+            );
         });
 
-        describe('generateHtml()', () => {
-            bench('upstream', () => expect(upstream.generateHtml()).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateHtml()).toBeDefined(), benchOpts);
+        test('generateHtml()', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateHtml()).toBeDefined()),
+                bench('new core', () => expect(newCore.generateHtml()).toBeDefined()),
+                benchOpts,
+            );
         });
 
-        describe('generateHtml(urls)', () => {
-            bench('upstream', () => expect(upstream.generateHtml(templateUrls)).toBeDefined(), benchOpts);
-            bench('new core', () => expect(newCore.generateHtml(templateUrls)).toBeDefined(), benchOpts);
+        test('generateHtml(urls)', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            await bench.compare(
+                bench('upstream', () => expect(upstream.generateHtml(templateUrls)).toBeDefined()),
+                bench('new core', () => expect(newCore.generateHtml(templateUrls)).toBeDefined()),
+                benchOpts,
+            );
         });
     });
 });
@@ -343,31 +476,45 @@ await Promise.all(
     }),
 );
 
-describe.each([100, 300, 600])('repeated output getters — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('repeated output getters — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const result = incrementalResults.get(numGlyphs)!;
-    const benchOpts: BenchOptions = { time: 1_000, warmupTime: 100, warmupIterations: 20 };
+    const benchOpts: BenchOptions = { ...DEFAULT_BENCH_OPTIONS, time: 1_000, warmupTime: 100, warmupIterations: 20 };
 
-    bench('svg', () => expect(result.svg).toBeDefined(), benchOpts);
-    bench('ttf', () => expect(result.ttf).toBeDefined(), benchOpts);
-    bench('eot', () => expect(result.eot).toBeDefined(), benchOpts);
-    bench('woff', () => expect(result.woff).toBeDefined(), benchOpts);
-    bench('woff2', () => expect(result.woff2).toBeDefined(), benchOpts);
+    await bench.compare(
+        bench('svg', () => expect(result.svg).toBeDefined()),
+        bench('ttf', () => expect(result.ttf).toBeDefined()),
+        bench('eot', () => expect(result.eot).toBeDefined()),
+        bench('woff', () => expect(result.woff).toBeDefined()),
+        bench('woff2', () => expect(result.woff2).toBeDefined()),
+        benchOpts,
+    );
 });
 
-describe.each([100, 300, 600])('changed event with unchanged contents — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('changed event with unchanged contents — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
     const opts = baseOpts(files, DEV_FORMAT);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const result = incrementalResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
 
-    bench('upstream — full regen', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-    bench('new core — full regen (legacy)', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
-    bench('new core — incremental regenerate', () => expect(result.regenerate({ files }, change)).toBeUndefined(), benchOpts);
+    await bench.compare(
+        bench('upstream — full regen', async () => {
+            await expect(upstreamDirect(opts)).resolves.toBeDefined();
+        }),
+        bench('new core — full regen (legacy)', async () => {
+            await expect(generateWebfonts(opts)).resolves.toBeDefined();
+        }),
+        bench('new core — incremental regenerate', () => expect(result.regenerate({ files }, change)).toBeUndefined()),
+        benchOpts,
+    );
 });
 
 const contentEditFiles = new Map<number, string[]>();
 const contentEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
+const asyncContentEditFiles = new Map<number, string[]>();
 const asyncContentEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
 const rediffContentEditFiles = new Map<number, string[]>();
 const rediffContentEditResults = new Map<number, Awaited<ReturnType<typeof generateWebfonts>>>();
@@ -375,23 +522,30 @@ await Promise.all(
     [100, 300, 600].map(async numGlyphs => {
         const files = await makeNEditableFiles(1, numGlyphs, 'regen-content');
         const result = await generateWebfonts(baseOpts(files, { incremental: true, ...DEV_FORMAT }));
-        const asyncResult = await generateWebfonts(baseOpts(files, { incremental: true, ...DEV_FORMAT }));
+        const asyncFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-async');
+        const asyncResult = await generateWebfonts(baseOpts(asyncFiles, { incremental: true, ...DEV_FORMAT }));
         const rediffFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-rediff');
         const rediffResult = await generateWebfonts(baseOpts(rediffFiles, { incremental: true, ...DEV_FORMAT }));
         contentEditFiles.set(numGlyphs, files);
         contentEditResults.set(numGlyphs, result);
+        asyncContentEditFiles.set(numGlyphs, asyncFiles);
         asyncContentEditResults.set(numGlyphs, asyncResult);
         rediffContentEditFiles.set(numGlyphs, rediffFiles);
         rediffContentEditResults.set(numGlyphs, rediffResult);
     }),
 );
 
-describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('rebuild after a 1-file content edit — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = contentEditFiles.get(numGlyphs)!;
-    const opts = baseOpts(files, DEV_FORMAT);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    // Comparisons interleave iterations, so full rebuilds must not read another case's edits.
+    const fullFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-full');
+    const opts = baseOpts(fullFiles, DEV_FORMAT);
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const result = contentEditResults.get(numGlyphs)!;
-    const asyncFiles = files;
+    const asyncFiles = asyncContentEditFiles.get(numGlyphs)!;
     let asyncResult = asyncContentEditResults.get(numGlyphs)!;
     const rediffFiles = rediffContentEditFiles.get(numGlyphs)!;
     const rediffResult = rediffContentEditResults.get(numGlyphs)!;
@@ -401,34 +555,29 @@ describe.each([100, 300, 600])('rebuild after a 1-file content edit — %i glyph
     let asyncToggle = false;
     let rediffToggle = false;
 
-    bench('upstream — full regen', () => expect(upstreamDirect(opts)).resolves.toBeDefined(), benchOpts);
-    bench('new core — full regen (legacy)', () => expect(generateWebfonts(opts)).resolves.toBeDefined(), benchOpts);
-    bench(
-        'new core — incremental regenerate',
-        () => {
+    await bench.compare(
+        bench('upstream — full regen', async () => {
+            await expect(upstreamDirect(opts)).resolves.toBeDefined();
+        }),
+        bench('new core — full regen (legacy)', async () => {
+            await expect(generateWebfonts(opts)).resolves.toBeDefined();
+        }),
+        bench('new core — incremental regenerate', () => {
             toggle = !toggle;
             writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
             expect(result.regenerate({ files }, change)).toBeUndefined();
-        },
-        benchOpts,
-    );
-    bench(
-        'new core — async incremental regenerate',
-        async () => {
+        }),
+        bench('new core — async incremental regenerate', async () => {
             asyncToggle = !asyncToggle;
             writeFileSync(asyncFiles[0]!, asyncToggle ? EDIT_SVG_B : EDIT_SVG_A);
             asyncResult = await asyncResult.regenerateAsync({ files: asyncFiles }, asyncChange);
             expect(asyncResult).toBeDefined();
-        },
-        benchOpts,
-    );
-    bench(
-        'new core — incremental regenerate rediff',
-        () => {
+        }),
+        bench('new core — incremental regenerate rediff', () => {
             rediffToggle = !rediffToggle;
             writeFileSync(rediffFiles[0]!, rediffToggle ? EDIT_SVG_B : EDIT_SVG_A);
             expect(rediffResult.regenerate({ files: rediffFiles })).toBeUndefined();
-        },
+        }),
         benchOpts,
     );
 });
@@ -458,11 +607,14 @@ await Promise.all(
     }),
 );
 
-describe.each([100, 300, 600])('batched vs separate content edits — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('batched vs separate content edits — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const separateTwoFiles = separateTwoEditFiles.get(numGlyphs)!;
     const separateTenFiles = separateTenEditFiles.get(numGlyphs)!;
     const batchedFiles = batchedEditFiles.get(numGlyphs)!;
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const separateTwo = separateTwoEditResults.get(numGlyphs)!;
     const separateTen = separateTenEditResults.get(numGlyphs)!;
     const batched = batchedEditResults.get(numGlyphs)!;
@@ -474,31 +626,22 @@ describe.each([100, 300, 600])('batched vs separate content edits — %i glyphs'
     let tenToggle = false;
     let batchedToggle = false;
 
-    bench(
-        'new core — two separate incremental regenerates',
-        () => {
+    await bench.compare(
+        bench('new core — two separate incremental regenerates', () => {
             twoToggle = !twoToggle;
             separateTwoChanges.forEach(change => writeFileSync(change.path, twoToggle ? EDIT_SVG_B : EDIT_SVG_C));
             expect(separateTwoChanges.map(change => separateTwo.regenerate({ files: separateTwoFiles }, [change]))).toEqual(Array.from({ length: separateTwoChanges.length }));
-        },
-        benchOpts,
-    );
-    bench(
-        'new core — ten separate incremental regenerates',
-        () => {
+        }),
+        bench('new core — ten separate incremental regenerates', () => {
             tenToggle = !tenToggle;
             separateTenChanges.forEach(change => writeFileSync(change.path, tenToggle ? EDIT_SVG_B : EDIT_SVG_C));
             expect(separateTenChanges.map(change => separateTen.regenerate({ files: separateTenFiles }, [change]))).toEqual(Array.from({ length: separateTenChanges.length }));
-        },
-        benchOpts,
-    );
-    bench(
-        'new core — one batched incremental regenerate',
-        () => {
+        }),
+        bench('new core — one batched incremental regenerate', () => {
             batchedToggle = !batchedToggle;
             batchedChanges.forEach(change => writeFileSync(change.path, batchedToggle ? EDIT_SVG_B : EDIT_SVG_C));
             expect(batched.regenerate({ files: batchedFiles }, batchedChanges)).toBeUndefined();
-        },
+        }),
         benchOpts,
     );
 });
@@ -526,20 +669,24 @@ function insertAtPosition(files: string[], extra: string, position: (typeof ADD_
     return [...files.slice(0, index), extra, ...files.slice(index)];
 }
 
-describe.each([100, 300, 600])('changed event + CSS with unchanged contents — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('changed event + CSS with unchanged contents — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
     const opts = baseOpts(files, DEV_FORMAT);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const result = incrementalResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
 
-    bench('new core — full regen + render CSS', () => expect(generateWebfonts(opts).then(r => r.generateCss(RENDER_URLS))).resolves.toBeDefined(), benchOpts);
-    bench(
-        'new core — incremental regenerate + reuse CSS',
-        () => {
+    await bench.compare(
+        bench('new core — full regen + render CSS', async () => {
+            await expect(generateWebfonts(opts).then(r => r.generateCss(RENDER_URLS))).resolves.toBeDefined();
+        }),
+        bench('new core — incremental regenerate + reuse CSS', () => {
             result.regenerate({ files }, change);
             expect(result.generateCss(RENDER_URLS)).toBeDefined();
-        },
+        }),
         benchOpts,
     );
 });
@@ -555,23 +702,28 @@ await Promise.all(
     }),
 );
 
-describe.each([100, 300, 600])('rebuild + CSS after a 1-file content edit — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('rebuild + CSS after a 1-file content edit — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = contentEditCssFiles.get(numGlyphs)!;
-    const opts = baseOpts(files, DEV_FORMAT);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const fullFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-css-full');
+    const opts = baseOpts(fullFiles, DEV_FORMAT);
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const result = contentEditCssResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
     let toggle = false;
 
-    bench('new core — full regen + render CSS', () => expect(generateWebfonts(opts).then(r => r.generateCss(RENDER_URLS))).resolves.toBeDefined(), benchOpts);
-    bench(
-        'new core — incremental regenerate + reuse CSS',
-        () => {
+    await bench.compare(
+        bench('new core — full regen + render CSS', async () => {
+            await expect(generateWebfonts(opts).then(r => r.generateCss(RENDER_URLS))).resolves.toBeDefined();
+        }),
+        bench('new core — incremental regenerate + reuse CSS', () => {
             toggle = !toggle;
             writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
             result.regenerate({ files }, change);
             expect(result.generateCss(RENDER_URLS)).toBeDefined();
-        },
+        }),
         benchOpts,
     );
 });
@@ -586,18 +738,22 @@ await Promise.all(
     }),
 );
 
-describe.each([100, 300, 600])('rebuild + writeFiles after a 1-file change — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('rebuild + writeFiles after a 1-file change — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const result = writeResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
 
-    bench(
-        'new core — full regen + writeFiles',
-        () => expect(generateWebfonts(baseOpts(files, { writeFiles: true, dest: join(bulkFixtureDir, `full-write-${numGlyphs}`), ...DEV_FORMAT }))).resolves.toBeDefined(),
+    await bench.compare(
+        bench('new core — full regen + writeFiles', async () => {
+            await expect(generateWebfonts(baseOpts(files, { writeFiles: true, dest: join(bulkFixtureDir, `full-write-${numGlyphs}`), ...DEV_FORMAT }))).resolves.toBeDefined();
+        }),
+        bench('new core — incremental regenerate + writeFiles', () => expect(result.regenerate({ files }, change)).toBeUndefined()),
         benchOpts,
     );
-    bench('new core — incremental regenerate + writeFiles', () => expect(result.regenerate({ files }, change)).toBeUndefined(), benchOpts);
 });
 
 const contentEditWriteFiles = new Map<number, string[]>();
@@ -612,25 +768,28 @@ await Promise.all(
     }),
 );
 
-describe.each([100, 300, 600])('rebuild + writeFiles after a 1-file content edit — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('rebuild + writeFiles after a 1-file content edit — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = contentEditWriteFiles.get(numGlyphs)!;
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const fullFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-write-full');
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const result = contentEditWriteResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
     let toggle = false;
 
-    bench(
-        'new core — full regen + writeFiles',
-        () => expect(generateWebfonts(baseOpts(files, { writeFiles: true, dest: join(bulkFixtureDir, `full-content-write-${numGlyphs}`), ...DEV_FORMAT }))).resolves.toBeDefined(),
-        benchOpts,
-    );
-    bench(
-        'new core — incremental regenerate + writeFiles',
-        () => {
+    await bench.compare(
+        bench('new core — full regen + writeFiles', async () => {
+            await expect(
+                generateWebfonts(baseOpts(fullFiles, { writeFiles: true, dest: join(bulkFixtureDir, `full-content-write-${numGlyphs}`), ...DEV_FORMAT })),
+            ).resolves.toBeDefined();
+        }),
+        bench('new core — incremental regenerate + writeFiles', () => {
             toggle = !toggle;
             writeFileSync(files[0]!, toggle ? EDIT_SVG_B : EDIT_SVG_A);
             expect(result.regenerate({ files }, change)).toBeUndefined();
-        },
+        }),
         benchOpts,
     );
 });
@@ -654,21 +813,24 @@ await Promise.all(
     }),
 );
 
-describe.each([100, 300, 600])('write-skip on unchanged outputs — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('write-skip on unchanged outputs — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const result = writeSkipResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
 
-    bench(
-        'new core — full regen + writeFiles',
-        () =>
-            expect(
+    await bench.compare(
+        bench('new core — full regen + writeFiles', async () => {
+            await expect(
                 generateWebfonts(baseOpts(files, { css: true, html: true, writeFiles: true, dest: join(bulkFixtureDir, `full-write-skip-${numGlyphs}`), ...DEV_FORMAT })),
-            ).resolves.toBeDefined(),
+            ).resolves.toBeDefined();
+        }),
+        bench('new core — incremental regenerate + write-skip', () => expect(result.regenerate({ files }, change)).toBeUndefined()),
         benchOpts,
     );
-    bench('new core — incremental regenerate + write-skip', () => expect(result.regenerate({ files }, change)).toBeUndefined(), benchOpts);
 });
 
 // Ordered regenerate should keep adds/removes byte-identical at any insertion point.
@@ -684,19 +846,25 @@ await Promise.all(
 
 describe.each([100, 300, 600])('ordered add/remove regenerate — %i glyphs', numGlyphs => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
 
-    describe.each(ADD_POSITIONS)('add at %s', position => {
+    test.for(ADD_POSITIONS)('add at %s', { timeout: BENCH_TIMEOUT }, async (position, { bench }) => {
         const extra = extraSvgs.get(position)!;
         const filesWithExtra = insertAtPosition(files, extra, position);
         const result = addRemoveResults.get(`${numGlyphs}-${position}`)!;
         let hasExtra = false;
 
-        bench('new core — full regen after add', () => expect(generateWebfonts(baseOpts(filesWithExtra, DEV_FORMAT))).resolves.toBeDefined(), benchOpts);
-        bench('new core — full regen after remove', () => expect(generateWebfonts(baseOpts(files, DEV_FORMAT))).resolves.toBeDefined(), benchOpts);
-        bench(
-            'new core — incremental add/remove toggle',
-            () => {
+        await bench.compare(
+            bench('new core — full regen after add', async () => {
+                await expect(generateWebfonts(baseOpts(filesWithExtra, DEV_FORMAT))).resolves.toBeDefined();
+            }),
+            bench('new core — full regen after remove', async () => {
+                await expect(generateWebfonts(baseOpts(files, DEV_FORMAT))).resolves.toBeDefined();
+            }),
+            bench('new core — incremental add/remove toggle', () => {
                 if (hasExtra) {
                     result.regenerate({ files }, [{ path: extra, changeType: 'removed' }]);
                 } else {
@@ -704,7 +872,7 @@ describe.each([100, 300, 600])('ordered add/remove regenerate — %i glyphs', nu
                 }
                 hasExtra = !hasExtra;
                 expect(result.svg).toBeDefined();
-            },
+            }),
             benchOpts,
         );
     });
@@ -735,7 +903,10 @@ describe.each([15, 100, 300, 600])('dependency-aware render reuse add/remove tog
     const files = bulkFiles.slice(0, numGlyphs);
     const extra = extraSvgs.get('end')!;
     const filesWithExtra = [...files, extra];
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
 
     const cases = [
         {
@@ -761,12 +932,10 @@ describe.each([15, 100, 300, 600])('dependency-aware render reuse add/remove tog
     ];
 
     cases.forEach(({ key, label, render }) => {
-        const result = dependencyAwareResults.get(key)!;
-        let hasExtra = false;
-
-        bench(
-            `new core — ${label} toggle`,
-            () => {
+        test(`new core — ${label} toggle`, { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
+            const result = dependencyAwareResults.get(key)!;
+            let hasExtra = false;
+            await bench(`new core — ${label} toggle`, () => {
                 if (hasExtra) {
                     result.regenerate({ files }, [{ path: extra, changeType: 'removed' }]);
                 } else {
@@ -774,29 +943,52 @@ describe.each([15, 100, 300, 600])('dependency-aware render reuse add/remove tog
                 }
                 hasExtra = !hasExtra;
                 expect(render(result)).toBeDefined();
-            },
-            benchOpts,
-        );
+            }).run(benchOpts);
+        });
     });
 });
 
 // WOFF2 quality: isolate brotli speed at q9/q10/q11.
-describe.each([100, 300, 600])('woff2 quality — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('woff2 quality — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
     const woff2Opts = (quality: number) => baseOpts(files, { types: ['woff2'], formatOptions: { woff2: { compressionQuality: quality } } });
 
-    bench('upstream', () => expect(upstreamDirect(baseOpts(files, { types: ['woff2'] }))).resolves.toBeDefined(), benchOpts);
-    bench('new core — q11', () => expect(generateWebfonts(woff2Opts(11))).resolves.toBeDefined(), benchOpts);
-    bench('new core — q10', () => expect(generateWebfonts(woff2Opts(10))).resolves.toBeDefined(), benchOpts);
-    bench('new core — q9', () => expect(generateWebfonts(woff2Opts(9))).resolves.toBeDefined(), benchOpts);
+    await bench.compare(
+        bench('upstream', async () => {
+            await expect(upstreamDirect(baseOpts(files, { types: ['woff2'] }))).resolves.toBeDefined();
+        }),
+        bench('new core — q11', async () => {
+            await expect(generateWebfonts(woff2Opts(11))).resolves.toBeDefined();
+        }),
+        bench('new core — q10', async () => {
+            await expect(generateWebfonts(woff2Opts(10))).resolves.toBeDefined();
+        }),
+        bench('new core — q9', async () => {
+            await expect(generateWebfonts(woff2Opts(9))).resolves.toBeDefined();
+        }),
+        benchOpts,
+    );
 });
 
 // Initial-build overhead of retaining parsed glyphs for regenerate().
-describe.each([100, 300, 600])('incremental population — %i glyphs', numGlyphs => {
+test.for([100, 300, 600])('incremental population — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
+    const benchOpts: BenchOptions = {
+        ...DEFAULT_BENCH_OPTIONS,
+        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
+    };
 
-    bench('new core — incremental: false', () => expect(generateWebfonts(baseOpts(files, { incremental: false }))).resolves.toBeDefined(), benchOpts);
-    bench('new core — incremental: true', () => expect(generateWebfonts(baseOpts(files, { incremental: true }))).resolves.toBeDefined(), benchOpts);
+    await bench.compare(
+        bench('new core — incremental: false', async () => {
+            await expect(generateWebfonts(baseOpts(files, { incremental: false }))).resolves.toBeDefined();
+        }),
+        bench('new core — incremental: true', async () => {
+            await expect(generateWebfonts(baseOpts(files, { incremental: true }))).resolves.toBeDefined();
+        }),
+        benchOpts,
+    );
 });

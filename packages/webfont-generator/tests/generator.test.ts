@@ -930,9 +930,9 @@ expect.extend({
 });
 
 declare module 'vite-plus/test' {
-    interface Matchers<T = any> {
-        toEqualFont(expected: Awaited<ReturnType<typeof generateWebfonts>>): ReturnType<typeof expect.extend>;
-        toEqualCss(expected: Awaited<ReturnType<typeof generateWebfonts>>): ReturnType<typeof expect.extend>;
+    interface Matchers<R, T> {
+        toEqualFont(expected: Awaited<ReturnType<typeof generateWebfonts>>): R;
+        toEqualCss(expected: Awaited<ReturnType<typeof generateWebfonts>>): R;
     }
 }
 

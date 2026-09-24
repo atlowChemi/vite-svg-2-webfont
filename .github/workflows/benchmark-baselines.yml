@@ -6,11 +6,13 @@ on:
             - main
         paths:
             - .github/workflows/benchmark-baselines.yml
+            - scripts/benchmark-continuous-json.mjs
             - tests/**/*.bench.ts
             - packages/webfont-generator/**
     pull_request:
         paths:
             - .github/workflows/benchmark-baselines.yml
+            - scripts/benchmark-continuous-json.mjs
             - tests/**/*.bench.ts
             - packages/webfont-generator/**
     schedule:
@@ -26,7 +28,6 @@ concurrency:
     cancel-in-progress: true
 
 env:
-    VITEST_BENCH_BASELINE: benchmark-baselines/webfont-generator/vitest/webfonts-generator.json
     VITEST_BENCH_OUTPUT: benchmark-results/vitest/webfonts-generator.json
     CONTINUOUS_BENCH_DATA: benchmark-baselines/webfont-generator/continuous-benchmark/data.json
     CONTINUOUS_BENCH_INPUT: benchmark-results/continuous-benchmark/input.json
@@ -97,12 +98,7 @@ jobs:
               run: |
                   set -euo pipefail
                   mkdir -p "$(dirname "$VITEST_BENCH_OUTPUT")"
-                  if [ -f "$VITEST_BENCH_BASELINE" ]; then
-                    vp test bench --run --compare "$VITEST_BENCH_BASELINE" --outputJson "$VITEST_BENCH_OUTPUT"
-                  else
-                    echo "::warning::No previous Vitest benchmark JSON found on benchmark-baselines."
-                    vp test bench --run --outputJson "$VITEST_BENCH_OUTPUT"
-                  fi
+                  vp test bench --run --reporter=default --reporter=json --outputFile="$VITEST_BENCH_OUTPUT"
 
             - name: Convert benchmark outputs
               run: |
