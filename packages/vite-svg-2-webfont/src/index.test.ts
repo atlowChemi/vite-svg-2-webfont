@@ -4,12 +4,16 @@ import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join as pathJoin } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite';
-import { build, createServer, normalizePath, preview } from 'vite';
+import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite-plus';
+import { build, createServer, normalizePath, preview, version as viteVersion } from 'vite-plus';
 import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from 'vite-plus/test';
 import { viteSvgToWebfont } from './index';
 import type { IconPluginFileOptions } from './optionParser';
 import type { AddressInfo } from 'node:net';
+
+it.runIf(process.env.VITE_COMPAT_MAJOR)('runs integration tests against the selected upstream Vite major', () => {
+    expect(viteVersion.split('.')[0]).toBe(process.env.VITE_COMPAT_MAJOR);
+});
 
 const { generateWebfontsMock } = vi.hoisted(() => ({
     generateWebfontsMock: vi.fn<typeof import('@atlowchemi/webfont-generator').generateWebfonts>(),
