@@ -380,7 +380,7 @@ expect.extend({
 });
 
 declare module 'vite-plus/test' {
-    interface Matchers<T = any> {
+    interface Matchers<R, T> {
         toNotBeEmptyFile(expected: string): Promise<void>;
     }
 }

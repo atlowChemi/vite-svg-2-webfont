@@ -20,6 +20,13 @@ vi.mock('node:path', async importOriginal => {
     };
 });
 
+function usePaths(paths: typeof posix) {
+    vi.mocked(resolve).mockImplementation((...values) => paths.resolve(...values));
+    vi.mocked(relative).mockImplementation((from, to) => paths.relative(from, to));
+    vi.mocked(isAbsolute).mockImplementation(value => paths.isAbsolute(value));
+    separator.mockReturnValue(paths.sep);
+}
+
 describe('watchRoots', () => {
     const nativePaths = process.platform === 'win32' ? win32 : posix;
     afterEach(() => {
@@ -28,12 +35,6 @@ describe('watchRoots', () => {
         vi.mocked(isAbsolute).mockReset();
         separator.mockReturnValue(nativePaths.sep);
     });
-    function usePaths(paths: typeof posix) {
-        vi.mocked(resolve).mockImplementation((...values) => paths.resolve(...values));
-        vi.mocked(relative).mockImplementation((from, to) => paths.relative(from, to));
-        vi.mocked(isAbsolute).mockImplementation(value => paths.isAbsolute(value));
-        separator.mockReturnValue(paths.sep);
-    }
 
     describe.each([
         { platform: 'POSIX', paths: posix, root: '/project/icons', external: '/external/designs' },

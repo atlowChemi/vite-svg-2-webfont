@@ -20,47 +20,16 @@ if (!Number.isInteger(viteMajor) || viteMajor < 1) {
     fail(`Invalid Vite major "${viteMajorArg}"`);
 }
 
-const viteSpecifier = `^${viteMajor}.0.0`;
-const workspaceFile = join(import.meta.dirname, '..', '..', 'pnpm-workspace.yaml');
-const workspaceYaml = readFileSync(workspaceFile, 'utf8');
-const lines = workspaceYaml.split('\n');
-let currentSection = '';
-let catalogViteIndex = -1;
-let overridesViteIndex = -1;
-
-for (const [index, line] of lines.entries()) {
-    const sectionMatch = /^(?<section>[a-zA-Z][\w-]*):\s*$/.exec(line);
-    if (sectionMatch?.groups?.section) {
-        currentSection = sectionMatch.groups.section;
-        continue;
-    }
-
-    if (!/^\s+vite:\s*/.test(line)) {
-        continue;
-    }
-
-    if (currentSection === 'catalog') {
-        catalogViteIndex = index;
-    }
-
-    if (currentSection === 'overrides') {
-        overridesViteIndex = index;
-    }
-}
-
-if (catalogViteIndex === -1) {
-    fail('Could not find catalog.vite in pnpm-workspace.yaml');
-}
-
-if (overridesViteIndex === -1) {
-    fail('Could not find overrides.vite in pnpm-workspace.yaml');
-}
-
-lines[catalogViteIndex] = `    vite: ${viteSpecifier}`;
-lines[overridesViteIndex] = `    vite: 'catalog:'`;
+// Vite+ requires its branded vite alias. Install the consumer's Vite separately;
+// the plugin test project redirects its Vite imports when VITE_COMPAT_MAJOR is set.
+const viteSpecifier = `npm:vite@^${viteMajor}.0.0`;
+const packageFile = join(import.meta.dirname, '..', '..', 'package.json');
+const packageJson = JSON.parse(readFileSync(packageFile, 'utf8'));
+packageJson.devDependencies ??= {};
+packageJson.devDependencies['vite-compat'] = viteSpecifier;
 
 if (!isDryRun) {
-    writeFileSync(workspaceFile, lines.join('\n'));
+    writeFileSync(packageFile, `${JSON.stringify(packageJson, null, 4)}\n`);
 }
 
-console.log(styleText('green', `Configured workspace Vite dependency to ${viteSpecifier}`));
+console.log(styleText('green', `Configured vite-compat dependency to ${viteSpecifier}`));

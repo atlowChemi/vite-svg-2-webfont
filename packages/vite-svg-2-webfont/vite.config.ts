@@ -1,5 +1,6 @@
 import { codecovRollupPlugin } from '@codecov/rollup-plugin';
 import { defineProject, type UserProjectConfigExport } from 'vite-plus';
+import { fileURLToPath } from 'node:url';
 
 const config: UserProjectConfigExport = defineProject({
     pack: {
@@ -12,6 +13,8 @@ const config: UserProjectConfigExport = defineProject({
             neverBundle: true,
         },
         outputOptions: {
+            // Strip annotation comments (including coverage directives) from published bundles.
+            comments: { annotation: false },
             exports: 'named',
             // Develop against Vite+, while consumers use the plugin's existing Vite peer.
             paths: { 'vite-plus': 'vite' },
@@ -59,12 +62,14 @@ const config: UserProjectConfigExport = defineProject({
     },
     test: {
         include: ['src/**/*.test.ts'],
-        experimental: {
-            fsModuleCache: true,
-        },
+        fsModuleCache: true,
         typecheck: { enabled: true, ignoreSourceErrors: true },
         projects: [
             {
+                // Exercise upstream Vite in the matrix while Vite+ runs the test tooling.
+                resolve: {
+                    alias: process.env.VITE_COMPAT_MAJOR ? [{ find: /^vite-plus$/, replacement: fileURLToPath(import.meta.resolve('vite-compat')) }] : [],
+                },
                 test: {
                     name: 'vite-plugin',
                     include: ['src/**/*.test.ts'],

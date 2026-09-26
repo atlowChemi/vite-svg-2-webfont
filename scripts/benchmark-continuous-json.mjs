@@ -50,21 +50,36 @@ for (const file of walk(criterionRoot)) {
 }
 
 const report = json(vitestPath);
+let vitestCount = 0;
 
-for (const file of report.files ?? []) {
-    for (const group of file.groups ?? []) {
-        for (const bench of group.benchmarks ?? []) {
-            if (typeof bench.mean !== 'number') continue;
+for (const file of report.testResults ?? []) {
+    for (const test of file.assertionResults ?? []) {
+        for (const group of test.benchmarks ?? []) {
+            for (const bench of group.tasks ?? []) {
+                if (!Number.isFinite(bench.latency?.mean)) {
+                    throw new Error(`Missing latency mean for Vitest benchmark: ${bench.name}`);
+                }
 
-            results.push({
-                name: `vitest/${group.fullName} > ${bench.name}`,
-                unit: 'ms',
-                value: bench.mean,
-                range: typeof bench.rme === 'number' ? `± ${bench.rme}%` : undefined,
-                extra: typeof bench.hz === 'number' ? `${bench.hz} ops/sec` : undefined,
-            });
+                // Preserve v4's repository-relative filename and >-joined suite names.
+                // A standalone v5 test repeats its benchmark name; don't add it twice.
+                const titles = test.title === bench.name ? test.ancestorTitles : [...test.ancestorTitles, test.title];
+                const fileName = relative(process.cwd(), file.name).split(sep).join('/');
+                const fullName = [fileName, ...titles].join(' > ');
+                results.push({
+                    name: `vitest/${fullName} > ${bench.name}`,
+                    unit: 'ms',
+                    value: bench.latency.mean,
+                    range: typeof bench.latency.rme === 'number' ? `± ${bench.latency.rme}%` : undefined,
+                    extra: typeof bench.throughput?.mean === 'number' ? `${bench.throughput.mean} ops/sec` : undefined,
+                });
+                vitestCount++;
+            }
         }
     }
+}
+
+if (vitestCount === 0) {
+    throw new Error('No Vitest benchmark measurements found; expected a Vitest v5 JSON reporter output.');
 }
 
 mkdirSync(dirname(outputPath), { recursive: true });
