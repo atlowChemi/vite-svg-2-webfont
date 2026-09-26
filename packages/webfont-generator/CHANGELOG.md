@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.7.0...webfont-generator-v0.7.1) (2026-09-26)
+
+### Bug Fixes
+
+- **deps:** update rust crate brotli to v9 ([#420](https://github.com/atlowChemi/vite-svg-2-webfont/issues/420)) ([418bd52](https://github.com/atlowChemi/vite-svg-2-webfont/commit/418bd52d36b4d240d873db03c56ecd13f5cbdcc3))
+
 ## [0.7.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.6.1...webfont-generator-v0.7.0) (2026-09-15)
 
 ### ⚠ BREAKING CHANGES
