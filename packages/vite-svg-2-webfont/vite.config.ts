@@ -13,6 +13,8 @@ const config: UserProjectConfigExport = defineProject({
             neverBundle: true,
         },
         outputOptions: {
+            // Strip annotation comments (including coverage directives) from published bundles.
+            comments: { annotation: false },
             exports: 'named',
             // Develop against Vite+, while consumers use the plugin's existing Vite peer.
             paths: { 'vite-plus': 'vite' },
