@@ -52,8 +52,6 @@ process.on('exit', () => {
 
 // Include warmup and every implementation; 600-glyph batched edits can take several minutes with a debug binding.
 const BENCH_TIMEOUT = 600_000;
-// Preserve v4's sampling defaults; v5's engine defaults to 64 iterations and 1 second.
-const DEFAULT_BENCH_OPTIONS: BenchOptions = { iterations: 10, time: 500, warmupIterations: 5, warmupTime: 100 };
 
 function baseOpts(files: string[], overrides: Partial<GenerateWebfontsInputOptions> = {}): GenerateWebfontsInputOptions {
     return {
@@ -77,7 +75,6 @@ test('error — empty files', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
         bench('new core', async () => {
             await expect(generateWebfonts(opts)).rejects.toBeDefined();
         }),
-        DEFAULT_BENCH_OPTIONS,
     );
 });
 
@@ -90,7 +87,6 @@ test('error — missing dest', { timeout: BENCH_TIMEOUT }, async ({ bench }) => 
         bench('new core', async () => {
             await expect(generateWebfonts(opts)).rejects.toBeDefined();
         }),
-        DEFAULT_BENCH_OPTIONS,
     );
 });
 
@@ -112,7 +108,6 @@ test('with cssContext and htmlContext (css: true, html: true)', { timeout: BENCH
         bench('new core', async () => {
             await expect(generateWebfonts(opts)).resolves.toBeDefined();
         }),
-        DEFAULT_BENCH_OPTIONS,
     );
 });
 
@@ -134,7 +129,6 @@ test('with cssContext and htmlContext (css: false, html: false)', { timeout: BEN
         bench('new core', async () => {
             await expect(generateWebfonts(opts)).resolves.toBeDefined();
         }),
-        DEFAULT_BENCH_OPTIONS,
     );
 });
 
@@ -153,7 +147,6 @@ test('with cssContext only (css: false)', { timeout: BENCH_TIMEOUT }, async ({ b
         bench('new core', async () => {
             await expect(generateWebfonts(opts)).resolves.toBeDefined();
         }),
-        DEFAULT_BENCH_OPTIONS,
     );
 });
 
@@ -172,7 +165,6 @@ test('with htmlContext only (html: false)', { timeout: BENCH_TIMEOUT }, async ({
         bench('new core', async () => {
             await expect(generateWebfonts(opts)).resolves.toBeDefined();
         }),
-        DEFAULT_BENCH_OPTIONS,
     );
 });
 
@@ -188,7 +180,6 @@ test('with custom CSS template', { timeout: BENCH_TIMEOUT }, async ({ bench }) =
         bench('new core', async () => {
             await expect(generateWebfonts(opts)).resolves.toBeDefined();
         }),
-        DEFAULT_BENCH_OPTIONS,
     );
 });
 
@@ -197,14 +188,12 @@ describe.each([15, 100, 300, 600])('%i glyphs', numGlyphs => {
     // Longer sampling windows + warmup to keep rme low (warmup discards cold-start/GC outliers).
     // Scaled by glyph count so total runtime stays bounded: bigger fonts run fewer ops/sec, so a
     // fixed time window already yields plenty of samples at small N.
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300
+    const benchOpts: BenchOptions =
+        numGlyphs >= 300
             ? { time: 10_000, warmupTime: 1_000, warmupIterations: 10 }
             : numGlyphs >= 100
               ? { time: 8_000, warmupTime: 500, warmupIterations: 20 }
-              : { time: 3_000, warmupTime: 300, warmupIterations: 50 }),
-    };
+              : { time: 3_000, warmupTime: 300, warmupIterations: 50 };
 
     describe.each([true, false])('optimize SVG: %s', optimizeOutput => {
         test('all formats', { timeout: BENCH_TIMEOUT }, async ({ bench }) => {
@@ -359,7 +348,7 @@ const templateFixtures = await (async () => {
 const templateUrls = { svg: '/assets/font.svg', ttf: '/assets/font.ttf', woff: '/assets/font.woff', woff2: '/assets/font.woff2', eot: '/assets/font.eot' };
 
 describe.each([5, 300])('generateCss / generateHtml — %i glyphs', numGlyphs => {
-    const benchOpts: BenchOptions = { ...DEFAULT_BENCH_OPTIONS, ...(numGlyphs >= 300 ? { time: 2000 } : {}) };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 2000 } : {};
 
     describe('default templates', () => {
         const { upstream, newCore } = templateFixtures.get(`${numGlyphs}-default`)!;
@@ -478,7 +467,7 @@ await Promise.all(
 
 test.for([100, 300, 600])('repeated output getters — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const result = incrementalResults.get(numGlyphs)!;
-    const benchOpts: BenchOptions = { ...DEFAULT_BENCH_OPTIONS, time: 1_000, warmupTime: 100, warmupIterations: 20 };
+    const benchOpts: BenchOptions = { time: 1_000, warmupTime: 100, warmupIterations: 20 };
 
     await bench.compare(
         bench('svg', () => expect(result.svg).toBeDefined()),
@@ -493,10 +482,7 @@ test.for([100, 300, 600])('repeated output getters — %i glyphs', { timeout: BE
 test.for([100, 300, 600])('changed event with unchanged contents — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
     const opts = baseOpts(files, DEV_FORMAT);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const result = incrementalResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
 
@@ -540,10 +526,7 @@ test.for([100, 300, 600])('rebuild after a 1-file content edit — %i glyphs', {
     // Comparisons interleave iterations, so full rebuilds must not read another case's edits.
     const fullFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-full');
     const opts = baseOpts(fullFiles, DEV_FORMAT);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const result = contentEditResults.get(numGlyphs)!;
     const asyncFiles = asyncContentEditFiles.get(numGlyphs)!;
     let asyncResult = asyncContentEditResults.get(numGlyphs)!;
@@ -611,10 +594,7 @@ test.for([100, 300, 600])('batched vs separate content edits — %i glyphs', { t
     const separateTwoFiles = separateTwoEditFiles.get(numGlyphs)!;
     const separateTenFiles = separateTenEditFiles.get(numGlyphs)!;
     const batchedFiles = batchedEditFiles.get(numGlyphs)!;
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const separateTwo = separateTwoEditResults.get(numGlyphs)!;
     const separateTen = separateTenEditResults.get(numGlyphs)!;
     const batched = batchedEditResults.get(numGlyphs)!;
@@ -672,10 +652,7 @@ function insertAtPosition(files: string[], extra: string, position: (typeof ADD_
 test.for([100, 300, 600])('changed event + CSS with unchanged contents — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
     const opts = baseOpts(files, DEV_FORMAT);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const result = incrementalResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
 
@@ -706,10 +683,7 @@ test.for([100, 300, 600])('rebuild + CSS after a 1-file content edit — %i glyp
     const files = contentEditCssFiles.get(numGlyphs)!;
     const fullFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-css-full');
     const opts = baseOpts(fullFiles, DEV_FORMAT);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const result = contentEditCssResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
     let toggle = false;
@@ -740,10 +714,7 @@ await Promise.all(
 
 test.for([100, 300, 600])('rebuild + writeFiles after a 1-file change — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const result = writeResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
 
@@ -771,10 +742,7 @@ await Promise.all(
 test.for([100, 300, 600])('rebuild + writeFiles after a 1-file content edit — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = contentEditWriteFiles.get(numGlyphs)!;
     const fullFiles = await makeNEditableFiles(1, numGlyphs, 'regen-content-write-full');
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const result = contentEditWriteResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
     let toggle = false;
@@ -815,10 +783,7 @@ await Promise.all(
 
 test.for([100, 300, 600])('write-skip on unchanged outputs — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const result = writeSkipResults.get(numGlyphs)!;
     const change = [{ path: files[0]!, changeType: 'changed' as const }];
 
@@ -846,10 +811,7 @@ await Promise.all(
 
 describe.each([100, 300, 600])('ordered add/remove regenerate — %i glyphs', numGlyphs => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
 
     test.for(ADD_POSITIONS)('add at %s', { timeout: BENCH_TIMEOUT }, async (position, { bench }) => {
         const extra = extraSvgs.get(position)!;
@@ -903,10 +865,7 @@ describe.each([15, 100, 300, 600])('dependency-aware render reuse add/remove tog
     const files = bulkFiles.slice(0, numGlyphs);
     const extra = extraSvgs.get('end')!;
     const filesWithExtra = [...files, extra];
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
 
     const cases = [
         {
@@ -951,10 +910,7 @@ describe.each([15, 100, 300, 600])('dependency-aware render reuse add/remove tog
 // WOFF2 quality: isolate brotli speed at q9/q10/q11.
 test.for([100, 300, 600])('woff2 quality — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
     const woff2Opts = (quality: number) => baseOpts(files, { types: ['woff2'], formatOptions: { woff2: { compressionQuality: quality } } });
 
     await bench.compare(
@@ -977,10 +933,7 @@ test.for([100, 300, 600])('woff2 quality — %i glyphs', { timeout: BENCH_TIMEOU
 // Initial-build overhead of retaining parsed glyphs for regenerate().
 test.for([100, 300, 600])('incremental population — %i glyphs', { timeout: BENCH_TIMEOUT }, async (numGlyphs, { bench }) => {
     const files = bulkFiles.slice(0, numGlyphs);
-    const benchOpts: BenchOptions = {
-        ...DEFAULT_BENCH_OPTIONS,
-        ...(numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 }),
-    };
+    const benchOpts: BenchOptions = numGlyphs >= 300 ? { time: 8_000, warmupTime: 1_000, warmupIterations: 10 } : { time: 4_000, warmupTime: 500, warmupIterations: 20 };
 
     await bench.compare(
         bench('new core — incremental: false', async () => {
