@@ -20,17 +20,6 @@ cargo add webfont-generator
 
 With `cli` enabled, `GenerateWebfontsOptions` and its input types implement `serde::Deserialize` using camelCase field names and rejecting unknown fields. Deserialization alone does not expand directories or rebase paths; those operations belong to the [CLI manifest loader](./cli#json-manifest).
 
-### Workspace migration
-
-The published `webfont-generator` crate now lives in `crates/webfont-generator/` and contains
-the Rust engine and CLI. `packages/webfont-generator/` contains the unpublished
-`webfont-generator-napi` adapter crate and the existing `@atlowchemi/webfont-generator` npm package.
-Both use the root Cargo workspace and lockfile.
-
-The former Rust `napi` feature and `generate_webfonts` Node-specific entry point are removed.
-This is a breaking Cargo API change, to be released with the next pre-1.0 minor version;
-the npm package name, imports, options, callbacks and result API remain the same.
-
 ## Async API
 
 ### Adapter hooks
