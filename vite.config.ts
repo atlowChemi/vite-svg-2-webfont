@@ -71,7 +71,7 @@ const config: UserConfig = defineConfig({
     },
     staged: {
         '*': 'vp check --fix',
-        '*.rs': 'cargo fmt --manifest-path packages/webfont-generator/Cargo.toml --',
+        '*.rs': 'cargo fmt --all --',
     },
     run: {
         tasks: {

@@ -54,7 +54,7 @@ vp run vite-svg-2-webfont#test:fixtures:refresh
 
 The repository has two benchmark layers:
 
-- Rust Criterion benchmarks in `packages/webfont-generator/benches/` isolate native generator internals, pipeline stages, incremental regeneration, output formats, templates, write paths, and scaling behavior.
+- Rust Criterion benchmarks in `crates/webfont-generator/benches/` isolate native generator internals, pipeline stages, incremental regeneration, output formats, templates, write paths, and scaling behavior.
 - Vitest benchmarks in `tests/webfonts-generator.bench.ts` exercise the JavaScript-facing API and compare against upstream behavior through the Node/NAPI boundary.
 
 Run Rust benchmarks through the package Vite+ task:
@@ -105,13 +105,30 @@ The Rust benchmarks prefer Iconify JSON fixtures from the workspace `node_module
 
 ## Project Structure
 
-This is a monorepo with the following packages under `packages/`:
+This monorepo has a root Cargo workspace and the following packages:
 
 - `packages/vite-svg-2-webfont/`: the Vite plugin — source code, tests, and build config
-- `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — Rust NAPI native addon
+- `crates/webfont-generator/`: published Rust engine and CLI; its private npm manifest connects the task graph
+- `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — npm API and unpublished `webfont-generator-napi` adapter crate
 - `packages/example/`: Vite app used for local development and manual verification
 - `packages/docs/`: VitePress documentation site, published to GitHub Pages
 - `tests/`: cross-package compatibility tests and benchmarks (at root level)
+
+Cargo uses the root `Cargo.lock` and `target/`. Templates are tracked solely under
+`packages/webfont-generator/templates/` and ship directly in the npm package. Rust rendering
+parity tests read those files through `test_helpers::npm_template`; they require a repository
+checkout. The library and CLI do not need those files for default rendering.
+Release Please links engine/adapter versions. The engine has its own changelog at
+`crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;
+those releases trigger crates.io publication. The npm adapter retains its own changelog
+and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
+engine's private npm task package is never published.
+
+Release-PR preparation updates Cargo.lock, runs
+`vp run @atlowchemi/webfont-generator#binding:regenerate`, and formats changes with `vp fmt`.
+The regeneration task uses the NAPI generator to update only the JS loader, preserving
+exports from the last full binding build without compiling Rust. Changes to the native API
+still require the normal binding build to refresh both exports and TypeScript declarations.
 
 ## Pull Requests
 

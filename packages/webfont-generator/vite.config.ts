@@ -3,8 +3,14 @@ import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
 type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
 
 const cargoCache: TaskDefinition = {
-    input: [{ auto: true }, '!target/**'],
-    output: [{ auto: true }, '!target/**'],
+    input: [
+        { auto: true },
+        { pattern: 'Cargo.{toml,lock}', base: 'workspace' },
+        { pattern: 'crates/webfont-generator/**', base: 'workspace' },
+        { pattern: '!target/**', base: 'workspace' },
+        '!target/**',
+    ],
+    output: [{ auto: true }, { pattern: '!target/**', base: 'workspace' }, '!target/**'],
 };
 
 export default defineProject({
@@ -12,12 +18,13 @@ export default defineProject({
         tasks: {
             check: {
                 ...cargoCache,
-                command: 'cargo clippy -- -D warnings && cargo clippy --features cli -- -D warnings && cargo clippy --features napi -- -D warnings && cargo fmt -- --check',
+                command: 'cargo clippy -p webfont-generator-napi -- -D warnings && cargo fmt --all -- --check',
+                dependsOn: ['@atlowchemi/webfont-engine#check'],
             },
             test: {
                 ...cargoCache,
-                command: 'cargo t && cargo t --features cli && cargo t --features napi',
-                dependsOn: ['check'],
+                command: 'cargo test -p webfont-generator-napi --lib',
+                dependsOn: ['check', '@atlowchemi/webfont-engine#test'],
                 env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
             },
             'test:browser': {
@@ -28,21 +35,25 @@ export default defineProject({
             'test:coverage': {
                 ...cargoCache,
                 command:
-                    'cargo llvm-cov clean --workspace && cargo llvm-cov --no-report && cargo llvm-cov --no-report --features cli && cargo llvm-cov --no-report --features napi && cargo llvm-cov report --lcov --output-path rust-lcov.info',
+                    'cargo llvm-cov clean --workspace && cargo llvm-cov -p webfont-generator --no-report && cargo llvm-cov -p webfont-generator --no-report --features cli && cargo llvm-cov -p webfont-generator-napi --lib --no-report && cargo llvm-cov report -p webfont-generator -p webfont-generator-napi --lcov --output-path rust-lcov.info',
                 dependsOn: ['check'],
                 env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
             },
             build: {
                 ...cargoCache,
-                command: 'napi build --platform --esm --js binding.js --dts binding.d.ts -- --features napi',
+                command: 'napi build --platform --esm --js binding.js --dts binding.d.ts',
+            },
+            'binding:regenerate': {
+                cache: false,
+                command: 'node ../../scripts/regenerate-webfont-binding.mjs',
             },
             bench: {
                 cache: false,
-                command: 'cargo bench --features bench',
+                command: 'cargo bench -p webfont-generator --features bench',
             },
             'build:release': {
                 ...cargoCache,
-                command: 'napi build --platform --esm --js binding.js --dts binding.d.ts --release -- --features napi',
+                command: 'napi build --platform --esm --js binding.js --dts binding.d.ts --release',
                 dependsOn: ['test'],
             },
         },

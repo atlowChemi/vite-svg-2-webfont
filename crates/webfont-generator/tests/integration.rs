@@ -1,0 +1,1150 @@
+// Integration tests exercise the pure Rust API and CLI. They cannot link against
+// the NAPI feature because the test binary is not a Node.js addon.
+
+use std::collections::HashMap;
+use std::path::Path;
+
+use webfont_generator::{
+    FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, TtfFormatOptions,
+};
+
+fn fixture_files() -> Vec<String> {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+    let dir = root.join("src/svg/fixtures/icons/cleanicons");
+    let mut files: Vec<String> = std::fs::read_dir(&dir)
+        .expect("fixture dir should exist")
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("svg"))
+        .map(|p| p.strip_prefix(root).unwrap().to_string_lossy().into_owned())
+        .collect();
+    files.sort();
+    files
+}
+
+fn temp_dest(prefix: &str) -> String {
+    let unique = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_nanos();
+    std::env::temp_dir()
+        .join(format!("{prefix}-{unique}"))
+        .to_string_lossy()
+        .into_owned()
+}
+
+#[test]
+fn ordinary_generation_matches_phase_zero_hashes() {
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            css: Some(true),
+            dest: temp_dest("phase-zero-baseline"),
+            files: fixture_files(),
+            font_name: Some("phase-zero-baseline".to_owned()),
+            format_options: Some(FormatOptions {
+                ttf: Some(TtfFormatOptions {
+                    copyright: None,
+                    description: None,
+                    ts: Some(1_700_000_000),
+                    url: None,
+                    version: None,
+                }),
+                ..Default::default()
+            }),
+            html: Some(true),
+            types: Some(vec![
+                FontType::Svg,
+                FontType::Ttf,
+                FontType::Eot,
+                FontType::Woff,
+                FontType::Woff2,
+            ]),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("phase zero baseline generation should succeed");
+
+    let css = result.generate_css_pure(None).unwrap();
+    let html = result.generate_html_pure(None).unwrap();
+    let actual = [
+        ("svg", md5::compute(result.svg_string().unwrap()).0),
+        ("ttf", md5::compute(result.ttf_bytes().unwrap()).0),
+        ("eot", md5::compute(result.eot_bytes().unwrap()).0),
+        ("woff", md5::compute(result.woff_bytes().unwrap()).0),
+        ("woff2", md5::compute(result.woff2_bytes().unwrap()).0),
+        ("css", md5::compute(css).0),
+        ("html", md5::compute(html).0),
+    ];
+    let expected = [
+        (
+            "svg",
+            [
+                199, 206, 239, 60, 169, 99, 69, 51, 97, 109, 232, 248, 251, 123, 19, 192,
+            ],
+        ),
+        (
+            "ttf",
+            [
+                255, 206, 122, 45, 52, 125, 240, 12, 113, 20, 196, 197, 246, 93, 40, 47,
+            ],
+        ),
+        (
+            "eot",
+            [
+                245, 159, 116, 132, 174, 243, 11, 213, 104, 14, 171, 215, 218, 97, 15, 76,
+            ],
+        ),
+        (
+            "woff",
+            [
+                80, 83, 70, 35, 101, 165, 57, 182, 73, 159, 232, 131, 42, 37, 255, 166,
+            ],
+        ),
+        (
+            "woff2",
+            [
+                137, 228, 3, 21, 92, 5, 66, 254, 126, 248, 15, 109, 156, 10, 126, 214,
+            ],
+        ),
+        (
+            "css",
+            [
+                136, 250, 105, 82, 209, 134, 135, 142, 228, 57, 77, 116, 3, 226, 169, 47,
+            ],
+        ),
+        (
+            "html",
+            [
+                76, 103, 148, 169, 227, 75, 202, 234, 64, 0, 178, 137, 20, 186, 173, 91,
+            ],
+        ),
+    ];
+
+    assert_eq!(actual, expected, "ordinary Phase 0 output hashes changed");
+}
+
+#[test]
+fn generate_sync_returns_ordered_variant_results() {
+    let mut options = variant_options();
+    options.types = Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]);
+    let result =
+        webfont_generator::generate_sync(options, None).expect("variant generation should succeed");
+
+    assert!(result.ttf_bytes().is_some());
+    assert!(result.woff_bytes().is_some());
+    assert!(result.woff2_bytes().is_some());
+    assert!(result.eot_bytes().is_none());
+    assert!(result.svg_string().is_none());
+}
+
+#[test]
+fn generate_sync_defaults_variants_to_woff_and_woff2() {
+    let mut options = variant_options();
+    options.types = None;
+    let result = webfont_generator::generate_sync(options, None).unwrap();
+
+    assert!(result.eot_bytes().is_none());
+    assert!(result.svg_string().is_none());
+    assert!(result.ttf_bytes().is_none());
+    assert!(result.woff_bytes().is_some());
+    assert!(result.woff2_bytes().is_some());
+}
+
+#[test]
+fn generate_sync_loads_and_renames_variants_in_variant_file_order() {
+    let options = variant_options();
+    let expected_paths = options
+        .variants
+        .as_ref()
+        .unwrap()
+        .iter()
+        .flat_map(|variant| variant.files.clone())
+        .collect::<Vec<_>>();
+    let calls = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let rename_calls = calls.clone();
+    let rename: webfont_generator::RenameFn = Box::new(move |path| {
+        rename_calls.lock().unwrap().push(path.to_owned());
+        Path::new(path)
+            .file_stem()
+            .unwrap()
+            .to_string_lossy()
+            .into_owned()
+    });
+
+    webfont_generator::generate_sync(options, Some(rename)).unwrap();
+
+    assert_eq!(*calls.lock().unwrap(), expected_paths);
+}
+
+#[test]
+fn variant_writes_match_shared_modern_getters() {
+    let dest = temp_dest("variant-write");
+    let mut options = variant_options();
+    options.dest = dest.clone();
+    options.css = Some(false);
+    options.types = Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]);
+    options.write_files = Some(true);
+
+    let result = webfont_generator::generate_sync(options, None).unwrap();
+    for (filename, bytes) in [
+        ("iconfont.ttf", result.ttf_bytes()),
+        ("iconfont.woff", result.woff_bytes()),
+        ("iconfont.woff2", result.woff2_bytes()),
+    ] {
+        assert_eq!(
+            std::fs::read(Path::new(&dest).join(filename)).unwrap(),
+            bytes.unwrap()
+        );
+    }
+    assert!(!Path::new(&dest).join("iconfont.eot").exists());
+    std::fs::remove_dir_all(dest).unwrap();
+}
+
+#[test]
+fn variant_regeneration_has_a_stable_unsupported_error() {
+    let mut result = webfont_generator::generate_sync(variant_options(), None).unwrap();
+    let error = result
+        .regenerate(&webfont_generator::RegenerationFiles::Single(vec![]), &[])
+        .unwrap_err();
+
+    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+    assert_eq!(
+        error.to_string(),
+        "Single file lists do not support variant results; supply complete variant file sets."
+    );
+    let error = result
+        .regenerate_all(&webfont_generator::RegenerationFiles::Single(vec![]))
+        .unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::Unsupported);
+    assert_eq!(
+        error.to_string(),
+        "Single file lists do not support variant results; supply complete variant file sets."
+    );
+}
+
+#[test]
+fn generate_sync_reports_variant_loading_errors() {
+    let mut missing = variant_options();
+    missing.variants.as_mut().unwrap()[0].files[0] = "missing.svg".to_owned();
+    let error = webfont_generator::generate_sync(missing, None)
+        .err()
+        .expect("missing variant files should fail");
+    assert_ne!(error.kind(), std::io::ErrorKind::Unsupported);
+    assert!(error.to_string().contains("Failed to read source SVG file"));
+
+    let mut duplicate = variant_options();
+    let repeated = duplicate.variants.as_ref().unwrap()[0].files[0].clone();
+    duplicate.variants.as_mut().unwrap()[0].files = vec![repeated.clone(), repeated];
+    let error = webfont_generator::generate_sync(duplicate, None)
+        .err()
+        .expect("duplicate names within one variant should fail");
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("must be unique"));
+}
+
+#[test]
+fn generate_sync_resolves_variant_options_before_generation() {
+    let mut options = variant_options();
+    options.order = Some(vec![FontType::Eot]);
+    let error = webfont_generator::generate_sync(options, None)
+        .err()
+        .expect("invalid shared options should fail before generation");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("not present in 'types'"));
+
+    let mut options = variant_options();
+    options.css = Some(false);
+    options.css_template = Some(String::new());
+    let error = webfont_generator::generate_sync(options, None)
+        .err()
+        .expect("empty template paths should fail before generation");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("options.cssTemplate"));
+
+    let mut options = variant_options();
+    options.variants = Some(vec![
+        FontVariant {
+            name: "heavy".to_owned(),
+            files: vec!["heavy.svg".to_owned()],
+            weight: Some(500),
+            default: None,
+        },
+        FontVariant {
+            name: "medium".to_owned(),
+            files: vec!["medium.svg".to_owned()],
+            weight: None,
+            default: None,
+        },
+        FontVariant {
+            name: "regular".to_owned(),
+            files: vec!["regular.svg".to_owned()],
+            weight: None,
+            default: Some(true),
+        },
+    ]);
+    let error = webfont_generator::generate_sync(options, None)
+        .err()
+        .expect("conflicting weight anchors should fail before generation");
+
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert!(error.to_string().contains("weight"));
+}
+
+fn variant_options() -> GenerateWebfontsOptions {
+    let files = fixture_files();
+    GenerateWebfontsOptions {
+        dest: "artifacts".to_owned(),
+        files: vec![],
+        types: Some(vec![FontType::Woff2]),
+        variants: Some(vec![
+            FontVariant {
+                name: "small".to_owned(),
+                files: files[..2].to_vec(),
+                weight: Some(300),
+                default: Some(true),
+            },
+            FontVariant {
+                name: "large".to_owned(),
+                files: files[..2].to_vec(),
+                weight: Some(700),
+                default: None,
+            },
+        ]),
+        write_files: Some(false),
+        ..Default::default()
+    }
+}
+
+// --- generate_sync tests ---
+
+#[test]
+fn variant_templates_expose_ordered_metadata_and_deduplicated_names() {
+    let dest = temp_dest("variant-template-contexts");
+    std::fs::create_dir_all(&dest).unwrap();
+    let css_path = Path::new(&dest).join("css.hbs");
+    let html_path = Path::new(&dest).join("html.hbs");
+    let metadata = "{{#each variants}}{{name}}:{{weight}}:{{default}}:{{className}}:{{{selector}}};{{/each}}|{{variantClassPrefix}}|";
+    std::fs::write(&css_path, format!("{metadata}{{{{{{src}}}}}}")).unwrap();
+    std::fs::write(
+        &html_path,
+        format!("{metadata}{{{{#each names}}}}{{{{this}}}};{{{{/each}}}}|{{{{{{styles}}}}}}"),
+    )
+    .unwrap();
+    let mut options = variant_options();
+    let files = fixture_files();
+    options.variants.as_mut().unwrap()[1].files = files[1..3].to_vec();
+    options.variant_class_prefix = Some("weight--".to_owned());
+    options.css_template = Some(css_path.to_string_lossy().into_owned());
+    options.html_template = Some(html_path.to_string_lossy().into_owned());
+    options.html = Some(true);
+    let result = webfont_generator::generate_sync(options, None).unwrap();
+    let expected = "small:300:true:weight--small:weight--small;large:700:false:weight--large:weight--large;|weight--|";
+    let names = files[..3]
+        .iter()
+        .map(|file| {
+            format!(
+                "{};",
+                Path::new(file).file_stem().unwrap().to_str().unwrap()
+            )
+        })
+        .collect::<String>();
+    let default_css = result.generate_css_pure(None).unwrap();
+    let default_html = result.generate_html_pure(None).unwrap();
+    assert!(default_css.starts_with(expected));
+    assert!(default_html.starts_with(&format!("{expected}{names}|{expected}")));
+    for url in ["/first.woff2", "/second.woff2", "/first.woff2"] {
+        let urls = HashMap::from([(FontType::Woff2, url.to_owned())]);
+        let css = result.generate_css_pure(Some(urls.clone())).unwrap();
+        let html = result.generate_html_pure(Some(urls)).unwrap();
+        assert_eq!(css, format!("{expected}url(\"{url}\") format(\"woff2\")"));
+        assert_eq!(html, format!("{expected}{names}|{css}"));
+    }
+    assert_eq!(result.generate_css_pure(None).unwrap(), default_css);
+    assert_eq!(result.generate_html_pure(None).unwrap(), default_html);
+    std::fs::remove_dir_all(dest).unwrap();
+}
+
+#[test]
+fn variant_rendering_rejects_legacy_urls_before_using_cached_results() {
+    let result = webfont_generator::generate_sync(variant_options(), None).unwrap();
+    let css = result.generate_css_pure(None).unwrap();
+    let html = result.generate_html_pure(None).unwrap();
+    for format in [FontType::Svg, FontType::Eot] {
+        let urls = HashMap::from([(format, "/unsupported".to_owned())]);
+        for error in [
+            result.generate_css_pure(Some(urls.clone())).unwrap_err(),
+            result.generate_html_pure(Some(urls)).unwrap_err(),
+        ] {
+            assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+            assert_eq!(
+                error.to_string(),
+                "SVG and EOT URLs are unsupported for variant results."
+            );
+        }
+    }
+    assert_eq!(result.generate_css_pure(None).unwrap(), css);
+    assert_eq!(result.generate_html_pure(None).unwrap(), html);
+}
+
+#[test]
+fn generate_sync_produces_all_default_font_types() {
+    let dest = temp_dest("gen-sync-defaults");
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest: dest.clone(),
+            files: fixture_files(),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("generate_sync should succeed");
+
+    // Default types: eot, woff, woff2
+    assert!(result.eot_bytes().is_some(), "should generate EOT");
+    assert!(result.woff_bytes().is_some(), "should generate WOFF");
+    assert!(result.woff2_bytes().is_some(), "should generate WOFF2");
+    // SVG and TTF are not in the default types
+    assert!(
+        result.svg_string().is_none(),
+        "should not generate SVG by default"
+    );
+    assert!(
+        result.ttf_bytes().is_none(),
+        "should not generate TTF by default"
+    );
+}
+
+#[test]
+fn generate_sync_produces_requested_types_only() {
+    let dest = temp_dest("gen-sync-types");
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest,
+            files: fixture_files(),
+            types: Some(vec![FontType::Svg, FontType::Ttf]),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("generate_sync should succeed");
+
+    assert!(result.svg_string().is_some(), "should generate SVG");
+    assert!(result.ttf_bytes().is_some(), "should generate TTF");
+    assert!(result.eot_bytes().is_none(), "should not generate EOT");
+    assert!(result.woff_bytes().is_none(), "should not generate WOFF");
+    assert!(result.woff2_bytes().is_none(), "should not generate WOFF2");
+}
+
+#[test]
+fn generate_sync_writes_files_to_disk() {
+    let dest = temp_dest("gen-sync-write");
+    let font_name = "test-icons";
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest: dest.clone(),
+            files: fixture_files(),
+            font_name: Some(font_name.to_owned()),
+            types: Some(vec![FontType::Woff2]),
+            css: Some(true),
+            write_files: Some(true),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("generate_sync should succeed");
+
+    assert!(result.woff2_bytes().is_some());
+    assert!(
+        Path::new(&dest).join(format!("{font_name}.woff2")).exists(),
+        "WOFF2 file should be written"
+    );
+    assert!(
+        Path::new(&dest).join(format!("{font_name}.css")).exists(),
+        "CSS file should be written"
+    );
+
+    // Clean up
+    let _ = std::fs::remove_dir_all(&dest);
+}
+
+#[test]
+fn generate_sync_generates_valid_css() {
+    let dest = temp_dest("gen-sync-css");
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest,
+            files: fixture_files(),
+            font_name: Some("my-icons".to_owned()),
+            types: Some(vec![FontType::Woff2]),
+            css: Some(true),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("generate_sync should succeed");
+
+    let css = result
+        .generate_css_pure(None)
+        .expect("CSS generation should succeed");
+
+    assert!(css.contains("@font-face"), "CSS should contain @font-face");
+    assert!(
+        css.contains("font-family: \"my-icons\""),
+        "CSS should use the configured font name"
+    );
+    assert!(
+        css.contains("format(\"woff2\")"),
+        "CSS should reference woff2 format"
+    );
+}
+
+#[test]
+fn generate_sync_generates_html_when_requested() {
+    let dest = temp_dest("gen-sync-html");
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest,
+            files: fixture_files(),
+            types: Some(vec![FontType::Woff2]),
+            html: Some(true),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("generate_sync should succeed");
+
+    let html = result
+        .generate_html_pure(None)
+        .expect("HTML generation should succeed");
+
+    assert!(
+        html.contains("<!DOCTYPE html>") || html.contains("<html"),
+        "should produce HTML"
+    );
+    assert!(
+        html.contains("@font-face"),
+        "HTML should embed CSS with @font-face"
+    );
+}
+
+#[test]
+fn generate_sync_applies_rename_callback() {
+    let dest = temp_dest("gen-sync-rename");
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest,
+            files: fixture_files(),
+            types: Some(vec![FontType::Svg]),
+            css: Some(true),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        Some(Box::new(|name: &str| format!("prefix-{name}"))),
+    )
+    .expect("generate_sync should succeed");
+
+    let css = result
+        .generate_css_pure(None)
+        .expect("CSS generation should succeed");
+
+    assert!(
+        css.contains("prefix-"),
+        "renamed glyphs should appear in CSS"
+    );
+}
+
+#[test]
+fn generate_sync_rejects_empty_dest() {
+    match webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest: String::new(),
+            files: fixture_files(),
+            ..Default::default()
+        },
+        None,
+    ) {
+        Err(err) => {
+            assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+            assert!(err.to_string().contains("dest"));
+        }
+        Ok(_) => panic!("should fail with empty dest"),
+    }
+}
+
+#[test]
+fn generate_sync_rejects_empty_files() {
+    match webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest: "output".to_owned(),
+            files: vec![],
+            ..Default::default()
+        },
+        None,
+    ) {
+        Err(err) => {
+            assert_eq!(err.kind(), std::io::ErrorKind::InvalidInput);
+            assert!(err.to_string().contains("files"));
+        }
+        Ok(_) => panic!("should fail with empty files"),
+    }
+}
+
+#[test]
+fn generate_sync_with_explicit_codepoints() {
+    let dest = temp_dest("gen-sync-codepoints");
+    let files = fixture_files();
+    let first_glyph = Path::new(&files[0])
+        .file_stem()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        .to_owned();
+
+    let result = webfont_generator::generate_sync(
+        GenerateWebfontsOptions {
+            dest,
+            files,
+            types: Some(vec![FontType::Svg]),
+            codepoints: Some(HashMap::from([(first_glyph.clone(), 0xE900)])),
+            css: Some(true),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+    )
+    .expect("generate_sync should succeed");
+
+    let css = result
+        .generate_css_pure(None)
+        .expect("CSS generation should succeed");
+
+    assert!(
+        css.contains("e900"),
+        "CSS should contain the explicit codepoint"
+    );
+}
+
+// --- async generate tests ---
+
+#[tokio::test]
+async fn generate_async_produces_fonts() {
+    let dest = temp_dest("gen-async");
+    let result = webfont_generator::generate(
+        GenerateWebfontsOptions {
+            dest,
+            files: fixture_files(),
+            types: Some(vec![FontType::Woff2, FontType::Svg]),
+            write_files: Some(false),
+            ..Default::default()
+        },
+        None,
+    )
+    .await
+    .expect("async generate should succeed");
+
+    assert!(result.woff2_bytes().is_some());
+    assert!(result.svg_string().is_some());
+}
+
+// --- CLI tests ---
+
+#[cfg(feature = "cli")]
+mod cli {
+    use std::process::Command;
+
+    #[test]
+    fn manifests_generate_from_an_unrelated_working_directory_and_report_fields() {
+        use serde_json::json;
+        let root = std::path::PathBuf::from(super::temp_dest("cli-manifest"));
+        std::fs::create_dir_all(root.join("icons")).unwrap();
+        std::fs::copy(
+            std::path::Path::new(&fixture_dir()).join("plus.svg"),
+            root.join("icons/plus.svg"),
+        )
+        .unwrap();
+        std::fs::write(root.join("css.hbs"), "family={{fontName}};{{{src}}}").unwrap();
+        std::fs::write(
+            root.join("html.hbs"),
+            "{{#each names}}{{this}};{{/each}}{{{styles}}}",
+        )
+        .unwrap();
+        let path = root.join("icons.json");
+        let manifest = json!({
+            "dest": "out", "fontName": "manifest", "html": true,
+            "formatOptions": {"ttf": {"ts": 1700000000}},
+            "cssTemplate": "css.hbs", "htmlTemplate": "html.hbs",
+            "cssDest": "styles/font.css", "htmlDest": "preview/font.html",
+            "variants": [
+                {"name": "light", "files": ["icons"], "default": true, "weight": 300},
+                {"name": "bold", "files": ["icons/plus.svg"], "weight": 700}
+            ]
+        });
+        std::fs::write(&path, manifest.to_string()).unwrap();
+        let output = cli_bin()
+            .current_dir(root.parent().unwrap())
+            .arg("--config")
+            .arg(&path)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(root.join("out/manifest.woff").exists());
+        assert!(root.join("out/manifest.woff2").exists());
+        let first = std::fs::read(root.join("out/manifest.woff2")).unwrap();
+        assert!(
+            cli_bin()
+                .arg("--config")
+                .arg(&path)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        assert_eq!(
+            first,
+            std::fs::read(root.join("out/manifest.woff2")).unwrap()
+        );
+        assert!(!root.join("out/manifest.eot").exists());
+        assert!(
+            std::fs::read_to_string(root.join("styles/font.css"))
+                .unwrap()
+                .contains("family=manifest")
+        );
+        assert!(
+            std::fs::read_to_string(root.join("preview/font.html"))
+                .unwrap()
+                .starts_with("plus;")
+        );
+        for (value, field) in [
+            (json!({"dest":"", "files":["icons"]}), "dest"),
+            (
+                json!({"dest":"out", "files":["icons"], "cssDest":""}),
+                "cssDest",
+            ),
+            (json!({"dest":"out", "files":[""]}), "files[0]"),
+            (json!({"files":["icons"]}), "dest"),
+            (
+                json!({"dest":"out", "files":["icons"], "formatOptions":{"woff2":{"typo":true}}}),
+                "typo",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["files"] = json!(["icons"]);
+                    value
+                },
+                "files",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["variants"][1]["files"] = json!(["icons", "icons/plus.svg"]);
+                    value
+                },
+                "variants[1].files[1]",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["variants"][0]["default"] = json!(false);
+                    value
+                },
+                "variants",
+            ),
+            (json!({"dest":"out", "files":["missing.svg"]}), "files[0]"),
+            (
+                json!({"dest":"out", "files":["icons", "icons/../icons/plus.svg"]}),
+                "files[1]",
+            ),
+            (
+                json!({"dest":"out", "files":["icons"], "typo":true}),
+                "typo",
+            ),
+            (
+                json!({"dest":"out", "files":["icons"], "formatOptions":{"woff2":{"compressionQuality":"bad"}}}),
+                "formatOptions.woff2.compressionQuality",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["variants"][1]["weight"] = json!(1001);
+                    value
+                },
+                "variants[1].weight",
+            ),
+            (
+                {
+                    let mut value = manifest.clone();
+                    value["types"] = json!(["eot"]);
+                    value
+                },
+                "types",
+            ),
+        ] {
+            std::fs::write(&path, value.to_string()).unwrap();
+            let output = cli_bin().arg("--config").arg(&path).output().unwrap();
+            assert!(!output.status.success());
+            let error = String::from_utf8_lossy(&output.stderr);
+            assert!(
+                error.contains(path.to_str().unwrap()) && error.contains(field),
+                "{error}"
+            );
+        }
+        std::fs::write(
+            &path,
+            json!({"dest":"ordinary", "files":["icons"], "types":["svg", "eot"]}).to_string(),
+        )
+        .unwrap();
+        assert!(
+            cli_bin()
+                .arg("--config")
+                .arg(&path)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        assert!(root.join("ordinary/iconfont.svg").exists());
+        assert!(root.join("ordinary/iconfont.eot").exists());
+        std::fs::write(
+            &path,
+            json!({"dest":"defaults", "files":["icons"]}).to_string(),
+        )
+        .unwrap();
+        assert!(
+            cli_bin()
+                .arg("--config")
+                .arg(&path)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        for ext in ["eot", "woff", "woff2"] {
+            assert!(root.join(format!("defaults/iconfont.{ext}")).exists());
+        }
+        let mut dry_run = manifest.clone();
+        dry_run["dest"] = json!("dry-run");
+        dry_run["writeFiles"] = json!(false);
+        std::fs::write(&path, dry_run.to_string()).unwrap();
+        assert!(
+            cli_bin()
+                .arg("--config")
+                .arg(&path)
+                .output()
+                .unwrap()
+                .status
+                .success()
+        );
+        assert!(!root.join("dry-run").exists());
+        std::fs::write(&path, "{broken json").unwrap();
+        let output = cli_bin().arg("--config").arg(&path).output().unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains(path.to_str().unwrap()));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    fn cli_bin() -> Command {
+        Command::new(env!("CARGO_BIN_EXE_webfont-generator"))
+    }
+
+    fn fixture_dir() -> String {
+        std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("src/svg/fixtures/icons/cleanicons")
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    #[test]
+    fn help_flag_succeeds() {
+        let output = cli_bin().arg("--help").output().expect("should execute");
+        assert!(output.status.success());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("Generate webfonts from SVG icons"));
+    }
+
+    #[test]
+    fn version_flag_succeeds() {
+        let output = cli_bin().arg("--version").output().expect("should execute");
+        assert!(output.status.success());
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        assert!(stdout.contains("webfont-generator"));
+    }
+
+    #[test]
+    fn generates_fonts_from_directory() {
+        let dest = super::temp_dest("cli-dir");
+        let output = cli_bin()
+            .args(["--dest", &dest, "--types", "woff2", &fixture_dir()])
+            .output()
+            .expect("should execute");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            output.status.success(),
+            "CLI should succeed. stdout: {stdout}, stderr: {stderr}"
+        );
+        assert!(stdout.contains("WOFF2"), "should report generated WOFF2");
+        assert!(
+            std::path::Path::new(&dest).join("iconfont.woff2").exists(),
+            "WOFF2 file should be written"
+        );
+
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn fails_with_no_files() {
+        let output = cli_bin()
+            .args(["--dest", "/tmp/empty", "/nonexistent/path"])
+            .output()
+            .expect("should execute");
+
+        assert!(!output.status.success());
+    }
+
+    #[test]
+    fn generates_css_and_html() {
+        let dest = super::temp_dest("cli-css-html");
+        let output = cli_bin()
+            .args([
+                "--dest",
+                &dest,
+                "--types",
+                "woff2",
+                "--html",
+                "--font-name",
+                "test-font",
+                &fixture_dir(),
+            ])
+            .output()
+            .expect("should execute");
+
+        assert!(output.status.success(), "CLI should succeed");
+        assert!(
+            std::path::Path::new(&dest).join("test-font.css").exists(),
+            "CSS file should be written"
+        );
+        assert!(
+            std::path::Path::new(&dest).join("test-font.html").exists(),
+            "HTML file should be written"
+        );
+
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn no_css_suppresses_css_output() {
+        let dest = super::temp_dest("cli-no-css");
+        let output = cli_bin()
+            .args([
+                "--dest",
+                &dest,
+                "--types",
+                "woff2",
+                "--no-css",
+                &fixture_dir(),
+            ])
+            .output()
+            .expect("should execute");
+
+        assert!(output.status.success(), "CLI should succeed");
+        assert!(
+            std::path::Path::new(&dest).join("iconfont.woff2").exists(),
+            "font file should be written"
+        );
+        assert!(
+            !std::path::Path::new(&dest).join("iconfont.css").exists(),
+            "CSS file should NOT be written with --no-css"
+        );
+
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn no_html_suppresses_html_even_with_html_flag() {
+        let dest = super::temp_dest("cli-no-html");
+        let output = cli_bin()
+            .args([
+                "--dest",
+                &dest,
+                "--types",
+                "woff2",
+                "--html",
+                "--no-html",
+                &fixture_dir(),
+            ])
+            .output()
+            .expect("should execute");
+
+        assert!(output.status.success(), "CLI should succeed");
+        assert!(
+            !std::path::Path::new(&dest).join("iconfont.html").exists(),
+            "HTML file should NOT be written when --no-html overrides --html"
+        );
+
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn no_write_suppresses_all_file_output() {
+        let dest = super::temp_dest("cli-no-write");
+        let output = cli_bin()
+            .args([
+                "--dest",
+                &dest,
+                "--types",
+                "woff2",
+                "--no-write",
+                &fixture_dir(),
+            ])
+            .output()
+            .expect("should execute");
+
+        assert!(output.status.success(), "CLI should succeed");
+        assert!(
+            !std::path::Path::new(&dest).exists(),
+            "dest directory should not be created with --no-write"
+        );
+    }
+
+    #[test]
+    fn rejects_invalid_font_type() {
+        let output = cli_bin()
+            .args(["--dest", "/tmp/test", "--types", "wof22", &fixture_dir()])
+            .output()
+            .expect("should execute");
+
+        assert!(!output.status.success(), "should fail with invalid type");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("invalid value"),
+            "should report invalid value"
+        );
+    }
+
+    #[test]
+    fn invalid_start_codepoint_uses_default() {
+        let dest = super::temp_dest("cli-bad-codepoint");
+        let output = cli_bin()
+            .args([
+                "--dest",
+                &dest,
+                "--types",
+                "woff2",
+                "--no-css",
+                "--start-codepoint",
+                "not-a-number",
+                &fixture_dir(),
+            ])
+            .output()
+            .expect("should execute");
+
+        assert!(
+            output.status.success(),
+            "should succeed with invalid codepoint (falls back to default)"
+        );
+
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn ligature_no_ligature_last_flag_wins() {
+        let dest = super::temp_dest("cli-ligature-precedence");
+        let output = cli_bin()
+            .args([
+                "--dest",
+                &dest,
+                "--types",
+                "svg",
+                "--no-css",
+                "--ligature",
+                "--no-ligature",
+                &fixture_dir(),
+            ])
+            .output()
+            .expect("should execute");
+
+        assert!(output.status.success(), "CLI should succeed");
+
+        // With ligatures enabled, each glyph gets two <glyph> entries (codepoint +
+        // ligature string). Without ligatures, only the codepoint entry exists.
+        // The fixture dir has 10 SVGs, so we expect exactly 10 glyphs (no ligatures).
+        let svg =
+            std::fs::read_to_string(std::path::Path::new(&dest).join("iconfont.svg")).unwrap();
+        let glyph_count = svg.matches("<glyph ").count();
+        assert_eq!(
+            glyph_count, 10,
+            "should have exactly 10 <glyph> entries (no ligature duplicates) when --no-ligature wins"
+        );
+
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn no_css_then_css_restores_css_output() {
+        let dest = super::temp_dest("cli-no-css-css");
+        let output = cli_bin()
+            .args([
+                "--dest",
+                &dest,
+                "--types",
+                "woff2",
+                "--no-css",
+                "--css",
+                "--font-name",
+                "precedence-test",
+                &fixture_dir(),
+            ])
+            .output()
+            .expect("should execute");
+
+        assert!(output.status.success(), "CLI should succeed");
+        assert!(
+            std::path::Path::new(&dest)
+                .join("precedence-test.css")
+                .exists(),
+            "CSS should be generated when --css overrides earlier --no-css"
+        );
+
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+
+    #[test]
+    fn no_write_then_write_restores_file_output() {
+        let dest = super::temp_dest("cli-no-write-write");
+        let output = cli_bin()
+            .args([
+                "--dest",
+                &dest,
+                "--types",
+                "woff2",
+                "--no-css",
+                "--no-write",
+                "--write",
+                &fixture_dir(),
+            ])
+            .output()
+            .expect("should execute");
+
+        assert!(output.status.success(), "CLI should succeed");
+        assert!(
+            std::path::Path::new(&dest).join("iconfont.woff2").exists(),
+            "font should be written when --write overrides earlier --no-write"
+        );
+
+        let _ = std::fs::remove_dir_all(&dest);
+    }
+}

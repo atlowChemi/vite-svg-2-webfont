@@ -10,7 +10,7 @@ import { afterEach, beforeAll, describe, expect, it } from 'vite-plus/test';
 import { generateWebfonts as generateNativeBinding } from '../binding.js';
 import { type FontType, generateWebfonts, type GenerateWebfontsFileOptions, type GenerateWebfontsVariantOptions } from '../index.js';
 
-const fixturesRoot = join(import.meta.dirname, '..', 'src', 'svg', 'fixtures');
+const fixturesRoot = join(import.meta.dirname, '..', '..', '..', 'crates', 'webfont-generator', 'src', 'svg', 'fixtures');
 const webfontFixtures = join(import.meta.dirname, '..', '..', 'vite-svg-2-webfont', 'src', 'fixtures', 'webfont-test', 'svg');
 
 const cleanupDirs = new Set<string>();

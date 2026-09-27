@@ -1,0 +1,64 @@
+[package]
+name = "webfont-generator"
+version = "0.7.0"
+edition = "2024"
+license = "MIT"
+description = "Generate webfonts (SVG, TTF, EOT, WOFF, WOFF2) from SVG icons"
+repository = "https://github.com/atlowChemi/vite-svg-2-webfont"
+documentation = "https://docs.rs/webfont-generator"
+readme = "README.md"
+keywords = ["webfont", "svg", "icon-font", "woff", "opentype"]
+categories = ["command-line-utilities", "graphics", "web-programming"]
+
+[[bin]]
+name = "webfont-generator"
+required-features = ["cli"]
+
+[features]
+default = []
+cli = ["dep:clap", "dep:serde_path_to_error"]
+bench = []
+
+[dependencies]
+brotli = "=9.0.0"
+clap = { version = "4", features = ["derive"], optional = true }
+flate2 = { version = "1.1.5", default-features = false, features = ["zlib"] }
+handlebars = "6.4.1"
+kurbo = "0.13.1"
+libz-sys = { version = "1.1", features = ["static"] }
+md5 = "0.8.0"
+rayon = "1.12.0"
+roxmltree = "0.21.1"
+rustc-hash = { version = "2.1.1", default-features = false }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"
+serde_path_to_error = { version = "0.1", optional = true }
+oxvg_path = "0.0.8"
+tokio = { version = "1", features = ["fs", "macros", "rt", "rt-multi-thread"] }
+usvg = { version = "0.48.0", default-features = false }
+write-fonts = { version = "0.53.0", features = ["read"] }
+
+[dev-dependencies]
+criterion = { version = "0.8", features = ["html_reports"] }
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+woff = { version = "0.6.3" }
+
+[[bench]]
+name = "incremental"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "pipeline"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "features"
+harness = false
+required-features = ["bench"]
+
+[[bench]]
+name = "variants"
+harness = false
+required-features = ["bench"]

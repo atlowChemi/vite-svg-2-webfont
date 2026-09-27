@@ -115,7 +115,23 @@ On failure, `RegenerateError::into_result()` recovers the consumed result for re
 blocking task returned normally. These consuming futures are not cancellation-safe: dropping one
 does not stop already-started blocking work and the consumed result cannot be recovered.
 
+Adapters that must keep the old result readable can use
+`result.regenerate_snapshot_async(files, changes).await`, which borrows the receiver and
+returns `std::io::Result<GenerateWebfontsResult>`. Pass `Some(changes)` for explicit changes
+or `None` to re-diff. Success disables further regeneration of the old snapshot; failure
+restores its regeneration state for retry. Dropping the future does not cancel blocking
+work or writes and can leave the old snapshot replaced without returning its successor.
+Prefer the consuming methods when Rust ownership can enforce replacement.
+
 ## CLI
+
+The Rust engine and CLI live in [`crates/webfont-generator`](../../crates/webfont-generator).
+This npm package contains the separate, unpublished `webfont-generator-napi` adapter crate.
+`generate_with_hooks` and `GenerationHooks` provide runtime-independent asynchronous
+rename/context callbacks; the adapter owns JavaScript callback transport and conversions.
+Rename hooks borrow paths; only a configured JavaScript rename callback needs an owned path batch.
+The old Rust `napi` feature and Node-specific Rust entry point are removed, requiring a
+pre-1.0 minor release. The npm API and generated binding types are preserved.
 
 The CLI is available as an opt-in feature (to avoid pulling in `clap` for library users):
 
