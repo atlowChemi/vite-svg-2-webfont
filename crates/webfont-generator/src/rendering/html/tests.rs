@@ -9,7 +9,9 @@ use crate::rendering::css::SharedTemplateData;
 use crate::rendering::paths::{path_to_slashes, relative_path};
 use crate::{FontType, GenerateWebfontsOptions};
 
-use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};
+use crate::test_helpers::{
+    fixture_source_files, npm_template, resolve_options, write_temp_template,
+};
 
 fn render_html(
     options: &ResolvedGenerateWebfontsOptions,
@@ -25,13 +27,13 @@ fn render_html(
 fn render_html_renders_the_template_with_generated_styles_and_names() {
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(format!("{}/templates/css.hbs", env!("CARGO_MANIFEST_DIR"))),
+        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
         files: vec![crate::test_helpers::webfont_fixture("add.svg")],
         html: Some(true),
-        html_template: Some(format!("{}/templates/html.hbs", env!("CARGO_MANIFEST_DIR"))),
+        html_template: Some(npm_template("html")),
         font_name: Some("iconfont".to_owned()),
         ligature: Some(false),
         order: Some(vec![FontType::Svg]),
@@ -101,14 +103,14 @@ fn render_html_uses_font_paths_relative_to_html_dest() {
     let options = GenerateWebfontsOptions {
         css: Some(true),
         css_dest: Some("/artifacts/styles/iconfont.css".to_owned()),
-        css_template: Some(format!("{}/templates/css.hbs", env!("CARGO_MANIFEST_DIR"))),
+        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/ignored".to_owned()),
         dest: "/artifacts/fonts".to_owned(),
         files: vec![crate::test_helpers::webfont_fixture("add.svg")],
         html: Some(true),
         html_dest: Some("/artifacts/preview/iconfont.html".to_owned()),
-        html_template: Some(format!("{}/templates/html.hbs", env!("CARGO_MANIFEST_DIR"))),
+        html_template: Some(npm_template("html")),
         font_name: Some("iconfont".to_owned()),
         ligature: Some(false),
         order: Some(vec![FontType::Svg]),
@@ -128,7 +130,7 @@ fn render_html_supports_static_custom_templates() {
     let template_path = write_temp_template("native-html-static-template", "custom html");
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(format!("{}/templates/css.hbs", env!("CARGO_MANIFEST_DIR"))),
+        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
@@ -157,7 +159,7 @@ fn render_html_supports_custom_templates_using_all_available_context_values() {
     );
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(format!("{}/templates/css.hbs", env!("CARGO_MANIFEST_DIR"))),
+        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
@@ -189,7 +191,7 @@ fn render_html_rejects_invalid_handlebars_templates() {
     let template_path = write_temp_template("native-html-invalid-template", "{{#if}}");
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(format!("{}/templates/css.hbs", env!("CARGO_MANIFEST_DIR"))),
+        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
@@ -226,7 +228,7 @@ fn default_html_hot_path_matches_handlebars_output() {
         files: vec![crate::test_helpers::webfont_fixture("add.svg")],
         html: Some(true),
         html_dest: Some("artifacts/iconfont.html".to_owned()),
-        html_template: Some(format!("{}/templates/html.hbs", env!("CARGO_MANIFEST_DIR"))),
+        html_template: Some(npm_template("html")),
         font_height: Some(1000.0),
         font_name: Some("iconfont".to_owned()),
         ligature: Some(false),

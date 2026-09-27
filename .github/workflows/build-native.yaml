@@ -117,9 +117,6 @@ jobs:
                   path: ${{ github.workspace }}/.xwin
                   key: xwin-${{ runner.os }}-windows-msvc-v1
 
-            - name: Sync npm templates
-              run: node scripts/sync-webfont-templates.mjs
-
             - name: Build native module
               working-directory: packages/webfont-generator
               run: >

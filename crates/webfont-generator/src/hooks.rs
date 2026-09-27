@@ -13,10 +13,11 @@ pub trait GenerationHooks: Send + Sync {
     /// Error returned to the caller, including converted engine errors.
     type Error: From<std::io::Error> + Send;
 
-    /// Resolve one glyph name per path, or use the engine's defaults.
+    /// Resolve one glyph name per borrowed path, or use the engine's defaults.
+    /// Adapters that need an owned callback payload can copy paths inside this method.
     fn rename(
         &self,
-        _paths: Vec<String>,
+        _paths: &[String],
     ) -> impl Future<Output = Result<Option<Vec<String>>, Self::Error>> + Send {
         async { Ok(None) }
     }
@@ -50,4 +51,17 @@ pub trait GenerationHooks: Send + Sync {
 
 impl GenerationHooks for () {
     type Error = std::io::Error;
+}
+
+/// Adapt the existing synchronous Rust rename callback without copying input paths.
+pub(crate) struct RenameHooks<'a>(pub Option<&'a (dyn Fn(&str) -> String + Send + Sync)>);
+
+impl GenerationHooks for RenameHooks<'_> {
+    type Error = std::io::Error;
+
+    async fn rename(&self, paths: &[String]) -> std::io::Result<Option<Vec<String>>> {
+        Ok(self
+            .0
+            .map(|rename| paths.iter().map(|path| rename(path)).collect()))
+    }
 }

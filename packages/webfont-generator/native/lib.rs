@@ -25,12 +25,12 @@ struct NodeHooks {
 impl GenerationHooks for NodeHooks {
     type Error = napi::Error;
 
-    async fn rename(&self, paths: Vec<String>) -> napi::Result<Option<Vec<String>>> {
+    async fn rename(&self, paths: &[String]) -> napi::Result<Option<Vec<String>>> {
         let Some(rename) = &self.rename else {
             return Ok(None);
         };
         let count = paths.len();
-        let names = rename.call_async_catch(paths).await?;
+        let names = rename.call_async_catch(paths.to_vec()).await?;
         if names.len() != count {
             return Err(napi::Error::new(
                 Status::InvalidArg,
@@ -83,6 +83,7 @@ async fn apply_context(
 ///   return the (possibly mutated) context.
 /// - `htmlContext(ctx)` — same, but for the HTML preview.
 #[napi]
+// NAPI's TypeScript generator reads the callback syntax rather than resolving Rust aliases.
 #[allow(clippy::type_complexity)]
 pub async fn generate_webfonts(
     options: GenerateWebfontsOptions,

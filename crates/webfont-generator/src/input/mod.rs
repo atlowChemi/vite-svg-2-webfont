@@ -1,9 +1,11 @@
 mod files;
 mod options;
 
+#[cfg(test)]
+pub(crate) use files::load_variant_svg_files;
 pub(crate) use files::{
     LoadedSvgFile, VariantFamilySources, VariantGlyphSource, build_variant_family_sources,
-    load_svg_files, load_variant_svg_files, resolve_missing_glyphs, validate_glyph_names,
+    resolve_missing_glyphs, validate_glyph_names,
 };
 pub(crate) use files::{load_svg_files_with_hooks, load_variant_svg_files_with_hooks};
 pub(crate) use options::{

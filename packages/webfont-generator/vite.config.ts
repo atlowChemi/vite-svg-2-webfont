@@ -35,13 +35,13 @@ export default defineProject({
             'test:coverage': {
                 ...cargoCache,
                 command:
-                    'cargo llvm-cov clean --workspace && cargo llvm-cov -p webfont-generator --no-report && cargo llvm-cov -p webfont-generator --no-report --features cli && cargo llvm-cov -p webfont-generator-napi --lib --no-report && cargo llvm-cov report --lcov --output-path rust-lcov.info',
+                    'cargo llvm-cov clean --workspace && cargo llvm-cov -p webfont-generator --no-report && cargo llvm-cov -p webfont-generator --no-report --features cli && cargo llvm-cov -p webfont-generator-napi --lib --no-report && cargo llvm-cov report -p webfont-generator -p webfont-generator-napi --lcov --output-path rust-lcov.info',
                 dependsOn: ['check'],
                 env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
             },
             build: {
                 ...cargoCache,
-                command: 'node ../../scripts/sync-webfont-templates.mjs && napi build --platform --esm --js binding.js --dts binding.d.ts',
+                command: 'napi build --platform --esm --js binding.js --dts binding.d.ts',
             },
             bench: {
                 cache: false,
@@ -49,7 +49,7 @@ export default defineProject({
             },
             'build:release': {
                 ...cargoCache,
-                command: 'node ../../scripts/sync-webfont-templates.mjs && napi build --platform --esm --js binding.js --dts binding.d.ts --release',
+                command: 'napi build --platform --esm --js binding.js --dts binding.d.ts --release',
                 dependsOn: ['test'],
             },
         },

@@ -41,6 +41,14 @@ pub fn webfont_fixture(name: &str) -> String {
     )
 }
 
+/// Templates shipped by the npm package, used for repository rendering parity tests.
+pub fn npm_template(name: &str) -> String {
+    format!(
+        "{}/../../packages/webfont-generator/templates/{name}.hbs",
+        env!("CARGO_MANIFEST_DIR")
+    )
+}
+
 pub fn fixture_font_tables() -> crate::sfnt::SerializedFontTables {
     let mut options = resolve_options(crate::GenerateWebfontsOptions {
         css: Some(false),

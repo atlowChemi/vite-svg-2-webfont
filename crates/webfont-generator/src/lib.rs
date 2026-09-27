@@ -82,8 +82,8 @@ use std::sync::Mutex;
 
 use input::{
     ResolvedGenerateWebfontsOptions, build_variant_family_sources,
-    finalize_generate_webfonts_options, load_svg_files, load_variant_svg_files,
-    resolve_generate_webfonts_options, resolve_missing_glyphs, validate_generate_webfonts_options,
+    finalize_generate_webfonts_options, resolve_generate_webfonts_options, resolve_missing_glyphs,
+    validate_generate_webfonts_options,
 };
 use input::{load_svg_files_with_hooks, load_variant_svg_files_with_hooks};
 use output::write_generate_webfonts_result;
@@ -375,41 +375,7 @@ pub async fn generate(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
 ) -> std::io::Result<GenerateWebfontsResult> {
-    validate_generate_webfonts_options(&options)?;
-    let result = if options.variants.is_some() {
-        let mut resolved_options = resolve_generate_webfonts_options(options)?;
-        let variant_paths = resolved_options
-            .variants
-            .as_ref()
-            .expect("validated variant options must resolve variants")
-            .variants
-            .iter()
-            .map(|variant| variant.files.clone())
-            .collect::<Vec<_>>();
-        let source_files = load_variant_svg_files(&variant_paths, rename.as_deref()).await?;
-        let generation = tokio::task::spawn_blocking(move || {
-            let (family, source_files, cache) =
-                prepare_variant_family(&mut resolved_options, source_files)?;
-            generate_variant_webfonts_sync(resolved_options, source_files, family, cache)
-        });
-        generation.await.map_err(std::io::Error::other)??
-    } else {
-        let source_files = load_svg_files(&options.files, rename.as_deref()).await?;
-        let mut resolved_options = resolve_generate_webfonts_options(options)?;
-        finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
-        tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
-            .await
-            .map_err(std::io::Error::other)??
-    };
-
-    if result.options.write_files
-        && let Some(written) = write_generate_webfonts_result(&result).await?
-    {
-        // Only incremental results can call `regenerate`, so only they need write-skip state.
-        result.seed_written_outputs(written);
-    }
-
-    Ok(result)
+    generate_with_hooks(options, &hooks::RenameHooks(rename.as_deref())).await
 }
 
 /// Synchronous version of [`generate`]. Spawns a tokio runtime internally and has the same source

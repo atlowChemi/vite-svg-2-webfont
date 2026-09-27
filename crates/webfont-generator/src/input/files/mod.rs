@@ -76,41 +76,12 @@ async fn load_svg_contents(paths: &[String]) -> std::io::Result<Vec<(String, Str
         .collect()
 }
 
-/// Load SVG files and resolve glyph names using an optional sync rename function.
-pub(crate) async fn load_svg_files(
-    paths: &[String],
-    rename: Option<&(dyn Fn(&str) -> String + Send + Sync)>,
-) -> std::io::Result<Vec<LoadedSvgFile>> {
-    let raw = load_svg_contents(paths).await?;
-    let source_files: Vec<LoadedSvgFile> = raw
-        .into_iter()
-        .map(|(path, contents)| {
-            let glyph_name = glyph_name_from_path(&path, rename)?;
-            Ok(LoadedSvgFile {
-                contents: contents.into(),
-                glyph_name,
-                path,
-            })
-        })
-        .collect::<std::io::Result<_>>()?;
-
-    validate_glyph_names(&source_files)?;
-    Ok(source_files)
-}
-
+#[cfg(test)]
 pub(crate) async fn load_variant_svg_files(
     variant_paths: &[Vec<String>],
     rename: Option<&(dyn Fn(&str) -> String + Send + Sync)>,
 ) -> std::io::Result<Vec<Vec<LoadedSvgFile>>> {
-    let lengths = variant_paths.iter().map(Vec::len).collect::<Vec<_>>();
-    let paths = variant_paths.iter().flatten().cloned().collect::<Vec<_>>();
-    let raw = load_svg_contents(&paths).await?;
-    let glyph_names = raw
-        .iter()
-        .map(|(path, _)| glyph_name_from_path(path, rename))
-        .collect::<std::io::Result<Vec<_>>>()?;
-
-    split_variant_files(raw, glyph_names, &lengths)
+    load_variant_svg_files_with_hooks(variant_paths, &crate::hooks::RenameHooks(rename)).await
 }
 
 /// Resolve glyph names via a runtime-independent asynchronous hook.
@@ -120,7 +91,7 @@ pub(crate) async fn load_svg_files_with_hooks<H: GenerationHooks>(
     validate_names: bool,
 ) -> Result<Vec<LoadedSvgFile>, H::Error> {
     let raw = load_svg_contents(paths).await?;
-    let glyph_names = if let Some(glyph_names) = hooks.rename(paths.to_vec()).await? {
+    let glyph_names = if let Some(glyph_names) = hooks.rename(paths).await? {
         if glyph_names.len() != raw.len() {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
@@ -159,22 +130,6 @@ pub(crate) async fn load_variant_svg_files_with_hooks<H: GenerationHooks>(
     let source_files = load_svg_files_with_hooks(&paths, hooks, false).await?;
 
     Ok(split_loaded_variant_files(source_files, &lengths)?)
-}
-
-fn split_variant_files(
-    raw: Vec<(String, String)>,
-    glyph_names: Vec<String>,
-    lengths: &[usize],
-) -> std::io::Result<Vec<Vec<LoadedSvgFile>>> {
-    let source_files = raw
-        .into_iter()
-        .zip(glyph_names)
-        .map(|((path, contents), glyph_name)| LoadedSvgFile {
-            contents: contents.into(),
-            glyph_name,
-            path,
-        });
-    split_loaded_variant_files(source_files.collect(), lengths)
 }
 
 fn split_loaded_variant_files(
@@ -332,6 +287,7 @@ fn default_glyph_name_from_path(path: &str) -> Result<String, Error> {
 }
 
 /// Resolve a glyph name from a file path, optionally applying a rename function.
+#[cfg(test)]
 fn glyph_name_from_path(
     path: &str,
     rename: Option<&(dyn Fn(&str) -> String + Send + Sync)>,

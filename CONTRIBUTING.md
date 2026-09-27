@@ -114,10 +114,15 @@ This monorepo has a root Cargo workspace and the following packages:
 - `packages/docs/`: VitePress documentation site, published to GitHub Pages
 - `tests/`: cross-package compatibility tests and benchmarks (at root level)
 
-Cargo uses the root `Cargo.lock` and `target/`. Engine templates are canonical under
-`crates/webfont-generator/templates/`; binding builds copy them into the npm package.
-Release Please links engine/adapter versions while retaining the existing native release
-tag and npm/crates.io identities. The engine's private npm task package is never published.
+Cargo uses the root `Cargo.lock` and `target/`. Templates are tracked solely under
+`packages/webfont-generator/templates/` and ship directly in the npm package. Rust rendering
+parity tests read those files through `test_helpers::npm_template`; they require a repository
+checkout. The library and CLI do not need those files for default rendering.
+Release Please links engine/adapter versions. The engine has its own changelog at
+`crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;
+those releases trigger crates.io publication. The npm adapter retains its own changelog
+and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
+engine's private npm task package is never published.
 
 ## Pull Requests
 

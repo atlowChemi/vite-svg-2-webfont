@@ -23,7 +23,9 @@ fn render_css(
     render_css_with_context(&shared, &ctx)
 }
 
-use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};
+use crate::test_helpers::{
+    fixture_source_files, npm_template, resolve_options, write_temp_template,
+};
 
 #[test]
 fn variant_default_css_matches_template_and_resolved_weights() {
@@ -52,7 +54,7 @@ fn variant_default_css_matches_template_and_resolved_weights() {
     let css = render_css_with_context(&shared, &ctx).unwrap();
     let mut registry = handlebars::Handlebars::new();
     registry
-        .register_template_string("css", include_str!("../../../templates/css.hbs"))
+        .register_template_string("css", fs::read_to_string(npm_template("css")).unwrap())
         .unwrap();
     assert_eq!(css, registry.render("css", &ctx).unwrap());
     assert_eq!(css.matches("@font-face").count(), 2);
@@ -378,7 +380,7 @@ fn make_ctx_builds_codepoints_and_merges_template_options() {
 fn render_css_renders_the_template_with_generated_urls() {
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(format!("{}/templates/css.hbs", env!("CARGO_MANIFEST_DIR"))),
+        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
@@ -500,7 +502,7 @@ fn default_css_hot_path_matches_handlebars_output() {
 
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(format!("{}/templates/css.hbs", env!("CARGO_MANIFEST_DIR"))),
+        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([
             ("add".to_owned(), 0xE001u32),
             ("remove".to_owned(), 0xE002u32),

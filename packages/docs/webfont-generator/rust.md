@@ -39,13 +39,13 @@ the npm package name, imports, options, callbacks and result API remain the same
 It returns `Result<GenerateWebfontsResult, H::Error>`, where the hook error type implements
 `From<std::io::Error> + Send`. Implementations must be `Send + Sync` and return `Send` futures.
 
-| Method                  | Default            | Contract                                                                                                                                       |
-| ----------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| `rename(paths)`         | `Ok(None)`         | Runs after source loading; return one name per ordered path, or `None` for file stems. Variant paths are flattened in configured design order. |
-| `has_css_context()`     | `false`            | Enable CSS context mutation.                                                                                                                   |
-| `has_html_context()`    | `false`            | Enable HTML context mutation.                                                                                                                  |
-| `css_context(context)`  | Unmodified context | Runs before HTML; engine-owned variant mode cannot be overridden.                                                                              |
-| `html_context(context)` | Unmodified context | Receives the HTML context, with variant styles derived from the finalized CSS context.                                                         |
+| Method                  | Default            | Contract                                                                                                                                                      |
+| ----------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rename(paths)`         | `Ok(None)`         | Borrows `&[String]` after source loading; return one name per ordered path, or `None` for file stems. Variant paths are flattened in configured design order. |
+| `has_css_context()`     | `false`            | Enable CSS context mutation.                                                                                                                                  |
+| `has_html_context()`    | `false`            | Enable HTML context mutation.                                                                                                                                 |
+| `css_context(context)`  | Unmodified context | Runs before HTML; engine-owned variant mode cannot be overridden.                                                                                             |
+| `html_context(context)` | Unmodified context | Receives the HTML context, with variant styles derived from the finalized CSS context.                                                                        |
 
 The engine owns generation, rendering caches and output writes. Adapters own callback
 transport and boundary types. `()` implements the trait with no callbacks. Results made

@@ -129,6 +129,7 @@ The Rust engine and CLI live in [`crates/webfont-generator`](../../crates/webfon
 This npm package contains the separate, unpublished `webfont-generator-napi` adapter crate.
 `generate_with_hooks` and `GenerationHooks` provide runtime-independent asynchronous
 rename/context callbacks; the adapter owns JavaScript callback transport and conversions.
+Rename hooks borrow paths; only a configured JavaScript rename callback needs an owned path batch.
 The old Rust `napi` feature and Node-specific Rust entry point are removed, requiring a
 pre-1.0 minor release. The npm API and generated binding types are preserved.
 
