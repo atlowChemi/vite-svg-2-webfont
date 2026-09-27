@@ -1,0 +1,10 @@
+# Keep each test's identity stable and let CI upload metadata identify the platform/run.
+# cargo test --doc remains a separate step: nextest does not execute doctests.
+[profile.ci]
+fail-fast = false
+retries = 0
+
+[profile.ci.junit]
+path = "junit.xml"
+store-success-output = false
+store-failure-output = true

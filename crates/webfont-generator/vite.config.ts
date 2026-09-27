@@ -22,10 +22,16 @@ export default defineProject({
             },
             bench: { cache: false, command: 'cargo bench -p webfont-generator --features bench' },
             'test:coverage': {
-                ...cargoCache,
-                command:
-                    'cargo llvm-cov clean --workspace && cargo llvm-cov -p webfont-generator --no-report && cargo llvm-cov -p webfont-generator --no-report --features cli && cargo llvm-cov report -p webfont-generator --lcov --output-path rust-lcov.info',
-                dependsOn: ['check'],
+                cache: false,
+                command: 'bash ../../scripts/ci/rust-coverage.sh engine',
+            },
+            'test:coverage:cli': {
+                cache: false,
+                command: 'bash ../../scripts/ci/rust-coverage.sh cli',
+            },
+            'test:doctests': {
+                cache: false,
+                command: 'node ../../scripts/ci/doctests.mjs',
             },
         },
     },

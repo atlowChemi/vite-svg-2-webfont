@@ -33,11 +33,12 @@ export default defineProject({
                 dependsOn: ['build'],
             },
             'test:coverage': {
-                ...cargoCache,
-                command:
-                    'cargo llvm-cov clean --workspace && cargo llvm-cov -p webfont-generator --no-report && cargo llvm-cov -p webfont-generator --no-report --features cli && cargo llvm-cov -p webfont-generator-napi --lib --no-report && cargo llvm-cov report -p webfont-generator -p webfont-generator-napi --lcov --output-path rust-lcov.info',
-                dependsOn: ['check'],
-                env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
+                cache: false,
+                command: 'bash ../../scripts/ci/rust-coverage.sh adapter',
+            },
+            'test:coverage:native': {
+                cache: false,
+                command: 'bash ../../scripts/ci/native-coverage.sh',
             },
             build: {
                 ...cargoCache,
