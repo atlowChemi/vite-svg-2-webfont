@@ -24,7 +24,7 @@ mod variant_tests {
     use crate::{FontVariant, GenerateWebfontsOptions};
     use flate2::read::ZlibDecoder;
     use std::io::Read;
-    use write_fonts::read::{FontRef, TableProvider};
+    use write_fonts::read::FontRef;
     use write_fonts::types::Tag;
 
     fn woff1_table(woff: &[u8], wanted: [u8; 4]) -> Vec<u8> {
