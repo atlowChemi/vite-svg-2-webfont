@@ -1,5 +1,5 @@
 {
-  "lastUpdate": 1790290555992,
+  "lastUpdate": 1790513845932,
   "repoUrl": "https://github.com/atlowChemi/vite-svg-2-webfont",
   "entries": {
     "Webfont Generator": [
@@ -304238,6 +304238,4409 @@
             "range": "± 0.5541613855184644%",
             "unit": "ms",
             "extra": "5.543510289264203 ops/sec"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "chemi@atlow.co.il",
+            "name": "Chemi Atlow",
+            "username": "atlowChemi"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "4235adeb974aaccd20f440765be56ddda4f5935c",
+          "message": "chore(benchmarks): show per-test progress locally and in CI (#502)",
+          "timestamp": "2026-09-27T13:36:06+03:00",
+          "tree_id": "14ff5775428f1e6122836758f9c6bc42660224ae",
+          "url": "https://github.com/atlowChemi/vite-svg-2-webfont/commit/4235adeb974aaccd20f440765be56ddda4f5935c"
+        },
+        "date": 1790513845691,
+        "tool": "customSmallerIsBetter",
+        "benches": [
+          {
+            "name": "criterion/add_remove/full_add_at_end_100",
+            "value": 16.76423814000001,
+            "range": "16.60915633266668..16.929068767",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_add_at_end_300",
+            "value": 55.27288919,
+            "range": "54.62213581825..55.942694412",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_add_at_end_600",
+            "value": 101.56864668,
+            "range": "100.3353735465..102.791636987",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_add_at_middle_100",
+            "value": 16.366368683333334,
+            "range": "16.256728246999998..16.481333672666672",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_add_at_middle_300",
+            "value": 54.25960589,
+            "range": "53.6499533405..54.885801427749996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_add_at_middle_600",
+            "value": 101.99473161,
+            "range": "100.7827955545..103.20933340675",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_add_at_start_100",
+            "value": 17.23100569666667,
+            "range": "17.051777306750004..17.417686430250004",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_add_at_start_300",
+            "value": 53.39607907,
+            "range": "52.7834121285..54.01344962424999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_add_at_start_600",
+            "value": 101.81847909999999,
+            "range": "99.17138796824999..106.00455352575",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_end_100",
+            "value": 16.730933346666667,
+            "range": "16.568528639166665..16.904520803666674",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_end_300",
+            "value": 53.81550619,
+            "range": "53.18594544425..54.45170549425",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_end_600",
+            "value": 99.37265634,
+            "range": "98.13600810275..100.58091775175",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_middle_100",
+            "value": 15.770912103333332,
+            "range": "15.669393128916672..15.873435708999995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_middle_300",
+            "value": 54.629426939999995,
+            "range": "54.05718565074999..55.21443177025",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_middle_600",
+            "value": 99.36038663,
+            "range": "98.2329045..100.4745241565",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_start_100",
+            "value": 16.030686533333327,
+            "range": "15.915291340083328..16.154901616916664",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_start_300",
+            "value": 55.80787644,
+            "range": "55.264508195249995..56.355543674500005",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/full_remove_at_start_600",
+            "value": 104.23487468,
+            "range": "102.6829348505..105.85999258874999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_end_100",
+            "value": 7.971866035000001,
+            "range": "7.874996089875..8.073900259375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_end_300",
+            "value": 24.47580836,
+            "range": "24.165805939..24.80106952025",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_end_600",
+            "value": 45.25143051,
+            "range": "44.968336659500004..45.572171417999996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_middle_100",
+            "value": 7.51407557,
+            "range": "7.45138875125..7.576859791125001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_middle_300",
+            "value": 24.533263809999998,
+            "range": "24.2262042635..24.868561063750004",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_middle_600",
+            "value": 47.668908460000004,
+            "range": "47.31689287975..48.06306703125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_start_100",
+            "value": 8.338695725,
+            "range": "8.212376427750002..8.470821141875001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_start_300",
+            "value": 23.1671195,
+            "range": "23.01427496875..23.34611935375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_add_at_start_600",
+            "value": 47.89526233,
+            "range": "47.35718937225..48.46672933875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_end_100",
+            "value": 7.6352415250000005,
+            "range": "7.552323256625..7.724440977124999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_end_300",
+            "value": 23.483509820000002,
+            "range": "23.23573821525..23.7553832265",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_end_600",
+            "value": 47.29740967,
+            "range": "46.455984523000005..48.44545073199999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_middle_100",
+            "value": 7.224278095,
+            "range": "7.153987471375..7.297899133",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_middle_300",
+            "value": 23.0529186,
+            "range": "22.812744667999997..23.315531013749997",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_middle_600",
+            "value": 45.17819254,
+            "range": "44.891844848750004..45.50001457925",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_start_100",
+            "value": 7.43697452,
+            "range": "7.34355146625..7.532300473125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_start_300",
+            "value": 25.18209709,
+            "range": "24.862786314999997..25.52181309225",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/add_remove/incremental_remove_at_start_600",
+            "value": 47.39902346,
+            "range": "47.037478800749994..47.80769503875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/async_overhead/generate_async_15",
+            "value": 0.425507539351462,
+            "range": "0.42358258864617415..0.4278860820012847",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/async_overhead/generate_sync_15",
+            "value": 1.052961494648609,
+            "range": "1.0462698953487648..1.0599138273999211",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/error_paths/duplicate_glyph_names",
+            "value": 0.5357521456499686,
+            "range": "0.5336285256077243..0.5379640700457983",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/error_paths/empty_files",
+            "value": 0.12648457525266907,
+            "range": "0.12583311667207725..0.12719004819028995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/error_paths/invalid_svg",
+            "value": 0.25631958911375674,
+            "range": "0.2555417726295085..0.2571350032326799",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/error_paths/missing_file",
+            "value": 0.22414654679758736,
+            "range": "0.22251522438086313..0.22593190010683445",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/geometry_options/center_h_300",
+            "value": 15.8863475925,
+            "range": "15.5668236295625..16.201962393000002",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/geometry_options/center_v_300",
+            "value": 15.996536574999999,
+            "range": "15.691905596437499..16.297373027124998",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/geometry_options/fixed_width_300",
+            "value": 16.8160724,
+            "range": "16.5212203081875..17.1048070248125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/geometry_options/normalize_false_300",
+            "value": 15.97441675,
+            "range": "15.6955610713125..16.2553660200625",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/geometry_options/normalize_true_300",
+            "value": 15.87819792,
+            "range": "15.5792614918125..16.171214553875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/geometry_options/optimize_output_300",
+            "value": 21.616046336666667,
+            "range": "21.251971028750006..21.973785849416664",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/geometry_options/preserve_aspect_300",
+            "value": 15.922708199999999,
+            "range": "15.6508211714375..16.19682731825",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/geometry_options/round_2_300",
+            "value": 16.13899418,
+            "range": "15.8350842311875..16.4376420808125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/input_complexity/heavy_100",
+            "value": 6.1046465,
+            "range": "6.045263501187501..6.163182455468751",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/input_complexity/hidden_100",
+            "value": 6.27201369125,
+            "range": "6.18085094059375..6.36495678784375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/input_complexity/iconify_100",
+            "value": 8.686247565000002,
+            "range": "8.603677668166668..8.772685377166667",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/input_complexity/multipath_100",
+            "value": 6.721459394999999,
+            "range": "6.65596023278125..6.790927124968751",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/input_complexity/shapes_100",
+            "value": 5.59105735111111,
+            "range": "5.529256315583333..5.652308711472224",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/input_complexity/simple_100",
+            "value": 5.537545332,
+            "range": "5.462087711850001..5.613546864050001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/input_complexity/transformed_100",
+            "value": 6.2325468724999995,
+            "range": "6.16497611771875..6.30201897421875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/optimize_output/optimize_false",
+            "value": 34.21613993,
+            "range": "33.735847939..34.697071662750005",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/optimize_output/optimize_true",
+            "value": 48.470189635,
+            "range": "48.071728782..48.867514102499996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/ordinary_generation_baseline/all_formats_1",
+            "value": 1.7300314824139904,
+            "range": "1.7128605317392875..1.7479869814772693",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/ordinary_generation_baseline/all_formats_100",
+            "value": 16.86773437,
+            "range": "16.742942916666667..16.99187317508333",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/ordinary_generation_baseline/all_formats_600",
+            "value": 107.20324364,
+            "range": "105.99656492..108.387526596",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/all_formats_100",
+            "value": 17.3188511,
+            "range": "17.137224762416665..17.507061821333338",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/all_formats_300",
+            "value": 62.786235270000006,
+            "range": "61.9920729055..63.620421045",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/all_formats_600",
+            "value": 108.02126916,
+            "range": "106.83873441475..109.1985626665",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/svg_100",
+            "value": 9.14649695666667,
+            "range": "9.028490366333328..9.265892006666666",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/svg_300",
+            "value": 33.50940767,
+            "range": "33.08913717975..33.924455487875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/svg_600",
+            "value": 55.75258659000001,
+            "range": "54.5952900125..56.919624406000004",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/ttf_100",
+            "value": 8.47365323833334,
+            "range": "8.408762137500002..8.53774161304167",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/ttf_300",
+            "value": 33.682740869999996,
+            "range": "33.13386121..34.25063219712499",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline/ttf_600",
+            "value": 55.53030106,
+            "range": "54.50123706..56.56710009325",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/eot_output_only_100",
+            "value": 1.5535137593554786,
+            "range": "1.532380377037818..1.574659168633157",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/eot_output_only_300",
+            "value": 5.629793329000001,
+            "range": "5.551587585599998..5.709605369050004",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/eot_output_only_600",
+            "value": 9.640169853333333,
+            "range": "9.630272449291668..9.650167667791667",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/finalize_only_100",
+            "value": 2.579594478000001,
+            "range": "2.541773210124999..2.6185743656125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/finalize_only_300",
+            "value": 16.464975022500003,
+            "range": "16.4001100438125..16.52829899275",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/finalize_only_600",
+            "value": 29.05475512,
+            "range": "28.768906711..29.370364529375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/parse_only_100",
+            "value": 0.6947877957425342,
+            "range": "0.6849495786437423..0.7045582409861342",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/parse_only_300",
+            "value": 2.4792348586956514,
+            "range": "2.446035981858694..2.5116757549021727",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/parse_only_600",
+            "value": 4.090485581666667,
+            "range": "4.082878282270834..4.098275215749999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/ttf_output_only_100",
+            "value": 1.5181797836302522,
+            "range": "1.5019894913169345..1.5355052018821627",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/ttf_output_only_300",
+            "value": 5.378819802,
+            "range": "5.362994118750003..5.3948437181000015",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/ttf_output_only_600",
+            "value": 9.702340320000006,
+            "range": "9.693173791250002..9.71130293975",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/woff2_output_only_100",
+            "value": 7.207047410000001,
+            "range": "7.20044983535714..7.215179666178571",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/woff2_output_only_300",
+            "value": 26.02733989,
+            "range": "25.8734494245..26.2117488325",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/woff2_output_only_600",
+            "value": 46.62520816,
+            "range": "46.249818504875..47.047247391875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/woff_output_only_100",
+            "value": 2.6070792165,
+            "range": "2.576748436362501..2.6397469227374994",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/woff_output_only_300",
+            "value": 15.215129765,
+            "range": "15.2083253875625..15.222124199250002",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/pipeline_stages/woff_output_only_600",
+            "value": 31.396418425,
+            "range": "30.972158291375..31.815161967374998",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/metric_shift_finalize_optimize_false_100",
+            "value": 2.4464820849999995,
+            "range": "2.4386202771624994..2.454885957274999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/metric_shift_finalize_optimize_false_300",
+            "value": 16.53323882666666,
+            "range": "16.46432021558333..16.59989616558334",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/metric_shift_finalize_optimize_false_600",
+            "value": 28.534278824999998,
+            "range": "28.450469564625..28.617657882999996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/metric_shift_finalize_optimize_true_100",
+            "value": 5.890208835555558,
+            "range": "5.879661195611112..5.901128060333334",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/metric_shift_finalize_optimize_true_300",
+            "value": 31.206361440000002,
+            "range": "30.970267445..31.483391227375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/metric_shift_finalize_optimize_true_600",
+            "value": 57.48051771,
+            "range": "56.76214951675..58.20428254975",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/stable_metrics_finalize_optimize_false_100",
+            "value": 2.473151377142856,
+            "range": "2.4551231585714275..2.494328750642857",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/stable_metrics_finalize_optimize_false_300",
+            "value": 17.733354246666668,
+            "range": "17.479206641833333..17.994238532083333",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/stable_metrics_finalize_optimize_false_600",
+            "value": 28.57814986,
+            "range": "28.477591114124998..28.682212658125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/stable_metrics_finalize_optimize_true_100",
+            "value": 6.3964800125000005,
+            "range": "6.3072186884375..6.48471312059375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/stable_metrics_finalize_optimize_true_300",
+            "value": 33.451210329999995,
+            "range": "33.02341823775..33.872585654",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_finalize_inputs/stable_metrics_finalize_optimize_true_600",
+            "value": 53.84507266,
+            "range": "53.697674262499994..53.99422699775",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_output_ceiling/ttf_from_prepared_100",
+            "value": 1.4830051975384233,
+            "range": "1.4682684728902327..1.4990495163043431",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_output_ceiling/ttf_from_prepared_300",
+            "value": 5.3678086910000005,
+            "range": "5.3433168894..5.397067307125001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_output_ceiling/ttf_from_prepared_600",
+            "value": 9.87985458666667,
+            "range": "9.781050007208338..9.988933052583336",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_output_ceiling/woff2_from_prepared_100",
+            "value": 7.204647755714285,
+            "range": "7.196396243000002..7.215982513857142",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_output_ceiling/woff2_from_prepared_300",
+            "value": 25.772008465,
+            "range": "25.635074221875..25.94118780825",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/recalc_output_ceiling/woff2_from_prepared_600",
+            "value": 47.41632248,
+            "range": "47.0024833095..47.873037006875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/full_content_edit_100",
+            "value": 21.167760425,
+            "range": "18.936824043625002..23.907840759124994",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/full_content_edit_300",
+            "value": 70.60675555,
+            "range": "62.53235153825..83.8366025965",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/full_content_edit_600",
+            "value": 105.47135362,
+            "range": "102.32035400325..110.43875115125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/full_unchanged_100",
+            "value": 15.804024305,
+            "range": "15.682084576562499..15.93848768125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/full_unchanged_300",
+            "value": 60.95920818,
+            "range": "60.06013915724999..61.864924639499996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/full_unchanged_600",
+            "value": 97.37341595000001,
+            "range": "96.30944244075..98.448295466",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/incremental_content_edit_100",
+            "value": 15.6245718,
+            "range": "12.013242344625..20.116005311374998",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/incremental_content_edit_300",
+            "value": 38.644942119999996,
+            "range": "28.271999633500002..52.44616733725",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/incremental_content_edit_600",
+            "value": 49.00865907,
+            "range": "47.6401631575..51.22754495375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/noop_changed_100",
+            "value": 0.030702140058217527,
+            "range": "0.030443170044718564..0.030997493138402932",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/noop_changed_300",
+            "value": 0.07888767330937904,
+            "range": "0.07845178933512073..0.07941618070085654",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/noop_changed_600",
+            "value": 0.14938364175550195,
+            "range": "0.14912025697574086..0.14968758734770396",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/owned_incremental_content_edit_100",
+            "value": 15.588489055,
+            "range": "12.24462345125..19.476522452999998",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/owned_incremental_content_edit_300",
+            "value": 31.40063718,
+            "range": "27.799458404..36.221638356250004",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/owned_incremental_content_edit_600",
+            "value": 52.66720953,
+            "range": "49.2117405255..57.176971142999996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/rediff_content_edit_100",
+            "value": 15.031175885,
+            "range": "12.379045381375..18.089524587625",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/rediff_content_edit_300",
+            "value": 32.15289368,
+            "range": "27.55883972..38.394756468249994",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/rediff_content_edit_600",
+            "value": 52.9785502,
+            "range": "51.072528858..55.687587240999996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/rediff_noop_100",
+            "value": 0.3642408584551966,
+            "range": "0.36221690121423317..0.36676958668722576",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/rediff_noop_300",
+            "value": 1.3838865648076335,
+            "range": "1.3660143381095202..1.402388375800619",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate/rediff_noop_600",
+            "value": 2.606114181111111,
+            "range": "2.6045539885555553..2.6081034366805556",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/batched_10_100",
+            "value": 57.625789600000004,
+            "range": "40.47851221458334..78.28175426916664",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/batched_10_300",
+            "value": 45.09898183333333,
+            "range": "39.492147609583334..51.5127107775",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/batched_10_600",
+            "value": 126.07000086666666,
+            "range": "88.53874685250001..171.8509832183333",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/batched_2_100",
+            "value": 15.543137593333332,
+            "range": "13.062139635166668..18.442579281666667",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/batched_2_300",
+            "value": 37.557925233333336,
+            "range": "30.893493407500003..46.38145859958332",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/batched_2_600",
+            "value": 73.90056906666666,
+            "range": "59.17948961166667..98.98441446416665",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/separate_10_100",
+            "value": 89.49160123333334,
+            "range": "83.79819599541668..98.28831455833334",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/separate_10_300",
+            "value": 282.36453076666663,
+            "range": "269.1072254941667..298.2389374058333",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/separate_10_600",
+            "value": 492.16931726666667,
+            "range": "480.3566456958333..510.4206292183333",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/separate_2_100",
+            "value": 22.623509825,
+            "range": "19.839918489583333..26.134821194374997",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/separate_2_300",
+            "value": 63.429877450000006,
+            "range": "59.62409311375..68.1330467375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_batches/separate_2_600",
+            "value": 113.06741053333333,
+            "range": "102.27714956166666..128.0653871383333",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_all_except_woff2_100",
+            "value": 15.524955519999999,
+            "range": "12.933617756625..19.317494964624995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_all_except_woff2_300",
+            "value": 53.15241862,
+            "range": "50.80938679475..56.358528031499986",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_all_except_woff2_600",
+            "value": 94.45347308,
+            "range": "92.23118929625..96.968592008",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_all_formats_100",
+            "value": 23.37362177,
+            "range": "21.031353389000003..26.086398656874998",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_all_formats_300",
+            "value": 69.51886173999999,
+            "range": "66.15249659825..74.40732847400001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_all_formats_600",
+            "value": 117.84819621,
+            "range": "115.3638294225..121.29718134925001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_svg_100",
+            "value": 14.65847948,
+            "range": "12.0506656195..18.199682632625",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_svg_300",
+            "value": 40.40759473,
+            "range": "37.947122962375..43.71176490975",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_svg_600",
+            "value": 73.38795908,
+            "range": "64.81462678625..85.21158119149997",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_ttf_100",
+            "value": 20.1644833275,
+            "range": "17.102410070437504..23.591797574562502",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_ttf_300",
+            "value": 40.620899619999996,
+            "range": "37.398513345875..44.71869143175",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_ttf_600",
+            "value": 67.60449176,
+            "range": "64.37105358875..71.32163074425",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_woff2_100",
+            "value": 21.56840599333333,
+            "range": "18.721089613833335..25.19944295983333",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_woff2_300",
+            "value": 62.3741667,
+            "range": "60.052272579000004..65.23322053999999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_woff2_600",
+            "value": 102.7510285,
+            "range": "100.89183717275..104.931686757",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_woff_100",
+            "value": 16.976071170000004,
+            "range": "14.683483631333337..19.578981292",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_woff_300",
+            "value": 46.56810646,
+            "range": "45.92237538524999..47.20940326175",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/full_content_edit_woff_600",
+            "value": 85.97344419,
+            "range": "80.89200781925..94.44615376724998",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_all_except_woff2_100",
+            "value": 11.754043453333333,
+            "range": "8.424919952000005..15.533613522666657",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_all_except_woff2_300",
+            "value": 19.17796788,
+            "range": "16.67798614575..22.577648673749998",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_all_except_woff2_600",
+            "value": 31.806530300000002,
+            "range": "28.602349721..35.950245427249996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_all_formats_100",
+            "value": 13.100996915,
+            "range": "10.852174150625..16.115388300624996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_all_formats_300",
+            "value": 38.187843369999996,
+            "range": "33.4574610865..43.999776850500005",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_all_formats_600",
+            "value": 60.845836659999996,
+            "range": "57.81598790025..64.85514957974999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_svg_100",
+            "value": 4.4441178966666675,
+            "range": "3.0528337876666667..6.0844162368333325",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_svg_300",
+            "value": 9.19258783,
+            "range": "6.1117563509999995..13.129452819249995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_svg_600",
+            "value": 17.3594807,
+            "range": "11.533842466..24.76843549699999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_ttf_100",
+            "value": 12.092051199999998,
+            "range": "8.952691795500002..15.527875429499998",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_ttf_300",
+            "value": 16.57351401,
+            "range": "9.1761447185..25.844799793499995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_ttf_600",
+            "value": 15.28275617,
+            "range": "11.18425757925..20.440666091499995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_woff2_100",
+            "value": 11.529187960000002,
+            "range": "9.918328618375..13.464598927749996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_woff2_300",
+            "value": 31.77300708,
+            "range": "26.579128643..40.25651863499999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_woff2_600",
+            "value": 49.95423153,
+            "range": "47.60045744775..53.275125476999996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_woff_100",
+            "value": 15.078764546666665,
+            "range": "9.702710492833335..21.399199734250004",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_woff_300",
+            "value": 22.520123010000002,
+            "range": "17.564751097250003..29.631784764999992",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/regenerate_by_format/incremental_content_edit_woff_600",
+            "value": 32.863721760000004,
+            "range": "29.597094440249997..37.023772165",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/render_cache_after_regenerate/add_custom_html_ignored_deps_reused_300",
+            "value": 25.2575224,
+            "range": "25.148634763..25.39796312325",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/render_cache_after_regenerate/add_default_html_rerender_300",
+            "value": 25.47273411,
+            "range": "25.362476722749996..25.59763250775",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/render_cache_after_regenerate/content_edit_css_urls_reused_300",
+            "value": 29.20147309,
+            "range": "27.72857185475..31.187265591999996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/render_cache_after_regenerate/rename_css_rerender_300",
+            "value": 23.60341532,
+            "range": "23.386636302..23.84629441175",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/scaling/woff2_100",
+            "value": 11.504079848,
+            "range": "11.362203502850004..11.649941326199999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/scaling/woff2_1000",
+            "value": 64.74809492,
+            "range": "63.47994302575..65.9955366535",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/scaling/woff2_15",
+            "value": 2.7864763642105257,
+            "range": "2.75611203343421..2.816039779842105",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/scaling/woff2_300",
+            "value": 25.59196172,
+            "range": "25.207884259125..25.9812050155",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/scaling/woff2_600",
+            "value": 46.42645091,
+            "range": "45.2857133415..47.57471353575",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/current_uncached_ttf_100",
+            "value": 0.00038089757473099754,
+            "range": "0.00037671609908181527..0.00038537082934902647",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/current_uncached_ttf_300",
+            "value": 0.001645042448403133,
+            "range": "0.0016420320405670563..0.001648905029040167",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/current_uncached_ttf_600",
+            "value": 0.0028984064090992996,
+            "range": "0.0028967528931330548..0.0029002349029932976",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/fontbuilder_from_serialized_tables_100",
+            "value": 0.0027799846092951054,
+            "range": "0.002765890820596265..0.002797167418213201",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/fontbuilder_from_serialized_tables_300",
+            "value": 0.007030135772491234,
+            "range": "0.007014392120340662..0.007050358556056279",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/fontbuilder_from_serialized_tables_600",
+            "value": 0.013386527267869304,
+            "range": "0.013264298259457994..0.013498720275054846",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/serialized_tables_new_100",
+            "value": 1.40459070482756,
+            "range": "1.3872066855257628..1.4234138477346518",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/serialized_tables_new_300",
+            "value": 5.214043827000001,
+            "range": "5.20858799255..5.2190725874499995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/serialized_tables_new_600",
+            "value": 9.743275719999996,
+            "range": "9.665768204375..9.831774076874995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/serialized_tables_rewrap_100",
+            "value": 0.0014360438639009956,
+            "range": "0.001433368855126974..0.0014395871231252131",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/serialized_tables_rewrap_300",
+            "value": 0.004848951094987932,
+            "range": "0.004844620215073511..0.004854469238326964",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/sfnt_assembly_compare/serialized_tables_rewrap_600",
+            "value": 0.009216400129294424,
+            "range": "0.009118052724646797..0.009317480200359708",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/specialized_incremental_paths/duplicate_content_add_100",
+            "value": 7.228281065,
+            "range": "7.1137612607500005..7.349944112375001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/specialized_incremental_paths/duplicate_content_add_300",
+            "value": 24.713514789999998,
+            "range": "24.462365531499998..24.983005002",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/specialized_incremental_paths/duplicate_content_add_600",
+            "value": 45.026071280000004,
+            "range": "44.547507337000006..45.537858834249995",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/specialized_incremental_paths/rename_only_100",
+            "value": 7.969472795,
+            "range": "7.827215245375..8.113986079624999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/specialized_incremental_paths/rename_only_300",
+            "value": 22.26573189,
+            "range": "22.07719858175..22.473130329",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/specialized_incremental_paths/rename_only_600",
+            "value": 44.990381490000004,
+            "range": "44.536146618749996..45.48152341825",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/specialized_incremental_paths/rename_only_woff_300",
+            "value": 4.27840841,
+            "range": "4.241316836750001..4.315836833250001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/specialized_incremental_paths/rename_only_woff_cold_cache_300",
+            "value": 14.304000279999999,
+            "range": "14.24867937125..14.361821545749999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/svg_prepare/full_100",
+            "value": 2.5944618584210533,
+            "range": "2.55747727631579..2.634898005526316",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/svg_prepare/full_300",
+            "value": 16.5874227575,
+            "range": "16.4595021818125..16.732929933125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/svg_prepare/full_600",
+            "value": 28.25720189,
+            "range": "28.154076368625..28.363282892875002",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/svg_prepare/incremental_warm_100",
+            "value": 0.09809463855391605,
+            "range": "0.09708245701898256..0.09913385934999855",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/svg_prepare/incremental_warm_300",
+            "value": 0.24127231918989545,
+            "range": "0.23840806976122741..0.24413250025378166",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/svg_prepare/incremental_warm_600",
+            "value": 0.48298121414344536,
+            "range": "0.476176405713078..0.4895601301900586",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/css_cached_batch_custom_300",
+            "value": 0.02278794006831902,
+            "range": "0.02250205315487814..0.023072851840259364",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/css_cached_batch_default_300",
+            "value": 0.04137270689941883,
+            "range": "0.040802521224272..0.04195251247826755",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/css_cached_custom_300",
+            "value": 0.0001274175628419519,
+            "range": "0.00012691882087208356..0.0001280504360485294",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/css_cached_default_300",
+            "value": 0.00024030813437174664,
+            "range": "0.00023949510455803264..0.00024167532670968907",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/css_first_custom_300",
+            "value": 1.084020555,
+            "range": "1.0759399512499999..1.09292914825",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/css_first_default_300",
+            "value": 0.7414070500000001,
+            "range": "0.7344643916249999..0.74860062",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/css_urls_batch_default_300",
+            "value": 0.07393579354933133,
+            "range": "0.07299340978413216..0.0749392560973109",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/css_urls_default_300",
+            "value": 0.0005889500090038815,
+            "range": "0.000585935643874865..0.0005931582293729751",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/html_cached_batch_custom_300",
+            "value": 0.028821095725862406,
+            "range": "0.028582363129316644..0.029090128340887766",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/html_cached_batch_default_300",
+            "value": 0.3342754531732551,
+            "range": "0.3337576251484224..0.33487297842688424",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/html_cached_custom_300",
+            "value": 0.00018744452785679068,
+            "range": "0.00018714863039100463..0.00018783786983428665",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/html_cached_default_300",
+            "value": 0.0015091772915959603,
+            "range": "0.0015062486062153034..0.001513916962790597",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/html_first_custom_300",
+            "value": 1.06904716,
+            "range": "1.052329022..1.086577755625",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/template_rendering/html_first_default_300",
+            "value": 0.76587534,
+            "range": "0.757764785..0.774335704375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/ttf_features/duplicate_outlines_300",
+            "value": 15.118974005,
+            "range": "14.8195091915625..15.4119073155",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/ttf_features/explicit_codepoints_300",
+            "value": 15.8953399625,
+            "range": "15.61739974275..16.1691558226875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/ttf_features/ligatures_false_unique_300",
+            "value": 16.1907063875,
+            "range": "15.894204534062501..16.4846102581875",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/ttf_features/ligatures_true_unique_300",
+            "value": 16.25817851333332,
+            "range": "15.939068709083331..16.579061321500006",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/winding_normalization/winding_curved_100",
+            "value": 39.39722172,
+            "range": "39.279529093125..39.51239008637501",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/winding_normalization/winding_independent_100",
+            "value": 22.66410330666668,
+            "range": "22.47056073758333..22.877731111416665",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/winding_normalization/winding_nested_ok_100",
+            "value": 20.19866046333333,
+            "range": "20.02754946625001..20.384844557000008",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/winding_normalization/winding_nested_reverse_100",
+            "value": 19.931790336666673,
+            "range": "19.83029511766667..20.033709964666663",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/winding_normalization/winding_overlapping_100",
+            "value": 13.95455644,
+            "range": "13.8453196126875..14.071583696312498",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_0",
+            "value": 0.25320992818000554,
+            "range": "0.25101017760346805..0.25568565055254433",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_1",
+            "value": 0.2647390795301534,
+            "range": "0.26300955652303387..0.26675105878321753",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_10",
+            "value": 5.9389034755555565,
+            "range": "5.8800823556666675..6.002605703194442",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_11",
+            "value": 10.943158916,
+            "range": "10.821971114100002..11.065563863400003",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_2",
+            "value": 0.6103609928706046,
+            "range": "0.606392965202951..0.6142371170370328",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_3",
+            "value": 0.5971637229896937,
+            "range": "0.5952506917110604..0.5993131672385502",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_4",
+            "value": 0.730287401645266,
+            "range": "0.7293670137288362..0.7312896153133115",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_5",
+            "value": 0.9589675841573322,
+            "range": "0.9540251448413245..0.9645027155444744",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_6",
+            "value": 0.9987957589077103,
+            "range": "0.9957292011453681..1.0024079209127195",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_7",
+            "value": 1.39459113124622,
+            "range": "1.385927493969613..1.4035655437546692",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_8",
+            "value": 1.6754281230202244,
+            "range": "1.666699088041327..1.6844489059177785",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_100_quality_9",
+            "value": 2.711057089473684,
+            "range": "2.7011703715394737..2.722331330592105",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_0",
+            "value": 0.01394280595501287,
+            "range": "0.013768784678513805..0.014130310166009068",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_1",
+            "value": 0.010924023729340713,
+            "range": "0.010820867902647578..0.011039646899942305",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_10",
+            "value": 0.8817566028063659,
+            "range": "0.877452383308961..0.8866586009252073",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_11",
+            "value": 1.1576292051502703,
+            "range": "1.1519588677471833..1.1641792665207942",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_2",
+            "value": 0.01478559027356216,
+            "range": "0.014659372351750688..0.014926889792374146",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_3",
+            "value": 0.02123889351891542,
+            "range": "0.021207857918754885..0.021274250872823888",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_4",
+            "value": 0.03687997790337705,
+            "range": "0.036374963474461376..0.03737887300926882",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_5",
+            "value": 0.04625080453485591,
+            "range": "0.04573155347327546..0.046813239911497356",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_6",
+            "value": 0.07570571424250254,
+            "range": "0.0753914905570827..0.07611100826413293",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_7",
+            "value": 0.334489854061412,
+            "range": "0.33370032053820636..0.33535625263098184",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_8",
+            "value": 0.6133078752767382,
+            "range": "0.6121697772587463..0.614944580712085",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_1_quality_9",
+            "value": 1.3658320840134055,
+            "range": "1.362962439659218..1.3690248124582534",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_0",
+            "value": 0.9943075901942854,
+            "range": "0.9826394317404638..1.0062649528135008",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_1",
+            "value": 1.0087234323741332,
+            "range": "1.001946780661712..1.016485741925617",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_10",
+            "value": 22.097924913333333,
+            "range": "21.865780424833332..22.329305759833336",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_11",
+            "value": 34.246325590000005,
+            "range": "34.176402875375004..34.315443107375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_2",
+            "value": 1.3807263836681256,
+            "range": "1.372246900896018..1.390362898204206",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_3",
+            "value": 1.4597726753783662,
+            "range": "1.4555668544471263..1.4654906657358335",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_4",
+            "value": 1.756622986723043,
+            "range": "1.7530295188019993..1.7604764968674107",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_5",
+            "value": 2.5832601084999993,
+            "range": "2.5779554293874996..2.5887260952499997",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_6",
+            "value": 2.6576264894736843,
+            "range": "2.6524352874210524..2.66350737586842",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_7",
+            "value": 3.4351313373333325,
+            "range": "3.433306642666667..3.43720122105",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_8",
+            "value": 3.8518100469230774,
+            "range": "3.8249550718653857..3.880844530750001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_300_quality_9",
+            "value": 5.731318114444446,
+            "range": "5.693635651805555..5.771712121416668",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_0",
+            "value": 1.760204364021552,
+            "range": "1.7499372193805804..1.7720797577258347",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_1",
+            "value": 1.8942701303955678,
+            "range": "1.8786500262922312..1.9114349470372645",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_10",
+            "value": 36.412335735,
+            "range": "36.144743270875..36.715636290625",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_11",
+            "value": 66.24825156,
+            "range": "65.855911456..66.701690124",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_2",
+            "value": 2.3634460314285723,
+            "range": "2.360611217416667..2.3668257465238103",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_3",
+            "value": 2.522029678499999,
+            "range": "2.5185275432749994..2.526079215299999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_4",
+            "value": 3.006243050588236,
+            "range": "2.992949278470588..3.0217711754411765",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_5",
+            "value": 4.639222237272726,
+            "range": "4.600828052477273..4.6821296316363625",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_6",
+            "value": 4.883408073636365,
+            "range": "4.849579173454545..4.921751171636363",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_7",
+            "value": 6.283627583333335,
+            "range": "6.257355143555558..6.314664717555558",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_8",
+            "value": 6.683166095,
+            "range": "6.675056731500001..6.69197248559375",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_600_quality_9",
+            "value": 9.169327716666666,
+            "range": "9.138571442999998..9.20340728783333",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_brotli_quality_10_100",
+            "value": 5.723596191,
+            "range": "5.670299852025002..5.7803748816",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_brotli_quality_10_300",
+            "value": 20.983028073333333,
+            "range": "20.78384820433333..21.185141211833336",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_brotli_quality_10_600",
+            "value": 36.190981725,
+            "range": "35.897084149625..36.5227046385",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_prepare_cold_100",
+            "value": 0.10634742174549276,
+            "range": "0.10570945506309805..0.1070797989536548",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_prepare_cold_300",
+            "value": 0.48444555324745253,
+            "range": "0.4804807579807115..0.4886881425410596",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_prepare_cold_600",
+            "value": 0.9196807388076113,
+            "range": "0.9140539021329277..0.9262866439380151",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_prepare_warm_100",
+            "value": 0.0014666424074557768,
+            "range": "0.0014545597898448814..0.0014803548157193765",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_prepare_warm_300",
+            "value": 0.004593088206840565,
+            "range": "0.004586872639619944..0.004599914806075638",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/internal_prepare_warm_600",
+            "value": 0.00834085561486824,
+            "range": "0.00832679015698378..0.008359661384281429",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_0",
+            "value": 0.3346298564973318,
+            "range": "0.3317242383258585..0.33787597055025964",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_1",
+            "value": 0.3515622873089153,
+            "range": "0.35111264375139933..0.3522534517403516",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_10",
+            "value": 7.298422481428569,
+            "range": "7.253946926107142..7.351528168928569",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_11",
+            "value": 16.402155910000005,
+            "range": "16.38467600675001..16.420917257166668",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_2",
+            "value": 0.40019612705942753,
+            "range": "0.3993360159391264..0.4011335293959318",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_3",
+            "value": 0.4520653934889281,
+            "range": "0.4470944122647544..0.4573849397719911",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_4",
+            "value": 0.5467457421704163,
+            "range": "0.545790834934189..0.5478803566127664",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_5",
+            "value": 0.667654666807545,
+            "range": "0.6621297519832361..0.6738330942869958",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_6",
+            "value": 0.7183459912567448,
+            "range": "0.7107705424490789..0.7265132297392068",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_7",
+            "value": 0.8315820802003558,
+            "range": "0.8239571777386175..0.8399943497123029",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_8",
+            "value": 0.8069577866776383,
+            "range": "0.8040219550917173..0.8108711619650534",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_100_quality_9",
+            "value": 2.2909732899999997,
+            "range": "2.2866709657272732..2.2957060333068178",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_0",
+            "value": 0.010661314493698565,
+            "range": "0.010531166963912805..0.01079664896004371",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_1",
+            "value": 0.011735574594596752,
+            "range": "0.011710568203555781..0.01176880308308413",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_10",
+            "value": 0.7560891172350235,
+            "range": "0.7515036243854243..0.7612946738748161",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_11",
+            "value": 1.2590744743034492,
+            "range": "1.254617252945566..1.2648491330104297",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_2",
+            "value": 0.011718773113665188,
+            "range": "0.011633817413451436..0.01181647937639848",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_3",
+            "value": 0.01822328860633042,
+            "range": "0.01795846558159378..0.01849577251770961",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_4",
+            "value": 0.027907296290207825,
+            "range": "0.027581613310464537..0.028218294708451216",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_5",
+            "value": 0.026049293428083833,
+            "range": "0.026029837152185865..0.026073858080238158",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_6",
+            "value": 0.027564114082264852,
+            "range": "0.02726918212881684..0.027890775525557437",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_7",
+            "value": 0.028375104603168104,
+            "range": "0.02831051255992377..0.02845961593265559",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_8",
+            "value": 0.029428525300039643,
+            "range": "0.029118505728052333..0.029759552882453872",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_1_quality_9",
+            "value": 1.327970159518389,
+            "range": "1.320275873523209..1.3365520148575183",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_0",
+            "value": 1.3067505402747723,
+            "range": "1.3038434091744413..1.3099396516285478",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_1",
+            "value": 1.3319389227550564,
+            "range": "1.3214416311605597..1.3436452192799035",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_10",
+            "value": 36.170923755000004,
+            "range": "35.85881889624999..36.503342355",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_11",
+            "value": 78.18919104999999,
+            "range": "77.5301930665..78.91596334350001",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_2",
+            "value": 1.5706328865717214,
+            "range": "1.5603513646410454..1.58270595363612",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_3",
+            "value": 1.6607805185144406,
+            "range": "1.6548067471296628..1.668742722821465",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_4",
+            "value": 1.9182130102822728,
+            "range": "1.9075426631215482..1.930872772587508",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_5",
+            "value": 2.345480228499999,
+            "range": "2.3202057139374985..2.3727828421374997",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_6",
+            "value": 2.4103894670000017,
+            "range": "2.3945426937250005..2.4285564286125",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_7",
+            "value": 3.0676427475,
+            "range": "3.0314576054374998..3.1037455287812503",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_8",
+            "value": 2.9073799455555567,
+            "range": "2.887852520069445..2.9304380219722233",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_300_quality_9",
+            "value": 4.684236548181818,
+            "range": "4.670464627022724..4.700432431909089",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_0",
+            "value": 2.419129622380953,
+            "range": "2.416385757440476..2.4229215009285707",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_1",
+            "value": 2.514005691,
+            "range": "2.4978719423624987..2.532584518099999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_10",
+            "value": 69.81043921,
+            "range": "69.27914157900001..70.41263575275",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_11",
+            "value": 159.00485458,
+            "range": "158.14933934175..159.98993463025",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_2",
+            "value": 3.010924700588233,
+            "range": "2.9791385344999988..3.044193026352941",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_3",
+            "value": 3.1302873287499997,
+            "range": "3.1172838881718747..3.1449911422031254",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_4",
+            "value": 3.7133350293333316,
+            "range": "3.684607422483332..3.7429761758166666",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_5",
+            "value": 4.280884487500001,
+            "range": "4.244590180666664..4.322192532270836",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_6",
+            "value": 4.382210171666668,
+            "range": "4.361427534541666..4.4088901990416645",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_7",
+            "value": 5.401794426000002,
+            "range": "5.399363760174999..5.404665231649999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_8",
+            "value": 5.4937073709999975,
+            "range": "5.4909440978749995..5.496866022774997",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_encoder_compare/native_transformed_600_quality_9",
+            "value": 7.623361421428572,
+            "range": "7.618366095000004..7.628576338142858",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_quality/quality_10",
+            "value": 55.05411549,
+            "range": "54.5383134475..55.565484016999996",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_quality/quality_11",
+            "value": 71.14366584999999,
+            "range": "70.22550994950001..72.08656562099999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/woff2_quality/quality_9",
+            "value": 43.863415104999994,
+            "range": "43.391297681125..44.34912325075",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/write_files_after_regenerate/content_edit_100",
+            "value": 10.227840535,
+            "range": "8.750046297875..12.246171257499999",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/write_paths/incremental_write_skip_100",
+            "value": 0.25065430666666666,
+            "range": "0.24503359291666668..0.25763371816666664",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/write_paths/incremental_write_skip_batch_100",
+            "value": 0.9160353273584904,
+            "range": "0.9032031105141507..0.9292310617783018",
+            "unit": "ms"
+          },
+          {
+            "name": "criterion/write_paths/initial_write_100",
+            "value": 11.383227731111115,
+            "range": "11.300562457249999..11.472265935388881",
+            "unit": "ms"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > error — empty files > upstream",
+            "value": 0.012023614560539386,
+            "range": "± 5.054334045839649%",
+            "unit": "ms",
+            "extra": "97386.29088275215 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > error — empty files > new core",
+            "value": 0.012687854880630525,
+            "range": "± 5.748676973095578%",
+            "unit": "ms",
+            "extra": "92790.67800822749 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > error — missing dest > new core",
+            "value": 0.010895641152757688,
+            "range": "± 4.642278999254361%",
+            "unit": "ms",
+            "extra": "103924.64711093664 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > error — missing dest > upstream",
+            "value": 0.011703217526654633,
+            "range": "± 5.171812635516507%",
+            "unit": "ms",
+            "extra": "99763.0328089547 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with cssContext and htmlContext (css: true, html: true) > new core",
+            "value": 135.09727153125087,
+            "range": "± 0.8404794889931461%",
+            "unit": "ms",
+            "extra": "7.4097933542954495 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with cssContext and htmlContext (css: true, html: true) > upstream",
+            "value": 993.0840860000005,
+            "range": "± 0.6517490156352858%",
+            "unit": "ms",
+            "extra": "1.0076370950943778 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with cssContext and htmlContext (css: false, html: false) > new core",
+            "value": 135.735640734379,
+            "range": "± 1.0127485074161526%",
+            "unit": "ms",
+            "extra": "7.3788934703021125 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with cssContext and htmlContext (css: false, html: false) > upstream",
+            "value": 1002.1883397343736,
+            "range": "± 0.6754025202184736%",
+            "unit": "ms",
+            "extra": "0.9985333278898475 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with cssContext only (css: false) > new core",
+            "value": 132.09152617187556,
+            "range": "± 0.9824286288022512%",
+            "unit": "ms",
+            "extra": "7.581404316332266 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with cssContext only (css: false) > upstream",
+            "value": 986.066653812502,
+            "range": "± 0.6572872251329109%",
+            "unit": "ms",
+            "extra": "1.0148085213149787 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with htmlContext only (html: false) > new core",
+            "value": 132.5418936718761,
+            "range": "± 0.9370682594541124%",
+            "unit": "ms",
+            "extra": "7.554248762568947 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with htmlContext only (html: false) > upstream",
+            "value": 963.1220502812504,
+            "range": "± 0.7003392487568016%",
+            "unit": "ms",
+            "extra": "1.0390759304182509 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with custom CSS template > new core",
+            "value": 130.57100090625138,
+            "range": "± 0.8463781012734264%",
+            "unit": "ms",
+            "extra": "7.6668738456991745 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > with custom CSS template > upstream",
+            "value": 981.204462531253,
+            "range": "± 0.6573158445415128%",
+            "unit": "ms",
+            "extra": "1.019832854664498 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > all formats > new core",
+            "value": 6.188888934020377,
+            "range": "± 1.395450773531158%",
+            "unit": "ms",
+            "extra": "165.27561575131048 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > all formats > upstream",
+            "value": 22.365433096299302,
+            "range": "± 1.1536863663538681%",
+            "unit": "ms",
+            "extra": "44.86825842169974 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > WOFF2 only > new core",
+            "value": 5.778832134616315,
+            "range": "± 1.0571051789824186%",
+            "unit": "ms",
+            "extra": "175.3534940631863 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > WOFF2 only > upstream",
+            "value": 21.19143966197703,
+            "range": "± 1.3518530205940866%",
+            "unit": "ms",
+            "extra": "47.38961190864206 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > WOFF + WOFF2 > new core",
+            "value": 6.060733266128203,
+            "range": "± 1.4419314562383319%",
+            "unit": "ms",
+            "extra": "169.03491689930405 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > WOFF + WOFF2 > upstream",
+            "value": 27.184851720720435,
+            "range": "± 4.024752415312303%",
+            "unit": "ms",
+            "extra": "38.328225038704495 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > SVG only > new core",
+            "value": 1.1921262888365605,
+            "range": "± 0.7727281027624772%",
+            "unit": "ms",
+            "extra": "846.6193401330498 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > SVG only > upstream",
+            "value": 3.380156988738051,
+            "range": "± 2.0404258868244995%",
+            "unit": "ms",
+            "extra": "307.4498118940595 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > SVG + TTF > new core",
+            "value": 1.5168758685543986,
+            "range": "± 0.7344775118831672%",
+            "unit": "ms",
+            "extra": "665.4625961734499 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > SVG + TTF > upstream",
+            "value": 6.006701857998502,
+            "range": "± 2.7210852891230366%",
+            "unit": "ms",
+            "extra": "169.9185712001154 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > all except WOFF2 > new core",
+            "value": 1.6541537695700752,
+            "range": "± 0.8759135168175636%",
+            "unit": "ms",
+            "extra": "609.434408089103 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: true > all except WOFF2 > upstream",
+            "value": 6.9874379767440695,
+            "range": "± 1.5165870345103978%",
+            "unit": "ms",
+            "extra": "144.80380082553663 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > all formats > new core",
+            "value": 5.436220471016248,
+            "range": "± 1.5324341811806683%",
+            "unit": "ms",
+            "extra": "188.94592601124015 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > all formats > upstream",
+            "value": 22.010265109487413,
+            "range": "± 1.7202602295651157%",
+            "unit": "ms",
+            "extra": "45.76190837590097 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > WOFF2 only > new core",
+            "value": 4.929301090311593,
+            "range": "± 1.1968543137581085%",
+            "unit": "ms",
+            "extra": "206.6872400225904 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > WOFF2 only > upstream",
+            "value": 20.736797917243255,
+            "range": "± 1.5655074643991276%",
+            "unit": "ms",
+            "extra": "48.48489439588454 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > WOFF + WOFF2 > new core",
+            "value": 5.204013928942617,
+            "range": "± 1.4761434344226658%",
+            "unit": "ms",
+            "extra": "197.84844864348736 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > WOFF + WOFF2 > upstream",
+            "value": 21.691001539567907,
+            "range": "± 1.490846484076744%",
+            "unit": "ms",
+            "extra": "46.346030102176066 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > SVG only > new core",
+            "value": 0.7311896224728173,
+            "range": "± 0.8851819421446527%",
+            "unit": "ms",
+            "extra": "1386.2756204289428 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > SVG only > upstream",
+            "value": 3.4054393132814376,
+            "range": "± 2.416843201459405%",
+            "unit": "ms",
+            "extra": "308.6419569399378 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > SVG + TTF > new core",
+            "value": 0.9562218843196083,
+            "range": "± 0.6185454372843753%",
+            "unit": "ms",
+            "extra": "1054.3417323389542 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > SVG + TTF > upstream",
+            "value": 6.115882380856984,
+            "range": "± 3.9113820802222485%",
+            "unit": "ms",
+            "extra": "167.95754673939894 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > all except WOFF2 > new core",
+            "value": 1.1518009424185944,
+            "range": "± 0.2642917285861385%",
+            "unit": "ms",
+            "extra": "872.0020406147811 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > optimize SVG: false > all except WOFF2 > upstream",
+            "value": 7.116103627963129,
+            "range": "± 1.6310064666502953%",
+            "unit": "ms",
+            "extra": "142.1430702928653 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > with rename callback > new core",
+            "value": 0.796524331562747,
+            "range": "± 0.9647781966005192%",
+            "unit": "ms",
+            "extra": "1270.790616124457 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > with rename callback > upstream",
+            "value": 3.408251744609119,
+            "range": "± 1.958450202062817%",
+            "unit": "ms",
+            "extra": "304.20291206256763 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > css: true > html: true > new core",
+            "value": 5.441545285716299,
+            "range": "± 29.26125053798992%",
+            "unit": "ms",
+            "extra": "635.6918235037456 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > css: true > html: true > upstream",
+            "value": 10.628298401383836,
+            "range": "± 17.145263756813954%",
+            "unit": "ms",
+            "extra": "151.61561578446987 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > css: true > html: false > new core",
+            "value": 4.399433023460336,
+            "range": "± 25.13531485691975%",
+            "unit": "ms",
+            "extra": "618.8928779726408 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > css: true > html: false > upstream",
+            "value": 16.99108990395671,
+            "range": "± 29.101686702821265%",
+            "unit": "ms",
+            "extra": "146.70478614643704 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > css: false > html: true > new core",
+            "value": 4.244873199431271,
+            "range": "± 23.434134054885526%",
+            "unit": "ms",
+            "extra": "649.2220669626477 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > css: false > html: true > upstream",
+            "value": 9.434454559748655,
+            "range": "± 19.739524702834835%",
+            "unit": "ms",
+            "extra": "185.17329949965324 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > css: false > html: false > new core",
+            "value": 4.5184293855449775,
+            "range": "± 33.59334556560166%",
+            "unit": "ms",
+            "extra": "698.8440568202315 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 15 glyphs > css: false > html: false > upstream",
+            "value": 8.14026171774278,
+            "range": "± 30.664199971680127%",
+            "unit": "ms",
+            "extra": "245.7210172486998 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > all formats > new core",
+            "value": 24.269409333332092,
+            "range": "± 1.109106757200594%",
+            "unit": "ms",
+            "extra": "41.64407168462944 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > all formats > upstream",
+            "value": 104.10633492207927,
+            "range": "± 1.6590964985244108%",
+            "unit": "ms",
+            "extra": "9.646992128357722 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > WOFF2 only > new core",
+            "value": 20.855643536458953,
+            "range": "± 0.33024582535736796%",
+            "unit": "ms",
+            "extra": "47.99391827320079 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > WOFF2 only > upstream",
+            "value": 98.76182129268005,
+            "range": "± 1.498841347976455%",
+            "unit": "ms",
+            "extra": "10.160072690044954 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > WOFF + WOFF2 > new core",
+            "value": 23.738185440829035,
+            "range": "± 1.1128188169832207%",
+            "unit": "ms",
+            "extra": "42.59080122762778 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > WOFF + WOFF2 > upstream",
+            "value": 108.51422270270055,
+            "range": "± 1.8371725538204802%",
+            "unit": "ms",
+            "extra": "9.267628539377023 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > SVG only > new core",
+            "value": 8.29779695751124,
+            "range": "± 0.4806508494607428%",
+            "unit": "ms",
+            "extra": "121.13214434068941 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > SVG only > upstream",
+            "value": 28.876797618708746,
+            "range": "± 1.392517447678938%",
+            "unit": "ms",
+            "extra": "35.08539975866063 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > SVG + TTF > new core",
+            "value": 8.965376256437507,
+            "range": "± 0.291923380197704%",
+            "unit": "ms",
+            "extra": "111.74799172535293 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > SVG + TTF > upstream",
+            "value": 53.98573049664225,
+            "range": "± 1.8678523092021695%",
+            "unit": "ms",
+            "extra": "18.690456738091918 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > all except WOFF2 > new core",
+            "value": 10.150033259822603,
+            "range": "± 0.34423831167996455%",
+            "unit": "ms",
+            "extra": "98.74535514880863 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: true > all except WOFF2 > upstream",
+            "value": 55.501364489662436,
+            "range": "± 1.9625980158163778%",
+            "unit": "ms",
+            "extra": "18.195786689367644 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > all formats > new core",
+            "value": 21.1018272236832,
+            "range": "± 1.2656124765451648%",
+            "unit": "ms",
+            "extra": "48.12798467043125 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > all formats > upstream",
+            "value": 106.11279421052772,
+            "range": "± 1.8608800407889245%",
+            "unit": "ms",
+            "extra": "9.471728073522412 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > WOFF2 only > new core",
+            "value": 17.50049558515389,
+            "range": "± 0.40867731317784106%",
+            "unit": "ms",
+            "extra": "57.233351048341945 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > WOFF2 only > upstream",
+            "value": 102.82163884615203,
+            "range": "± 1.1816478085718773%",
+            "unit": "ms",
+            "extra": "9.74997468276704 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > WOFF + WOFF2 > new core",
+            "value": 20.080649363406852,
+            "range": "± 1.1160993804391237%",
+            "unit": "ms",
+            "extra": "50.466082687715364 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > WOFF + WOFF2 > upstream",
+            "value": 103.72865888461446,
+            "range": "± 0.801895002900998%",
+            "unit": "ms",
+            "extra": "9.651440380872899 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > SVG only > new core",
+            "value": 4.760872663888096,
+            "range": "± 0.35618506365363417%",
+            "unit": "ms",
+            "extra": "210.72709146329433 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > SVG only > upstream",
+            "value": 28.713509616491667,
+            "range": "± 1.3435529754174313%",
+            "unit": "ms",
+            "extra": "35.25260273944559 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > SVG + TTF > new core",
+            "value": 5.391972955525761,
+            "range": "± 0.28323168314547853%",
+            "unit": "ms",
+            "extra": "185.9978826889831 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > SVG + TTF > upstream",
+            "value": 50.68746822151719,
+            "range": "± 2.076572592230843%",
+            "unit": "ms",
+            "extra": "19.95454480895983 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > all except WOFF2 > new core",
+            "value": 6.524475283621145,
+            "range": "± 0.30485641084018705%",
+            "unit": "ms",
+            "extra": "153.6932494409439 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > optimize SVG: false > all except WOFF2 > upstream",
+            "value": 54.22972958107916,
+            "range": "± 1.749929285549372%",
+            "unit": "ms",
+            "extra": "18.583048429541147 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > with rename callback > new core",
+            "value": 4.876308934796358,
+            "range": "± 0.319799747533855%",
+            "unit": "ms",
+            "extra": "205.74815502283192 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > with rename callback > upstream",
+            "value": 29.10037285454359,
+            "range": "± 1.1983975309994896%",
+            "unit": "ms",
+            "extra": "34.69523136471097 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > css: true > html: true > new core",
+            "value": 11.38530272443198,
+            "range": "± 12.42217812537825%",
+            "unit": "ms",
+            "extra": "154.83932433161266 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > css: true > html: true > upstream",
+            "value": 46.046699712644376,
+            "range": "± 10.996097527249027%",
+            "unit": "ms",
+            "extra": "26.688415570572484 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > css: true > html: false > new core",
+            "value": 23.395123312139074,
+            "range": "± 25.29822313319194%",
+            "unit": "ms",
+            "extra": "135.90954359383338 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > css: true > html: false > upstream",
+            "value": 46.94560304678411,
+            "range": "± 14.221725532002418%",
+            "unit": "ms",
+            "extra": "27.444299797327115 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > css: false > html: true > new core",
+            "value": 10.962820849310908,
+            "range": "± 13.32055420163545%",
+            "unit": "ms",
+            "extra": "152.2547956787759 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > css: false > html: true > upstream",
+            "value": 46.05909763792886,
+            "range": "± 13.00244952205353%",
+            "unit": "ms",
+            "extra": "27.340751009069344 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > css: false > html: false > new core",
+            "value": 19.04366610165637,
+            "range": "± 16.708454302224133%",
+            "unit": "ms",
+            "extra": "136.36230620287722 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 100 glyphs > css: false > html: false > upstream",
+            "value": 42.28047985263585,
+            "range": "± 13.40076873922979%",
+            "unit": "ms",
+            "extra": "30.01200633737167 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > all formats > new core",
+            "value": 85.66122145298871,
+            "range": "± 0.7725259186287934%",
+            "unit": "ms",
+            "extra": "11.693465099797118 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > all formats > upstream",
+            "value": 425.5400033750029,
+            "range": "± 0.5962144483882621%",
+            "unit": "ms",
+            "extra": "2.351235171231884 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > WOFF2 only > new core",
+            "value": 78.90170191338387,
+            "range": "± 0.5098966239728099%",
+            "unit": "ms",
+            "extra": "12.684217593237298 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > WOFF2 only > upstream",
+            "value": 415.1744413281303,
+            "range": "± 0.5405967486585382%",
+            "unit": "ms",
+            "extra": "2.4097191290909965 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > WOFF + WOFF2 > new core",
+            "value": 85.74701252990825,
+            "range": "± 0.7282226414937139%",
+            "unit": "ms",
+            "extra": "11.679852146805795 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > WOFF + WOFF2 > upstream",
+            "value": 434.0800207031152,
+            "range": "± 0.5201939836856126%",
+            "unit": "ms",
+            "extra": "2.304689189146753 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > SVG only > new core",
+            "value": 36.51129466058125,
+            "range": "± 0.39432607073009396%",
+            "unit": "ms",
+            "extra": "27.41821859274731 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > SVG only > upstream",
+            "value": 142.0614943802783,
+            "range": "± 1.275650970418538%",
+            "unit": "ms",
+            "extra": "7.058741566085168 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > SVG + TTF > new core",
+            "value": 40.908580510205184,
+            "range": "± 0.6186944868104436%",
+            "unit": "ms",
+            "extra": "24.50123130479939 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > SVG + TTF > upstream",
+            "value": 266.0274864374951,
+            "range": "± 0.6634429452678319%",
+            "unit": "ms",
+            "extra": "3.761635422209042 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > all except WOFF2 > new core",
+            "value": 50.31427356282519,
+            "range": "± 0.5194611439806501%",
+            "unit": "ms",
+            "extra": "19.900978559676968 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: true > all except WOFF2 > upstream",
+            "value": 272.30464162498185,
+            "range": "± 0.8352856483046385%",
+            "unit": "ms",
+            "extra": "3.6763475650921125 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > all formats > new core",
+            "value": 72.69995501449677,
+            "range": "± 1.1294190423312895%",
+            "unit": "ms",
+            "extra": "13.814483185664097 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > all formats > upstream",
+            "value": 422.7380508281239,
+            "range": "± 0.5538379708179055%",
+            "unit": "ms",
+            "extra": "2.3666163809111063 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > WOFF2 only > new core",
+            "value": 66.41017679471386,
+            "range": "± 0.8393660091082883%",
+            "unit": "ms",
+            "extra": "15.096770246401437 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > WOFF2 only > upstream",
+            "value": 427.28463671874846,
+            "range": "± 0.7733331979777005%",
+            "unit": "ms",
+            "extra": "2.3424823123099388 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > WOFF + WOFF2 > new core",
+            "value": 71.69999782857653,
+            "range": "± 0.8655237146874597%",
+            "unit": "ms",
+            "extra": "13.983538588393031 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > WOFF + WOFF2 > upstream",
+            "value": 436.7601335000036,
+            "range": "± 0.6970533216189906%",
+            "unit": "ms",
+            "extra": "2.291316278240688 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > SVG only > new core",
+            "value": 24.98016448129037,
+            "range": "± 0.5020644780306621%",
+            "unit": "ms",
+            "extra": "40.133905305125225 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > SVG only > upstream",
+            "value": 145.44155178260587,
+            "range": "± 1.1921622155336906%",
+            "unit": "ms",
+            "extra": "6.892378892231326 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > SVG + TTF > new core",
+            "value": 28.21593914084846,
+            "range": "± 0.6168393808809872%",
+            "unit": "ms",
+            "extra": "35.56184708605992 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > SVG + TTF > upstream",
+            "value": 289.59672774999484,
+            "range": "± 0.4893669916194795%",
+            "unit": "ms",
+            "extra": "3.4543687866516697 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > all except WOFF2 > new core",
+            "value": 37.98951954923831,
+            "range": "± 0.6030394281774825%",
+            "unit": "ms",
+            "extra": "26.384826879163946 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > optimize SVG: false > all except WOFF2 > upstream",
+            "value": 293.62265851563285,
+            "range": "± 0.6557750161824104%",
+            "unit": "ms",
+            "extra": "3.4078932700301303 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > with rename callback > new core",
+            "value": 26.068839057287434,
+            "range": "± 0.5338236242044343%",
+            "unit": "ms",
+            "extra": "38.46497329182088 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > with rename callback > upstream",
+            "value": 155.12497992306734,
+            "range": "± 1.0143379420648575%",
+            "unit": "ms",
+            "extra": "6.456941328420286 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > css: true > html: true > new core",
+            "value": 45.944871068800744,
+            "range": "± 9.498652437901361%",
+            "unit": "ms",
+            "extra": "28.525113516794836 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > css: true > html: true > upstream",
+            "value": 181.78609950000103,
+            "range": "± 10.346134908278435%",
+            "unit": "ms",
+            "extra": "5.894738407743868 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > css: true > html: false > new core",
+            "value": 46.094908183486474,
+            "range": "± 10.787867561486452%",
+            "unit": "ms",
+            "extra": "29.171653054330974 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > css: true > html: false > upstream",
+            "value": 157.96530324998827,
+            "range": "± 1.2824506872106134%",
+            "unit": "ms",
+            "extra": "6.347043263176086 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > css: false > html: true > new core",
+            "value": 43.35170399999343,
+            "range": "± 12.00068688138505%",
+            "unit": "ms",
+            "extra": "30.902281687070786 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > css: false > html: true > upstream",
+            "value": 160.73250678127806,
+            "range": "± 4.274178582149969%",
+            "unit": "ms",
+            "extra": "6.322931353732473 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > css: false > html: false > new core",
+            "value": 36.970044081179225,
+            "range": "± 8.295918614273724%",
+            "unit": "ms",
+            "extra": "33.29095628818782 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 300 glyphs > css: false > html: false > upstream",
+            "value": 147.22875555884093,
+            "range": "± 2.1086971181677328%",
+            "unit": "ms",
+            "extra": "6.832837700907431 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > all formats > new core",
+            "value": 162.82713148435508,
+            "range": "± 1.158206198590698%",
+            "unit": "ms",
+            "extra": "6.15401949422189 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > all formats > upstream",
+            "value": 1025.058641218726,
+            "range": "± 0.5032854224847415%",
+            "unit": "ms",
+            "extra": "0.9759395971754743 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > WOFF2 only > new core",
+            "value": 147.17384080882937,
+            "range": "± 1.0804539621936273%",
+            "unit": "ms",
+            "extra": "6.807294431410872 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > WOFF2 only > upstream",
+            "value": 978.4663997187381,
+            "range": "± 0.7941725443358201%",
+            "unit": "ms",
+            "extra": "1.0230223133156509 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > WOFF + WOFF2 > new core",
+            "value": 156.12390456923927,
+            "range": "± 1.0604801389817338%",
+            "unit": "ms",
+            "extra": "6.416104836454201 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > WOFF + WOFF2 > upstream",
+            "value": 975.497966031271,
+            "range": "± 0.7015939039963127%",
+            "unit": "ms",
+            "extra": "1.0258939694056035 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > SVG only > new core",
+            "value": 64.62817182581,
+            "range": "± 0.7764038336173924%",
+            "unit": "ms",
+            "extra": "15.506775979954194 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > SVG only > upstream",
+            "value": 365.3391421093656,
+            "range": "± 1.3396816124311726%",
+            "unit": "ms",
+            "extra": "2.744931962188867 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > SVG + TTF > new core",
+            "value": 71.0348267872415,
+            "range": "± 0.5549067455905299%",
+            "unit": "ms",
+            "extra": "14.092312098562326 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > SVG + TTF > upstream",
+            "value": 587.557056218764,
+            "range": "± 1.0723674079850376%",
+            "unit": "ms",
+            "extra": "1.7049538197660867 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > all except WOFF2 > new core",
+            "value": 90.20713468468627,
+            "range": "± 0.5869226587676103%",
+            "unit": "ms",
+            "extra": "11.095604948708969 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: true > all except WOFF2 > upstream",
+            "value": 590.1447516093612,
+            "range": "± 0.9459867662159684%",
+            "unit": "ms",
+            "extra": "1.6969007866557755 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > all formats > new core",
+            "value": 130.52738874025832,
+            "range": "± 0.6146186733594554%",
+            "unit": "ms",
+            "extra": "7.666631536483638 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > all formats > upstream",
+            "value": 1003.9068235625018,
+            "range": "± 0.7279894170706249%",
+            "unit": "ms",
+            "extra": "0.9969412775391896 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > WOFF2 only > new core",
+            "value": 118.56134034118013,
+            "range": "± 0.5943276414753693%",
+            "unit": "ms",
+            "extra": "8.440277000802984 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > WOFF2 only > upstream",
+            "value": 969.4892987343485,
+            "range": "± 0.6057105499157727%",
+            "unit": "ms",
+            "extra": "1.0320686071820082 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > WOFF + WOFF2 > new core",
+            "value": 126.66950325318021,
+            "range": "± 0.9585852949525954%",
+            "unit": "ms",
+            "extra": "7.907852109223804 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > WOFF + WOFF2 > upstream",
+            "value": 983.9894113281226,
+            "range": "± 0.7923856399377146%",
+            "unit": "ms",
+            "extra": "1.017252310504475 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > SVG only > new core",
+            "value": 41.70473452917458,
+            "range": "± 0.6180969556195816%",
+            "unit": "ms",
+            "extra": "24.030042780143106 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > SVG only > upstream",
+            "value": 362.3780440468799,
+            "range": "± 0.9365349400763079%",
+            "unit": "ms",
+            "extra": "2.7633749997918287 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > SVG + TTF > new core",
+            "value": 45.05920132431876,
+            "range": "± 0.6603248198999211%",
+            "unit": "ms",
+            "extra": "22.244380282418625 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > SVG + TTF > upstream",
+            "value": 557.0679117187465,
+            "range": "± 0.9385101062711433%",
+            "unit": "ms",
+            "extra": "1.797677894595246 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > all except WOFF2 > new core",
+            "value": 64.91668705157635,
+            "range": "± 0.34057397021067143%",
+            "unit": "ms",
+            "extra": "15.4113219145196 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > optimize SVG: false > all except WOFF2 > upstream",
+            "value": 592.7849275781189,
+            "range": "± 0.8438203361073102%",
+            "unit": "ms",
+            "extra": "1.688839321454539 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > with rename callback > new core",
+            "value": 43.55841795652093,
+            "range": "± 0.6923135892876685%",
+            "unit": "ms",
+            "extra": "23.016904284580395 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > with rename callback > upstream",
+            "value": 396.5184610156357,
+            "range": "± 1.2342888430115242%",
+            "unit": "ms",
+            "extra": "2.5278309040958202 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > css: true > html: true > new core",
+            "value": 63.56810803164114,
+            "range": "± 7.532292662203531%",
+            "unit": "ms",
+            "extra": "18.154171565960464 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > css: true > html: true > upstream",
+            "value": 386.5376234218492,
+            "range": "± 1.297883576713849%",
+            "unit": "ms",
+            "extra": "2.5939271372597466 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > css: true > html: false > new core",
+            "value": 68.41990694595577,
+            "range": "± 9.189153578733542%",
+            "unit": "ms",
+            "extra": "17.50642742804711 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > css: true > html: false > upstream",
+            "value": 376.9702680000483,
+            "range": "± 1.1501501711850581%",
+            "unit": "ms",
+            "extra": "2.6583412942341695 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > css: false > html: true > new core",
+            "value": 58.829705399995234,
+            "range": "± 7.2235792511925485%",
+            "unit": "ms",
+            "extra": "18.99042285735525 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > css: false > html: true > upstream",
+            "value": 377.7282953125032,
+            "range": "± 1.3490365643581126%",
+            "unit": "ms",
+            "extra": "2.654743587745551 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > css: false > html: false > new core",
+            "value": 67.14076583331764,
+            "range": "± 14.786531944414365%",
+            "unit": "ms",
+            "extra": "19.1547279661565 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > 600 glyphs > css: false > html: false > upstream",
+            "value": 374.389936406238,
+            "range": "± 1.9493397070618652%",
+            "unit": "ms",
+            "extra": "2.6848596166441183 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > default templates > generateCss() > new core",
+            "value": 0.0032995713496538847,
+            "range": "± 0.65280969038118%",
+            "unit": "ms",
+            "extra": "312375.89059562486 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > default templates > generateCss() > upstream",
+            "value": 0.24309718716872847,
+            "range": "± 0.9281154440411545%",
+            "unit": "ms",
+            "extra": "4256.375862693287 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > default templates > generateCss(urls) > new core",
+            "value": 0.005301838274331707,
+            "range": "± 0.2585505095443623%",
+            "unit": "ms",
+            "extra": "191254.04200898844 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > default templates > generateCss(urls) > upstream",
+            "value": 0.21116816174194478,
+            "range": "± 0.9878906736610418%",
+            "unit": "ms",
+            "extra": "4928.142630218312 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > default templates > generateHtml() > new core",
+            "value": 0.003878333443166041,
+            "range": "± 0.34499355991963787%",
+            "unit": "ms",
+            "extra": "266135.6468563185 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > default templates > generateHtml() > upstream",
+            "value": 0.4653839925581414,
+            "range": "± 0.980328561503961%",
+            "unit": "ms",
+            "extra": "2206.300968410864 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > default templates > generateHtml(urls) > new core",
+            "value": 0.005785223470905393,
+            "range": "± 0.2990818645157922%",
+            "unit": "ms",
+            "extra": "176190.91491003789 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > default templates > generateHtml(urls) > upstream",
+            "value": 0.41618949979004194,
+            "range": "± 1.0446645463509139%",
+            "unit": "ms",
+            "extra": "2477.1065189392634 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > custom templates > generateCss() > new core",
+            "value": 0.0030511977109105525,
+            "range": "± 0.3069517187611255%",
+            "unit": "ms",
+            "extra": "335683.86137391196 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > custom templates > generateCss() > upstream",
+            "value": 0.0692439796410789,
+            "range": "± 1.7447545967287728%",
+            "unit": "ms",
+            "extra": "15558.851789829525 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > custom templates > generateHtml() > new core",
+            "value": 0.0030518556259772115,
+            "range": "± 0.2827660710798494%",
+            "unit": "ms",
+            "extra": "335788.004056302 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > custom templates > generateHtml() > upstream",
+            "value": 0.10484557339503092,
+            "range": "± 1.8226683847832696%",
+            "unit": "ms",
+            "extra": "10268.322331815953 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > with context callbacks (css: false, html: false) > generateCss() > new core",
+            "value": 0.0031749629067513684,
+            "range": "± 0.21647186842099417%",
+            "unit": "ms",
+            "extra": "321472.59140599106 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > with context callbacks (css: false, html: false) > generateCss() > upstream",
+            "value": 0.23702178459550505,
+            "range": "± 0.9217591448827839%",
+            "unit": "ms",
+            "extra": "4366.70353963001 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > with context callbacks (css: false, html: false) > generateCss(urls) > new core",
+            "value": 0.00527791918487238,
+            "range": "± 0.28428473157800477%",
+            "unit": "ms",
+            "extra": "192135.62931078993 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > with context callbacks (css: false, html: false) > generateCss(urls) > upstream",
+            "value": 0.20010660844538286,
+            "range": "± 0.8481163803171148%",
+            "unit": "ms",
+            "extra": "5157.757552472541 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > with context callbacks (css: false, html: false) > generateHtml() > new core",
+            "value": 0.003649810107919067,
+            "range": "± 0.2719598768970349%",
+            "unit": "ms",
+            "extra": "280353.9655752004 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > with context callbacks (css: false, html: false) > generateHtml() > upstream",
+            "value": 0.46759055352535983,
+            "range": "± 0.916269692615343%",
+            "unit": "ms",
+            "extra": "2189.359831915448 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > with context callbacks (css: false, html: false) > generateHtml(urls) > new core",
+            "value": 0.005667729315700757,
+            "range": "± 0.19121153541491548%",
+            "unit": "ms",
+            "extra": "178636.3097574591 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 5 glyphs > with context callbacks (css: false, html: false) > generateHtml(urls) > upstream",
+            "value": 0.4030016228912354,
+            "range": "± 0.8772627681638449%",
+            "unit": "ms",
+            "extra": "2541.9564201453927 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > default templates > generateCss() > new core",
+            "value": 0.00524544075328747,
+            "range": "± 0.22286403360176793%",
+            "unit": "ms",
+            "extra": "197570.12392865124 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > default templates > generateCss() > upstream",
+            "value": 1.7793156195469186,
+            "range": "± 0.3896587799055805%",
+            "unit": "ms",
+            "extra": "563.9197448353253 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > default templates > generateCss(urls) > new core",
+            "value": 0.007280458078766863,
+            "range": "± 0.18043965801776335%",
+            "unit": "ms",
+            "extra": "140647.00721588975 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > default templates > generateCss(urls) > upstream",
+            "value": 0.3233587117684273,
+            "range": "± 0.5225628441075253%",
+            "unit": "ms",
+            "extra": "3158.743968277274 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > default templates > generateHtml() > new core",
+            "value": 0.008392392078219273,
+            "range": "± 0.2932012719929456%",
+            "unit": "ms",
+            "extra": "125232.65372078058 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > default templates > generateHtml() > upstream",
+            "value": 2.195003472592302,
+            "range": "± 0.43324108458049315%",
+            "unit": "ms",
+            "extra": "457.2699287911047 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > default templates > generateHtml(urls) > new core",
+            "value": 0.01167269976668514,
+            "range": "± 0.28308677130064824%",
+            "unit": "ms",
+            "extra": "89289.85974608133 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > default templates > generateHtml(urls) > upstream",
+            "value": 0.728520817914774,
+            "range": "± 0.6050445541426223%",
+            "unit": "ms",
+            "extra": "1398.5839488705767 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > custom templates > generateCss() > new core",
+            "value": 0.0031287302223437616,
+            "range": "± 0.152261227104315%",
+            "unit": "ms",
+            "extra": "328577.4594920968 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > custom templates > generateCss() > upstream",
+            "value": 1.5111365249149027,
+            "range": "± 0.4761379518355435%",
+            "unit": "ms",
+            "extra": "666.0018988324836 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > custom templates > generateHtml() > new core",
+            "value": 0.0031054455804296003,
+            "range": "± 0.15823370447292473%",
+            "unit": "ms",
+            "extra": "329585.7381913305 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > custom templates > generateHtml() > upstream",
+            "value": 1.5393443261534694,
+            "range": "± 0.4681476530100711%",
+            "unit": "ms",
+            "extra": "653.4261235754209 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > with context callbacks (css: false, html: false) > generateCss() > new core",
+            "value": 0.004637564238085258,
+            "range": "± 0.21585915686388388%",
+            "unit": "ms",
+            "extra": "223175.38332879747 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > with context callbacks (css: false, html: false) > generateCss() > upstream",
+            "value": 1.8286292166338498,
+            "range": "± 0.4821756196834685%",
+            "unit": "ms",
+            "extra": "549.8873401868167 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > with context callbacks (css: false, html: false) > generateCss(urls) > new core",
+            "value": 0.007007285009513236,
+            "range": "± 0.18411872939744492%",
+            "unit": "ms",
+            "extra": "146223.58410671182 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > with context callbacks (css: false, html: false) > generateCss(urls) > upstream",
+            "value": 0.3267156783709982,
+            "range": "± 0.5160661040662808%",
+            "unit": "ms",
+            "extra": "3128.7040471954406 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > with context callbacks (css: false, html: false) > generateHtml() > new core",
+            "value": 0.008856157865056925,
+            "range": "± 0.29318550497694335%",
+            "unit": "ms",
+            "extra": "118666.01811869963 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > with context callbacks (css: false, html: false) > generateHtml() > upstream",
+            "value": 2.2238118755501803,
+            "range": "± 0.4603178340915351%",
+            "unit": "ms",
+            "extra": "451.5865709636485 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > with context callbacks (css: false, html: false) > generateHtml(urls) > new core",
+            "value": 0.010592025934713738,
+            "range": "± 0.27900938355642424%",
+            "unit": "ms",
+            "extra": "98147.30939151514 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > generateCss / generateHtml — 300 glyphs > with context callbacks (css: false, html: false) > generateHtml(urls) > upstream",
+            "value": 0.7172388393686017,
+            "range": "± 0.6028486217376654%",
+            "unit": "ms",
+            "extra": "1419.1473750362265 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 100 glyphs > woff2",
+            "value": 0.008477411509298724,
+            "range": "± 1.7699191616606633%",
+            "unit": "ms",
+            "extra": "137236.25058977885 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 100 glyphs > woff",
+            "value": 0.00928755922991174,
+            "range": "± 1.836459080412756%",
+            "unit": "ms",
+            "extra": "126365.91673652428 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 100 glyphs > ttf",
+            "value": 0.013731364416012012,
+            "range": "± 1.7713319010093094%",
+            "unit": "ms",
+            "extra": "86059.69659758035 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 100 glyphs > eot",
+            "value": 0.013822991540023406,
+            "range": "± 1.6175760282801919%",
+            "unit": "ms",
+            "extra": "85156.38032568574 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 100 glyphs > svg",
+            "value": 0.10691841184787425,
+            "range": "± 1.8392184591405534%",
+            "unit": "ms",
+            "extra": "11327.563255021914 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 300 glyphs > woff2",
+            "value": 0.017116098377021927,
+            "range": "± 1.7047116789149002%",
+            "unit": "ms",
+            "extra": "70073.00764591718 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 300 glyphs > ttf",
+            "value": 0.017564609885712318,
+            "range": "± 2.2402443444367877%",
+            "unit": "ms",
+            "extra": "82764.6084647241 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 300 glyphs > woff",
+            "value": 0.020862273980294662,
+            "range": "± 1.7790856138945579%",
+            "unit": "ms",
+            "extra": "57610.474068236894 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 300 glyphs > eot",
+            "value": 0.03092846995473292,
+            "range": "± 1.826265401973769%",
+            "unit": "ms",
+            "extra": "47015.03977879156 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 300 glyphs > svg",
+            "value": 1.1101792996778233,
+            "range": "± 1.706234676816999%",
+            "unit": "ms",
+            "extra": "967.6082095899815 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 600 glyphs > ttf",
+            "value": 0.02757228790832143,
+            "range": "± 2.226952335734518%",
+            "unit": "ms",
+            "extra": "52239.248430332205 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 600 glyphs > eot",
+            "value": 0.029829022817752585,
+            "range": "± 2.2252459883624574%",
+            "unit": "ms",
+            "extra": "49321.583543700064 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 600 glyphs > woff",
+            "value": 0.04194502508180506,
+            "range": "± 8.810192607545025%",
+            "unit": "ms",
+            "extra": "32770.66655725325 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 600 glyphs > woff2",
+            "value": 0.11584460657113563,
+            "range": "± 57.74269145373838%",
+            "unit": "ms",
+            "extra": "36219.79796843465 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > repeated output getters — 600 glyphs > svg",
+            "value": 1.475031004430162,
+            "range": "± 1.4037811807943372%",
+            "unit": "ms",
+            "extra": "703.2257294346373 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 100 glyphs > new core — incremental regenerate",
+            "value": 0.04187688222307053,
+            "range": "± 0.20469892396713096%",
+            "unit": "ms",
+            "extra": "23985.96230986861 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 100 glyphs > new core — full regen (legacy)",
+            "value": 14.641798897789123,
+            "range": "± 1.3645480971306978%",
+            "unit": "ms",
+            "extra": "69.18262059444622 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 100 glyphs > upstream — full regen",
+            "value": 107.85051451561597,
+            "range": "± 1.8323032465177396%",
+            "unit": "ms",
+            "extra": "9.316366040265697 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 300 glyphs > new core — incremental regenerate",
+            "value": 0.11376137714528674,
+            "range": "± 0.05366384129572937%",
+            "unit": "ms",
+            "extra": "8809.619594609969 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 300 glyphs > new core — full regen (legacy)",
+            "value": 50.83448262658276,
+            "range": "± 0.70734934210383%",
+            "unit": "ms",
+            "extra": "19.7102796996908 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 300 glyphs > upstream — full regen",
+            "value": 434.6601229999943,
+            "range": "± 0.7053929117310843%",
+            "unit": "ms",
+            "extra": "2.3023961215543007 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 600 glyphs > new core — incremental regenerate",
+            "value": 0.22145551761899854,
+            "range": "± 0.08421449452318591%",
+            "unit": "ms",
+            "extra": "4528.3299050522755 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 600 glyphs > new core — full regen (legacy)",
+            "value": 94.28335044705578,
+            "range": "± 0.9832302691536072%",
+            "unit": "ms",
+            "extra": "10.627079638921717 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event with unchanged contents — 600 glyphs > upstream — full regen",
+            "value": 969.3055484843424,
+            "range": "± 0.6489279060296155%",
+            "unit": "ms",
+            "extra": "1.0323446386688986 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 100 glyphs > new core — incremental regenerate rediff",
+            "value": 13.542480283780211,
+            "range": "± 11.879966768664282%",
+            "unit": "ms",
+            "extra": "99.33660039341662 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 100 glyphs > new core — incremental regenerate",
+            "value": 13.960112045277306,
+            "range": "± 21.4627289717291%",
+            "unit": "ms",
+            "extra": "100.47967614002013 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 100 glyphs > new core — full regen (legacy)",
+            "value": 15.323008019091446,
+            "range": "± 1.4097519082383987%",
+            "unit": "ms",
+            "extra": "66.12060934626653 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 100 glyphs > new core — async incremental regenerate",
+            "value": 17.274302521539884,
+            "range": "± 15.895909343824192%",
+            "unit": "ms",
+            "extra": "87.35081584158789 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 100 glyphs > upstream — full regen",
+            "value": 112.38103929689534,
+            "range": "± 1.8162251411600046%",
+            "unit": "ms",
+            "extra": "8.93606071073395 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 300 glyphs > new core — incremental regenerate rediff",
+            "value": 34.06196154467169,
+            "range": "± 6.53287504333504%",
+            "unit": "ms",
+            "extra": "31.772354064989084 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 300 glyphs > new core — incremental regenerate",
+            "value": 36.03892977024966,
+            "range": "± 8.855050479486934%",
+            "unit": "ms",
+            "extra": "32.40907557777748 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 300 glyphs > new core — async incremental regenerate",
+            "value": 39.4315944187357,
+            "range": "± 12.562998543179898%",
+            "unit": "ms",
+            "extra": "30.279202200529554 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 300 glyphs > new core — full regen (legacy)",
+            "value": 51.239295560525505,
+            "range": "± 0.8816664670377607%",
+            "unit": "ms",
+            "extra": "19.57314605944771 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 300 glyphs > upstream — full regen",
+            "value": 428.52890101561934,
+            "range": "± 0.580887270425588%",
+            "unit": "ms",
+            "extra": "2.3347456765767354 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 600 glyphs > new core — incremental regenerate",
+            "value": 60.76821561364431,
+            "range": "± 6.129645913342131%",
+            "unit": "ms",
+            "extra": "17.213236592937598 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 600 glyphs > new core — incremental regenerate rediff",
+            "value": 62.679339507845704,
+            "range": "± 5.621526733522945%",
+            "unit": "ms",
+            "extra": "16.622475592020166 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 600 glyphs > new core — async incremental regenerate",
+            "value": 66.6782644999912,
+            "range": "± 10.611183683478172%",
+            "unit": "ms",
+            "extra": "16.494175643837718 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 600 glyphs > new core — full regen (legacy)",
+            "value": 94.00733824415393,
+            "range": "± 0.6073372275088135%",
+            "unit": "ms",
+            "extra": "10.645813411851622 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild after a 1-file content edit — 600 glyphs > upstream — full regen",
+            "value": 887.5362995312388,
+            "range": "± 1.0011359010609093%",
+            "unit": "ms",
+            "extra": "1.128444661519911 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 100 glyphs > new core — two separate incremental regenerates",
+            "value": 37.11300849998628,
+            "range": "± 20.66378763993598%",
+            "unit": "ms",
+            "extra": "41.294999366830034 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 100 glyphs > new core — one batched incremental regenerate",
+            "value": 37.45862870093732,
+            "range": "± 19.46305352011732%",
+            "unit": "ms",
+            "extra": "53.83926485735866 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 100 glyphs > new core — ten separate incremental regenerates",
+            "value": 95.55685203125176,
+            "range": "± 9.612518760759121%",
+            "unit": "ms",
+            "extra": "11.144292374381694 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 300 glyphs > new core — one batched incremental regenerate",
+            "value": 46.079678890803805,
+            "range": "± 15.249637663247807%",
+            "unit": "ms",
+            "extra": "27.90606322575574 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 300 glyphs > new core — two separate incremental regenerates",
+            "value": 66.76476592499529,
+            "range": "± 5.648109060448957%",
+            "unit": "ms",
+            "extra": "15.61335969571389 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 300 glyphs > new core — ten separate incremental regenerates",
+            "value": 253.1768151250144,
+            "range": "± 1.3998530890528322%",
+            "unit": "ms",
+            "extra": "3.960978755543624 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 600 glyphs > new core — one batched incremental regenerate",
+            "value": 73.39297853637147,
+            "range": "± 12.266700261383532%",
+            "unit": "ms",
+            "extra": "15.636389092911825 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 600 glyphs > new core — two separate incremental regenerates",
+            "value": 115.35219460000019,
+            "range": "± 1.498171318873587%",
+            "unit": "ms",
+            "extra": "8.704058046092912 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > batched vs separate content edits — 600 glyphs > new core — ten separate incremental regenerates",
+            "value": 494.0864689375012,
+            "range": "± 0.9624465409363209%",
+            "unit": "ms",
+            "extra": "2.026831183579252 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event + CSS with unchanged contents — 100 glyphs > new core — incremental regenerate + reuse CSS",
+            "value": 0.04711871360125783,
+            "range": "± 0.09045626351695106%",
+            "unit": "ms",
+            "extra": "21372.26879523665 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event + CSS with unchanged contents — 100 glyphs > new core — full regen + render CSS",
+            "value": 16.019655203985046,
+            "range": "± 1.175001947046751%",
+            "unit": "ms",
+            "extra": "62.969469579998915 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event + CSS with unchanged contents — 300 glyphs > new core — incremental regenerate + reuse CSS",
+            "value": 0.12286322557237947,
+            "range": "± 0.06715980952305392%",
+            "unit": "ms",
+            "extra": "8172.898549132244 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event + CSS with unchanged contents — 300 glyphs > new core — full regen + render CSS",
+            "value": 53.874795456357546,
+            "range": "± 0.9366965029091744%",
+            "unit": "ms",
+            "extra": "18.62207879103147 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event + CSS with unchanged contents — 600 glyphs > new core — incremental regenerate + reuse CSS",
+            "value": 0.2313557496756313,
+            "range": "± 0.09595486689017864%",
+            "unit": "ms",
+            "extra": "4345.771332857334 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > changed event + CSS with unchanged contents — 600 glyphs > new core — full regen + render CSS",
+            "value": 99.06111741977757,
+            "range": "± 1.0313507770746517%",
+            "unit": "ms",
+            "extra": "10.114586328653763 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + CSS after a 1-file content edit — 100 glyphs > new core — incremental regenerate + reuse CSS",
+            "value": 16.8389663907441,
+            "range": "± 13.16525190654125%",
+            "unit": "ms",
+            "extra": "76.65723587797156 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + CSS after a 1-file content edit — 100 glyphs > new core — full regen + render CSS",
+            "value": 17.296363663791425,
+            "range": "± 1.0420049765578807%",
+            "unit": "ms",
+            "extra": "58.19103560826015 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + CSS after a 1-file content edit — 300 glyphs > new core — incremental regenerate + reuse CSS",
+            "value": 40.98798691369551,
+            "range": "± 8.585092782038027%",
+            "unit": "ms",
+            "extra": "27.20034234579831 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + CSS after a 1-file content edit — 300 glyphs > new core — full regen + render CSS",
+            "value": 55.48511957237498,
+            "range": "± 0.8010333722796819%",
+            "unit": "ms",
+            "extra": "18.06450119823864 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + CSS after a 1-file content edit — 600 glyphs > new core — incremental regenerate + reuse CSS",
+            "value": 62.24517412400666,
+            "range": "± 4.662086812172845%",
+            "unit": "ms",
+            "extra": "16.616409726502045 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + CSS after a 1-file content edit — 600 glyphs > new core — full regen + render CSS",
+            "value": 99.83675819754394,
+            "range": "± 0.729275135793538%",
+            "unit": "ms",
+            "extra": "10.026610684040486 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file change — 100 glyphs > new core — incremental regenerate + writeFiles",
+            "value": 0.04405999519775655,
+            "range": "± 0.07546449744131489%",
+            "unit": "ms",
+            "extra": "22837.371992694116 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file change — 100 glyphs > new core — full regen + writeFiles",
+            "value": 30.66027925954776,
+            "range": "± 18.00944308069328%",
+            "unit": "ms",
+            "extra": "48.326552376250774 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file change — 300 glyphs > new core — incremental regenerate + writeFiles",
+            "value": 0.11330638142598806,
+            "range": "± 0.04382106393552997%",
+            "unit": "ms",
+            "extra": "8840.301613710919 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file change — 300 glyphs > new core — full regen + writeFiles",
+            "value": 88.17562828570664,
+            "range": "± 14.20003335377406%",
+            "unit": "ms",
+            "extra": "14.47262567228304 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file change — 600 glyphs > new core — incremental regenerate + writeFiles",
+            "value": 0.22065602349889607,
+            "range": "± 0.06434468766229699%",
+            "unit": "ms",
+            "extra": "4544.438323756406 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file change — 600 glyphs > new core — full regen + writeFiles",
+            "value": 103.27059688460892,
+            "range": "± 2.640759501679259%",
+            "unit": "ms",
+            "extra": "9.777953445519874 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file content edit — 100 glyphs > new core — full regen + writeFiles",
+            "value": 30.006751043485835,
+            "range": "± 18.96599432178598%",
+            "unit": "ms",
+            "extra": "48.35062669560303 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file content edit — 100 glyphs > new core — incremental regenerate + writeFiles",
+            "value": 39.07429618444475,
+            "range": "± 32.697929800230874%",
+            "unit": "ms",
+            "extra": "55.10275974482753 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file content edit — 300 glyphs > new core — incremental regenerate + writeFiles",
+            "value": 57.2593289077949,
+            "range": "± 16.24601691075753%",
+            "unit": "ms",
+            "extra": "23.867939254413912 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file content edit — 300 glyphs > new core — full regen + writeFiles",
+            "value": 69.74997552172887,
+            "range": "± 6.469223637446713%",
+            "unit": "ms",
+            "extra": "15.452982282629574 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file content edit — 600 glyphs > new core — incremental regenerate + writeFiles",
+            "value": 64.4302776319869,
+            "range": "± 3.5124466098267235%",
+            "unit": "ms",
+            "extra": "15.826816631809923 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > rebuild + writeFiles after a 1-file content edit — 600 glyphs > new core — full regen + writeFiles",
+            "value": 102.81206135899545,
+            "range": "± 1.9524543798084901%",
+            "unit": "ms",
+            "extra": "9.781443908184587 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > write-skip on unchanged outputs — 100 glyphs > new core — incremental regenerate + write-skip",
+            "value": 0.046993359991172094,
+            "range": "± 0.07633472688777873%",
+            "unit": "ms",
+            "extra": "21376.805724280875 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > write-skip on unchanged outputs — 100 glyphs > new core — full regen + writeFiles",
+            "value": 30.08553018045955,
+            "range": "± 16.5602118527322%",
+            "unit": "ms",
+            "extra": "46.822334596260816 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > write-skip on unchanged outputs — 300 glyphs > new core — incremental regenerate + write-skip",
+            "value": 0.1129167635537297,
+            "range": "± 0.03557451346948047%",
+            "unit": "ms",
+            "extra": "8866.71152186493 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > write-skip on unchanged outputs — 300 glyphs > new core — full regen + writeFiles",
+            "value": 92.4333146666819,
+            "range": "± 23.45905960480427%",
+            "unit": "ms",
+            "extra": "14.692251796537812 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > write-skip on unchanged outputs — 600 glyphs > new core — incremental regenerate + write-skip",
+            "value": 0.22178922713418933,
+            "range": "± 0.05495701621746139%",
+            "unit": "ms",
+            "extra": "4518.38414288967 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > write-skip on unchanged outputs — 600 glyphs > new core — full regen + writeFiles",
+            "value": 126.06449459998223,
+            "range": "± 8.4085569571166%",
+            "unit": "ms",
+            "extra": "8.438274196347699 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at start > new core — incremental add/remove toggle",
+            "value": 11.488289237832314,
+            "range": "± 1.5251513951018913%",
+            "unit": "ms",
+            "extra": "89.0319423314916 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at start > new core — full regen after add",
+            "value": 16.56410200825954,
+            "range": "± 1.3353730499488503%",
+            "unit": "ms",
+            "extra": "61.0800587106042 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at start > new core — full regen after remove",
+            "value": 16.845126378160156,
+            "range": "± 1.3455630159653331%",
+            "unit": "ms",
+            "extra": "60.079675889876754 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at middle > new core — incremental add/remove toggle",
+            "value": 9.92897933249756,
+            "range": "± 1.4306311532983795%",
+            "unit": "ms",
+            "extra": "102.76001832452924 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at middle > new core — full regen after remove",
+            "value": 15.102191294346632,
+            "range": "± 1.3215686586333142%",
+            "unit": "ms",
+            "extra": "67.0167125136344 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at middle > new core — full regen after add",
+            "value": 17.13974356409721,
+            "range": "± 1.169839074766963%",
+            "unit": "ms",
+            "extra": "58.850559223520065 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at end > new core — incremental add/remove toggle",
+            "value": 10.078270999997411,
+            "range": "± 1.1544960574889203%",
+            "unit": "ms",
+            "extra": "100.6033834211256 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at end > new core — full regen after remove",
+            "value": 14.687110695948707,
+            "range": "± 0.9627404556508852%",
+            "unit": "ms",
+            "extra": "68.52642516525913 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 100 glyphs > add at end > new core — full regen after add",
+            "value": 15.007720528086754,
+            "range": "± 1.0831327914447377%",
+            "unit": "ms",
+            "extra": "67.16249949599583 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at start > new core — incremental add/remove toggle",
+            "value": 30.78181012691035,
+            "range": "± 0.7110668958548028%",
+            "unit": "ms",
+            "extra": "32.59467581588634 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at start > new core — full regen after add",
+            "value": 52.22819752593876,
+            "range": "± 0.6391278958815254%",
+            "unit": "ms",
+            "extra": "19.17585196267249 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at start > new core — full regen after remove",
+            "value": 52.44118854901719,
+            "range": "± 0.532491180940037%",
+            "unit": "ms",
+            "extra": "19.090377824389478 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at middle > new core — incremental add/remove toggle",
+            "value": 39.88212505472471,
+            "range": "± 7.847800421981993%",
+            "unit": "ms",
+            "extra": "27.280637309180907 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at middle > new core — full regen after add",
+            "value": 66.14597009916307,
+            "range": "± 13.504247126252771%",
+            "unit": "ms",
+            "extra": "17.69027376883802 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at middle > new core — full regen after remove",
+            "value": 186.00539542185288,
+            "range": "± 93.36577569467195%",
+            "unit": "ms",
+            "extra": "12.731785752517297 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at end > new core — incremental add/remove toggle",
+            "value": 35.96344036326197,
+            "range": "± 5.845189115060954%",
+            "unit": "ms",
+            "extra": "29.253606330999915 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at end > new core — full regen after remove",
+            "value": 71.11195411504681,
+            "range": "± 8.333042081397734%",
+            "unit": "ms",
+            "extra": "15.620766477001647 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 300 glyphs > add at end > new core — full regen after add",
+            "value": 90.38869915728388,
+            "range": "± 12.64937296189323%",
+            "unit": "ms",
+            "extra": "13.542875272038621 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at start > new core — incremental add/remove toggle",
+            "value": 65.83034401640036,
+            "range": "± 5.656711066259117%",
+            "unit": "ms",
+            "extra": "15.691450965845561 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at start > new core — full regen after add",
+            "value": 152.91459856251458,
+            "range": "± 10.223173879467781%",
+            "unit": "ms",
+            "extra": "7.333725228334142 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at start > new core — full regen after remove",
+            "value": 176.06930907816417,
+            "range": "± 16.804736161075127%",
+            "unit": "ms",
+            "extra": "7.3892923336260194 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at middle > new core — incremental add/remove toggle",
+            "value": 61.34134127480113,
+            "range": "± 0.9608365320809088%",
+            "unit": "ms",
+            "extra": "16.35242998335485 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at middle > new core — full regen after remove",
+            "value": 150.73667735931667,
+            "range": "± 19.82151092135679%",
+            "unit": "ms",
+            "extra": "8.002595307929997 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at middle > new core — full regen after add",
+            "value": 187.36720448434792,
+            "range": "± 19.70499056635317%",
+            "unit": "ms",
+            "extra": "7.267707955296832 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at end > new core — incremental add/remove toggle",
+            "value": 59.56314711111632,
+            "range": "± 2.507689549402271%",
+            "unit": "ms",
+            "extra": "17.0149031076616 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at end > new core — full regen after add",
+            "value": 129.21475053123143,
+            "range": "± 9.807868185043528%",
+            "unit": "ms",
+            "extra": "8.393527754988886 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > ordered add/remove regenerate — 600 glyphs > add at end > new core — full regen after remove",
+            "value": 162.6046422812433,
+            "range": "± 26.36895778792509%",
+            "unit": "ms",
+            "extra": "8.451954742798566 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 15 glyphs > new core — default CSS rerender toggle",
+            "value": 0.21402985424662407,
+            "range": "± 0.7839043416330278%",
+            "unit": "ms",
+            "extra": "4812.261484582854 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 15 glyphs > new core — custom CSS ignored deps reused toggle",
+            "value": 0.2311025798144891,
+            "range": "± 0.19772377717770218%",
+            "unit": "ms",
+            "extra": "4392.933609081045 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 15 glyphs > new core — default HTML rerender toggle",
+            "value": 0.2207752354022082,
+            "range": "± 0.20638881847528517%",
+            "unit": "ms",
+            "extra": "4604.965936301861 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 15 glyphs > new core — custom HTML ignored deps reused toggle",
+            "value": 0.22829181811258398,
+            "range": "± 0.18614433170664085%",
+            "unit": "ms",
+            "extra": "4438.2814459501715 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 100 glyphs > new core — default CSS rerender toggle",
+            "value": 1.1895945905468261,
+            "range": "± 0.25875381883239895%",
+            "unit": "ms",
+            "extra": "845.3330485050217 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 100 glyphs > new core — custom CSS ignored deps reused toggle",
+            "value": 1.213405836211994,
+            "range": "± 0.19297192246344236%",
+            "unit": "ms",
+            "extra": "826.7345733945838 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 100 glyphs > new core — default HTML rerender toggle",
+            "value": 1.2035627650362062,
+            "range": "± 0.2829740463107331%",
+            "unit": "ms",
+            "extra": "836.4579913571667 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 100 glyphs > new core — custom HTML ignored deps reused toggle",
+            "value": 1.1866082948620402,
+            "range": "± 0.23449445830382448%",
+            "unit": "ms",
+            "extra": "846.6467278535257 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 300 glyphs > new core — default CSS rerender toggle",
+            "value": 3.7441973935415627,
+            "range": "± 0.2864563661820243%",
+            "unit": "ms",
+            "extra": "268.23957377634247 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 300 glyphs > new core — custom CSS ignored deps reused toggle",
+            "value": 3.7417652613381946,
+            "range": "± 0.2526934459905214%",
+            "unit": "ms",
+            "extra": "268.1536216078688 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 300 glyphs > new core — default HTML rerender toggle",
+            "value": 3.6615769633880575,
+            "range": "± 0.1614314055236396%",
+            "unit": "ms",
+            "extra": "273.5037131171539 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 300 glyphs > new core — custom HTML ignored deps reused toggle",
+            "value": 3.6830274546683897,
+            "range": "± 0.15834528900556535%",
+            "unit": "ms",
+            "extra": "271.8933521950425 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 600 glyphs > new core — default CSS rerender toggle",
+            "value": 7.015081498687842,
+            "range": "± 0.34799830316523855%",
+            "unit": "ms",
+            "extra": "143.03680514085022 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 600 glyphs > new core — custom CSS ignored deps reused toggle",
+            "value": 7.071509125446257,
+            "range": "± 0.3701581759782342%",
+            "unit": "ms",
+            "extra": "141.95910507827756 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 600 glyphs > new core — default HTML rerender toggle",
+            "value": 6.9001225543136115,
+            "range": "± 0.2669557485595091%",
+            "unit": "ms",
+            "extra": "145.2237006036186 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > dependency-aware render reuse add/remove toggle — 600 glyphs > new core — custom HTML ignored deps reused toggle",
+            "value": 7.113403874660111,
+            "range": "± 0.3584473894978944%",
+            "unit": "ms",
+            "extra": "141.08996115623768 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 100 glyphs > new core — q9",
+            "value": 8.459241054969873,
+            "range": "± 1.2766052333916622%",
+            "unit": "ms",
+            "extra": "120.25640453250928 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 100 glyphs > new core — q10",
+            "value": 14.501530760880621,
+            "range": "± 8.94750960114722%",
+            "unit": "ms",
+            "extra": "72.68118120374713 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 100 glyphs > new core — q11",
+            "value": 20.392163167492527,
+            "range": "± 2.7329849736582905%",
+            "unit": "ms",
+            "extra": "49.60070614579919 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 100 glyphs > upstream",
+            "value": 106.91545968747234,
+            "range": "± 1.1119190858722061%",
+            "unit": "ms",
+            "extra": "9.370198774146548 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 300 glyphs > new core — q9",
+            "value": 34.06521910636864,
+            "range": "± 7.895998283165573%",
+            "unit": "ms",
+            "extra": "31.65458598913287 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 300 glyphs > new core — q10",
+            "value": 45.186327426976895,
+            "range": "± 0.19177902530175497%",
+            "unit": "ms",
+            "extra": "22.13429650780565 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 300 glyphs > new core — q11",
+            "value": 66.74969237500332,
+            "range": "± 1.6409660450591224%",
+            "unit": "ms",
+            "extra": "15.064578696000813 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 300 glyphs > upstream",
+            "value": 441.1840782187501,
+            "range": "± 0.9624679190075003%",
+            "unit": "ms",
+            "extra": "2.2698489299260856 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 600 glyphs > new core — q9",
+            "value": 56.52996673426507,
+            "range": "± 2.993635221611588%",
+            "unit": "ms",
+            "extra": "18.012012321180986 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 600 glyphs > new core — q10",
+            "value": 87.73177957607678,
+            "range": "± 5.565339537643245%",
+            "unit": "ms",
+            "extra": "11.647490254976605 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 600 glyphs > new core — q11",
+            "value": 127.79971354689043,
+            "range": "± 4.119064643574825%",
+            "unit": "ms",
+            "extra": "7.962575815826887 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > woff2 quality — 600 glyphs > upstream",
+            "value": 980.713203812498,
+            "range": "± 0.5749566523045244%",
+            "unit": "ms",
+            "extra": "1.0201814192194962 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > incremental population — 100 glyphs > new core — incremental: false",
+            "value": 24.65319333741145,
+            "range": "± 4.956056816453933%",
+            "unit": "ms",
+            "extra": "41.8229561552043 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > incremental population — 100 glyphs > new core — incremental: true",
+            "value": 30.358710727259286,
+            "range": "± 26.4380862958957%",
+            "unit": "ms",
+            "extra": "40.64814701030518 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > incremental population — 300 glyphs > new core — incremental: false",
+            "value": 73.65226717432533,
+            "range": "± 0.7620539896140887%",
+            "unit": "ms",
+            "extra": "13.598509843765553 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > incremental population — 300 glyphs > new core — incremental: true",
+            "value": 78.25003433005564,
+            "range": "± 3.2317278395281814%",
+            "unit": "ms",
+            "extra": "12.966277038059891 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > incremental population — 600 glyphs > new core — incremental: false",
+            "value": 134.19551093748302,
+            "range": "± 1.3304328546568351%",
+            "unit": "ms",
+            "extra": "7.4711278071434215 ops/sec"
+          },
+          {
+            "name": "vitest/tests/webfonts-generator.bench.ts > incremental population — 600 glyphs > new core — incremental: true",
+            "value": 138.48647643750155,
+            "range": "± 4.368726410490279%",
+            "unit": "ms",
+            "extra": "7.339916608228277 ops/sec"
           }
         ]
       }
