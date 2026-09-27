@@ -43,6 +43,10 @@ export default defineProject({
                 ...cargoCache,
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts',
             },
+            'binding:regenerate': {
+                cache: false,
+                command: 'node ../../scripts/regenerate-webfont-binding.mjs',
+            },
             bench: {
                 cache: false,
                 command: 'cargo bench -p webfont-generator --features bench',

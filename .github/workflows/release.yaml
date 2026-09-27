@@ -52,8 +52,8 @@ jobs:
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
               run: |
                   cargo update -p webfont-generator -p webfont-generator-napi
-                  vp run --no-cache @atlowchemi/webfont-generator#build
-                  vp check --fix
+                  vp run @atlowchemi/webfont-generator#binding:regenerate
+                  vp fmt
                   if ! git diff --quiet; then
                     git config user.name "github-actions[bot]"
                     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"

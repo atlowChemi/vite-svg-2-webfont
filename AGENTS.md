@@ -11,6 +11,7 @@
 
 - Never manually modify or restore `packages/webfont-generator/binding.{js,d.ts}` or platform `.node` artifacts unless the user explicitly authorizes it. Build and dependent tasks may regenerate them; stage and commit those generated updates with the source changes that produced them.
 - `vp run @atlowchemi/webfont-generator#build` builds the Rust/NAPI binding and can update `packages/webfont-generator/binding.{js,d.ts}` and platform `.node` artifacts.
+- `vp run @atlowchemi/webfont-generator#binding:regenerate` regenerates only the JS loader for version updates, preserving the last full build's exports; API changes still require `#build`.
 - After changing Rust code, run `vp run @atlowchemi/webfont-generator#check`; it checks the engine's default/CLI builds, the separate NAPI adapter, and workspace Rust formatting.
 - `vp run @atlowchemi/webfont-generator#test` runs Rust checks/tests via the package task; workspace `vp run test` first depends on the NAPI build, then runs JS/Vitest tests.
 - `vp run @atlowchemi/webfont-generator#bench --no-run` is the compile-only check for Rust benchmark target changes; run targeted Criterion filters only when measured behavior changes.
@@ -21,7 +22,7 @@
 
 - When changing generator public APIs, options, CLI flags, or exported types, update Rust doc comments, `packages/docs/webfont-generator/`, and both engine/adapter READMEs together.
 - Keep templates in `packages/webfont-generator/templates/`; Rust rendering parity tests read them through `test_helpers::npm_template`.
-- Do not duplicate the webfont-generator changelog in docs; `packages/docs/webfont-generator/changelog.md` includes `packages/webfont-generator/CHANGELOG.md`.
+- Docs changelog pages include their source files: npm history from `packages/webfont-generator/CHANGELOG.md`, engine history from `crates/webfont-generator/CHANGELOG.md`. Do not copy release entries into docs.
 
 ## Verification Subagents
 

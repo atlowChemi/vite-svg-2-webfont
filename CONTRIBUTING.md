@@ -124,6 +124,12 @@ those releases trigger crates.io publication. The npm adapter retains its own ch
 and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
 engine's private npm task package is never published.
 
+Release-PR preparation updates Cargo.lock, runs
+`vp run @atlowchemi/webfont-generator#binding:regenerate`, and formats changes with `vp fmt`.
+The regeneration task uses the NAPI generator to update only the JS loader, preserving
+exports from the last full binding build without compiling Rust. Changes to the native API
+still require the normal binding build to refresh both exports and TypeScript declarations.
+
 ## Pull Requests
 
 Before opening a pull request, please:
