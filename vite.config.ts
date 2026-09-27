@@ -90,9 +90,7 @@ const config: UserConfig = defineConfig({
         },
     },
     test: {
-        experimental: {
-            fsModuleCache: true,
-        },
+        fsModuleCache: true,
         coverage: {
             provider: 'v8',
             exclude: ['packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**', 'packages/webfont-generator/binding.*'],

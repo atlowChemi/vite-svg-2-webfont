@@ -48,9 +48,7 @@ export default defineProject({
         },
     },
     test: {
-        experimental: {
-            fsModuleCache: true,
-        },
+        fsModuleCache: true,
         typecheck: { enabled: true },
         benchmark: { include: [] },
         exclude: ['tests/browser/**'],

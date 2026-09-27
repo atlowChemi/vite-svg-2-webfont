@@ -180,6 +180,8 @@ jobs:
     test-vite-compat:
         name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
         needs: [build]
+        env:
+            VITE_COMPAT_MAJOR: ${{ matrix.vite_major }}
         strategy:
             matrix:
                 include:
@@ -225,7 +227,7 @@ jobs:
                   ALLOW_BUNDLE_ANALYSIS: ${{ matrix.primary }}
             - name: Verify vite version
               run: |
-                  VITE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('node_modules/vite/package.json', 'utf8')).version")
+                  VITE_VERSION=$(node -p "JSON.parse(require('node:fs').readFileSync('node_modules/vite-compat/package.json', 'utf8')).version")
                   echo "Resolved vite version: ${VITE_VERSION}"
                   case "${VITE_VERSION}" in
                     ${{ matrix.vite_major }}.*) ;;

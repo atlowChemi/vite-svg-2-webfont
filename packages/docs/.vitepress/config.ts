@@ -99,7 +99,7 @@ export default defineConfig({
                 mermaid: 'mermaid/dist/mermaid.esm.mjs',
             },
         },
-    } as never,
+    },
     themeConfig: {
         logo: '/logo.svg',
         siteTitle: repoName,
