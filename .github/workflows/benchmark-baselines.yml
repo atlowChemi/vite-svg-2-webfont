@@ -98,7 +98,7 @@ jobs:
               run: |
                   set -euo pipefail
                   mkdir -p "$(dirname "$VITEST_BENCH_OUTPUT")"
-                  vp test bench --run --reporter=default --reporter=json --outputFile="$VITEST_BENCH_OUTPUT"
+                  vp test bench --run --reporter=verbose --reporter=json --outputFile="$VITEST_BENCH_OUTPUT"
 
             - name: Convert benchmark outputs
               run: |

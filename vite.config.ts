@@ -75,6 +75,11 @@ const config: UserConfig = defineConfig({
     },
     run: {
         tasks: {
+            'bench:vitest': {
+                cache: false,
+                command: 'vp test bench --run --reporter=verbose --hideSkippedTests',
+                dependsOn: ['@atlowchemi/webfont-generator#build:release'],
+            },
             test: {
                 command: 'vp test',
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
