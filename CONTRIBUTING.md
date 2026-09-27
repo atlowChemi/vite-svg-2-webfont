@@ -54,7 +54,7 @@ vp run vite-svg-2-webfont#test:fixtures:refresh
 
 The repository has two benchmark layers:
 
-- Rust Criterion benchmarks in `packages/webfont-generator/benches/` isolate native generator internals, pipeline stages, incremental regeneration, output formats, templates, write paths, and scaling behavior.
+- Rust Criterion benchmarks in `crates/webfont-generator/benches/` isolate native generator internals, pipeline stages, incremental regeneration, output formats, templates, write paths, and scaling behavior.
 - Vitest benchmarks in `tests/webfonts-generator.bench.ts` exercise the JavaScript-facing API and compare against upstream behavior through the Node/NAPI boundary.
 
 Run Rust benchmarks through the package Vite+ task:
@@ -105,13 +105,19 @@ The Rust benchmarks prefer Iconify JSON fixtures from the workspace `node_module
 
 ## Project Structure
 
-This is a monorepo with the following packages under `packages/`:
+This monorepo has a root Cargo workspace and the following packages:
 
 - `packages/vite-svg-2-webfont/`: the Vite plugin — source code, tests, and build config
-- `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — Rust NAPI native addon
+- `crates/webfont-generator/`: published Rust engine and CLI; its private npm manifest connects the task graph
+- `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — npm API and unpublished `webfont-generator-napi` adapter crate
 - `packages/example/`: Vite app used for local development and manual verification
 - `packages/docs/`: VitePress documentation site, published to GitHub Pages
 - `tests/`: cross-package compatibility tests and benchmarks (at root level)
+
+Cargo uses the root `Cargo.lock` and `target/`. Engine templates are canonical under
+`crates/webfont-generator/templates/`; binding builds copy them into the npm package.
+Release Please links engine/adapter versions while retaining the existing native release
+tag and npm/crates.io identities. The engine's private npm task package is never published.
 
 ## Pull Requests
 

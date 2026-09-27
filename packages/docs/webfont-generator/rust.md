@@ -16,11 +16,42 @@ cargo add webfont-generator
 | ------- | ------- | --------------------------------------------------------------------------------- |
 | (none)  | yes     | Library-only build                                                                |
 | `cli`   | no      | Builds the CLI with JSON manifest support (adds `clap` and `serde_path_to_error`) |
-| `napi`  | no      | Enables Node.js NAPI bindings for use as a native addon                           |
+| `bench` | no      | Exposes internal helpers for the repository's Criterion benchmarks                |
 
 With `cli` enabled, `GenerateWebfontsOptions` and its input types implement `serde::Deserialize` using camelCase field names and rejecting unknown fields. Deserialization alone does not expand directories or rebase paths; those operations belong to the [CLI manifest loader](./cli#json-manifest).
 
+### Workspace migration
+
+The published `webfont-generator` crate now lives in `crates/webfont-generator/` and contains
+the Rust engine and CLI. `packages/webfont-generator/` contains the unpublished
+`webfont-generator-napi` adapter crate and the existing `@atlowchemi/webfont-generator` npm package.
+Both use the root Cargo workspace and lockfile.
+
+The former Rust `napi` feature and `generate_webfonts` Node-specific entry point are removed.
+This is a breaking Cargo API change, to be released with the next pre-1.0 minor version;
+the npm package name, imports, options, callbacks and result API remain the same.
+
 ## Async API
+
+### Adapter hooks
+
+`generate_with_hooks(options, &hooks)` accepts an implementation of `GenerationHooks`.
+It returns `Result<GenerateWebfontsResult, H::Error>`, where the hook error type implements
+`From<std::io::Error> + Send`. Implementations must be `Send + Sync` and return `Send` futures.
+
+| Method                  | Default            | Contract                                                                                                                                       |
+| ----------------------- | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `rename(paths)`         | `Ok(None)`         | Runs after source loading; return one name per ordered path, or `None` for file stems. Variant paths are flattened in configured design order. |
+| `has_css_context()`     | `false`            | Enable CSS context mutation.                                                                                                                   |
+| `has_html_context()`    | `false`            | Enable HTML context mutation.                                                                                                                  |
+| `css_context(context)`  | Unmodified context | Runs before HTML; engine-owned variant mode cannot be overridden.                                                                              |
+| `html_context(context)` | Unmodified context | Receives the HTML context, with variant styles derived from the finalized CSS context.                                                         |
+
+The engine owns generation, rendering caches and output writes. Adapters own callback
+transport and boundary types. `()` implements the trait with no callbacks. Results made
+with context mutation enabled reject incremental regeneration, matching the Node API.
+
+### Generation
 
 The primary entry point requires a [tokio](https://tokio.rs/) runtime:
 
@@ -359,18 +390,19 @@ reassemble the shared font bundle. No-op updates retain in-memory output and can
 
 Validation, source loading, and font-build failures preserve the previous state. State commits
 before writes: a write failure leaves the new in-memory output available and may leave partial
-disk files. Retry to complete output writes. Async methods consume `self`; recover the result
+disk files. Retry to complete output writes. The consuming async methods take `self`; recover the result
 with `RegenerateError::into_result` on failure. Dropping the future does not cancel started
 blocking work or its writes. Results created through Node context callbacks reject regeneration.
 
 ### Incremental rebuild
 
-| Method                             | Return type                     | Description                                                          |
-| ---------------------------------- | ------------------------------- | -------------------------------------------------------------------- |
-| `regenerate(files, changes)`       | `io::Result<()>`                | Rebuild after known file changes, reusing unchanged glyphs           |
-| `regenerate_all(files)`            | `io::Result<()>`                | Re-read/hash the full file set and infer added/changed/removed paths |
-| `regenerate_async(files, changes)` | `Result<Self, RegenerateError>` | Consume the result and rebuild on Tokio's blocking pool              |
-| `regenerate_all_async(files)`      | `Result<Self, RegenerateError>` | Consume the result, re-diff, and rebuild on Tokio's blocking pool    |
+| Method                                      | Return type                     | Description                                                                 |
+| ------------------------------------------- | ------------------------------- | --------------------------------------------------------------------------- |
+| `regenerate(files, changes)`                | `io::Result<()>`                | Rebuild after known file changes, reusing unchanged glyphs                  |
+| `regenerate_all(files)`                     | `io::Result<()>`                | Re-read/hash the full file set and infer added/changed/removed paths        |
+| `regenerate_async(files, changes)`          | `Result<Self, RegenerateError>` | Consume the result and rebuild on Tokio's blocking pool                     |
+| `regenerate_all_async(files)`               | `Result<Self, RegenerateError>` | Consume the result, re-diff, and rebuild on Tokio's blocking pool           |
+| `regenerate_snapshot_async(files, changes)` | `io::Result<Self>`              | Borrow the result, preserving readable output while returning a replacement |
 
 Requires the result to have been generated with `incremental: Some(true)` (errors otherwise).
 Synchronous methods take `files: &RegenerationFiles`; async methods take an owned `RegenerationFiles`.
@@ -385,7 +417,7 @@ CSS/HTML is reused when glyph names and codepoints are unchanged. Use `regenerat
 the fresh ordered file set but no reliable watcher change batch; existing glyph names are preserved,
 and added paths derive their glyph name from the file stem.
 
-The async methods take owned inputs and consume the result, so Rust rejects stale-result
+`regenerate_async` and `regenerate_all_async` take owned inputs and consume the result, so Rust rejects stale-result
 reuse after a successful rebuild. Assign the returned generation:
 
 ```rust
@@ -397,6 +429,16 @@ so it can be retried. It returns `None` only if Tokio cancelled the blocking tas
 could be returned. The consuming futures are not cancellation-safe: dropping one does not stop an
 already-started blocking task, filesystem writes may continue, and the consumed result cannot be
 recovered. Panics resume unwinding on the awaiting task.
+
+`regenerate_snapshot_async` supports adapters that need the receiver to remain readable.
+It borrows `&self` and takes `changes: Option<Vec<(String, GlyphChange)>>`: `Some(changes)`
+supplies explicit changes; `None` re-diffs the complete membership. Success returns a new
+result and prevents further regeneration of the old snapshot. Overlapping attempts are
+rejected. Failure restores the old snapshot's regeneration state for retry, including
+reconciliation after partial variant writes. Worker panics are returned as I/O errors.
+Dropping this future does not cancel blocking work or writes: if the work succeeds, the
+old snapshot remains replaced, but the new result is lost. Prefer the consuming methods
+when Rust ownership can enforce replacement.
 
 For Node.js results, `regenerate()` errors if the initial build used `cssContext` or `htmlContext`
 callbacks because the synchronous method cannot re-run JavaScript callbacks during the rebuild.

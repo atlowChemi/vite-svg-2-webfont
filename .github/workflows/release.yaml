@@ -51,7 +51,7 @@ jobs:
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
               run: |
                   vp check --fix || true
-                  cargo update -p webfont-generator --manifest-path packages/webfont-generator/Cargo.toml
+                  cargo update -p webfont-generator -p webfont-generator-napi
                   node <<'NODE'
                   const fs = require('fs');
                   const { version } = JSON.parse(fs.readFileSync('packages/webfont-generator/package.json', 'utf8'));
@@ -105,6 +105,9 @@ jobs:
             # would normally do this when the main package is published —
             # we skip it via `--ignore-scripts` on the main stage step
             # below so this work isn't duplicated.
+            - name: Sync npm templates
+              run: node scripts/sync-webfont-templates.mjs
+
             - name: Prepare per-platform packages
               run: vp exec napi pre-publish -t npm --no-gh-release --skip-optional-publish --cwd packages/webfont-generator
 
@@ -167,8 +170,8 @@ jobs:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - name: Publish to crates.io
-              working-directory: packages/webfont-generator
-              run: cargo publish
+              working-directory: crates/webfont-generator
+              run: cargo publish --locked
               env:
                   CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 

@@ -1,8 +1,16 @@
 {
     "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
     "include-commit-authors": true,
-    "plugins": ["node-workspace"],
+    "plugins": [{ "type": "linked-versions", "groupName": "webfont-generator", "components": ["webfont-generator", "webfont-engine"], "merge": false }, "node-workspace"],
     "packages": {
+        "crates/webfont-generator": {
+            "release-type": "node",
+            "component": "webfont-engine",
+            "bump-minor-pre-major": true,
+            "skip-github-release": true,
+            "skip-changelog": true,
+            "extra-files": [{ "type": "toml", "path": "Cargo.toml", "jsonpath": "$.package.version" }]
+        },
         "packages/vite-svg-2-webfont": {
             "release-type": "node",
             "component": "vite-svg-2-webfont"
@@ -16,6 +24,11 @@
                     "type": "toml",
                     "path": "Cargo.toml",
                     "jsonpath": "$.package.version"
+                },
+                {
+                    "type": "toml",
+                    "path": "Cargo.toml",
+                    "jsonpath": "$.dependencies['webfont-generator'].version"
                 }
             ]
         }

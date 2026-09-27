@@ -9,12 +9,18 @@ on:
             - scripts/benchmark-continuous-json.mjs
             - tests/**/*.bench.ts
             - packages/webfont-generator/**
+            - crates/webfont-generator/**
+            - Cargo.toml
+            - Cargo.lock
     pull_request:
         paths:
             - .github/workflows/benchmark-baselines.yml
             - scripts/benchmark-continuous-json.mjs
             - tests/**/*.bench.ts
             - packages/webfont-generator/**
+            - crates/webfont-generator/**
+            - Cargo.toml
+            - Cargo.lock
     schedule:
         - cron: '42 4 * * 1'
     workflow_dispatch:
@@ -62,18 +68,18 @@ jobs:
                   path: |
                       ~/.cargo/registry
                       ~/.cargo/git
-                      packages/webfont-generator/target
-                  key: cargo-bench-${{ runner.os }}-${{ hashFiles('packages/webfont-generator/Cargo.lock') }}
-                  restore-keys: cargo-bench-${{ runner.os }}-
+                      target
+                  key: cargo-workspace-bench-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
+                  restore-keys: cargo-workspace-bench-${{ runner.os }}-
 
             - name: Restore previous Criterion baseline
               run: |
                   set -euo pipefail
 
                   if [ -d benchmark-baselines/webfont-generator/criterion ]; then
-                    mkdir -p packages/webfont-generator/target
-                    rm -rf packages/webfont-generator/target/criterion
-                    cp -R benchmark-baselines/webfont-generator/criterion packages/webfont-generator/target/criterion
+                    mkdir -p target
+                    rm -rf target/criterion
+                    cp -R benchmark-baselines/webfont-generator/criterion target/criterion
                   else
                     echo "::warning::No previous Criterion baseline found on benchmark-baselines."
                   fi
@@ -91,7 +97,7 @@ jobs:
                   fi
 
                   for bench in features incremental pipeline; do
-                    cargo bench --manifest-path packages/webfont-generator/Cargo.toml --features bench --bench "$bench" -- "$BASELINE_FLAG" main
+                    cargo bench -p webfont-generator --features bench --bench "$bench" -- "$BASELINE_FLAG" main
                   done
 
             - name: Run Vitest benchmarks
@@ -104,7 +110,7 @@ jobs:
               run: |
                   set -euo pipefail
                   mkdir -p "$(dirname "$CONTINUOUS_BENCH_DATA")"
-                  node scripts/benchmark-continuous-json.mjs "$CONTINUOUS_BENCH_INPUT" packages/webfont-generator/target/criterion "$VITEST_BENCH_OUTPUT"
+                  node scripts/benchmark-continuous-json.mjs "$CONTINUOUS_BENCH_INPUT" target/criterion "$VITEST_BENCH_OUTPUT"
 
             - name: Compare benchmark results
               uses: benchmark-action/github-action-benchmark@4322e5726e6334590d251fc4f92bec0efafc45dc # v1.22.2
@@ -127,7 +133,7 @@ jobs:
                   mkdir -p benchmark-baselines/webfont-generator
 
                   rm -rf benchmark-baselines/webfont-generator/criterion benchmark-baselines/webfont-generator/vitest benchmark-baselines/webfont-generator/continuous-benchmark/input.json
-                  cp -R packages/webfont-generator/target/criterion benchmark-baselines/webfont-generator/criterion
+                  cp -R target/criterion benchmark-baselines/webfont-generator/criterion
                   mkdir -p benchmark-baselines/webfont-generator/vitest
                   cp "$VITEST_BENCH_OUTPUT" benchmark-baselines/webfont-generator/vitest/webfonts-generator.json
                   mkdir -p benchmark-baselines/webfont-generator/continuous-benchmark
