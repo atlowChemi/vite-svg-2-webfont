@@ -1,0 +1,28 @@
+name: Upload executed test results
+description: Archive JUnit and upload it to Codecov without reusing cached execution results.
+inputs:
+    name:
+        description: Suite and matrix identity
+        required: true
+    files:
+        description: JUnit report glob
+        required: true
+    token:
+        description: Codecov token
+        required: true
+runs:
+    using: composite
+    steps:
+        - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+          with:
+              name: test-results-${{ inputs.name }}-${{ github.run_attempt }}
+              path: ${{ inputs.files }}
+              if-no-files-found: error
+        - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+          with:
+              report_type: test_results
+              disable_search: true
+              files: ${{ inputs.files }}
+              name: ${{ inputs.name }}-${{ github.run_attempt }}
+              flags: ${{ inputs.name }}
+              token: ${{ inputs.token }}

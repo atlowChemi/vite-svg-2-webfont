@@ -89,16 +89,35 @@ const config: UserConfig = defineConfig({
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             coverage: {
+                cache: false,
                 command: "vp test --coverage --project='!*-browser*'",
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
         },
     },
     test: {
+        ...(process.env.CI_TEST_REPORT
+            ? {
+                  reporters: [
+                      'default',
+                      [
+                          'junit',
+                          {
+                              outputFile: process.env.CI_TEST_REPORT,
+                              suiteName: process.env.CI_TEST_SUITE ?? 'webfont-tests',
+                              classnameTemplate: `${process.env.CI_TEST_SUITE ?? 'webfont-tests'}::{displayName}::{filename}`,
+                              addFileAttribute: true,
+                          },
+                      ],
+                  ],
+              }
+            : {}),
         fsModuleCache: true,
         coverage: {
             provider: 'v8',
-            exclude: ['packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**', 'packages/webfont-generator/binding.*'],
+            reporter: ['text', 'lcov'],
+            reportOnFailure: true,
+            exclude: ['**/*.test-d.ts', 'packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**', 'packages/webfont-generator/binding.*'],
         },
         projects: [
             'packages/!(example)/vite.config.ts',

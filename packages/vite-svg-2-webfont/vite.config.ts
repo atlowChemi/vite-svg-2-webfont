@@ -46,7 +46,8 @@ const config: UserProjectConfigExport = defineProject({
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             'test:browser': {
-                command: 'vp test --config vite.browser.config.ts',
+                cache: false,
+                command: 'vp test --root ../.. --project=vite-svg-webfont-browser',
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
             'test:fixtures:refresh': {

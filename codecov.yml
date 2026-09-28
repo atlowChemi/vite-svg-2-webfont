@@ -1,0 +1,67 @@
+# Three direct Rust reports, native Rust + JS, and plugin JS coverage.
+# Update both counts when changing the coverage upload topology.
+codecov:
+    notify:
+        after_n_builds: 6
+coverage:
+    status:
+        project:
+            default:
+                target: auto
+        patch:
+            default:
+                target: auto
+comment:
+    after_n_builds: 6
+    layout: 'reach,diff,flags,components,files'
+component_management:
+    default_rules:
+        statuses:
+            - type: project
+              target: auto
+              informational: true
+    individual_components:
+        - component_id: rust-engine
+          name: Rust engine
+          paths:
+              - 'crates/webfont-generator/src/(?!main\.rs$|manifest\.rs$).*'
+        - component_id: rust-cli
+          name: Rust CLI
+          paths:
+              - 'crates/webfont-generator/src/main.rs'
+              - 'crates/webfont-generator/src/manifest.rs'
+        - component_id: node-adapter
+          name: Node adapter
+          paths:
+              - 'packages/webfont-generator/native/**'
+              - 'packages/webfont-generator/index.js'
+              - 'packages/webfont-generator/validations.js'
+              - 'packages/webfont-generator/templates.js'
+        - component_id: vite-plugin
+          name: Vite plugin
+          paths:
+              - 'packages/vite-svg-2-webfont/src/**'
+ignore:
+    - '**/tests/**'
+    - '**/tests.rs'
+    - '**/*_tests.rs'
+    - '**/*.test.*'
+    - '**/*.test-d.ts'
+    - '**/test_helpers.rs'
+    - '**/fixtures/**'
+    - '**/benches/**'
+    - '**/bench_support.rs'
+    - 'packages/webfont-generator/binding.*'
+    - 'packages/docs/**'
+    - 'packages/example/**'
+flags:
+    rust-tests:
+        carryforward: false
+    cli-tests:
+        carryforward: false
+    napi-vitest-rust:
+        carryforward: false
+    napi-vitest-js:
+        carryforward: false
+    plugin-tests:
+        carryforward: false

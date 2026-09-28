@@ -18,12 +18,6 @@ jobs:
             - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
               with:
                   components: clippy, rustfmt
-            - name: Install cargo-llvm-cov
-              uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172 # v2.87.20
-              env:
-                  GITHUB_TOKEN: ${{ github.token }}
-              with:
-                  tool: cargo-llvm-cov
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: |
@@ -38,14 +32,105 @@ jobs:
                   run-install: true
                   cache: true
             - run: vp check
-            - name: Run Rust coverage
-              run: vp run @atlowchemi/webfont-generator#test:coverage
-            - name: Upload Rust coverage reports to Codecov
+            - run: vp run @atlowchemi/webfont-generator#check
+
+    rust-coverage:
+        name: Rust coverage (${{ matrix.suite }})
+        runs-on: ubuntu-latest
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - suite: engine
+                      task: '@atlowchemi/webfont-engine#test:coverage'
+                      flag: rust-tests
+                    - suite: cli
+                      task: '@atlowchemi/webfont-engine#test:coverage:cli'
+                      flag: cli-tests
+                    - suite: adapter
+                      task: '@atlowchemi/webfont-generator#test:coverage'
+                      flag: rust-tests
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+              with:
+                  components: llvm-tools-preview
+            - uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172 # v2.87.20
+              with:
+                  tool: cargo-llvm-cov,cargo-nextest
+            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - run: vp run '${{ matrix.task }}'
+            - name: Upload Rust coverage
+              if: ${{ !cancelled() && hashFiles(format('coverage/rust-{0}/rust.lcov', matrix.suite)) != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
                   disable_search: true
-                  files: packages/webfont-generator/rust-lcov.info
-                  flags: rust
+                  files: coverage/rust-${{ matrix.suite }}/rust.lcov
+                  flags: ${{ matrix.flag }}
+                  name: rust-${{ matrix.suite }}
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload Rust test results
+              if: ${{ !cancelled() && hashFiles(format('coverage/rust-{0}/junit.xml', matrix.suite)) != '' }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: rust-${{ matrix.suite }}-linux-x64
+                  files: coverage/rust-${{ matrix.suite }}/junit.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            # nextest does not execute doctests. Keep both Cargo feature configurations.
+            - name: Rust doctests
+              if: ${{ !cancelled() && matrix.suite == 'engine' }}
+              run: vp run @atlowchemi/webfont-engine#test:doctests
+            - name: Upload doctest invocation results
+              if: ${{ !cancelled() && matrix.suite == 'engine' && hashFiles('test-results/doctests.xml') != '' }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: rust-doctest-invocations-linux-x64
+                  files: test-results/doctests.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
+
+    native-coverage:
+        name: Native Vitest coverage
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+              with:
+                  components: llvm-tools-preview
+            - uses: taiki-e/install-action@9983c65e42da123ff25d1f78505eb6de315aa172 # v2.87.20
+              with:
+                  tool: cargo-llvm-cov
+            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - run: vp run @atlowchemi/webfont-generator#test:coverage:native
+            - name: Upload Vitest-origin Rust coverage
+              if: ${{ !cancelled() && hashFiles('coverage/napi-vitest/rust.lcov') != '' }}
+              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+              with:
+                  disable_search: true
+                  files: coverage/napi-vitest/rust.lcov
+                  flags: napi-vitest-rust
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload Vitest-origin JS coverage
+              if: ${{ !cancelled() && hashFiles('coverage/napi-vitest/js/lcov.info') != '' }}
+              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+              with:
+                  disable_search: true
+                  files: coverage/napi-vitest/js/lcov.info
+                  flags: napi-vitest-js
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload instrumented test results
+              if: ${{ !cancelled() && hashFiles('coverage/napi-vitest/junit.xml') != '' }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: napi-instrumented-linux-x64-node26
+                  files: coverage/napi-vitest/junit.xml
                   token: ${{ secrets.CODECOV_TOKEN }}
 
     build:
@@ -79,9 +164,32 @@ jobs:
             - name: Install browsers
               run: vp exec playwright install --with-deps chromium firefox webkit
             - name: Run browser tests
+              id: engine-browser-tests
               run: vp run @atlowchemi/webfont-generator#test:browser
+              env:
+                  CI_TEST_REPORT: test-results/engine-browser.xml
+                  CI_TEST_SUITE: engine-browser-linux-x64
             - name: Run plugin browser tests
+              id: plugin-browser-tests
+              if: ${{ !cancelled() }}
               run: vp run vite-svg-2-webfont#test:browser
+              env:
+                  CI_TEST_REPORT: test-results/plugin-browser.xml
+                  CI_TEST_SUITE: plugin-browser-linux-x64
+            - name: Upload engine browser results
+              if: ${{ !cancelled() && (steps.engine-browser-tests.outcome == 'success' || hashFiles('test-results/engine-browser.xml') != '') }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: engine-browser-linux-x64
+                  files: test-results/engine-browser.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload plugin browser results
+              if: ${{ !cancelled() && (steps.plugin-browser-tests.outcome == 'success' || hashFiles('test-results/plugin-browser.xml') != '') }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: plugin-browser-linux-x64
+                  files: test-results/plugin-browser.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
 
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
@@ -124,7 +232,18 @@ jobs:
             - name: Build plugin
               run: pnpm --filter vite-svg-2-webfont exec vp pack
             - name: Run tests
+              id: host-tests
               run: pnpm exec vp test --run --project='!*-browser*'
+              env:
+                  CI_TEST_REPORT: test-results/host.xml
+                  CI_TEST_SUITE: host-${{ matrix.settings.target }}-node${{ matrix.node }}
+            - name: Upload host test results
+              if: ${{ !cancelled() && (steps.host-tests.outcome == 'success' || hashFiles('test-results/host.xml') != '') }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: host-${{ matrix.settings.target }}-node${{ matrix.node }}
+                  files: test-results/host.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
 
     test-docker:
         name: test ${{ matrix.arch }}-linux-musl
@@ -161,11 +280,12 @@ jobs:
               id: pnpm-version
               run: echo "version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).packageManager.split('@', 2)[1].split('+')[0]")" >> "$GITHUB_OUTPUT"
             - name: Run tests
+              id: musl-tests
               uses: tj-actions/docker-run@1d25a677da8f1243a138dc5db21e307e92986ffe # v2.2.1
               with:
                   image: node:26-alpine
                   name: test-${{ matrix.arch }}-linux-musl
-                  options: ${{ matrix.args }} -v ${{ github.workspace }}:/build -w /build -e CI=true
+                  options: ${{ matrix.args }} -v ${{ github.workspace }}:/build -w /build -e CI=true -e CI_TEST_REPORT=test-results/musl.xml -e CI_TEST_SUITE=musl-${{ matrix.arch }}-node26
                   # Pacquet 0.2.x ships glibc-only binaries via @pacquet/linux-*;
                   # spawning them on Alpine fails with ENOENT because the glibc
                   # loader isn't present. Strip the configDependencies block so
@@ -176,12 +296,21 @@ jobs:
                         sed -i '/^configDependencies:/,/^$/d' pnpm-workspace.yaml && \
                         pnpm install --frozen-lockfile --ignore-scripts && \
                         pnpm exec vp test --run --project='!*-browser*'"
+            - name: Upload musl test results
+              if: ${{ !cancelled() && (steps.musl-tests.outcome == 'success' || hashFiles('test-results/musl.xml') != '') }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: musl-${{ matrix.arch }}-node26
+                  files: test-results/musl.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
 
     test-vite-compat:
         name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
         needs: [build]
         env:
             VITE_COMPAT_MAJOR: ${{ matrix.vite_major }}
+            CI_TEST_REPORT: test-results/vite-compat.xml
+            CI_TEST_SUITE: vite${{ matrix.vite_major }}-node${{ matrix.node_version }}-linux-x64
         strategy:
             matrix:
                 include:
@@ -237,25 +366,30 @@ jobs:
                       ;;
                   esac
             - name: Run coverage
+              id: coverage-tests
               if: ${{ matrix.primary }}
-              run: vp test --project='!*-browser*' --coverage --reporter=default --reporter=junit --outputFile.junit=junit.xml
+              run: |
+                  vp test --run --project='!*-browser*' --coverage --coverage.include='packages/vite-svg-2-webfont/src/**'
+                  test -s coverage/lcov.info
             - name: Upload coverage reports to Codecov
-              if: ${{ matrix.primary }}
-              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
-              with:
-                  flags: javascript
-                  token: ${{ secrets.CODECOV_TOKEN }}
-            - name: Upload test results to Codecov
-              if: ${{ matrix.primary && !cancelled() }}
+              if: ${{ !cancelled() && matrix.primary && hashFiles('coverage/lcov.info') != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
                   disable_search: true
-                  files: junit.xml
-                  report_type: test_results
+                  files: coverage/lcov.info
+                  flags: plugin-tests
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Run tests
+              id: compat-tests
               if: ${{ !matrix.primary }}
-              run: vp test --project='!*-browser*'
+              run: vp test --run --project='!*-browser*'
+            - name: Upload compatibility test results
+              if: ${{ !cancelled() && (steps.coverage-tests.outcome == 'success' || steps.compat-tests.outcome == 'success' || hashFiles('test-results/vite-compat.xml') != '') }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: vite${{ matrix.vite_major }}-node${{ matrix.node_version }}-linux-x64
+                  files: test-results/vite-compat.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
             - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
               if: ${{ matrix.primary }}
               with:
@@ -269,7 +403,7 @@ jobs:
     required-checks:
         name: Required checks
         if: always()
-        needs: [ci, build, docs, test-browser, test-host, test-docker, test-vite-compat]
+        needs: [ci, rust-coverage, native-coverage, build, docs, test-browser, test-host, test-docker, test-vite-compat]
         runs-on: ubuntu-latest
         steps:
             - name: Verify all dependent jobs succeeded
