@@ -79,23 +79,26 @@ describe('generateWebfonts', () => {
         expect(result.generateCss()).toBe(css);
     });
 
-    it.each([[], undefined, null, false, 42, 'invalid'])('keeps variant rendering consistent when callbacks replace the face list with %j', async variants => {
-        const options = {
-            ...variantOptions,
-            cssContext(context: Record<string, unknown>) {
-                if (variants === undefined) {
-                    delete context.variants;
-                } else {
-                    context.variants = variants;
-                }
-            },
-        };
-        const builtin = await generateWebfonts(options);
-        const templated = await generateWebfonts({ ...options, cssTemplate: templates.css });
-        expect(builtin.generateCss()).toBe(templated.generateCss());
-        expect(builtin.generateCss()).not.toContain('@font-face');
-        expect(builtin.generateCss()).toContain('font-synthesis: none');
-    });
+    it.for([[], undefined, null, false, 42, 'invalid'].map(variants => ({ variants, label: variants === undefined ? 'undefined' : JSON.stringify(variants) })))(
+        'keeps variant rendering consistent when callbacks replace the face list with $label',
+        async ({ variants }) => {
+            const options = {
+                ...variantOptions,
+                cssContext(context: Record<string, unknown>) {
+                    if (variants === undefined) {
+                        delete context.variants;
+                    } else {
+                        context.variants = variants;
+                    }
+                },
+            };
+            const builtin = await generateWebfonts(options);
+            const templated = await generateWebfonts({ ...options, cssTemplate: templates.css });
+            expect(builtin.generateCss()).toBe(templated.generateCss());
+            expect(builtin.generateCss()).not.toContain('@font-face');
+            expect(builtin.generateCss()).toContain('font-synthesis: none');
+        },
+    );
 
     it('reports variant companion write failures', async () => {
         const dest = await createTempDir('variant-write-error-');
