@@ -29,6 +29,9 @@ node_modules/
 
 dist
 target/
+# pnpm Cargo source materialization; Cargo.lock remains tracked.
+/.pnpm/
+/.cargo/config.toml
 packages/webfont-generator/*.node
 packages/webfont-generator/artifacts/
 packages/webfont-generator/npm/

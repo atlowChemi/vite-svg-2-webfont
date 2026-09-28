@@ -16,21 +16,20 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+              id: rust
               with:
                   components: clippy, rustfmt
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: |
-                      ~/.cargo/registry
-                      ~/.cargo/git
-                      target
-                  key: cargo-workspace-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-                  restore-keys: cargo-workspace-${{ runner.os }}-
+                  path: target
+                  key: rust-v3-check-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '**/Cargo.toml') }}
+                  restore-keys: rust-v3-check-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
                   node-version-file: .node-version
-                  run-install: true
-                  cache: true
+                  run-install: false
+                  cache: false
+            - uses: ./.github/actions/install-dependencies
             - run: vp check
             - run: vp run @atlowchemi/webfont-generator#check
 
@@ -61,8 +60,9 @@ jobs:
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
                   node-version-file: .node-version
-                  run-install: true
-                  cache: true
+                  run-install: false
+                  cache: false
+            - uses: ./.github/actions/install-dependencies
             - run: vp run '${{ matrix.task }}'
             - name: Upload Rust coverage
               if: ${{ !cancelled() && hashFiles(format('coverage/rust-{0}/rust.lcov', matrix.suite)) != '' }}
@@ -106,8 +106,9 @@ jobs:
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
                   node-version-file: .node-version
-                  run-install: true
-                  cache: true
+                  run-install: false
+                  cache: false
+            - uses: ./.github/actions/install-dependencies
             - run: vp run @atlowchemi/webfont-generator#test:coverage:native
             - name: Upload Vitest-origin Rust coverage
               if: ${{ !cancelled() && hashFiles('coverage/napi-vitest/rust.lcov') != '' }}
@@ -143,11 +144,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
                   node-version-file: .node-version
-                  run-install: true
-                  cache: true
+                  run-install: false
+                  cache: false
+            - uses: ./.github/actions/install-dependencies
             - run: vp run @atlowchemi/vite-svg-webfont-docs#build
 
     test-browser:
@@ -156,11 +159,13 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
                   node-version-file: .node-version
-                  run-install: true
-                  cache: true
+                  run-install: false
+                  cache: false
+            - uses: ./.github/actions/install-dependencies
             - name: Install browsers
               run: vp exec playwright install --with-deps chromium firefox webkit
             - name: Run browser tests
@@ -217,10 +222,18 @@ jobs:
         runs-on: ${{ matrix.settings.host }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
               with:
                   runtime: node@${{ matrix.node }}
-                  cache: true
+                  install: false
+                  cache: false
+            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+              with:
+                  node-manager: false
+                  run-install: false
+                  cache: false
+            - uses: ./.github/actions/install-dependencies
             - name: Download binding
               uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
               with:
@@ -262,13 +275,21 @@ jobs:
         runs-on: ${{ matrix.runner }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - name: extract node version from .node-version
               id: node-version
               run: echo "node_version=$(cat .node-version)" >> "$GITHUB_OUTPUT"
             - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
               with:
                   runtime: node@${{ steps.node-version.outputs.node_version }}
-                  cache: true
+                  install: false
+                  cache: false
+            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+              with:
+                  node-manager: false
+                  run-install: false
+                  cache: false
+            - uses: ./.github/actions/install-dependencies
             - name: Download binding
               uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
               with:
@@ -286,15 +307,13 @@ jobs:
                   image: node:26-alpine
                   name: test-${{ matrix.arch }}-linux-musl
                   options: ${{ matrix.args }} -v ${{ github.workspace }}:/build -w /build -e CI=true -e CI_TEST_REPORT=test-results/musl.xml -e CI_TEST_SUITE=musl-${{ matrix.arch }}-node26
-                  # Pacquet 0.2.x ships glibc-only binaries via @pacquet/linux-*;
-                  # spawning them on Alpine fails with ENOENT because the glibc
-                  # loader isn't present. Strip the configDependencies block so
-                  # this matrix entry falls back to pnpm's JS installer.
+                  # Reinstall inside Alpine so native dependencies match musl.
                   args: |
                       sh -c "set -e && \
+                        apk add --no-cache cargo && \
                         npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && \
-                        sed -i '/^configDependencies:/,/^$/d' pnpm-workspace.yaml && \
                         pnpm install --frozen-lockfile --ignore-scripts && \
+                        cargo metadata --locked --offline --all-features --format-version 1 > /dev/null && \
                         pnpm exec vp test --run --project='!*-browser*'"
             - name: Upload musl test results
               if: ${{ !cancelled() && (steps.musl-tests.outcome == 'success' || hashFiles('test-results/musl.xml') != '') }}
@@ -341,7 +360,9 @@ jobs:
                   cache: false
             - name: Select vite major
               run: node ./scripts/ci/set-vite-major.ts ${{ matrix.vite_major }}
-            - run: vp install --no-frozen-lockfile
+            - uses: ./.github/actions/install-dependencies
+              with:
+                  args: --no-frozen-lockfile
             - name: Download binding
               uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
               with:

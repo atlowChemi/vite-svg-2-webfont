@@ -14,6 +14,9 @@ This repository uses:
 - A monorepo workspace with packages under `packages/`
 - Stable Rust with Cargo, Clippy, and rustfmt for the native generator. The JavaScript test and plugin build tasks build this native binding automatically.
 
+Install Rust before running the full dependency install. pnpm materializes the locked Cargo
+dependencies as well as JavaScript dependencies; Pacquet is no longer used.
+
 Install dependencies from the repository root:
 
 ```bash
@@ -22,6 +25,44 @@ vp exec playwright install chromium firefox webkit
 ```
 
 On Linux, use `vp exec playwright install --with-deps chromium firefox webkit` to install browser system dependencies as well. Rerun `vp install` after pulling dependency changes.
+
+### Dependency installation and updates
+
+Use the normal install command for JavaScript packages and locked Rust crates:
+
+```bash
+vp install
+```
+
+CI uses the same full installation in every job, followed by an explicit Cargo lock check:
+
+```bash
+vp install --frozen-lockfile
+cargo metadata --locked --offline --all-features --format-version 1 > /dev/null
+```
+
+The extra CI check catches stale Cargo requirements that pnpm 12.6.0 currently accepts
+even with `--frozen-lockfile`. Once the pnpm store is populated, `vp install --offline
+--frozen-lockfile` reconstructs both dependency sets without downloading them.
+
+To add or update a Rust dependency, run this in the directory containing its `Cargo.toml`:
+
+```bash
+vp add crate:serde@^1.0
+```
+
+The built-in `crate:` operation updates `Cargo.toml`, resolves `Cargo.lock`, and materializes
+the sources. In the pinned pnpm 12.6.0, use `add` for an existing crate too; `update crate:…`
+does not update Cargo dependencies. Commit Cargo manifests and `Cargo.lock`; generated
+`.pnpm/` sources and the root `.cargo/config.toml` are ignored. Do not commit generated
+sources during release preparation. The crates.io release job publishes from a clean
+checkout with `cargo publish --locked -p webfont-generator`.
+
+CI caches the pnpm store (including crates), keyed by platform, pnpm version,
+and both lockfiles. Each install reconstructs workspace-local source links. Cargo owns
+incremental compilation; separate CI target caches serve checks, native release targets,
+and benchmarks, with toolchain and build configuration in their keys. Vite+ does not cache
+Rust task outputs. Coverage builds, profiles, and JUnit results remain uncached.
 
 ## Common Commands
 
@@ -154,13 +195,14 @@ Cargo uses the root `Cargo.lock` and `target/`. Templates are tracked solely und
 `packages/webfont-generator/templates/` and ship directly in the npm package. Rust rendering
 parity tests read those files through `test_helpers::npm_template`; they require a repository
 checkout. The library and CLI do not need those files for default rendering.
-Release Please links engine/adapter versions. The engine has its own changelog at
+Release Please links engine/adapter versions. The engine uses the Rust release strategy;
+its private npm manifest has no version and exists only for task-graph discovery. The engine has its own changelog at
 `crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;
 those releases trigger crates.io publication. The npm adapter retains its own changelog
 and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
 engine's private npm task package is never published.
 
-Release-PR preparation updates Cargo.lock, runs
+Release-PR preparation updates Cargo.lock through the registry before frozen installation, runs
 `vp run @atlowchemi/webfont-generator#binding:regenerate`, and formats changes with `vp fmt`.
 The regeneration task uses the NAPI generator to update only the JS loader, preserving
 exports from the last full binding build without compiling Rust. Changes to the native API

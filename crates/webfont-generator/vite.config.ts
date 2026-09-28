@@ -1,24 +1,19 @@
-import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
+import { defineProject } from 'vite-plus';
 
-type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
-
-const cargoCache: TaskDefinition = {
-    input: [{ auto: true }, { pattern: 'Cargo.{toml,lock}', base: 'workspace' }, { pattern: '!target/**', base: 'workspace' }],
-    output: [{ auto: true }, { pattern: '!target/**', base: 'workspace' }],
-};
+// Cargo owns incremental compilation; CI caches target directories explicitly.
+// Vite+ must not restore competing build outputs or replay Rust test executions.
 
 export default defineProject({
     run: {
         tasks: {
             check: {
-                ...cargoCache,
+                cache: false,
                 command: 'cargo clippy -p webfont-generator -- -D warnings && cargo clippy -p webfont-generator --features cli -- -D warnings && cargo fmt --all -- --check',
             },
             test: {
-                ...cargoCache,
+                cache: false,
                 command: 'cargo test -p webfont-generator && cargo test -p webfont-generator --features cli',
                 dependsOn: ['check'],
-                env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
             },
             bench: { cache: false, command: 'cargo bench -p webfont-generator --features bench' },
             'test:coverage': {
