@@ -1,3 +1,8 @@
+# Three direct Rust reports, native Rust + JS, and plugin JS coverage.
+# Update both counts when changing the coverage upload topology.
+codecov:
+    notify:
+        after_n_builds: 6
 coverage:
     status:
         project:
@@ -7,6 +12,7 @@ coverage:
             default:
                 target: auto
 comment:
+    after_n_builds: 6
     layout: 'reach,diff,flags,components,files'
 component_management:
     default_rules:

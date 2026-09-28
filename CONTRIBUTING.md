@@ -42,6 +42,42 @@ vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
 vp run example#dev                               # run example app
 ```
 
+### Running coverage locally
+
+`vp run coverage` measures non-browser JavaScript coverage. To measure Rust code,
+including Rust executed through the Node addon, install these additional tools:
+
+```bash
+rustup component add llvm-tools-preview
+cargo install cargo-llvm-cov --locked
+cargo install cargo-nextest --locked
+```
+
+Run the relevant tasks from the repository root (native coverage requires Linux or macOS with Bash):
+
+```bash
+vp run @atlowchemi/webfont-engine#test:coverage          # engine library and integration tests
+vp run @atlowchemi/webfont-engine#test:coverage:cli      # binary tests and CLI-only integration tests
+vp run @atlowchemi/webfont-generator#test:coverage       # native adapter Rust tests
+vp run @atlowchemi/webfont-generator#test:coverage:native # adapter Vitest tests: Rust + JS coverage
+vp run @atlowchemi/webfont-engine#test:doctests           # default and CLI-feature Cargo doctests
+```
+
+The Rust tasks write `rust.lcov` and `junit.xml` under `coverage/rust-engine/`,
+`coverage/rust-cli/`, and `coverage/rust-adapter/`. Native Vitest coverage writes
+`rust.lcov`, `js/lcov.info`, and `junit.xml` under `coverage/napi-vitest/`.
+Run root JavaScript coverage first if collecting all reports locally: it cleans
+the root `coverage/` directory.
+
+Coverage executions are uncached and use isolated instrumented builds. Their temporary
+run directories are removed on exit, including failures; exported reports remain.
+Directories left by older task versions or forcibly terminated processes can be removed
+from `coverage/*/run.*` after confirming no coverage tasks are running.
+
+Nextest produces individual Rust test results but does not run doctests. The doctest
+task uses Cargo and writes two aggregate invocation results to `test-results/doctests.xml`.
+It requires Rust but does not require the coverage tools above.
+
 ### Regenerating test fixtures
 
 After adding, removing, or modifying SVG icons in the plugin's fixture directory (`packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`), regenerate the expected font fixtures:

@@ -5,7 +5,8 @@ cd "$ROOT"
 SUITE="${1:?Supply engine, cli, or adapter}"
 case "$SUITE" in
   engine) ARGS=(-p webfont-generator --lib --tests);;
-  cli) ARGS=(-p webfont-generator --features cli --lib --bins --tests);;
+  # Keep binary tests and feature-gated CLI integration tests, not engine tests.
+  cli) ARGS=(-p webfont-generator --features cli --bins --test integration -E 'kind(bin) | (binary(=integration) & test(/^cli::/))');;
   adapter) ARGS=(-p webfont-generator-napi --lib);;
   *) echo "Unknown Rust coverage suite: $SUITE" >&2; exit 1;;
 esac
@@ -13,6 +14,7 @@ OUT="$ROOT/coverage/rust-$SUITE"
 mkdir -p "$OUT"
 rm -f "$OUT/junit.xml" "$OUT/rust.lcov"
 RUN="$(mktemp -d "$OUT/run.XXXXXX")"
+trap 'rm -rf "$RUN"' EXIT
 export CARGO_TARGET_DIR="$RUN/target"
 export CARGO_LLVM_COV_TARGET_DIR="$CARGO_TARGET_DIR"
 # nextest's store is independent of Cargo's target directory. Give this execution

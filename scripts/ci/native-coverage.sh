@@ -8,6 +8,7 @@ mkdir -p "$OUT"
 rm -f "$OUT/rust.lcov" "$OUT/junit.xml"
 rm -rf "$OUT/js"
 RUN="$(mktemp -d "$OUT/run.XXXXXX")"
+trap 'rm -rf "$RUN"' EXIT
 export CARGO_TARGET_DIR="$RUN/target"
 export CARGO_LLVM_COV_TARGET_DIR="$CARGO_TARGET_DIR"
 cd "$ROOT/packages/webfont-generator"

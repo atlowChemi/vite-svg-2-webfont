@@ -14,6 +14,7 @@
 - `vp run @atlowchemi/webfont-generator#binding:regenerate` regenerates only the JS loader for version updates, preserving the last full build's exports; API changes still require `#build`.
 - After changing Rust code, run `vp run @atlowchemi/webfont-generator#check`; it checks the engine's default/CLI builds, the separate NAPI adapter, and workspace Rust formatting.
 - `vp run @atlowchemi/webfont-generator#test` runs Rust checks/tests via the package task; workspace `vp run test` first depends on the NAPI build, then runs JS/Vitest tests.
+- `vp run coverage` measures JS only. Rust coverage tasks require `cargo-llvm-cov`, `cargo-nextest`, and `llvm-tools-preview`; see CONTRIBUTING.md for engine/CLI/adapter task commands. `@atlowchemi/webfont-generator#test:coverage:native` instruments Node execution; keep its addon override package-scoped. Nextest omits doctests, so retain `@atlowchemi/webfont-engine#test:doctests` separately.
 - `vp run @atlowchemi/webfont-generator#bench --no-run` is the compile-only check for Rust benchmark target changes; run targeted Criterion filters only when measured behavior changes.
 - `vp run @atlowchemi/vite-svg-webfont-docs#build` is the docs build task; it runs the docs `social-card` and `optimize-svg` dependencies.
 - `vp run vite-svg-2-webfont#test:fixtures:refresh` regenerates expected font fixtures after changing SVG icons in `packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`.
