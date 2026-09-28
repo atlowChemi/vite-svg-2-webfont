@@ -25,4 +25,5 @@ runs:
               files: ${{ inputs.files }}
               name: ${{ inputs.name }}-${{ github.run_attempt }}
               flags: ${{ inputs.name }}
+              fail_ci_if_error: true
               token: ${{ inputs.token }}
