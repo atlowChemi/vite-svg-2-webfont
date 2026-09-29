@@ -26,47 +26,6 @@ vp exec playwright install chromium firefox webkit
 
 On Linux, use `vp exec playwright install --with-deps chromium firefox webkit` to install browser system dependencies as well. Rerun `vp install` after pulling dependency changes.
 
-### Dependency installation and updates
-
-Use the normal install command for JavaScript packages and locked Rust crates:
-
-```bash
-vp install
-```
-
-CI uses the setup actions' built-in installation and dependency-store caching. The check
-job performs one additional Cargo lock validation after installation:
-
-```bash
-vp install --frozen-lockfile
-cargo metadata --locked --offline --all-features --format-version 1 > /dev/null
-```
-
-The extra CI check catches stale Cargo requirements that pnpm 12.6.0 currently accepts
-even with `--frozen-lockfile`; it can be removed after upgrading to a version that fixes
-[pnpm/pnpm#16355](https://github.com/pnpm/pnpm/issues/16355).
-Once the pnpm store is populated, `vp install --offline
---frozen-lockfile` reconstructs both dependency sets without downloading them.
-
-To add or update a Rust dependency, run this in the directory containing its `Cargo.toml`:
-
-```bash
-vp add crate:serde@^1.0
-```
-
-The built-in `crate:` operation updates `Cargo.toml`, resolves `Cargo.lock`, and materializes
-the sources. In the pinned pnpm 12.6.0, use `add` for an existing crate too; `update crate:…`
-does not update Cargo dependencies. Commit Cargo manifests and `Cargo.lock`; generated
-`.pnpm/` sources and the root `.cargo/config.toml` are ignored. Do not commit generated
-sources during release preparation. The crates.io release job publishes from a clean
-checkout with `cargo publish --locked -p webfont-generator`.
-
-The setup actions cache the pnpm store, which now also contains crate sources. Each install
-reconstructs workspace-local source links. Vite+ task-result caching remains enabled for
-the existing cacheable tasks, independently of dependency-store caching and Cargo's
-incremental compilation. Separate CI target caches serve checks, native release targets,
-and benchmarks. Coverage builds, profiles, and JUnit results remain uncached.
-
 ## Common Commands
 
 Run these from the repository root:
