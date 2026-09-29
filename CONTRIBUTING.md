@@ -14,6 +14,9 @@ This repository uses:
 - A monorepo workspace with packages under `packages/`
 - Stable Rust with Cargo, Clippy, and rustfmt for the native generator. The JavaScript test and plugin build tasks build this native binding automatically.
 
+Install Rust before running the full dependency install. pnpm materializes the locked Cargo
+dependencies as well as JavaScript dependencies; Pacquet is no longer used.
+
 Install dependencies from the repository root:
 
 ```bash
@@ -154,13 +157,14 @@ Cargo uses the root `Cargo.lock` and `target/`. Templates are tracked solely und
 `packages/webfont-generator/templates/` and ship directly in the npm package. Rust rendering
 parity tests read those files through `test_helpers::npm_template`; they require a repository
 checkout. The library and CLI do not need those files for default rendering.
-Release Please links engine/adapter versions. The engine has its own changelog at
+Release Please links engine/adapter versions. The engine uses the Rust release strategy;
+its private npm manifest has no version and exists only for task-graph discovery. The engine has its own changelog at
 `crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;
 those releases trigger crates.io publication. The npm adapter retains its own changelog
 and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
 engine's private npm task package is never published.
 
-Release-PR preparation updates Cargo.lock, runs
+Release-PR preparation updates Cargo.lock through the registry before frozen installation, runs
 `vp run @atlowchemi/webfont-generator#binding:regenerate`, and formats changes with `vp fmt`.
 The regeneration task uses the NAPI generator to update only the JS loader, preserving
 exports from the last full binding build without compiling Rust. Changes to the native API

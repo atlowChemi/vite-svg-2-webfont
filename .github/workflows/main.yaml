@@ -16,21 +16,22 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+              id: rust
               with:
                   components: clippy, rustfmt
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: |
-                      ~/.cargo/registry
-                      ~/.cargo/git
-                      target
-                  key: cargo-workspace-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-                  restore-keys: cargo-workspace-${{ runner.os }}-
+                  path: target
+                  key: rust-v3-check-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '**/Cargo.toml') }}
+                  restore-keys: rust-v3-check-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
+            # Temporary guard until https://github.com/pnpm/pnpm/issues/16355 is fixed.
+            - name: Validate Cargo lockfile
+              run: cargo metadata --locked --offline --all-features --format-version 1 > /dev/null
             - run: vp check
             - run: vp run @atlowchemi/webfont-generator#check
 
@@ -143,6 +144,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
                   node-version-file: .node-version
@@ -156,6 +158,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
                   node-version-file: .node-version
@@ -217,6 +220,7 @@ jobs:
         runs-on: ${{ matrix.settings.host }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
               with:
                   runtime: node@${{ matrix.node }}
@@ -262,6 +266,7 @@ jobs:
         runs-on: ${{ matrix.runner }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
             - name: extract node version from .node-version
               id: node-version
               run: echo "node_version=$(cat .node-version)" >> "$GITHUB_OUTPUT"
@@ -286,14 +291,11 @@ jobs:
                   image: node:26-alpine
                   name: test-${{ matrix.arch }}-linux-musl
                   options: ${{ matrix.args }} -v ${{ github.workspace }}:/build -w /build -e CI=true -e CI_TEST_REPORT=test-results/musl.xml -e CI_TEST_SUITE=musl-${{ matrix.arch }}-node26
-                  # Pacquet 0.2.x ships glibc-only binaries via @pacquet/linux-*;
-                  # spawning them on Alpine fails with ENOENT because the glibc
-                  # loader isn't present. Strip the configDependencies block so
-                  # this matrix entry falls back to pnpm's JS installer.
+                  # Reinstall inside Alpine so native dependencies match musl.
                   args: |
                       sh -c "set -e && \
+                        apk add --no-cache cargo && \
                         npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && \
-                        sed -i '/^configDependencies:/,/^$/d' pnpm-workspace.yaml && \
                         pnpm install --frozen-lockfile --ignore-scripts && \
                         pnpm exec vp test --run --project='!*-browser*'"
             - name: Upload musl test results

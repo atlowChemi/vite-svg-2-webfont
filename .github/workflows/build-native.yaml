@@ -32,22 +32,16 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-            - name: Cache cargo registry
-              uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+              id: rust
               with:
-                  path: |
-                      ~/.cargo/registry
-                      ~/.cargo/git
-                  key: cargo-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
-                  restore-keys: cargo-${{ runner.os }}-
+                  targets: ${{ matrix.target }}
             - name: Cache build artifacts
               uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: |
-                      ./target
-                      ~/.napi-rs
-                  key: cargo-workspace-build-${{ matrix.target }}-${{ hashFiles('Cargo.lock') }}
-                  restore-keys: cargo-workspace-build-${{ matrix.target }}-
+                  path: target
+                  key: rust-v3-native-release-${{ runner.os }}-${{ runner.arch }}-${{ matrix.target }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '**/Cargo.toml', '.github/workflows/build-native.yaml') }}
+                  restore-keys: rust-v3-native-release-${{ runner.os }}-${{ runner.arch }}-${{ matrix.target }}-${{ steps.rust.outputs.cachekey }}-
 
             - name: Restore xwin SDK/CRT cache
               id: xwin-cache-restore
@@ -59,10 +53,6 @@ jobs:
                   restore-keys: |
                       xwin-${{ runner.os }}-windows-msvc-
                       xwin-${{ runner.os }}-
-
-            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
-              with:
-                  targets: ${{ matrix.target }}
 
             - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
               with:
