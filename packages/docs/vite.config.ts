@@ -4,7 +4,7 @@ const config: UserProjectConfigExport = defineProject({
     run: {
         tasks: {
             'optimize-svg': {
-                command: 'svgo -r -f public',
+                command: 'svgo -r -f assets/svg -o public',
             },
             'social-card': {
                 command: 'node ./scripts/generate-social-card.ts',
@@ -18,7 +18,7 @@ const config: UserProjectConfigExport = defineProject({
             build: {
                 command: 'vitepress build .',
                 dependsOn: ['social-card'],
-                env: ['GITHUB_ACTIONS'],
+                cache: { env: ['GITHUB_ACTIONS'] },
             },
             preview: {
                 cache: false,

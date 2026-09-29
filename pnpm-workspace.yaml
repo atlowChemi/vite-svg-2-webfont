@@ -8,10 +8,10 @@ allowBuilds:
 catalog:
     '@vitest/browser-playwright': 5.0.1
     '@vitest/coverage-v8': 5.0.1
-    oxc-minify: ^0.151.0
+    oxc-minify: ^0.152.0
     typescript: ^7.0.2
-    vite: npm:@voidzero-dev/vite-plus-core@1.0.0-rc.0
-    vite-plus: 1.0.0-rc.0
+    vite: npm:@voidzero-dev/vite-plus-core@1.0.0
+    vite-plus: 1.0.0
     vitest: 5.0.1
 
 cargo:
@@ -31,3 +31,10 @@ peerDependencyRules:
     allowedVersions:
         vite: '*'
         vitest: '*'
+minimumReleaseAgeExclude:
+    - '@oxc-minify/binding-darwin-x64@0.152.0'
+    - '@oxc-minify/binding-freebsd-x64@0.152.0'
+    - '@oxc-minify/binding-linux-x64-gnu@0.152.0'
+    - '@oxc-minify/binding-linux-x64-musl@0.152.0'
+    - '@oxc-minify/binding-win32-x64-msvc@0.152.0'
+    - oxc-minify@0.152.0

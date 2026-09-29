@@ -1,8 +1,9 @@
 import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
 
 type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
+type TaskCache = Exclude<NonNullable<TaskDefinition['cache']>, boolean>;
 
-const cargoCache: TaskDefinition = {
+const cargoCache: TaskCache = {
     input: [
         { auto: true },
         { pattern: 'Cargo.{toml,lock}', base: 'workspace' },
@@ -13,19 +14,34 @@ const cargoCache: TaskDefinition = {
     output: [{ auto: true }, { pattern: '!target/**', base: 'workspace' }, '!target/**'],
 };
 
+const napiBuildCache: TaskCache = {
+    ...cargoCache,
+    input: [
+        ...cargoCache.input!,
+        // NAPI's atomic output transactions are intermediates, not build inputs.
+        '!.*.tmp',
+        '!.napi-rs-filesystem-*',
+        '!.napi-rs-filesystem-*/**',
+        '!*.node',
+        '!binding.js',
+        '!binding.d.ts',
+        { pattern: '!packages/.webfont-generator.napi-stage-*/**', base: 'workspace' },
+    ],
+    output: ['*.node', 'binding.js', 'binding.d.ts'],
+};
+
 export default defineProject({
     run: {
         tasks: {
             check: {
-                ...cargoCache,
+                cache: cargoCache,
                 command: 'cargo clippy -p webfont-generator-napi -- -D warnings && cargo fmt --all -- --check',
                 dependsOn: ['@atlowchemi/webfont-engine#check'],
             },
             test: {
-                ...cargoCache,
+                cache: { ...cargoCache, env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'] },
                 command: 'cargo test -p webfont-generator-napi --lib',
                 dependsOn: ['check', '@atlowchemi/webfont-engine#test'],
-                env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
             },
             'test:browser': {
                 cache: false,
@@ -41,7 +57,7 @@ export default defineProject({
                 command: 'bash ../../scripts/ci/native-coverage.sh',
             },
             build: {
-                ...cargoCache,
+                cache: napiBuildCache,
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts',
             },
             'binding:regenerate': {
@@ -53,7 +69,7 @@ export default defineProject({
                 command: 'cargo bench -p webfont-generator --features bench',
             },
             'build:release': {
-                ...cargoCache,
+                cache: napiBuildCache,
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts --release',
                 dependsOn: ['test'],
             },

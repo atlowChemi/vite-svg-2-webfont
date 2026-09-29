@@ -1,8 +1,9 @@
 import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
 
 type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
+type TaskCache = Exclude<NonNullable<TaskDefinition['cache']>, boolean>;
 
-const cargoCache: TaskDefinition = {
+const cargoCache: TaskCache = {
     input: [{ auto: true }, { pattern: 'Cargo.{toml,lock}', base: 'workspace' }, { pattern: '!target/**', base: 'workspace' }],
     output: [{ auto: true }, { pattern: '!target/**', base: 'workspace' }],
 };
@@ -11,14 +12,13 @@ export default defineProject({
     run: {
         tasks: {
             check: {
-                ...cargoCache,
+                cache: cargoCache,
                 command: 'cargo clippy -p webfont-generator -- -D warnings && cargo clippy -p webfont-generator --features cli -- -D warnings && cargo fmt --all -- --check',
             },
             test: {
-                ...cargoCache,
+                cache: { ...cargoCache, env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'] },
                 command: 'cargo test -p webfont-generator && cargo test -p webfont-generator --features cli',
                 dependsOn: ['check'],
-                env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
             },
             bench: { cache: false, command: 'cargo bench -p webfont-generator --features bench' },
             'test:coverage': {
