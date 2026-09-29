@@ -4,7 +4,7 @@ const config: UserProjectConfigExport = defineProject({
     run: {
         tasks: {
             'optimize-svg': {
-                command: 'svgo -r -f public',
+                command: 'svgo -r -f assets/svg -o public',
             },
             'social-card': {
                 command: 'node ./scripts/generate-social-card.ts',

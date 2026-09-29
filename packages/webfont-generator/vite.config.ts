@@ -13,6 +13,22 @@ const cargoCache: TaskDefinition = {
     output: [{ auto: true }, { pattern: '!target/**', base: 'workspace' }, '!target/**'],
 };
 
+const napiBuildCache: TaskDefinition = {
+    ...cargoCache,
+    input: [
+        ...cargoCache.input!,
+        // NAPI's atomic output transactions are intermediates, not build inputs.
+        '!.*.tmp',
+        '!.napi-rs-filesystem-*',
+        '!.napi-rs-filesystem-*/**',
+        '!*.node',
+        '!binding.js',
+        '!binding.d.ts',
+        { pattern: '!packages/.webfont-generator.napi-stage-*/**', base: 'workspace' },
+    ],
+    output: ['*.node', 'binding.js', 'binding.d.ts'],
+};
+
 export default defineProject({
     run: {
         tasks: {
@@ -41,7 +57,7 @@ export default defineProject({
                 command: 'bash ../../scripts/ci/native-coverage.sh',
             },
             build: {
-                ...cargoCache,
+                ...napiBuildCache,
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts',
             },
             'binding:regenerate': {
@@ -53,7 +69,7 @@ export default defineProject({
                 command: 'cargo bench -p webfont-generator --features bench',
             },
             'build:release': {
-                ...cargoCache,
+                ...napiBuildCache,
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts --release',
                 dependsOn: ['test'],
             },
