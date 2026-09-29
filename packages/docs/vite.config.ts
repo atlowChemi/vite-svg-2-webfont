@@ -18,7 +18,7 @@ const config: UserProjectConfigExport = defineProject({
             build: {
                 command: 'vitepress build .',
                 dependsOn: ['social-card'],
-                env: ['GITHUB_ACTIONS'],
+                cache: { env: ['GITHUB_ACTIONS'] },
             },
             preview: {
                 cache: false,
