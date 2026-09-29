@@ -1,19 +1,31 @@
-import { defineProject } from 'vite-plus';
+import { defineProject, type UserWorkspaceConfig } from 'vite-plus';
 
-// Cargo owns incremental compilation; CI owns target caching, not Vite+ outputs.
+type TaskDefinition = Partial<Exclude<NonNullable<NonNullable<UserWorkspaceConfig['run']>['tasks']>[string], string | string[]>>;
+
+const cargoCache: TaskDefinition = {
+    input: [
+        { auto: true },
+        { pattern: 'Cargo.{toml,lock}', base: 'workspace' },
+        { pattern: 'crates/webfont-generator/**', base: 'workspace' },
+        { pattern: '!target/**', base: 'workspace' },
+        '!target/**',
+    ],
+    output: [{ auto: true }, { pattern: '!target/**', base: 'workspace' }, '!target/**'],
+};
 
 export default defineProject({
     run: {
         tasks: {
             check: {
-                cache: false,
+                ...cargoCache,
                 command: 'cargo clippy -p webfont-generator-napi -- -D warnings && cargo fmt --all -- --check',
                 dependsOn: ['@atlowchemi/webfont-engine#check'],
             },
             test: {
-                cache: false,
+                ...cargoCache,
                 command: 'cargo test -p webfont-generator-napi --lib',
                 dependsOn: ['check', '@atlowchemi/webfont-engine#test'],
+                env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'],
             },
             'test:browser': {
                 cache: false,
@@ -29,7 +41,7 @@ export default defineProject({
                 command: 'bash ../../scripts/ci/native-coverage.sh',
             },
             build: {
-                cache: false,
+                ...cargoCache,
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts',
             },
             'binding:regenerate': {
@@ -41,7 +53,7 @@ export default defineProject({
                 command: 'cargo bench -p webfont-generator --features bench',
             },
             'build:release': {
-                cache: false,
+                ...cargoCache,
                 command: 'napi build --platform --esm --js binding.js --dts binding.d.ts --release',
                 dependsOn: ['test'],
             },

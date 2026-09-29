@@ -34,7 +34,8 @@ Use the normal install command for JavaScript packages and locked Rust crates:
 vp install
 ```
 
-CI uses the same full installation in every job, followed by an explicit Cargo lock check:
+CI uses the setup actions' built-in installation and dependency-store caching. The check
+job performs one additional Cargo lock validation after installation:
 
 ```bash
 vp install --frozen-lockfile
@@ -42,7 +43,9 @@ cargo metadata --locked --offline --all-features --format-version 1 > /dev/null
 ```
 
 The extra CI check catches stale Cargo requirements that pnpm 12.6.0 currently accepts
-even with `--frozen-lockfile`. Once the pnpm store is populated, `vp install --offline
+even with `--frozen-lockfile`; it can be removed after upgrading to a version that fixes
+[pnpm/pnpm#16355](https://github.com/pnpm/pnpm/issues/16355).
+Once the pnpm store is populated, `vp install --offline
 --frozen-lockfile` reconstructs both dependency sets without downloading them.
 
 To add or update a Rust dependency, run this in the directory containing its `Cargo.toml`:
@@ -58,11 +61,11 @@ does not update Cargo dependencies. Commit Cargo manifests and `Cargo.lock`; gen
 sources during release preparation. The crates.io release job publishes from a clean
 checkout with `cargo publish --locked -p webfont-generator`.
 
-CI caches the pnpm store (including crates), keyed by platform, pnpm version,
-and both lockfiles. Each install reconstructs workspace-local source links. Cargo owns
-incremental compilation; separate CI target caches serve checks, native release targets,
-and benchmarks, with toolchain and build configuration in their keys. Vite+ does not cache
-Rust task outputs. Coverage builds, profiles, and JUnit results remain uncached.
+The setup actions cache the pnpm store, which now also contains crate sources. Each install
+reconstructs workspace-local source links. Vite+ task-result caching remains enabled for
+the existing cacheable tasks, independently of dependency-store caching and Cargo's
+incremental compilation. Separate CI target caches serve checks, native release targets,
+and benchmarks. Coverage builds, profiles, and JUnit results remain uncached.
 
 ## Common Commands
 

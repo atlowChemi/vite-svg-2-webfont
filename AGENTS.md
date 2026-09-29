@@ -5,8 +5,7 @@
 - Use `vp` for normal repo workflows: `vp install`, `vp check`, `vp fmt`, `vp run test`, `vp run coverage`, `vp run <package>#<task>`. Do not call `pnpm`, `vite`, `vitest`, `oxlint`, `oxfmt`, or `vitepress` directly unless a checked-in Vite+ task itself does so.
 - Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/tests`), not from direct `vite` or `vitest` packages.
 - After pulling remote changes, run `vp install` before validation.
-- Unified `vp install` requires Rust first. CI separately runs `cargo metadata --locked --offline --all-features --format-version 1`: pnpm 12.6.0 does not reject stale Cargo requirements on frozen install. Use `vp add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `vp update crate:…` does not update them in this pinned version.
-- Vite+ rejects cache fingerprint fields (`env`, `input`, `output`) on `cache: false` tasks; uncached tasks inherit the environment without an `env` list. Cargo tasks leave incremental build ownership to Cargo/CI target caches.
+- Unified `vp install` requires Rust first. The CI check job validates Cargo.lock once with `cargo metadata --locked --offline --all-features --format-version 1` pending pnpm/pnpm#16355. Use `vp add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `vp update crate:…` does not update them in pnpm 12.6.0.
 - Use Conventional Commit messages and PR titles: `type(scope): description` or `type: description`. Before creating or editing either, read `scope-enum` in `commitlint.config.js`; use a listed scope or omit it when none fits. Validate the proposed message/title with `printf '%s\n' 'your title' | vp exec commitlint` before committing or submitting it.
 
 ## Focused Commands
