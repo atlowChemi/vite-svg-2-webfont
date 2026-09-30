@@ -1,8 +1,8 @@
-# Three direct Rust reports, native Rust + JS, and plugin JS coverage.
-# Update both counts when changing the coverage upload topology.
+# The required-checks fan-in verifies selected jobs/uploads before notifying.
+# A fixed upload count is incorrect for partial runs and retries.
 codecov:
     notify:
-        after_n_builds: 6
+        manual_trigger: true
 coverage:
     status:
         project:
@@ -12,7 +12,7 @@ coverage:
             default:
                 target: auto
 comment:
-    after_n_builds: 6
+    show_carryforward_flags: true
     layout: 'reach,diff,flags,components,files'
 component_management:
     default_rules:
@@ -57,12 +57,12 @@ ignore:
     - 'packages/example/**'
 flags:
     rust-tests:
-        carryforward: false
+        carryforward: true
     cli-tests:
-        carryforward: false
+        carryforward: true
     napi-vitest-rust:
-        carryforward: false
+        carryforward: true
     napi-vitest-js:
-        carryforward: false
+        carryforward: true
     plugin-tests:
-        carryforward: false
+        carryforward: true
