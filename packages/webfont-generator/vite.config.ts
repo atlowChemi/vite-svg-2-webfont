@@ -39,7 +39,7 @@ export default defineProject({
                 dependsOn: ['@atlowchemi/webfont-engine#check'],
             },
             test: {
-                cache: { ...cargoCache, env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'] },
+                cache: { ...cargoCache, env: ['UPDATE_SVG_FIXTURES'] },
                 command: 'cargo test -p webfont-generator-napi --lib',
                 dependsOn: ['check', '@atlowchemi/webfont-engine#test'],
             },

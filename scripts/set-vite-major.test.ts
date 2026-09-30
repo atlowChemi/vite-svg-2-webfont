@@ -1,24 +1,21 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, expect, test } from 'vite-plus/test';
 
-const source = readFileSync(new URL('../scripts/ci/set-vite-major.ts', import.meta.url), 'utf8');
+const script = fileURLToPath(new URL('./ci/set-vite-major.ts', import.meta.url));
 const workspace = readFileSync(new URL('../pnpm-workspace.yaml', import.meta.url), 'utf8');
 const packageJson = readFileSync(new URL('../package.json', import.meta.url), 'utf8');
 let directory: string;
-let script: string;
 let workspaceFile: string;
 let packageFile: string;
 
 beforeEach(() => {
     directory = mkdtempSync(join(tmpdir(), 'vite-matrix-'));
-    mkdirSync(join(directory, 'scripts', 'ci'), { recursive: true });
-    script = join(directory, 'scripts', 'ci', 'set-vite-major.ts');
     workspaceFile = join(directory, 'pnpm-workspace.yaml');
     packageFile = join(directory, 'package.json');
-    writeFileSync(script, source);
     writeFileSync(packageFile, packageJson);
     writeFileSync(workspaceFile, workspace);
 });

@@ -5,20 +5,9 @@ on:
         branches:
             - 'main'
     pull_request:
-    workflow_dispatch:
-        inputs:
-            uncached:
-                description: Run full validation without task-result or compiled Rust cache reuse
-                type: boolean
-                default: true
-    schedule:
-        - cron: '17 4 * * 1'
 
 permissions:
     contents: read
-
-env:
-    VP_RUN_CACHE: ${{ (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.uncached)) && '--no-cache' || '' }}
 
 jobs:
     affected-selection:
@@ -37,25 +26,53 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
-            - name: Verify selection against disposable Git histories
-              run: |
-                  vp test --run --config scripts/ci/selection.vite.config.ts
-                  test -s test-results/selection-scenarios.xml
-            - name: Upload selection test results
-              if: ${{ !cancelled() && hashFiles('test-results/selection-scenarios.xml') != '' }}
-              uses: ./.github/actions/upload-test-results
-              with:
-                  name: affected-selection-linux-x64
-                  files: test-results/selection-scenarios.xml
-                  token: ${{ secrets.CODECOV_TOKEN }}
             - name: Select jobs and record reasons
               id: selection
-              run: node scripts/ci/select-affected.ts
+              run: node scripts/ci/affected-selection.ts
             - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
               with:
                   name: affected-selection
                   path: artifacts/affected-selection/
                   if-no-files-found: error
+
+    test-scripts:
+        name: test CI scripts
+        needs: [affected-selection]
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-scripts }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
+            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - name: Run script tests with coverage
+              id: tests
+              run: |
+                  vp run coverage:scripts
+                  test -s coverage/scripts/lcov.info
+              env:
+                  CI_TEST_REPORT: test-results/scripts.xml
+                  CI_TEST_SUITE: scripts-linux-x64
+            - name: Upload script coverage
+              if: ${{ !cancelled() && hashFiles('coverage/scripts/lcov.info') != '' }}
+              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+              with:
+                  files: coverage/scripts/lcov.info
+                  flags: script-tests
+                  name: scripts-linux-x64
+                  disable_search: true
+                  fail_ci_if_error: true
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload script test results
+              if: ${{ !cancelled() && (steps.tests.outcome == 'success' || hashFiles('test-results/scripts.xml') != '') }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: scripts-linux-x64
+                  files: test-results/scripts.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
 
     ci:
         name: lint and check
@@ -67,7 +84,6 @@ jobs:
               with:
                   components: clippy, rustfmt
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-              if: ${{ env.VP_RUN_CACHE == '' }}
               with:
                   path: target
                   key: rust-v3-check-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '**/Cargo.toml') }}
@@ -81,12 +97,12 @@ jobs:
             - name: Validate Cargo lockfile
               run: cargo metadata --locked --offline --all-features --format-version 1 > /dev/null
             - run: vp check
-            - run: vp run $VP_RUN_CACHE @atlowchemi/webfont-generator#check
+            - run: vp run @atlowchemi/webfont-generator#check
 
     rust-coverage:
         name: Rust coverage (${{ matrix.suite }})
         needs: [affected-selection]
-        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.rust-coverage.selected }}
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.rust-coverage }}
         runs-on: ubuntu-latest
         strategy:
             fail-fast: false
@@ -151,7 +167,7 @@ jobs:
     native-coverage:
         name: Native Vitest coverage
         needs: [affected-selection]
-        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.native-coverage.selected }}
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.native-coverage }}
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -201,15 +217,13 @@ jobs:
     build:
         name: Build cross-platform bindings
         needs: [ci, affected-selection]
-        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.build.selected }}
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.build }}
         uses: ./.github/workflows/build-native.yaml
-        with:
-            uncached: ${{ github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.uncached) }}
 
     docs:
         name: build docs
         needs: [affected-selection]
-        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.docs.selected }}
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.docs }}
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -219,12 +233,12 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
-            - run: vp run $VP_RUN_CACHE @atlowchemi/vite-svg-webfont-docs#build
+            - run: vp run @atlowchemi/vite-svg-webfont-docs#build
 
     test-browser:
         name: test browser font compatibility
         needs: [ci, affected-selection]
-        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-browser.selected }}
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-browser }}
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -238,14 +252,14 @@ jobs:
               run: vp exec playwright install --with-deps chromium firefox webkit
             - name: Run browser tests
               id: engine-browser-tests
-              run: vp run $VP_RUN_CACHE @atlowchemi/webfont-generator#test:browser
+              run: vp run @atlowchemi/webfont-generator#test:browser
               env:
                   CI_TEST_REPORT: test-results/engine-browser.xml
                   CI_TEST_SUITE: engine-browser-linux-x64
             - name: Run plugin browser tests
               id: plugin-browser-tests
               if: ${{ !cancelled() }}
-              run: vp run $VP_RUN_CACHE vite-svg-2-webfont#test:browser
+              run: vp run vite-svg-2-webfont#test:browser
               env:
                   CI_TEST_REPORT: test-results/plugin-browser.xml
                   CI_TEST_SUITE: plugin-browser-linux-x64
@@ -267,7 +281,7 @@ jobs:
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
         needs: [build, affected-selection]
-        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-host.selected }}
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-host }}
         strategy:
             fail-fast: false
             matrix:
@@ -308,7 +322,7 @@ jobs:
               run: pnpm --filter vite-svg-2-webfont exec vp pack
             - name: Run tests
               id: host-tests
-              run: pnpm exec vp test --run --project='!*-browser*'
+              run: pnpm exec vp test --run --project='!*-browser*' --project='!scripts'
               env:
                   CI_TEST_REPORT: test-results/host.xml
                   CI_TEST_SUITE: host-${{ matrix.settings.target }}-node${{ matrix.node }}
@@ -323,7 +337,7 @@ jobs:
     test-docker:
         name: test ${{ matrix.arch }}-linux-musl
         needs: [build, affected-selection]
-        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-docker.selected }}
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-docker }}
         strategy:
             fail-fast: false
             matrix:
@@ -369,7 +383,7 @@ jobs:
                         apk add --no-cache cargo && \
                         npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && \
                         pnpm install --frozen-lockfile --ignore-scripts && \
-                        pnpm exec vp test --run --project='!*-browser*'"
+                        pnpm exec vp test --run --project='!*-browser*' --project='!scripts'"
             - name: Upload musl test results
               if: ${{ !cancelled() && (steps.musl-tests.outcome == 'success' || hashFiles('test-results/musl.xml') != '') }}
               uses: ./.github/actions/upload-test-results
@@ -381,7 +395,7 @@ jobs:
     test-vite-compat:
         name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
         needs: [build, affected-selection]
-        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-vite-compat.selected }}
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-vite-compat }}
         env:
             VITE_COMPAT_MAJOR: ${{ matrix.vite_major }}
             CI_TEST_REPORT: test-results/vite-compat.xml
@@ -425,7 +439,7 @@ jobs:
             - name: Verify binding
               run: ls packages/webfont-generator/*.node
             - name: Build plugin
-              run: vp run $VP_RUN_CACHE --ignore-depends-on vite-svg-2-webfont#pack
+              run: vp run --ignore-depends-on vite-svg-2-webfont#pack
               env:
                   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
                   ALLOW_BUNDLE_ANALYSIS: ${{ matrix.primary }}
@@ -444,7 +458,7 @@ jobs:
               id: coverage-tests
               if: ${{ matrix.primary }}
               run: |
-                  vp test --run --project='!*-browser*' --coverage --coverage.include='packages/vite-svg-2-webfont/src/**'
+                  vp test --run --project='!*-browser*' --project='!scripts' --coverage --coverage.include='packages/vite-svg-2-webfont/src/**'
                   test -s coverage/lcov.info
             - name: Upload coverage reports to Codecov
               if: ${{ !cancelled() && matrix.primary && hashFiles('coverage/lcov.info') != '' }}
@@ -458,7 +472,7 @@ jobs:
             - name: Run tests
               id: compat-tests
               if: ${{ !matrix.primary }}
-              run: vp test --run --project='!*-browser*'
+              run: vp test --run --project='!*-browser*' --project='!scripts'
             - name: Upload compatibility test results
               if: ${{ !cancelled() && (steps.coverage-tests.outcome == 'success' || steps.compat-tests.outcome == 'success' || hashFiles('test-results/vite-compat.xml') != '') }}
               uses: ./.github/actions/upload-test-results
@@ -479,7 +493,7 @@ jobs:
     required-checks:
         name: Required checks
         if: always()
-        needs: [affected-selection, ci, rust-coverage, native-coverage, build, docs, test-browser, test-host, test-docker, test-vite-compat]
+        needs: [affected-selection, ci, test-scripts, rust-coverage, native-coverage, build, docs, test-browser, test-host, test-docker, test-vite-compat]
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

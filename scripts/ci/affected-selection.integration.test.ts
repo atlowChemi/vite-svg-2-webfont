@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSy
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test';
-import { packageNames, resolveSelection } from '../../scripts/ci/affected-selection';
+import { packageNames, resolveSelection } from './affected-selection';
 
 const repo = resolve(import.meta.dirname, '../..');
 let fixture: string;
@@ -48,37 +48,41 @@ describe('real Git/pnpm affected selection', () => {
         ['packages/vite-svg-2-webfont/src/index.ts', [packageNames.plugin, packageNames.example], false],
         ['packages/docs/getting-started.md', [packageNames.docs], false],
         ['packages/webfont-generator/templates/css.hbs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
-        ['packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/add.svg', [packageNames.plugin, packageNames.example], true],
+        ['packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/add.svg', [packageNames.plugin, packageNames.example], false],
     ] as const)('selects %s and accounts for non-package consumers', (path, packages, rust) => {
         change(path);
-        const result = resolveSelection({ eventName: 'pull_request', head: commit(), base }, run);
+        commit();
+        const result = resolveSelection(base, run);
         expect(result.full).toBe(false);
-        expect(result.affectedPackages).toEqual([...packages].toSorted());
-        expect(result.jobs['rust-coverage'].selected).toBe(rust);
-        expect(result.jobs.docs.selected).toBe(path.startsWith('packages/docs/'));
+        expect(result.packages).toEqual([...packages].toSorted());
+        expect(result.jobs['rust-coverage']).toBe(rust);
+        expect(result.jobs.docs).toBe(path.startsWith('packages/docs/'));
     });
 
     it.each(['Cargo.lock', 'pnpm-lock.yaml', '.github/workflows/main.yaml'])('broadens root-only selection for %s', path => {
         change(path);
-        const result = resolveSelection({ eventName: 'pull_request', head: commit(), base }, run);
-        expect(result.affectedPackages).toEqual([packageNames.root]);
+        commit();
+        const result = resolveSelection(base, run);
+        expect(result.packages).toEqual(Object.values(packageNames).toSorted());
         expect(result.full).toBe(true);
     });
 
     it('selects both owners of a cross-package rename', () => {
         renameSync(join(fixture, 'packages/docs/getting-started.md'), join(fixture, 'packages/example/moved.md'));
-        const result = resolveSelection({ eventName: 'pull_request', head: commit(), base }, run);
-        expect(result.changedFiles).toEqual(['packages/docs/getting-started.md', 'packages/example/moved.md']);
-        expect(result.affectedPackages).toEqual([packageNames.docs, packageNames.example].toSorted());
-        expect(result.jobs.docs.selected).toBe(true);
-        expect(result.jobs.build.selected).toBe(true);
+        commit();
+        const result = resolveSelection(base, run);
+        expect(result.files).toEqual(['packages/docs/getting-started.md', 'packages/example/moved.md']);
+        expect(result.packages).toEqual([packageNames.docs, packageNames.example].toSorted());
+        expect(result.jobs.docs).toBe(true);
+        expect(result.jobs.build).toBe(true);
     });
 
     it('retains engine consumers when an engine source is deleted', () => {
         rmSync(join(fixture, 'crates/webfont-generator/src/lib.rs'));
-        const result = resolveSelection({ eventName: 'pull_request', head: commit(), base }, run);
-        expect(result.jobs['rust-coverage'].selected).toBe(true);
-        expect(result.jobs['test-host'].selected).toBe(true);
+        commit();
+        const result = resolveSelection(base, run);
+        expect(result.jobs['rust-coverage']).toBe(true);
+        expect(result.jobs['test-host']).toBe(true);
     });
 
     it('compares a diverged PR to its merge-base, excluding base-only docs edits', () => {
@@ -86,21 +90,22 @@ describe('real Git/pnpm affected selection', () => {
         const baseTip = commit();
         git('checkout', '--detach', base);
         change('packages/vite-svg-2-webfont/src/index.ts');
-        const result = resolveSelection({ eventName: 'pull_request', head: commit(), base: baseTip }, run);
-        expect(result.comparison.mergeBase).toBe(base);
-        expect(result.changedFiles).toEqual(['packages/vite-svg-2-webfont/src/index.ts']);
-        expect(result.jobs.docs.selected).toBe(false);
+        commit();
+        const result = resolveSelection(baseTip, run);
+        expect(result.base).toBe(base);
+        expect(result.files).toEqual(['packages/vite-svg-2-webfont/src/index.ts']);
+        expect(result.jobs.docs).toBe(false);
     });
 
     it('reports no affected packages for an unchanged head', () => {
-        const result = resolveSelection({ eventName: 'pull_request', head: base, base }, run);
+        const result = resolveSelection(base, run);
         expect(result.full).toBe(false);
-        expect(result.affectedPackages).toEqual([]);
+        expect(result.packages).toEqual([]);
     });
 
     it('falls back to full on unavailable history instead of silently skipping', () => {
-        const result = resolveSelection({ eventName: 'pull_request', head: base, base: '1'.repeat(40) }, run);
+        const result = resolveSelection('1'.repeat(40), run);
         expect(result.full).toBe(true);
-        expect(Object.values(result.jobs).every(job => job.selected)).toBe(true);
+        expect(Object.values(result.jobs).every(Boolean)).toBe(true);
     });
 });

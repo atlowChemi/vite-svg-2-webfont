@@ -23,7 +23,8 @@ if (!Number.isInteger(viteMajor) || viteMajor < 1) {
 // Vite+ requires its branded vite alias. Install the consumer's Vite separately;
 // the plugin test project redirects its Vite imports when VITE_COMPAT_MAJOR is set.
 const viteSpecifier = `npm:vite@^${viteMajor}.0.0`;
-const packageFile = join(import.meta.dirname, '..', '..', 'package.json');
+// Run from the workspace root, including before dependencies are installed.
+const packageFile = join(process.cwd(), 'package.json');
 const packageJson = JSON.parse(readFileSync(packageFile, 'utf8'));
 packageJson.devDependencies ??= {};
 packageJson.devDependencies['vite-compat'] = viteSpecifier;

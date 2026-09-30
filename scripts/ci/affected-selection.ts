@@ -1,3 +1,7 @@
+import { execFileSync } from 'node:child_process';
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { pathToFileURL } from 'node:url';
+
 export const packageNames = {
     engine: '@atlowchemi/webfont-engine',
     adapter: '@atlowchemi/webfont-generator',
@@ -7,150 +11,78 @@ export const packageNames = {
     root: '@atlowchemi/vite-svg-webfont-mono',
 } as const;
 
-const packageDirectories = ['crates/webfont-generator/', 'packages/webfont-generator/', 'packages/vite-svg-2-webfont/', 'packages/docs/', 'packages/example/'];
-const jobNames = ['ci', 'rust-coverage', 'native-coverage', 'build', 'docs', 'test-browser', 'test-host', 'test-docker', 'test-vite-compat'] as const;
-type Job = (typeof jobNames)[number];
-type Suite = 'engine' | 'cli' | 'adapter';
-export type Selection = {
-    schemaVersion: 1;
-    mode: 'affected';
-    full: boolean;
-    reasons: string[];
-    changedFiles: string[];
-    affectedPackages: string[];
-    jobs: Record<Job, { selected: boolean; reasons: string[] }>;
-    rustSuites: Suite[];
-};
-
-export function selectJobs(changedFiles: string[], affectedPackages: string[], fullReason?: string): Selection {
-    const jobs = Object.fromEntries(jobNames.map(name => [name, { selected: false, reasons: [] as string[] }])) as Selection['jobs'];
-    const reasons: string[] = [];
-    const suites = new Set<Suite>();
-    const select = (job: Job, reason: string) => {
-        jobs[job].selected = true;
-        if (!jobs[job].reasons.includes(reason)) jobs[job].reasons.push(reason);
-    };
-    const fullReasons = [
-        ...(fullReason ? [fullReason] : []),
-        ...changedFiles.filter(path => !packageDirectories.some(directory => path.startsWith(directory))).map(path => `Shared or unclassified path: ${path}`),
-        ...changedFiles.filter(path => /(?:^|\/)(?:package\.json|Cargo\.toml)$/.test(path)).map(path => `Workspace graph/manifest changed: ${path}`),
-        ...affectedPackages.filter(name => !Object.values<string>(packageNames).includes(name)).map(name => `Unclassified package: ${name}`),
-    ];
-    if (changedFiles.length > 0 && affectedPackages.length === 0) fullReasons.push('Changed files produced no affected packages');
-    if (fullReasons.length > 0) {
-        reasons.push(...fullReasons);
-        for (const job of jobNames) for (const reason of fullReasons) select(job, reason);
-        suites.add('engine').add('cli').add('adapter');
-    } else {
-        select('ci', 'Always run shared lint and Rust checks');
-        const components = new Set(affectedPackages);
-        // Reverse file consumers are not represented by npm dependency edges.
-        const sharedFixtures = changedFiles.filter(
-            path => path.startsWith('packages/webfont-generator/templates/') || path.startsWith('packages/vite-svg-2-webfont/src/fixtures/'),
-        );
-        if (sharedFixtures.length) {
-            components.add(packageNames.engine);
-            components.add(packageNames.adapter);
-            components.add(packageNames.plugin);
-            reasons.push(`Engine tests consume templates/SVG fixtures: ${sharedFixtures.join(', ')}`);
-        }
-        if (changedFiles.some(path => path === 'crates/webfont-generator/CHANGELOG.md' || path === 'packages/webfont-generator/CHANGELOG.md')) {
-            components.add(packageNames.docs);
-            select('docs', 'Docs embed the changed engine/adapter changelog');
-        }
-        if (components.has(packageNames.engine)) {
-            suites.add('engine').add('cli');
-            select('rust-coverage', 'Engine or shared engine test input changed');
-        }
-        if (components.has(packageNames.adapter) || components.has(packageNames.engine)) {
-            // Engine and adapter share the existing rust-tests Codecov flag.
-            // Refresh both together; a partial replacement would lose flag data.
-            suites.add('engine').add('cli').add('adapter');
-            for (const job of ['rust-coverage', 'native-coverage', 'test-host', 'test-docker'] as const) select(job, 'Engine/adapter validation');
-        }
-        if ([packageNames.engine, packageNames.adapter, packageNames.plugin, packageNames.example].some(name => components.has(name))) {
-            select('test-vite-compat', 'Affected native/plugin consumer; existing matrix also runs integration tests');
-            select('test-browser', 'Affected font/plugin consumer; existing job runs both browser suites');
-        }
-        if (components.has(packageNames.docs)) select('docs', 'Affected docs package or included changelog');
-        if (jobs['test-host'].selected || jobs['test-docker'].selected || jobs['test-vite-compat'].selected) {
-            select('build', 'Prerequisite: selected host/musl/Vite jobs download native binding artifacts');
-        }
-    }
+// Map pnpm's affected packages to the existing CI job groups and prerequisites.
+export function selectJobs(packages: string[], files: string[], unknownChanges = false): Record<string, boolean> {
+    const native = packages.includes(packageNames.engine) || packages.includes(packageNames.adapter);
+    const plugin = native || packages.includes(packageNames.plugin) || packages.includes(packageNames.example);
     return {
-        schemaVersion: 1,
-        mode: 'affected',
-        full: fullReasons.length > 0,
-        reasons,
-        changedFiles: [...new Set(changedFiles)].toSorted(),
-        affectedPackages: [...new Set(affectedPackages)].toSorted(),
-        jobs,
-        rustSuites: (['engine', 'cli', 'adapter'] as const).filter(suite => suites.has(suite)),
+        ci: true,
+        'test-scripts': unknownChanges || files.some(file => file.startsWith('scripts/')),
+        // Engine and adapter share a coverage flag, so refresh their reports together.
+        'rust-coverage': native,
+        'native-coverage': native,
+        build: plugin,
+        docs: packages.includes(packageNames.docs),
+        'test-browser': plugin,
+        'test-host': native,
+        'test-docker': native,
+        'test-vite-compat': plugin,
     };
 }
 
-// --no-renames emits both sides as deletion/addition. NUL delimiters preserve
-// spaces, tabs, and newlines in paths without parsing Git's quoted display form.
-export function parseChangedFiles(output: string): string[] {
-    return output.split('\0').filter(Boolean);
-}
+export type Selection = { base: string | null; packages: string[]; files: string[]; full: boolean; reason: string; jobs: Record<string, boolean> };
+type CommandRunner = (command: string, args: string[]) => string;
+const execute: CommandRunner = (command, args) => execFileSync(command, args, { encoding: 'utf8', timeout: 60_000, maxBuffer: 8 * 1024 * 1024 });
 
-export function parsePackages(output: string): string[] {
-    const projects: unknown = JSON.parse(output);
-    if (!Array.isArray(projects) || projects.some(project => !project || typeof project.name !== 'string')) throw new Error('Invalid pnpm package-list JSON');
-    return projects.map(project => project.name);
-}
-
-export type CommandRunner = (command: string, args: string[]) => string;
-export type Comparison = { eventName: string; head: string; base?: string; full?: boolean };
-export type SelectionReport = Selection & {
-    comparison: { event: string; head: string; requestedBase: string | null; mergeBase: string | null };
-};
-const validSha = (sha: string | undefined) => sha && /^[a-f0-9]{40}$/.test(sha) && !/^0+$/.test(sha);
-const escape = (text: string) => text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('|', '&#124;').replaceAll('\n', ' ');
-
-export function resolveSelection(comparison: Comparison, run: CommandRunner): SelectionReport {
+export function resolveSelection(baseSha: string | undefined, run: CommandRunner = execute, push = false): Selection {
+    const allPackages = Object.values<string>(packageNames);
+    let packages = allPackages;
+    let files: string[] = [];
     let base: string | null = null;
-    let changedFiles: string[] = [];
-    let affectedPackages: string[] = [];
-    let selection: Selection;
+    let full = true;
+    let unknownChanges = false;
+    let reason: string;
     try {
-        if (comparison.full || !['pull_request', 'push'].includes(comparison.eventName)) {
-            selection = selectJobs([], [], `Full validation requested for ${comparison.eventName}`);
-        } else {
-            if (!validSha(comparison.head) || !validSha(comparison.base)) throw new Error('Missing or invalid comparison revision');
-            if (run('git', ['rev-parse', 'HEAD']).trim() !== comparison.head) throw new Error('Checkout does not match event head');
-            base = run('git', ['merge-base', comparison.base!, comparison.head]).trim();
-            if (!validSha(base)) throw new Error('Invalid merge-base');
-            if (comparison.eventName === 'push' && base !== comparison.base) throw new Error('Push rewrote history; comparison requires full validation');
-            changedFiles = parseChangedFiles(run('git', ['diff', '--name-only', '--no-renames', '-z', base, comparison.head, '--']));
-            affectedPackages = parsePackages(run('vp', ['exec', 'pnpm', '--filter', `...[${base}]`, 'list', '--depth', '-1', '--json']));
-            selection = selectJobs(changedFiles, affectedPackages);
-        }
+        if (!baseSha || !/^[a-f0-9]{40}$/.test(baseSha) || /^0+$/.test(baseSha)) throw new Error('Missing comparison revision');
+        base = run('git', ['merge-base', baseSha, 'HEAD']).trim();
+        if (!/^[a-f0-9]{40}$/.test(base)) throw new Error('Invalid merge-base');
+        if (push && base !== baseSha) throw new Error('Push rewrote history');
+        // Both sides of renames are needed for ownership; NUL preserves unusual paths.
+        files = run('git', ['diff', '--name-only', '--no-renames', '-z', base, 'HEAD', '--']).split('\0').filter(Boolean);
+        const filters = [`...[${base}]`];
+        // Docs embed release notes from both packages.
+        if (files.some(file => file === 'crates/webfont-generator/CHANGELOG.md' || file === 'packages/webfont-generator/CHANGELOG.md')) filters.push(packageNames.docs);
+        const projects: unknown = JSON.parse(run('vp', ['exec', 'pnpm', ...filters.flatMap(filter => ['--filter', filter]), 'list', '--depth', '-1', '--json']));
+        if (!Array.isArray(projects) || projects.some(project => !project || typeof project.name !== 'string')) throw new Error('Invalid pnpm package list');
+        const affected: string[] = projects.map(project => project.name);
+        full =
+            push ||
+            files.some(
+                file => !/^(crates\/webfont-generator|packages\/(webfont-generator|vite-svg-2-webfont|docs|example))\//.test(file) || /\/(package\.json|Cargo\.toml)$/.test(file),
+            ) ||
+            affected.some(name => !allPackages.includes(name)) ||
+            (files.length > 0 && affected.every(name => name === packageNames.root));
+        packages = full ? allPackages : affected;
+        reason = full ? 'Main push, shared, manifest, or unclassified change: validate all packages' : 'Changed packages and their dependents (including shared file consumers)';
     } catch (error) {
-        selection = selectJobs(changedFiles, affectedPackages, `Selection failed; use full validation: ${error instanceof Error ? error.message : String(error)}`);
+        unknownChanges = true;
+        reason = `Selection unavailable: validate everything. ${error instanceof Error ? error.message : String(error)}`;
     }
-    return { ...selection, comparison: { event: comparison.eventName, head: comparison.head, requestedBase: comparison.base ?? null, mergeBase: base } };
+    return { base, files, packages: [...new Set(packages)].toSorted(), full, reason, jobs: selectJobs(packages, files, unknownChanges) };
 }
 
-export function selectionSummary(selection: ReturnType<typeof resolveSelection>): string {
-    return [
-        '## Affected CI selection',
-        '',
-        'Selected jobs must succeed; only jobs explicitly not selected may be skipped.',
-        '',
-        `- Head: ${escape(selection.comparison.head)}`,
-        `- Merge-base: ${selection.comparison.mergeBase ?? 'unavailable/not needed'}`,
-        `- Full selection: ${selection.full}`,
-        `- pnpm affected packages: ${selection.affectedPackages.map(escape).join(', ') || '(none)'}`,
-        `- Rust suites: ${selection.rustSuites.join(', ') || '(none)'}`,
-        ...selection.reasons.map(reason => `- ${escape(reason)}`),
-        '',
-        '| Job | Selected | Reason |',
-        '| --- | --- | --- |',
-        ...Object.entries(selection.jobs).map(([job, value]) => `| ${job} | ${value.selected ? 'yes' : 'no'} | ${value.reasons.map(escape).join('; ') || 'No affected input'} |`),
-        '',
-        'Changed paths and full machine-readable evidence are in the `affected-selection` artifact.',
-        '',
-    ].join('\n');
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    let event;
+    try {
+        event = JSON.parse(readFileSync(process.env.GITHUB_EVENT_PATH ?? '', 'utf8'));
+    } catch {
+        /* Missing event data falls back to full validation. */
+    }
+    const selection = resolveSelection(event?.pull_request?.base?.sha ?? event?.before, execute, process.env.GITHUB_EVENT_NAME === 'push');
+    const json = JSON.stringify(selection, null, 2);
+    mkdirSync('artifacts/affected-selection', { recursive: true });
+    writeFileSync('artifacts/affected-selection/selection.json', `${json}\n`);
+    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `selection=${JSON.stringify(selection)}\n`);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `## Affected validation\n\n\`\`\`json\n${json.replaceAll('`', '\\u0060')}\n\`\`\`\n`);
+    console.log(json);
 }

@@ -1,5 +1,4 @@
 use std::io::Read;
-use std::path::Path;
 use std::sync::Arc;
 
 use flate2::read::ZlibDecoder;
@@ -136,25 +135,6 @@ fn proof_font_woff2_round_trips_variable_tables() {
     }
     let metrics = decoded.hmtx().unwrap().h_metrics();
     assert_eq!(metrics[1].advance(), metrics[2].advance());
-}
-
-#[test]
-fn browser_proof_fixture_matches_test_builder() {
-    let tables = build_proof_font();
-    let actual = crate::formats::woff2::tables_to_woff2(&tables, 11, None).unwrap();
-    let path = Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../../packages/webfont-generator/tests/browser/fixtures/discrete-rvrn.woff2");
-
-    if std::env::var_os("UPDATE_VARIABLE_PROOF_FIXTURE").is_some_and(|value| value != "0") {
-        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-        std::fs::write(&path, &actual).unwrap();
-    }
-
-    assert_eq!(
-        actual,
-        std::fs::read(&path).expect("browser proof fixture should exist"),
-        "browser proof fixture changed; inspect it and rerun with UPDATE_VARIABLE_PROOF_FIXTURE=1 to accept it",
-    );
 }
 
 fn build_proof_font() -> SerializedFontTables {

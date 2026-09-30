@@ -23,7 +23,7 @@
 ## Public API Sync
 
 - When changing generator public APIs, options, CLI flags, or exported types, update Rust doc comments, `packages/docs/webfont-generator/`, and both engine/adapter READMEs together.
-- Keep templates in `packages/webfont-generator/templates/`; Rust rendering parity tests read them through `test_helpers::npm_template`.
+- Keep templates in `packages/webfont-generator/templates/`; shipped-template parity belongs in adapter tests. Engine tests use engine-owned inputs, never downstream package assets.
 - Docs changelog pages include their source files: npm history from `packages/webfont-generator/CHANGELOG.md`, engine history from `crates/webfont-generator/CHANGELOG.md`. Do not copy release entries into docs.
 
 ## Verification Subagents

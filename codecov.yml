@@ -41,6 +41,10 @@ component_management:
           name: Vite plugin
           paths:
               - 'packages/vite-svg-2-webfont/src/**'
+        - component_id: scripts
+          name: Repository scripts
+          paths:
+              - 'scripts/**'
 ignore:
     - '.pnpm/**'
     - '**/tests/**'
@@ -56,6 +60,8 @@ ignore:
     - 'packages/docs/**'
     - 'packages/example/**'
 flags:
+    script-tests:
+        carryforward: true
     rust-tests:
         carryforward: true
     cli-tests:
