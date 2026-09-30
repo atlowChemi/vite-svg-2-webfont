@@ -18,7 +18,6 @@ export function selectJobs(packages: string[], files: string[], unknownChanges =
     return {
         ci: true,
         'test-scripts': unknownChanges || files.some(file => file.startsWith('scripts/')),
-        // Engine and adapter share a coverage flag, so refresh their reports together.
         'rust-coverage': native,
         'native-coverage': native,
         build: plugin,
@@ -30,7 +29,16 @@ export function selectJobs(packages: string[], files: string[], unknownChanges =
     };
 }
 
-export type Selection = { base: string | null; packages: string[]; files: string[]; full: boolean; reason: string; jobs: Record<string, boolean> };
+export type Selection = {
+    base: string | null;
+    packages: string[];
+    files: string[];
+    full: boolean;
+    reason: string;
+    jobs: Record<string, boolean>;
+    rustSuites: ('engine' | 'cli' | 'adapter')[];
+    nativeBuildScope: 'full' | 'linux-x64';
+};
 type CommandRunner = (command: string, args: string[]) => string;
 const execute: CommandRunner = (command, args) => execFileSync(command, args, { encoding: 'utf8', timeout: 60_000, maxBuffer: 8 * 1024 * 1024 });
 
@@ -50,8 +58,9 @@ export function resolveSelection(baseSha: string | undefined, run: CommandRunner
         // Both sides of renames are needed for ownership; NUL preserves unusual paths.
         files = run('git', ['diff', '--name-only', '--no-renames', '-z', base, 'HEAD', '--']).split('\0').filter(Boolean);
         const filters = [`...[${base}]`];
-        // Docs embed release notes from both packages.
-        if (files.some(file => file === 'crates/webfont-generator/CHANGELOG.md' || file === 'packages/webfont-generator/CHANGELOG.md')) filters.push(packageNames.docs);
+        // Docs include engine/adapter release notes and symlink the plugin changelog.
+        if (files.some(file => ['crates/webfont-generator/CHANGELOG.md', 'packages/webfont-generator/CHANGELOG.md', 'packages/vite-svg-2-webfont/CHANGELOG.md'].includes(file)))
+            filters.push(packageNames.docs);
         const projects: unknown = JSON.parse(run('vp', ['exec', 'pnpm', ...filters.flatMap(filter => ['--filter', filter]), 'list', '--depth', '-1', '--json']));
         if (!Array.isArray(projects) || projects.some(project => !project || typeof project.name !== 'string')) throw new Error('Invalid pnpm package list');
         const affected: string[] = projects.map(project => project.name);
@@ -68,7 +77,17 @@ export function resolveSelection(baseSha: string | undefined, run: CommandRunner
         unknownChanges = true;
         reason = `Selection unavailable: validate everything. ${error instanceof Error ? error.message : String(error)}`;
     }
-    return { base, files, packages: [...new Set(packages)].toSorted(), full, reason, jobs: selectJobs(packages, files, unknownChanges) };
+    const jobs = selectJobs(packages, files, unknownChanges);
+    return {
+        base,
+        files,
+        packages: [...new Set(packages)].toSorted(),
+        full,
+        reason,
+        jobs,
+        rustSuites: packages.includes(packageNames.engine) ? ['engine', 'cli', 'adapter'] : packages.includes(packageNames.adapter) ? ['adapter'] : [],
+        nativeBuildScope: jobs['test-host'] ? 'full' : 'linux-x64',
+    };
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

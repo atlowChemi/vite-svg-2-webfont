@@ -45,8 +45,10 @@ describe('real Git/pnpm affected selection', () => {
     it.each([
         ['crates/webfont-generator/src/lib.rs', [packageNames.engine, packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
         ['packages/webfont-generator/native/lib.rs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
+        ['packages/webfont-generator/index.js', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
         ['packages/vite-svg-2-webfont/src/index.ts', [packageNames.plugin, packageNames.example], false],
         ['packages/docs/getting-started.md', [packageNames.docs], false],
+        ['packages/vite-svg-2-webfont/CHANGELOG.md', [packageNames.plugin, packageNames.example, packageNames.docs], false],
         ['packages/webfont-generator/templates/css.hbs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
         ['packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/add.svg', [packageNames.plugin, packageNames.example], false],
     ] as const)('selects %s and accounts for non-package consumers', (path, packages, rust) => {
@@ -56,7 +58,9 @@ describe('real Git/pnpm affected selection', () => {
         expect(result.full).toBe(false);
         expect(result.packages).toEqual([...packages].toSorted());
         expect(result.jobs['rust-coverage']).toBe(rust);
-        expect(result.jobs.docs).toBe(path.startsWith('packages/docs/'));
+        expect(result.rustSuites).toEqual((packages as readonly string[]).includes(packageNames.engine) ? ['engine', 'cli', 'adapter'] : rust ? ['adapter'] : []);
+        expect(result.nativeBuildScope).toBe(rust ? 'full' : 'linux-x64');
+        expect(result.jobs.docs).toBe(path.startsWith('packages/docs/') || path === 'packages/vite-svg-2-webfont/CHANGELOG.md');
     });
 
     it.each(['Cargo.lock', 'pnpm-lock.yaml', '.github/workflows/main.yaml'])('broadens root-only selection for %s', path => {

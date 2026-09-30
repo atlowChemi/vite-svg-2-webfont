@@ -22,6 +22,18 @@ export function verifyRequiredChecks(needs: Record<string, { result?: string }>,
     if (['test-host', 'test-docker', 'test-vite-compat'].some(name => decisions[name]) && !decisions.build) {
         failures.push('Selected artifact consumer lacks a selected native build');
     }
+    if (!['full', 'linux-x64'].includes(selection.nativeBuildScope)) failures.push('Missing or invalid native build scope');
+    if ((decisions['test-host'] || decisions['test-docker']) && selection.nativeBuildScope !== 'full') {
+        failures.push('Platform tests require the full native build scope');
+    }
+    const suites = selection.packages?.includes('@atlowchemi/webfont-engine')
+        ? ['engine', 'cli', 'adapter']
+        : selection.packages?.includes('@atlowchemi/webfont-generator')
+          ? ['adapter']
+          : [];
+    if (JSON.stringify(selection.rustSuites) !== JSON.stringify(suites) || decisions['rust-coverage'] !== suites.length > 0) {
+        failures.push('Rust coverage suites do not match affected packages');
+    }
     if (failures.length) throw new Error(failures.join('\n'));
     return { coverage: ['test-scripts', 'rust-coverage', 'native-coverage', 'test-vite-compat'].some(name => decisions[name]) };
 }

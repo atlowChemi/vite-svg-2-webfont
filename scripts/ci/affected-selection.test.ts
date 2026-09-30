@@ -43,7 +43,58 @@ describe('affected CI', () => {
         const selection = scenario(['packages/vite-svg-2-webfont/src/index.ts'], [packageNames.plugin, packageNames.example]);
         expect(selection.jobs.build).toBe(true);
         expect(selection.jobs['rust-coverage']).toBe(false);
+        expect(selection.nativeBuildScope).toBe('linux-x64');
+        expect(selection.rustSuites).toEqual([]);
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
+    });
+    it('runs only adapter Rust tests for adapter-only changes', () => {
+        const selection = scenario(['packages/webfont-generator/native/lib.rs'], [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root]);
+        expect(selection.rustSuites).toEqual(['adapter']);
+        expect(selection.nativeBuildScope).toBe('full');
+        expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
+    });
+    it('runs all Rust suites and native targets for engine changes', () => {
+        const selection = scenario(
+            ['crates/webfont-generator/src/lib.rs'],
+            [packageNames.engine, packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root],
+        );
+        expect(selection.rustSuites).toEqual(['engine', 'cli', 'adapter']);
+        expect(selection.nativeBuildScope).toBe('full');
+        expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
+    });
+    it('rejects narrowed platform prerequisites or missing selected Rust suites', () => {
+        const selection = scenario(['Cargo.lock'], [packageNames.root]);
+        expect(() => verifyRequiredChecks(results(selection), { ...selection, nativeBuildScope: 'linux-x64' })).toThrow('full native build scope');
+        expect(() => verifyRequiredChecks(results(selection), { ...selection, rustSuites: ['adapter'] })).toThrow('Rust coverage suites');
+        expect(() => verifyRequiredChecks(results(selection), { ...selection, nativeBuildScope: undefined } as unknown as Selection)).toThrow('native build scope');
+    });
+    it('uses separate coverage flags and only the selected matrix suites', () => {
+        const config = parse(readFileSync(new URL('../../codecov.yml', import.meta.url), 'utf8'));
+        expect(config.flags['rust-tests']).toBeUndefined();
+        for (const suite of ['engine', 'cli', 'adapter']) expect(config.flags[`${suite}-tests`].carryforward).toBe(true);
+        const job = workflow.jobs['rust-coverage'];
+        expect(job.strategy.matrix).toEqual({ suite: '${{ fromJSON(needs.affected-selection.outputs.selection).rustSuites }}' });
+        const upload = job.steps.find((step: { name?: string }) => step.name === 'Upload Rust coverage');
+        expect(upload.with.flags).toBe('${{ matrix.suite }}-tests');
+    });
+    it('keeps all native consumers supplied and defaults release builds to full', () => {
+        const build = parse(readFileSync(new URL('../../.github/workflows/build-native.yaml', import.meta.url), 'utf8'));
+        const release = parse(readFileSync(new URL('../../.github/workflows/release.yaml', import.meta.url), 'utf8'));
+        expect(build.on.workflow_call.inputs.scope.default).toBe('full');
+        expect(workflow.jobs.build.with.scope).toBe('${{ fromJSON(needs.affected-selection.outputs.selection).nativeBuildScope }}');
+        const expression: string = build.jobs.build.strategy.matrix.target;
+        expect(expression).toContain("inputs.scope == 'linux-x64'");
+        const [linux = [], full = []] = [...expression.matchAll(/'(\[[^']+\])'/g)].map(match => JSON.parse(match[1]!) as string[]);
+        const download = workflow.jobs['test-vite-compat'].steps.find((step: { name?: string }) => step.name === 'Download binding');
+        expect(linux.map(target => `bindings-${target}`)).toEqual([download.with.name]);
+        for (const { target } of workflow.jobs['test-host'].strategy.matrix.settings) expect(full).toContain(target);
+        for (const arch of workflow.jobs['test-docker'].strategy.matrix.arch) expect(full).toContain(`${arch}-unknown-linux-musl`);
+        expect(full).toHaveLength(9);
+        const releaseBuild = Object.values(release.jobs).find((job: unknown) => (job as { uses?: string }).uses === './.github/workflows/build-native.yaml') as {
+            with?: { scope?: string };
+        };
+        expect(releaseBuild).toBeDefined();
+        expect(releaseBuild.with?.scope ?? 'full').toBe('full');
     });
     it('runs script tests for script changes, not every full package validation', () => {
         expect(scenario(['scripts/ci/affected-selection.ts'], [packageNames.root]).jobs['test-scripts']).toBe(true);

@@ -107,16 +107,7 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                include:
-                    - suite: engine
-                      task: '@atlowchemi/webfont-engine#test:coverage'
-                      flag: rust-tests
-                    - suite: cli
-                      task: '@atlowchemi/webfont-engine#test:coverage:cli'
-                      flag: cli-tests
-                    - suite: adapter
-                      task: '@atlowchemi/webfont-generator#test:coverage'
-                      flag: rust-tests
+                suite: ${{ fromJSON(needs.affected-selection.outputs.selection).rustSuites }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@6bed0761d98439e5a578e2877258200ad565ba87 # stable
@@ -130,7 +121,12 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
-            - run: vp run '${{ matrix.task }}'
+            - run: vp run @atlowchemi/webfont-engine#test:coverage
+              if: ${{ matrix.suite == 'engine' }}
+            - run: vp run @atlowchemi/webfont-engine#test:coverage:cli
+              if: ${{ matrix.suite == 'cli' }}
+            - run: vp run @atlowchemi/webfont-generator#test:coverage
+              if: ${{ matrix.suite == 'adapter' }}
             - name: Verify required reports
               run: |
                   test -s coverage/rust-${{ matrix.suite }}/rust.lcov
@@ -141,7 +137,7 @@ jobs:
               with:
                   disable_search: true
                   files: coverage/rust-${{ matrix.suite }}/rust.lcov
-                  flags: ${{ matrix.flag }}
+                  flags: ${{ matrix.suite }}-tests
                   fail_ci_if_error: true
                   name: rust-${{ matrix.suite }}
                   token: ${{ secrets.CODECOV_TOKEN }}
@@ -215,10 +211,12 @@ jobs:
                   token: ${{ secrets.CODECOV_TOKEN }}
 
     build:
-        name: Build cross-platform bindings
+        name: Build required bindings
         needs: [ci, affected-selection]
         if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.build }}
         uses: ./.github/workflows/build-native.yaml
+        with:
+            scope: ${{ fromJSON(needs.affected-selection.outputs.selection).nativeBuildScope }}
 
     docs:
         name: build docs
