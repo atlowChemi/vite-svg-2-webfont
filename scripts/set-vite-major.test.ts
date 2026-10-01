@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, expect, test } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 
 const script = fileURLToPath(new URL('./ci/set-vite-major.ts', import.meta.url));
 const workspace = readFileSync(new URL('../pnpm-workspace.yaml', import.meta.url), 'utf8');
@@ -29,7 +29,7 @@ function run(major: number, ...args: string[]) {
     return spawnSync(process.execPath, [script, String(major), ...args], { cwd: directory, encoding: 'utf8' });
 }
 
-test.each([6, 7, 8])('selects upstream Vite %i without changing the Vite+ toolchain or unrelated dependencies', major => {
+it.each([6, 7, 8])('selects upstream Vite %i without changing the Vite+ toolchain or unrelated dependencies', major => {
     const result = run(major);
     expect(result.stderr).toBe('');
     expect(result.status).toBe(0);
@@ -39,13 +39,13 @@ test.each([6, 7, 8])('selects upstream Vite %i without changing the Vite+ toolch
     expect(readFileSync(workspaceFile, 'utf8')).toBe(workspace);
 });
 
-test('validates a dry run without rewriting either manifest', () => {
+it('validates a dry run without rewriting either manifest', () => {
     expect(run(6, '--dry-run').status).toBe(0);
     expect(readFileSync(packageFile, 'utf8')).toBe(packageJson);
     expect(readFileSync(workspaceFile, 'utf8')).toBe(workspace);
 });
 
-test('replaces a previously selected matrix version', () => {
+it('replaces a previously selected matrix version', () => {
     expect(run(6).status).toBe(0);
     expect(run(8).status).toBe(0);
     expect(JSON.parse(readFileSync(packageFile, 'utf8')).devDependencies['vite-compat']).toBe('npm:vite@^8.0.0');

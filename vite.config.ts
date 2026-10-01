@@ -52,6 +52,7 @@ const config: UserConfig = defineConfig({
             },
         },
         rules: {
+            'vitest/consistent-test-it': ['error', { fn: 'it', withinDescribe: 'it' }],
             'typescript/no-unsafe-type-assertion': 'off',
             'vitest/require-mock-type-parameters': 'off',
             'eslint/no-underscore-dangle': 'off',
@@ -110,7 +111,8 @@ const config: UserConfig = defineConfig({
                           {
                               outputFile: process.env.CI_TEST_REPORT,
                               suiteName: process.env.CI_TEST_SUITE ?? 'webfont-tests',
-                              classnameTemplate: `${process.env.CI_TEST_SUITE ?? 'webfont-tests'}::{displayName}::{filename}`,
+                              // Keep test identities stable across environments; upload flags identify the CI matrix.
+                              classnameTemplate: '{displayName}::{filename}',
                               addFileAttribute: true,
                           },
                       ],

@@ -23,7 +23,8 @@ runs:
               report_type: test_results
               disable_search: true
               files: ${{ inputs.files }}
-              name: ${{ inputs.name }}-${{ github.run_attempt }}
+              name: ${{ inputs.name }}-${{ github.run_id }}-${{ github.run_attempt }}
               flags: ${{ inputs.name }}
+              override_build_url: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
               fail_ci_if_error: true
               token: ${{ inputs.token }}
