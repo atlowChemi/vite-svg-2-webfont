@@ -34,6 +34,7 @@ Run these from the repository root:
 vp check                                         # format, lint, TypeScript checks
 vp run test                                      # JavaScript, browser, and type tests; builds the debug binding
 vp run coverage                                  # non-browser JavaScript tests with coverage
+vp run coverage:scripts                          # repository script tests, including subprocess coverage
 vp run bench:vitest                              # Vitest benchmarks with release binding and per-test results
 vp run vite-svg-2-webfont#pack                   # build the Vite plugin
 vp run @atlowchemi/webfont-generator#build       # build the native addon
@@ -71,6 +72,11 @@ The Rust tasks write `rust.lcov` and `junit.xml` under `coverage/rust-engine/`,
 `rust.lcov`, `js/lcov.info`, and `junit.xml` under `coverage/napi-vitest/`.
 Run root JavaScript coverage first if collecting all reports locally: it cleans
 the root `coverage/` directory.
+
+`vp run coverage:scripts` runs the `scripts` Vite test project and writes
+`coverage/scripts/lcov.info`. It enables V8 subprocess coverage for scripts launched
+by the tests. CI runs this project when `scripts/` changes, with its own Codecov flag
+and test-results report. Shell scripts are outside V8's JavaScript/TypeScript coverage.
 
 Coverage executions are uncached and use isolated instrumented builds. Their temporary
 run directories are removed on exit, including failures; exported reports remain.
@@ -154,9 +160,10 @@ This monorepo has a root Cargo workspace and the following packages:
 - `tests/`: cross-package compatibility tests and benchmarks (at root level)
 
 Cargo uses the root `Cargo.lock` and `target/`. Templates are tracked solely under
-`packages/webfont-generator/templates/` and ship directly in the npm package. Rust rendering
-parity tests read those files through `test_helpers::npm_template`; they require a repository
-checkout. The library and CLI do not need those files for default rendering.
+`packages/webfont-generator/templates/` and ship directly in the npm package. Adapter tests
+verify shipped-template parity through the generation API. Engine tests use engine-owned
+SVG fixtures and small custom-template inputs, without reading downstream package assets.
+The library and CLI do not need the npm templates for default rendering.
 Release Please links engine/adapter versions. The engine uses the Rust release strategy;
 its private npm manifest has no version and exists only for task-graph discovery. The engine has its own changelog at
 `crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;

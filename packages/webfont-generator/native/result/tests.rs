@@ -9,7 +9,7 @@ fn options() -> webfont_generator::GenerateWebfontsOptions {
     webfont_generator::GenerateWebfontsOptions {
         dest: "artifacts".into(),
         files: vec![format!(
-            "{}/../vite-svg-2-webfont/src/fixtures/webfont-test/svg/add.svg",
+            "{}/../../crates/webfont-generator/src/svg/fixtures/unit/add.svg",
             env!("CARGO_MANIFEST_DIR")
         )],
         types: Some(vec![

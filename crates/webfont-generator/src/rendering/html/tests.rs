@@ -9,9 +9,7 @@ use crate::rendering::css::SharedTemplateData;
 use crate::rendering::paths::{path_to_slashes, relative_path};
 use crate::{FontType, GenerateWebfontsOptions};
 
-use crate::test_helpers::{
-    fixture_source_files, npm_template, resolve_options, write_temp_template,
-};
+use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};
 
 fn render_html(
     options: &ResolvedGenerateWebfontsOptions,
@@ -24,16 +22,14 @@ fn render_html(
 }
 
 #[test]
-fn render_html_renders_the_template_with_generated_styles_and_names() {
+fn render_default_html_uses_generated_styles_and_names() {
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
         files: vec![crate::test_helpers::webfont_fixture("add.svg")],
         html: Some(true),
-        html_template: Some(npm_template("html")),
         font_name: Some("iconfont".to_owned()),
         ligature: Some(false),
         order: Some(vec![FontType::Svg]),
@@ -103,14 +99,12 @@ fn render_html_uses_font_paths_relative_to_html_dest() {
     let options = GenerateWebfontsOptions {
         css: Some(true),
         css_dest: Some("/artifacts/styles/iconfont.css".to_owned()),
-        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/ignored".to_owned()),
         dest: "/artifacts/fonts".to_owned(),
         files: vec![crate::test_helpers::webfont_fixture("add.svg")],
         html: Some(true),
         html_dest: Some("/artifacts/preview/iconfont.html".to_owned()),
-        html_template: Some(npm_template("html")),
         font_name: Some("iconfont".to_owned()),
         ligature: Some(false),
         order: Some(vec![FontType::Svg]),
@@ -130,7 +124,6 @@ fn render_html_supports_static_custom_templates() {
     let template_path = write_temp_template("native-html-static-template", "custom html");
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
@@ -159,7 +152,6 @@ fn render_html_supports_custom_templates_using_all_available_context_values() {
     );
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
@@ -191,7 +183,6 @@ fn render_html_rejects_invalid_handlebars_templates() {
     let template_path = write_temp_template("native-html-invalid-template", "{{#if}}");
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
@@ -211,64 +202,6 @@ fn render_html_rejects_invalid_handlebars_templates() {
         render_html(&options, &source_files).expect_err("invalid handlebars syntax should fail");
 
     assert_eq!(error.kind(), ErrorKind::InvalidData);
-}
-
-#[test]
-fn default_html_hot_path_matches_handlebars_output() {
-    use super::RemovePeriodsHelper;
-    use handlebars::Handlebars;
-
-    let options = GenerateWebfontsOptions {
-        css: Some(true),
-        codepoints: Some(HashMap::from([
-            ("add".to_owned(), 0xE001u32),
-            ("remove".to_owned(), 0xE002u32),
-        ])),
-        dest: "artifacts".to_owned(),
-        files: vec![crate::test_helpers::webfont_fixture("add.svg")],
-        html: Some(true),
-        html_dest: Some("artifacts/iconfont.html".to_owned()),
-        html_template: Some(npm_template("html")),
-        font_height: Some(1000.0),
-        font_name: Some("iconfont".to_owned()),
-        ligature: Some(false),
-        order: Some(vec![FontType::Svg]),
-        start_codepoint: Some(0xE001),
-        template_options: Some(serde_json::Map::from_iter([
-            (
-                "baseSelector".to_owned(),
-                serde_json::Value::String(".icon".to_owned()),
-            ),
-            (
-                "classPrefix".to_owned(),
-                serde_json::Value::String("icon-".to_owned()),
-            ),
-        ])),
-        types: Some(vec![FontType::Svg]),
-        ..Default::default()
-    };
-    let options = resolve_options(options);
-    let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
-
-    // Build HTML context with embedded CSS styles
-    let html_ctx = super::build_html_context(&options, &shared, &source_files, None).unwrap();
-
-    // Render via Handlebars (template path is set)
-    let handlebars_output = {
-        let source = std::fs::read_to_string(options.html_template.as_ref().unwrap()).unwrap();
-        let mut registry = Handlebars::new();
-        registry.register_helper("removePeriods", Box::new(RemovePeriodsHelper));
-        registry.render_template(&source, &html_ctx).unwrap()
-    };
-
-    // Render via hot path (no template = default)
-    let hot_path_output = super::render_default_html(&html_ctx);
-
-    assert_eq!(
-        hot_path_output, handlebars_output,
-        "HTML hot path output must match Handlebars output"
-    );
 }
 
 #[test]

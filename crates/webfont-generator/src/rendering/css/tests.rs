@@ -23,12 +23,10 @@ fn render_css(
     render_css_with_context(&shared, &ctx)
 }
 
-use crate::test_helpers::{
-    fixture_source_files, npm_template, resolve_options, write_temp_template,
-};
+use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};
 
 #[test]
-fn variant_default_css_matches_template_and_resolved_weights() {
+fn variant_default_css_uses_resolved_weights() {
     let options = resolve_options(GenerateWebfontsOptions {
         dest: "artifacts".into(),
         font_name: Some("weights".into()),
@@ -52,11 +50,6 @@ fn variant_default_css_matches_template_and_resolved_weights() {
     let shared = SharedTemplateData::new(&options, &[]).unwrap();
     let ctx = build_css_context(&options, &shared);
     let css = render_css_with_context(&shared, &ctx).unwrap();
-    let mut registry = handlebars::Handlebars::new();
-    registry
-        .register_template_string("css", fs::read_to_string(npm_template("css")).unwrap())
-        .unwrap();
-    assert_eq!(css, registry.render("css", &ctx).unwrap());
     assert_eq!(css.matches("@font-face").count(), 2);
     assert_eq!(css.matches("weights.woff2?").count(), 2);
     assert!(css.contains("font-weight: 300;"));
@@ -377,10 +370,9 @@ fn make_ctx_builds_codepoints_and_merges_template_options() {
 }
 
 #[test]
-fn render_css_renders_the_template_with_generated_urls() {
+fn render_default_css_uses_generated_urls() {
     let options = GenerateWebfontsOptions {
         css: Some(true),
-        css_template: Some(npm_template("css")),
         codepoints: Some(HashMap::from([("add".to_owned(), 0xE001u32)])),
         css_fonts_url: Some("/assets/fonts".to_owned()),
         dest: "artifacts".to_owned(),
@@ -494,54 +486,6 @@ fn render_css_rejects_invalid_handlebars_templates() {
         render_css(&options, &source_files).expect_err("invalid handlebars syntax should fail");
 
     assert_eq!(error.kind(), ErrorKind::InvalidData);
-}
-
-#[test]
-fn default_css_hot_path_matches_handlebars_output() {
-    use handlebars::Handlebars;
-
-    let options = GenerateWebfontsOptions {
-        css: Some(true),
-        css_template: Some(npm_template("css")),
-        codepoints: Some(HashMap::from([
-            ("add".to_owned(), 0xE001u32),
-            ("remove".to_owned(), 0xE002u32),
-            ("search".to_owned(), 0xE003u32),
-        ])),
-        dest: "artifacts".to_owned(),
-        files: vec![crate::test_helpers::webfont_fixture("add.svg")],
-        html: Some(false),
-        font_height: Some(1000.0),
-        font_name: Some("iconfont".to_owned()),
-        ligature: Some(false),
-        order: Some(vec![FontType::Svg]),
-        start_codepoint: Some(0xE001),
-        template_options: Some(Map::from_iter([
-            ("baseSelector".to_owned(), Value::String(".icon".to_owned())),
-            ("classPrefix".to_owned(), Value::String("icon-".to_owned())),
-        ])),
-        types: Some(vec![FontType::Svg]),
-        ..Default::default()
-    };
-    let options = resolve_options(options);
-    let source_files = fixture_source_files(&options);
-    let shared_with_template = SharedTemplateData::new(&options, &source_files).unwrap();
-    let ctx = super::build_css_context(&options, &shared_with_template);
-
-    // Render via Handlebars (the template path is set)
-    let handlebars_output = {
-        let source = fs::read_to_string(options.css_template.as_ref().unwrap()).unwrap();
-        let registry = Handlebars::new();
-        registry.render_template(&source, &ctx).unwrap()
-    };
-
-    // Render via hot path (no template = default)
-    let hot_path_output = super::render_default_css(&ctx);
-
-    assert_eq!(
-        hot_path_output, handlebars_output,
-        "CSS hot path output must match Handlebars output"
-    );
 }
 
 #[test]

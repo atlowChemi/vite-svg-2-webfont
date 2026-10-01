@@ -70,7 +70,7 @@ jobs:
     build-native:
         name: Build native binaries
         needs: [release-please]
-        if: needs.release-please.outputs.any-released == 'true'
+        if: needs.release-please.outputs.native-released == 'true'
         uses: ./.github/workflows/build-native.yaml
 
     publish-native:
@@ -172,7 +172,8 @@ jobs:
 
     publish-plugin:
         name: Publish vite-svg-2-webfont
-        needs: [release-please, build-native]
+        # The publish task packages the plugin without building or consuming native bindings.
+        needs: [release-please]
         if: needs.release-please.outputs.plugin-released == 'true'
         runs-on: ubuntu-latest
         steps:

@@ -3,7 +3,7 @@
 ## Tooling
 
 - Use `vp` for normal repo workflows: `vp install`, `vp check`, `vp fmt`, `vp run test`, `vp run coverage`, `vp run <package>#<task>`. Do not call `pnpm`, `vite`, `vitest`, `oxlint`, `oxfmt`, or `vitepress` directly unless a checked-in Vite+ task itself does so.
-- Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/tests`), not from direct `vite` or `vitest` packages.
+- Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/test`), not from direct `vite` or `vitest` packages.
 - After pulling remote changes, run `vp install` before validation.
 - Unified `vp install` requires Rust first. The CI check job validates Cargo.lock once with `cargo metadata --locked --offline --all-features --format-version 1` pending pnpm/pnpm#16355. Use `vp add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `vp update crate:…` does not update them in pnpm 12.6.0.
 - Use Conventional Commit messages and PR titles: `type(scope): description` or `type: description`. Before creating or editing either, read `scope-enum` in `commitlint.config.js`; use a listed scope or omit it when none fits. Validate the proposed message/title with `printf '%s\n' 'your title' | vp exec commitlint` before committing or submitting it.
@@ -23,7 +23,7 @@
 ## Public API Sync
 
 - When changing generator public APIs, options, CLI flags, or exported types, update Rust doc comments, `packages/docs/webfont-generator/`, and both engine/adapter READMEs together.
-- Keep templates in `packages/webfont-generator/templates/`; Rust rendering parity tests read them through `test_helpers::npm_template`.
+- Keep templates in `packages/webfont-generator/templates/`; shipped-template parity belongs in adapter tests. Engine tests use engine-owned inputs, never downstream package assets.
 - Docs changelog pages include their source files: npm history from `packages/webfont-generator/CHANGELOG.md`, engine history from `crates/webfont-generator/CHANGELOG.md`. Do not copy release entries into docs.
 
 ## Verification Subagents

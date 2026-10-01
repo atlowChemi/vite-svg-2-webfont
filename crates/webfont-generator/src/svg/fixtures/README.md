@@ -45,7 +45,7 @@ Other useful commands:
 | `vp test bench`                                      | Run Vitest benchmarks (upstream vs new core)  |
 
 When `UPDATE_SVG_FIXTURES=1` is set, the Rust tests rewrite every matching file in `expected/` from the current implementation before asserting.
-The tests read inputs from `icons/` plus the small repo fixtures in `src/fixtures/webfont-test/svg`.
+The tests read inputs from `icons/` and `unit/`. The small `unit/` fixtures are engine-owned copies of the original plugin examples so the engine's snapshots do not depend on downstream packages. They can evolve independently of the plugin fixtures.
 
 Fixture scope today:
 

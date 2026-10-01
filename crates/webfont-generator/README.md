@@ -37,7 +37,7 @@ Rust entry point have moved to the unpublished `webfont-generator-napi` workspac
 This is a Cargo API breaking change; existing npm imports remain unchanged.
 
 Templates live in `packages/webfont-generator/templates/` and ship with the npm package.
-The Rust engine renders defaults directly; repository rendering parity tests read the npm
-templates. These tests require a repository checkout, not just the published crate.
+The Rust engine renders defaults directly. Adapter tests verify parity with the shipped
+templates; engine tests use engine-owned inputs without reading npm package assets.
 
 [Full Rust reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html)

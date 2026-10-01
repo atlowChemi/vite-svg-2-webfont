@@ -36,15 +36,7 @@ pub fn fixture_source_files(options: &ResolvedGenerateWebfontsOptions) -> Vec<Lo
 
 pub fn webfont_fixture(name: &str) -> String {
     format!(
-        "{}/../../packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/{name}",
-        env!("CARGO_MANIFEST_DIR")
-    )
-}
-
-/// Templates shipped by the npm package, used for repository rendering parity tests.
-pub fn npm_template(name: &str) -> String {
-    format!(
-        "{}/../../packages/webfont-generator/templates/{name}.hbs",
+        "{}/src/svg/fixtures/unit/{name}",
         env!("CARGO_MANIFEST_DIR")
     )
 }

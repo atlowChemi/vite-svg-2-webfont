@@ -93,6 +93,11 @@ const config: UserConfig = defineConfig({
                 command: "vp test --coverage --project='!*-browser*'",
                 dependsOn: ['@atlowchemi/webfont-generator#build'],
             },
+            'coverage:scripts': {
+                cache: false,
+                command:
+                    "vp test --run --project=scripts --coverage --coverage.autoAttachSubprocess --coverage.include='scripts/**/*.{ts,mjs}' --coverage.reportsDirectory=coverage/scripts",
+            },
         },
     },
     test: {
@@ -122,6 +127,14 @@ const config: UserConfig = defineConfig({
         projects: [
             'packages/!(example)/vite.config.ts',
             'packages/!(example)/vite.browser.config.ts',
+            {
+                test: {
+                    name: 'scripts',
+                    include: ['scripts/**/*.test.ts'],
+                    testTimeout: 30_000,
+                    hookTimeout: 30_000,
+                },
+            },
             {
                 test: {
                     name: 'compat',

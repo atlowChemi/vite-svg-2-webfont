@@ -16,7 +16,7 @@ export default defineProject({
                 command: 'cargo clippy -p webfont-generator -- -D warnings && cargo clippy -p webfont-generator --features cli -- -D warnings && cargo fmt --all -- --check',
             },
             test: {
-                cache: { ...cargoCache, env: ['UPDATE_SVG_FIXTURES', 'UPDATE_VARIABLE_PROOF_FIXTURE'] },
+                cache: { ...cargoCache, env: ['UPDATE_SVG_FIXTURES'] },
                 command: 'cargo test -p webfont-generator && cargo test -p webfont-generator --features cli',
                 dependsOn: ['check'],
             },
