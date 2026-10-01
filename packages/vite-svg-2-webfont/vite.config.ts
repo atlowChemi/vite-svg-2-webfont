@@ -56,8 +56,8 @@ const config: UserProjectConfigExport = defineProject({
             },
             publish: {
                 cache: false,
-                command: 'vp exec -c "pnpm stage publish vite-svg-2-webfont-*.tgz --no-git-checks"',
-                dependsOn: ['pack:tgz'],
+                // Release-only: package external dependencies without compiling the native addon.
+                command: 'vp run --ignore-depends-on pack && vp run --ignore-depends-on pack:tgz && vp exec -c "pnpm stage publish vite-svg-2-webfont-*.tgz --no-git-checks"',
             },
         },
     },

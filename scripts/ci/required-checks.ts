@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { appendFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import type { Selection } from './affected-selection';
@@ -38,10 +39,28 @@ export function verifyRequiredChecks(needs: Record<string, { result?: string }>,
     return { coverage: ['test-scripts', 'rust-coverage', 'native-coverage', 'test-vite-compat'].some(name => decisions[name]) };
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-    const needs = JSON.parse(process.env.NEEDS_JSON ?? '{}');
-    const selection = JSON.parse(needs['affected-selection']?.outputs?.selection ?? 'null');
-    const result = verifyRequiredChecks(needs, selection);
-    if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `coverage=${result.coverage}\n`);
-    console.log('All selected jobs succeeded; all skips were explicitly permitted.');
+const { argv, env } = process;
+
+const executedFile = argv[1];
+const currentModuleAbsoluteUrl = import.meta.url;
+const { href: executedFileHref } = (executedFile && pathToFileURL(executedFile)) || { href: '' };
+
+if (executedFile && currentModuleAbsoluteUrl === executedFileHref) {
+    try {
+        const needs = JSON.parse(env.NEEDS_JSON ?? '{}');
+        const selection = JSON.parse(needs['affected-selection']?.outputs?.selection ?? 'null');
+        const result = verifyRequiredChecks(needs, selection);
+
+        if (env.GITHUB_OUTPUT) {
+            appendFileSync(env.GITHUB_OUTPUT, `coverage=${result.coverage}\n`);
+        }
+        console.log('::notice title=Required checks succeeded::All selected jobs succeeded; all skips were explicitly permitted.');
+    } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        for (const failure of message.split('\n')) {
+            // Escape workflow-command data so messages remain literal annotation text.
+            console.error(`::error title=Required checks failed::${failure.replaceAll('%', '%25').replaceAll('\r', '%0D')}`);
+        }
+        process.exitCode = 1;
+    }
 }

@@ -1,4 +1,4 @@
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -42,6 +42,39 @@ afterAll(() => {
 });
 
 describe('real Git/pnpm affected selection', () => {
+    it.each(['packages/webfont-generator/package.json', 'packages/webfont-generator/Cargo.toml'])('keeps manifest-only pushes downstream: %s', path => {
+        const file = join(fixture, path);
+        writeFileSync(file, `${readFileSync(file, 'utf8')}\n`);
+        commit();
+        const result = resolveSelection(base, run, true);
+        expect(result.full).toBe(false);
+        expect(result.packages).toEqual([packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root].toSorted());
+        expect(result.rustSuites).toEqual(['adapter']);
+    });
+
+    it('fails the CLI with an annotation when a workspace package is unknown', () => {
+        const file = join(fixture, 'packages/docs/package.json');
+        const manifest = JSON.parse(readFileSync(file, 'utf8'));
+        manifest.name = 'unknown-docs-package';
+        writeFileSync(file, JSON.stringify(manifest));
+        commit();
+        const event = join(fixture, 'event.json');
+        const output = join(fixture, 'output.txt');
+        writeFileSync(event, JSON.stringify({ before: base }));
+        writeFileSync(output, '');
+        const result = spawnSync(process.execPath, [join(repo, 'scripts/ci/affected-selection.ts')], {
+            cwd: fixture,
+            encoding: 'utf8',
+            env: { ...process.env, GITHUB_EVENT_NAME: 'push', GITHUB_EVENT_PATH: event, GITHUB_OUTPUT: output },
+        });
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain('::error title=Affected selection failed::Unknown affected packages: unknown-docs-package');
+        expect(result.stderr).not.toMatch(/\n\s+at |Node\.js v/);
+        expect(readFileSync(output, 'utf8')).toBe('');
+        rmSync(event);
+        rmSync(output);
+    });
+
     it.each([
         ['crates/webfont-generator/src/lib.rs', [packageNames.engine, packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
         ['packages/webfont-generator/native/lib.rs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],

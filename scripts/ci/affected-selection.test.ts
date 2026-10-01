@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
-import { resolveSelection, packageNames, selectJobs, type Selection } from './affected-selection';
+import { determineValidationScope, resolveSelection, packageNames, selectJobs, type Selection } from './affected-selection';
 import { verifyRequiredChecks } from './required-checks';
 
 const base = 'b'.repeat(40);
@@ -96,11 +96,24 @@ describe('affected CI', () => {
         expect(releaseBuild).toBeDefined();
         expect(releaseBuild.with?.scope ?? 'full').toBe('full');
     });
+    it('reserves release matrix artifacts for adapter publication', () => {
+        const release = parse(readFileSync(new URL('../../.github/workflows/release.yaml', import.meta.url), 'utf8'));
+        expect(release.jobs['build-native'].if).toBe("needs.release-please.outputs.native-released == 'true'");
+        expect(release.jobs['publish-native'].needs).toEqual(['release-please', 'build-native']);
+        expect(release.jobs['publish-plugin'].needs).toEqual(['release-please']);
+        for (const [job, output] of [
+            ['publish-plugin', 'plugin-released'],
+            ['publish-native', 'native-released'],
+            ['publish-crate', 'engine-released'],
+        ] as const) {
+            expect(release.jobs[job].if).toBe(`needs.release-please.outputs.${output} == 'true'`);
+        }
+    });
     it('runs script tests for script changes, not every full package validation', () => {
         expect(scenario(['scripts/ci/affected-selection.ts'], [packageNames.root]).jobs['test-scripts']).toBe(true);
         expect(scenario(['pnpm-lock.yaml'], [packageNames.root]).jobs['test-scripts']).toBe(false);
     });
-    it.each(['Cargo.lock', 'packages/docs/package.json', 'crates/webfont-generator/Cargo.toml', 'unknown/file'])('broadens shared or graph changes: %s', file => {
+    it.each(['Cargo.lock', 'pnpm-lock.yaml', 'package.json', 'Cargo.toml', 'unknown/file'])('broadens shared changes: %s', file => {
         expect(scenario([file], [packageNames.root]).full).toBe(true);
     });
     it.each(['not JSON', '{}', '[{}]'])('falls back for invalid pnpm output: %s', output => {
@@ -113,10 +126,24 @@ describe('affected CI', () => {
             }).full,
         ).toBe(true);
     });
-    it('falls back for rewritten push history and unknown packages', () => {
+    it('falls back for rewritten push history and empty selections', () => {
         expect(resolveSelection(base, () => 'c'.repeat(40), true).full).toBe(true);
-        expect(scenario(['packages/new/a.ts'], ['new-package']).full).toBe(true);
+        expect(() => scenario(['packages/new/a.ts'], ['new-package'])).toThrow('Unknown affected packages: new-package');
         expect(scenario(['packages/docs/a.md'], []).full).toBe(true);
+    });
+    it('uses affected selection on ordinary pushes', () => {
+        const selection = resolveSelection(
+            base,
+            (_command, args) => {
+                if (args[0] === 'merge-base') return base;
+                if (args[0] === 'diff') return 'packages/docs/guide.md\0';
+                return JSON.stringify([{ name: packageNames.docs }]);
+            },
+            true,
+        );
+        expect(selection.full).toBe(false);
+        expect(selection.packages).toEqual([packageNames.docs]);
+        expect(selection.jobs['test-scripts']).toBe(false);
     });
     it.each(['failure', 'cancelled', 'skipped', undefined])('rejects unsuccessful selected jobs: %s', result => {
         const selection = scenario(['packages/docs/guide.md'], [packageNames.docs]);
@@ -146,5 +173,22 @@ describe('affected CI', () => {
         selection.jobs['test-scripts'] = true;
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
         expect(() => verifyRequiredChecks({ ...results(selection), 'test-scripts': { result: 'failure' } }, selection)).toThrow('test-scripts: failure');
+    });
+});
+
+describe('validation scope policy', () => {
+    it.each(['packages/webfont-generator/package.json', 'packages/webfont-generator/Cargo.toml'])('keeps adapter manifest changes downstream: %s', file => {
+        const affected = [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root];
+        expect(determineValidationScope([file], new Set(affected)).full).toBe(false);
+        expect(scenario([file], affected).rustSuites).toEqual(['adapter']);
+    });
+    it.each([{ names: [] }, { names: [packageNames.root] }])('broadens changed files with an incomplete selection: $names', ({ names }) => {
+        expect(determineValidationScope(['packages/docs/a.md'], new Set(names)).full).toBe(true);
+    });
+    it('permits an empty selection when no files changed', () => {
+        expect(determineValidationScope([], new Set()).full).toBe(false);
+    });
+    it('rejects unknown packages even when shared changes would select everything', () => {
+        expect(() => determineValidationScope(['pnpm-lock.yaml'], new Set(['new-package']))).toThrow('Update the affected-selection package and job mapping');
     });
 });
