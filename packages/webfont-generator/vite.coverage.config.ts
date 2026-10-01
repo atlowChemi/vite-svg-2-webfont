@@ -31,7 +31,8 @@ export default defineConfig({
                 {
                     outputFile: resolve(output, 'junit.xml'),
                     suiteName: 'napi-vitest-instrumented',
-                    classnameTemplate: `napi-instrumented-${process.platform}-${process.arch}-node${process.versions.node.split('.')[0]}::{displayName}::{filename}`,
+                    // Match normal test runs; the upload flag identifies native instrumentation.
+                    classnameTemplate: '{displayName}::{filename}',
                     addFileAttribute: true,
                 },
             ],

@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, expect, test } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const script = fileURLToPath(new URL('../scripts/benchmark-continuous-json.mjs', import.meta.url));
@@ -31,7 +31,7 @@ function convert(report: unknown) {
     return { ...processResult, output };
 }
 
-test('converts v5 comparisons and standalone results while preserving historical names and units', () => {
+it('converts v5 comparisons and standalone results while preserving historical names and units', () => {
     const result = convert({
         testResults: [
             {
@@ -75,13 +75,13 @@ test('converts v5 comparisons and standalone results while preserving historical
     ]);
 });
 
-test.each([{ testResults: [] }, { files: [{ groups: [{ benchmarks: [{ name: 'v4 result', mean: 1 }] }] }] }])('rejects reports without v5 benchmark measurements: %j', report => {
+it.each([{ testResults: [] }, { files: [{ groups: [{ benchmarks: [{ name: 'v4 result', mean: 1 }] }] }] }])('rejects reports without v5 benchmark measurements: %j', report => {
     const result = convert(report);
     expect(result.status).not.toBe(0);
     expect(result.stderr).toContain('No Vitest benchmark measurements found');
 });
 
-test('rejects missing latency rather than silently dropping a benchmark', () => {
+it('rejects missing latency rather than silently dropping a benchmark', () => {
     const result = convert({
         testResults: [{ assertionResults: [{ benchmarks: [{ tasks: [{ name: 'broken', latency: {} }] }] }] }],
     });

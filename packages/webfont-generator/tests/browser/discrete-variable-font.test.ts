@@ -1,10 +1,10 @@
-import { expect, test } from 'vite-plus/test';
+import { expect, it } from 'vite-plus/test';
 
 const codepoint = '\ue001';
 const ligature = 'ab';
 const proofFontUrl = '/discrete-rvrn.woff2';
 
-test('switches unrelated outlines by font weight', async () => {
+it('switches unrelated outlines by font weight', async () => {
     const response = await fetch(proofFontUrl);
     expect(response.ok).toBe(true);
     const face = new FontFace('Discrete rvrn proof', await response.arrayBuffer(), {
@@ -32,7 +32,7 @@ test('switches unrelated outlines by font weight', async () => {
     expect(samples[3].direct.centroidX).toBeCloseTo(heavy.centroidX, 0);
 });
 
-test('generated exact-weight faces share a URL and select glyphs and ligatures', async () => {
+it('generated exact-weight faces share a URL and select glyphs and ligatures', async () => {
     const cssResponse = await fetch('/generated-weights.css');
     expect(cssResponse.ok).toBe(true);
     const css = await cssResponse.text();

@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, expect, test } from 'vite-plus/test';
+import { afterEach, expect, it } from 'vite-plus/test';
 import { generateWebfonts, type GenerateWebfontsVariantOptions } from '../index.js';
 
 const roots: string[] = [];
@@ -35,7 +35,7 @@ async function fixture() {
     return { options, variants, updates, fileSets };
 }
 
-test('async variant regeneration preserves receiver and format inference; overlapping calls reject', async () => {
+it('async variant regeneration preserves receiver and format inference; overlapping calls reject', async () => {
     const { options, variants, updates, fileSets } = await fixture();
     const result = await generateWebfonts(options);
     const old = result.ttf;
@@ -59,7 +59,7 @@ test('async variant regeneration preserves receiver and format inference; overla
     expect(() => rediff.regenerate({ files: variants[0].files })).toThrow(/Single file lists/);
 });
 
-test('failed async variant update can be retried, including via synchronous methods', async () => {
+it('failed async variant update can be retried, including via synchronous methods', async () => {
     const { options, variants, updates, fileSets } = await fixture();
     const result = await generateWebfonts(options);
     const old = result.ttf;
@@ -72,7 +72,7 @@ test('failed async variant update can be retried, including via synchronous meth
     expect(result.ttf).toEqual((await generateWebfonts({ ...options, incremental: false })).ttf);
 });
 
-test('callback results reject sync and async variant regeneration', async () => {
+it('callback results reject sync and async variant regeneration', async () => {
     const { options, updates, fileSets } = await fixture();
     const result = await generateWebfonts({
         ...options,
@@ -85,7 +85,7 @@ test('callback results reject sync and async variant regeneration', async () => 
     await expect(result.regenerateAsync(fileSets, updates)).rejects.toThrow(/callbacks/);
 });
 
-test('async write failure preserves the receiver and retries the disk output', async () => {
+it('async write failure preserves the receiver and retries the disk output', async () => {
     const { options, variants, updates, fileSets } = await fixture();
     const result = await generateWebfonts({ ...options, writeFiles: true, fontName: 'icons' });
     const old = result.ttf;
@@ -101,7 +101,7 @@ test('async write failure preserves the receiver and retries the disk output', a
     expect(new Uint8Array(await readFile(output))).toEqual(next.ttf);
 });
 
-test('unified inputs reject old arrays and ambiguous modes without consuming the result', async () => {
+it('unified inputs reject old arrays and ambiguous modes without consuming the result', async () => {
     const { options, fileSets } = await fixture();
     const result = await generateWebfonts(options);
     const original = result.ttf;
@@ -118,7 +118,7 @@ test('unified inputs reject old arrays and ambiguous modes without consuming the
     expect('regenerateVariants' in replacement).toBe(false);
 });
 
-test('failed async membership update restores old sources and reconciles partial writes on a no-op retry', async () => {
+it('failed async membership update restores old sources and reconciles partial writes on a no-op retry', async () => {
     const { options, fileSets } = await fixture();
     const result = await generateWebfonts({ ...options, writeFiles: true, fontName: 'icons', missingGlyphs: { behavior: 'blank' } });
     const old = result.ttf;
@@ -145,7 +145,7 @@ test('failed async membership update restores old sources and reconciles partial
     expect(next.woff2).toEqual(fresh.woff2);
 });
 
-test('duplicate glyph names within a design reject without consuming the result', async () => {
+it('duplicate glyph names within a design reject without consuming the result', async () => {
     const { options, fileSets } = await fixture();
     const result = await generateWebfonts({ ...options, missingGlyphs: { behavior: 'blank' } });
     const original = result.ttf;

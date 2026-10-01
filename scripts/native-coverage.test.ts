@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterEach, expect, test } from 'vite-plus/test';
+import { afterEach, expect, it } from 'vite-plus/test';
 
 const dirs: string[] = [];
 afterEach(() => {
@@ -19,7 +19,7 @@ function validate(text: string, mode = 'native') {
     return { ...result, text: readFileSync(file, 'utf8') };
 }
 
-test('requires measured engine and adapter execution, not just an existing LCOV file', () => {
+it('requires measured engine and adapter execution, not just an existing LCOV file', () => {
     expect(validate('').status).not.toBe(0);
     const engine = record('crates/webfont-generator/src/lib.rs', 1);
     expect(validate(engine).status).not.toBe(0);
@@ -27,7 +27,7 @@ test('requires measured engine and adapter execution, not just an existing LCOV 
     expect(validate(engine + record('packages/webfont-generator/native/lib.rs', 1)).status).toBe(0);
 });
 
-test('normalizes native sources and package-local JS sources to repository paths', () => {
+it('normalizes native sources and package-local JS sources to repository paths', () => {
     const result = validate(record(`${root}/crates/webfont-generator/src/lib.rs`, 1) + record(`${root}/packages/webfont-generator/native/lib.rs`, 1));
     expect(result.status).toBe(0);
     expect(result.text).not.toContain(root);
