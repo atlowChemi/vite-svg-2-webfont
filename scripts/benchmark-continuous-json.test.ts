@@ -31,6 +31,12 @@ function convert(report: unknown) {
     return { ...processResult, output };
 }
 
+it('rejects a missing output argument', () => {
+    const result = spawnSync(process.execPath, [script], { cwd: directory, encoding: 'utf8' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain('Usage: node scripts/benchmark-continuous-json.mjs');
+});
+
 it('converts v5 comparisons and standalone results while preserving historical names and units', () => {
     const result = convert({
         testResults: [

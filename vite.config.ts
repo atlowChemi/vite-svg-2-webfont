@@ -124,7 +124,7 @@ const config: UserConfig = defineConfig({
             provider: 'v8',
             reporter: ['text', 'lcov'],
             reportOnFailure: true,
-            exclude: ['**/*.test-d.ts', 'packages/example/**', 'packages/vite-svg-2-webfont/src/fixtures/**', 'packages/webfont-generator/binding.*'],
+            exclude: ['**/*.test-d.ts', 'packages/example/**', 'scripts/fixtures/**', 'packages/vite-svg-2-webfont/src/fixtures/**', 'packages/webfont-generator/binding.*'],
         },
         projects: [
             'packages/!(example)/vite.config.ts',
