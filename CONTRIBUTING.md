@@ -43,7 +43,7 @@ vp run @atlowchemi/webfont-generator#test        # Rust checks and tests
 vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
 vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
 vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
-vp run example#dev                               # run example app
+vp run @atlowchemi/vite-svg-webfont-example#dev    # run example app
 ```
 
 ### Running coverage locally
@@ -165,7 +165,7 @@ verify shipped-template parity through the generation API. Engine tests use engi
 SVG fixtures and small custom-template inputs, without reading downstream package assets.
 The library and CLI do not need the npm templates for default rendering.
 Release Please links engine/adapter versions. The engine uses the Rust release strategy;
-its private npm manifest has no version and exists only for task-graph discovery. The engine has its own changelog at
+its private npm manifest uses the fixed placeholder version `0.0.0-internal-only` for workspace packaging and task-graph discovery, not Rust releases. The engine has its own changelog at
 `crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;
 those releases trigger crates.io publication. The npm adapter retains its own changelog
 and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
@@ -188,7 +188,7 @@ Before opening a pull request, please:
 5. Run `vp run @atlowchemi/webfont-generator#test` when changing Rust code; this includes Rust checks and tests. The root JavaScript test task does not run the Rust test suite.
 6. Run `vp run @atlowchemi/webfont-generator#bench --no-run` when changing Rust benchmark targets or benchmark-only support code.
 7. Run targeted Rust or Vitest benchmark filters when changing measured performance behavior.
-8. Verify the example app with `vp run example#dev` or `vp run example#build` for user-facing changes.
+8. Verify the example app with `vp run @atlowchemi/vite-svg-webfont-example#dev` or `vp run @atlowchemi/vite-svg-webfont-example#build` for user-facing changes.
 9. Verify the docs site with `vp run @atlowchemi/vite-svg-webfont-docs#build` when you change site documentation or docs config.
 
 ## Commit Conventions
