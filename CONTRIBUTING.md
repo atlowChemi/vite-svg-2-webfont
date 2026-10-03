@@ -11,11 +11,11 @@ This repository uses:
 - `pnpm` underneath the hood as the package manager, managed through `vp`
 - `oxlint` for linting, type-aware checks, and type checking through Vite+ and `tsgo`
 - `oxfmt` for formatting through Vite+
-- A monorepo workspace with packages under `packages/`
+- A monorepo workspace with JavaScript packages under `packages/` and the Rust engine under `crates/`
 - Stable Rust with Cargo, Clippy, and rustfmt for the native generator. The JavaScript test and plugin build tasks build this native binding automatically.
 
 Install Rust before running the full dependency install. pnpm materializes the locked Cargo
-dependencies as well as JavaScript dependencies; Pacquet is no longer used.
+dependencies as well as JavaScript dependencies.
 
 Install dependencies from the repository root:
 
@@ -43,8 +43,29 @@ vp run @atlowchemi/webfont-generator#test        # Rust checks and tests
 vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
 vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
 vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
-vp run example#dev                               # run example app
+vp run @atlowchemi/vite-svg-webfont-example#dev    # run example app
 ```
+
+Run tasks that build or restore the native binding sequentially within a checkout.
+For example, `vp run test` and `vp run vite-svg-2-webfont#pack` both use the same
+generated binding files; separate invocations should not write them concurrently.
+
+### Build caches and generated files
+
+Dependency caches, Cargo build outputs, and Vite+ task outputs serve different purposes:
+
+- `vp install` reuses downloaded dependencies; this does not mean a build or test ran.
+- Cargo reuses compiled work under the workspace `target/` directory.
+- Vite+ task-cache hits restore task outputs and replay logs. The native build caches
+  the platform `.node` file and `binding.js` / `binding.d.ts`; the plugin pack task
+  produces its `dist/` bundle and declarations.
+
+Use `vp run --no-cache <package>#<task>` when you need the task to execute rather than
+restore its result. This bypasses Vite+ task caching, not Cargo's compilation cache or
+the dependency store. It is not a cold-build measurement.
+
+Let the native build regenerate bindings rather than editing them manually. Include
+generated binding changes with the source changes that produced them.
 
 ### Running coverage locally
 
@@ -165,7 +186,7 @@ verify shipped-template parity through the generation API. Engine tests use engi
 SVG fixtures and small custom-template inputs, without reading downstream package assets.
 The library and CLI do not need the npm templates for default rendering.
 Release Please links engine/adapter versions. The engine uses the Rust release strategy;
-its private npm manifest has no version and exists only for task-graph discovery. The engine has its own changelog at
+its private npm manifest uses the fixed placeholder version `0.0.0-internal-only` for workspace packaging and task-graph discovery, not Rust releases. The engine has its own changelog at
 `crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;
 those releases trigger crates.io publication. The npm adapter retains its own changelog
 and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
@@ -179,6 +200,46 @@ still require the normal binding build to refresh both exports and TypeScript de
 
 ## Pull Requests
 
+### How CI selects validation
+
+CI always runs shared lint/checks and an affected-selection job. The selector asks pnpm
+for changed workspace packages and their dependents, then chooses the validation jobs
+and native artifacts those jobs need. The `affected-selection` artifact and job summary
+record the comparison base, changed files, packages, decisions, and reason.
+
+- Pull requests compare the checked-out PR head with its merge-base against the target
+  SHA in the event. Pushes to `main` compare against the previous branch tip and also
+  use affected selection.
+- Root/shared files, including lockfiles, select all packages. Package-local manifests
+  follow normal package/dependent selection. The three package changelogs additionally
+  select docs because the site includes them.
+- Unavailable history or an invalid package query falls back to full validation;
+  rewritten push history does too. Changed files with an empty or root-only package
+  selection also broaden validation. An unknown package name fails selection: update
+  the selector's package/job mapping when adding a workspace package.
+
+| Affected package   | Direct Rust suites   | Native build artifacts | Other selected validation                    |
+| ------------------ | -------------------- | ---------------------- | -------------------------------------------- |
+| Engine / CLI       | Engine, CLI, adapter | All nine targets       | Native Vitest, host/musl, Node/Vite, browser |
+| npm / NAPI adapter | Adapter              | All nine targets       | Native Vitest, host/musl, Node/Vite, browser |
+| Plugin / example   | None                 | Linux x64 GNU          | Node/Vite, browser                           |
+| Docs               | None                 | None                   | Docs build                                   |
+
+Adapter tests still compile/use the engine as a dependency; skipping its direct test
+suite does not remove that dependency. Native Vitest coverage also measures engine
+execution through the addon. Repository script tests run separately when `scripts/`
+changes, or conservatively when comparison is unavailable; they do not run merely
+because all packages were selected.
+
+`Required checks` validates the selection and every expected result. Unexpected skips,
+failures, cancellations, or missing native prerequisites fail the aggregate with GitHub
+error annotations. Selected coverage jobs must produce nonempty reports and upload
+successfully before Codecov finalization. Intentionally absent flags carry forward
+previous coverage; changes needing no coverage use `empty-upload`. Carried coverage
+is historical evidence, not a claim that skipped tests ran on the new commit.
+
+### Choosing local checks
+
 Before opening a pull request, please:
 
 1. Install dependencies with `vp install`.
@@ -188,8 +249,43 @@ Before opening a pull request, please:
 5. Run `vp run @atlowchemi/webfont-generator#test` when changing Rust code; this includes Rust checks and tests. The root JavaScript test task does not run the Rust test suite.
 6. Run `vp run @atlowchemi/webfont-generator#bench --no-run` when changing Rust benchmark targets or benchmark-only support code.
 7. Run targeted Rust or Vitest benchmark filters when changing measured performance behavior.
-8. Verify the example app with `vp run example#dev` or `vp run example#build` for user-facing changes.
+8. Verify the example app with `vp run @atlowchemi/vite-svg-webfont-example#dev` or `vp run @atlowchemi/vite-svg-webfont-example#build` for user-facing changes.
 9. Verify the docs site with `vp run @atlowchemi/vite-svg-webfont-docs#build` when you change site documentation or docs config.
+
+## Releasing packages
+
+The [release workflow](./.github/workflows/release.yaml) runs on pushes to `main`.
+Release Please selects versions and releases using
+[`release-please-config.json`](./release-please-config.json); affected CI decisions
+do not select packages for publication.
+
+| Release Please output   | Publication work                                                                                                             |
+| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Engine release created  | Publish `webfont-generator` to crates.io                                                                                     |
+| Adapter release created | Build all nine native targets, stage platform npm packages and `@atlowchemi/webfont-generator`, upload native release assets |
+| Plugin release created  | Bundle the plugin, create its tarball, stage `vite-svg-2-webfont`, upload the tarball                                        |
+
+Engine and adapter versions are linked by Release Please, so a release may select both.
+Each publication job still requires its own package's `release_created` output.
+Any created release also triggers docs deployment.
+
+The plugin's `publish` task is release-only: it explicitly runs `pack` and `pack:tgz`
+with `--ignore-depends-on` before staging the tarball. Its dependencies remain external,
+so this path neither compiles Rust nor consumes native release-matrix artifacts. The
+normal development `pack` task retains its native build prerequisite.
+
+To complete a release:
+
+1. Review the Release Please PR, including linked engine/adapter versions, changelogs,
+   lockfiles, and generated loader updates described in [Project Structure](#project-structure).
+2. Merge it after its selected checks pass, then inspect the release workflow's package-specific jobs.
+3. For npm releases, use the staging IDs in the workflow summary. Approve with
+   `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine;
+   approve platform packages before their adapter package. A successful staging job
+   alone is not proof that a package is publicly available.
+4. Confirm the intended versions are available in npm/crates.io and that GitHub release
+   assets match the selected releases. Verify installation from the registry, rather
+   than from workspace links.
 
 ## Commit Conventions
 

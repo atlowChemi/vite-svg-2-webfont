@@ -51,3 +51,11 @@ it('replaces a previously selected matrix version', () => {
     expect(JSON.parse(readFileSync(packageFile, 'utf8')).devDependencies['vite-compat']).toBe('npm:vite@^8.0.0');
     expect(readFileSync(workspaceFile, 'utf8')).toBe(workspace);
 });
+
+it.each([[], ['invalid']])('rejects invalid arguments without modifying manifests: %j', (...args) => {
+    const result = spawnSync(process.execPath, [script, ...args], { cwd: directory, encoding: 'utf8' });
+    expect(result.status).toBe(1);
+    expect(result.stderr).toMatch(/Usage:|Invalid Vite major/);
+    expect(readFileSync(packageFile, 'utf8')).toBe(packageJson);
+    expect(readFileSync(workspaceFile, 'utf8')).toBe(workspace);
+});

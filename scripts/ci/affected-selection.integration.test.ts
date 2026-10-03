@@ -42,6 +42,45 @@ afterAll(() => {
 });
 
 describe('real Git/pnpm affected selection', () => {
+    it.each(['pull_request', 'push', 'missing-event'])('writes consistent workflow outputs and artifacts for %s', eventName => {
+        change('packages/docs/getting-started.md');
+        commit();
+        const temporary = mkdtempSync(join(tmpdir(), 'selection-event-'));
+        try {
+            const event = join(temporary, 'event.json');
+            const output = join(temporary, 'output');
+            const summary = join(temporary, 'summary');
+            if (eventName !== 'missing-event') {
+                writeFileSync(event, JSON.stringify(eventName === 'push' ? { before: base } : { pull_request: { base: { sha: base } } }));
+            }
+            const result = spawnSync(process.execPath, [join(repo, 'scripts/ci/affected-selection.ts')], {
+                cwd: fixture,
+                encoding: 'utf8',
+                env: { ...process.env, GITHUB_EVENT_NAME: eventName, GITHUB_EVENT_PATH: event, GITHUB_OUTPUT: output, GITHUB_STEP_SUMMARY: summary },
+            });
+            expect(result.status).toBe(0);
+            const selection = JSON.parse(readFileSync(join(fixture, 'artifacts/affected-selection/selection.json'), 'utf8'));
+            expect(JSON.parse(result.stdout)).toEqual(selection);
+            expect(readFileSync(output, 'utf8')).toBe(`selection=${JSON.stringify(selection)}\n`);
+            expect(readFileSync(summary, 'utf8')).toContain(JSON.stringify(selection, null, 2));
+            const fallback = eventName === 'missing-event';
+            expect(selection.full).toBe(fallback);
+            expect(selection.packages).toEqual(fallback ? Object.values(packageNames).toSorted() : [packageNames.docs]);
+            expect(
+                Object.entries(selection.jobs)
+                    .filter(([, selected]) => selected)
+                    .map(([job]) => job),
+            ).toEqual(
+                fallback
+                    ? ['ci', 'test-scripts', 'rust-coverage', 'native-coverage', 'build', 'docs', 'test-browser', 'test-host', 'test-docker', 'test-vite-compat']
+                    : ['ci', 'docs'],
+            );
+        } finally {
+            rmSync(temporary, { recursive: true, force: true });
+            rmSync(join(fixture, 'artifacts/affected-selection'), { recursive: true, force: true });
+        }
+    });
+
     it.each(['packages/webfont-generator/package.json', 'packages/webfont-generator/Cargo.toml'])('keeps manifest-only pushes downstream: %s', path => {
         const file = join(fixture, path);
         writeFileSync(file, `${readFileSync(file, 'utf8')}\n`);

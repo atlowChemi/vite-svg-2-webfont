@@ -58,6 +58,11 @@ npm install @atlowchemi/webfont-generator
 
 Pre-built binaries are published for the following targets:
 
+Consumers on these platforms do not need Rust or Cargo. Keep optional dependencies
+enabled so your package manager installs the matching native binary. The Rust engine
+is published separately as `webfont-generator`; the internal `webfont-generator-napi`
+crate is not a consumer dependency. npm imports remain unchanged by the workspace split.
+
 | Platform       | Architecture      |
 | -------------- | ----------------- |
 | macOS          | x64, arm64        |
