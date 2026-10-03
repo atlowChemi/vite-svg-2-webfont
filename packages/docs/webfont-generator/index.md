@@ -24,6 +24,21 @@ The API design and Handlebars template system build on sunflowerdeath's original
 
 ## Architecture
 
+### Packages and runtimes
+
+| Use case                    | Install                                          | Runtime                                       |
+| --------------------------- | ------------------------------------------------ | --------------------------------------------- |
+| Vite integration            | `vite-svg-2-webfont` from npm                    | Node.js; uses the npm adapter                 |
+| JavaScript / TypeScript API | `@atlowchemi/webfont-generator` from npm         | Node.js with a platform-specific native addon |
+| Rust library                | `webfont-generator` from crates.io               | Rust; no Node.js dependency                   |
+| Standalone command          | `cargo install webfont-generator --features cli` | Native CLI; no Node.js dependency             |
+
+The shared Rust engine owns font generation and rendering. The npm adapter owns the
+JavaScript API, callback transport, and conversion between JavaScript and Rust values.
+Its `webfont-generator-napi` crate is an internal workspace implementation, not a
+separate package for consumers to install. See [Node.js](./node), [Rust](./rust), or
+[CLI](./cli) usage for the corresponding interface.
+
 ### Single-face fonts
 
 For a single-face font, the generation pipeline works as follows:

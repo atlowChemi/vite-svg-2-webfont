@@ -36,6 +36,11 @@ Default features are empty. `cli` enables the command-line binary and JSON confi
 Rust entry point have moved to the unpublished `webfont-generator-napi` workspace crate.
 This is a Cargo API breaking change; existing npm imports remain unchanged.
 
+Remove `napi` from your Cargo dependency features when migrating. Rust integrations
+use the engine APIs above and `GenerationHooks` for callback behavior. JavaScript users
+install `@atlowchemi/webfont-generator` from npm, which supplies the platform addon;
+they do not need the internal adapter crate or a Rust toolchain on supported platforms.
+
 Templates live in `packages/webfont-generator/templates/` and ship with the npm package.
 The Rust engine renders defaults directly. Adapter tests verify parity with the shipped
 templates; engine tests use engine-owned inputs without reading npm package assets.

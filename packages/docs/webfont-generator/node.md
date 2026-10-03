@@ -28,6 +28,11 @@ bun add @atlowchemi/webfont-generator
 
 ## Platform support
 
+On a supported platform, installation uses a prebuilt addon; consumers do not need
+Rust or Cargo. Keep optional dependencies enabled so the package manager can install
+the platform binary. Building this repository from source has separate Rust prerequisites;
+see the [contributor guide](https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/CONTRIBUTING.md).
+
 The package ships prebuilt native binaries for the following platforms:
 
 | OS             | Architecture          | Target triple                   |
