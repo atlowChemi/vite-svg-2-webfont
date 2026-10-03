@@ -31,7 +31,7 @@ fn incremental_result() -> super::GenerateWebfontsResult {
 
 // Direct adapter tests link without Node, so satisfy NAPI error symbols that remain reachable.
 macro_rules! napi_stub {
-    ($name:ident($($argument:ident: $type:ty),*)) => {
+    ($name:ident($($argument:ident: $type:ty),* $(,)?)) => {
         #[unsafe(no_mangle)]
         extern "C" fn $name($($argument: $type),*) -> napi::sys::napi_status {
             0
@@ -39,56 +39,77 @@ macro_rules! napi_stub {
     };
 }
 
-napi_stub!(napi_create_error(
-    _env: napi::sys::napi_env,
-    _code: napi::sys::napi_value,
-    _message: napi::sys::napi_value,
-    _result: *mut napi::sys::napi_value
-));
-napi_stub!(napi_create_string_utf8(
-    _env: napi::sys::napi_env,
-    _string: *const std::ffi::c_char,
-    _length: isize,
-    _result: *mut napi::sys::napi_value
-));
-napi_stub!(napi_get_and_clear_last_exception(
-    _env: napi::sys::napi_env,
-    _result: *mut napi::sys::napi_value
-));
-napi_stub!(napi_get_named_property(
-    _env: napi::sys::napi_env,
-    _object: napi::sys::napi_value,
-    _name: *const std::ffi::c_char,
-    _result: *mut napi::sys::napi_value
-));
-napi_stub!(napi_get_reference_value(
-    _env: napi::sys::napi_env,
-    _reference: napi::sys::napi_ref,
-    _result: *mut napi::sys::napi_value
-));
-napi_stub!(napi_is_error(
-    _env: napi::sys::napi_env,
-    _value: napi::sys::napi_value,
-    _result: *mut bool
-));
-napi_stub!(napi_is_exception_pending(
-    _env: napi::sys::napi_env,
-    _result: *mut bool
-));
-napi_stub!(napi_set_named_property(
-    _env: napi::sys::napi_env,
-    _object: napi::sys::napi_value,
-    _name: *const std::ffi::c_char,
-    _value: napi::sys::napi_value
-));
-napi_stub!(napi_throw(
-    _env: napi::sys::napi_env,
-    _error: napi::sys::napi_value
-));
+napi_stub!(
+    napi_create_error(
+        _env: napi::sys::napi_env,
+        _code: napi::sys::napi_value,
+        _message: napi::sys::napi_value,
+        _result: *mut napi::sys::napi_value,
+    )
+);
+napi_stub!(
+    napi_create_string_utf8(
+        _env: napi::sys::napi_env,
+        _string: *const std::ffi::c_char,
+        _length: isize,
+        _result: *mut napi::sys::napi_value,
+    )
+);
+napi_stub!(
+    napi_get_and_clear_last_exception(
+        _env: napi::sys::napi_env,
+        _result: *mut napi::sys::napi_value,
+    )
+);
+napi_stub!(
+    napi_get_named_property(
+        _env: napi::sys::napi_env,
+        _object: napi::sys::napi_value,
+        _name: *const std::ffi::c_char,
+        _result: *mut napi::sys::napi_value,
+    )
+);
+napi_stub!(
+    napi_get_reference_value(
+        _env: napi::sys::napi_env,
+        _reference: napi::sys::napi_ref,
+        _result: *mut napi::sys::napi_value,
+    )
+);
+napi_stub!(
+    napi_is_error(_env: napi::sys::napi_env, _value: napi::sys::napi_value, _result: *mut bool)
+);
+napi_stub!(napi_is_exception_pending(_env: napi::sys::napi_env, _result: *mut bool));
+napi_stub!(
+    napi_set_named_property(
+        _env: napi::sys::napi_env,
+        _object: napi::sys::napi_value,
+        _name: *const std::ffi::c_char,
+        _value: napi::sys::napi_value,
+    )
+);
+napi_stub!(napi_throw(_env: napi::sys::napi_env, _error: napi::sys::napi_value));
 napi_stub!(napi_delete_reference(_env: napi::sys::napi_env, _reference: napi::sys::napi_ref));
-napi_stub!(napi_reference_unref(_env: napi::sys::napi_env, _reference: napi::sys::napi_ref, _result: *mut u32));
-napi_stub!(napi_call_threadsafe_function(_function: napi::sys::napi_threadsafe_function, _data: *mut std::ffi::c_void, _mode: napi::sys::napi_threadsafe_function_call_mode));
-napi_stub!(napi_release_threadsafe_function(_function: napi::sys::napi_threadsafe_function, _mode: napi::sys::napi_threadsafe_function_release_mode));
+napi_stub!(
+    napi_reference_unref(
+        _env: napi::sys::napi_env,
+        _reference: napi::sys::napi_ref,
+        _result: *mut u32,
+    )
+);
+napi_stub!(
+    napi_call_threadsafe_function(
+        _function: napi::sys::napi_threadsafe_function,
+        _data: *mut std::ffi::c_void,
+        _mode: napi::sys::napi_threadsafe_function_call_mode,
+    )
+);
+napi_stub!(
+    napi_release_threadsafe_function(
+        _function: napi::sys::napi_threadsafe_function,
+        _mode: napi::sys::napi_threadsafe_function_release_mode,
+    )
+);
 
 fn change(path: String, change_type: &str, name: Option<&str>) -> GlyphChangeEntry {
     GlyphChangeEntry {
