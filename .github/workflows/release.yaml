@@ -59,7 +59,8 @@ jobs:
               run: |
                   vp run @atlowchemi/webfont-generator#binding:regenerate
                   vp fmt
-                  git add Cargo.lock pnpm-lock.yaml packages/webfont-generator/binding.js
+                  git add Cargo.lock pnpm-lock.yaml packages/webfont-generator/binding.js \
+                    'crates/*/CHANGELOG.md' 'packages/*/CHANGELOG.md'
                   if ! git diff --cached --quiet; then
                     git config user.name "github-actions[bot]"
                     git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
