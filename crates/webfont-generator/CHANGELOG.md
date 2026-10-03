@@ -17,7 +17,7 @@
 
 * **webfont-generator:** extract Rust engine from NAPI adapter ([#503](https://github.com/atlowChemi/vite-svg-2-webfont/issues/503)) ([9d305b6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/9d305b6f7a34860f2114d48b5ec85e413de8224c))
 
-## Changelog
+## [0.7.0]
 
 Changes to the Rust engine and CLI are recorded here starting with the workspace extraction.
 Earlier releases are documented in the [shared generator changelog](https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/packages/webfont-generator/CHANGELOG.md).
