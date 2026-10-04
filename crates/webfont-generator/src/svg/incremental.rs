@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use rayon::prelude::*;
 
-use super::parse::parse_svg_glyph;
+use super::parse::parse_svg_glyph_with_color;
 use super::types::{
     CachedGlyph, CachedProcessedGlyph, GlyphCache, GlyphWorkItem, ParsedGlyph, PreparedSvgFont,
     ProcessedGlyph, SvgOptions,
@@ -46,6 +46,7 @@ impl IncrementalGlyph {
                 name,
                 glyph,
             } => ParsedGlyph {
+                color_layers: glyph.color_layers.clone(),
                 codepoint,
                 height: glyph.height,
                 index,
@@ -58,11 +59,14 @@ impl IncrementalGlyph {
 
     /// Materialize geometry only when a variant presentation misses the processed cache.
     pub(super) fn to_parsed(&self, codepoint: u32, index: usize, name: &str) -> ParsedGlyph {
-        let (height, width, paths) = match self {
-            Self::Fresh(glyph) => (glyph.height, glyph.width, &glyph.paths),
-            Self::Cached { glyph, .. } => (glyph.height, glyph.width, &glyph.paths),
+        let (height, width, paths, color_layers) = match self {
+            Self::Fresh(glyph) => (glyph.height, glyph.width, &glyph.paths, &glyph.color_layers),
+            Self::Cached { glyph, .. } => {
+                (glyph.height, glyph.width, &glyph.paths, &glyph.color_layers)
+            }
         };
         ParsedGlyph {
+            color_layers: color_layers.clone(),
             codepoint,
             height,
             index,
@@ -121,11 +125,22 @@ pub(super) fn parse_glyphs_incremental(
     // Rehydrate path entries from content-addressed geometry where possible. This handles added
     // files whose SVG bytes match an existing glyph (including rename-like remove/add events).
     for source_file in source_files {
+        let selected = options.selects_color(&source_file.glyph_name);
+        if cache
+            .entries
+            .get(&source_file.path)
+            .is_some_and(|cached| cached.color_layers.is_some() != selected)
+        {
+            cache.entries.remove(&source_file.path);
+            cache.processed_entries.remove(&source_file.path);
+        }
         if cache.entries.contains_key(&source_file.path) {
             continue;
         }
         let hash = source_content_hash(&source_file.contents);
-        if let Some(cached) = cache.by_content_hash.get(&hash) {
+        if let Some(cached) = cache.by_content_hash.get(&hash)
+            && cached.color_layers.is_some() == selected
+        {
             cache
                 .entries
                 .insert(source_file.path.clone(), cached.clone());
@@ -165,8 +180,13 @@ pub(super) fn parse_glyphs_incremental(
                 name: &source_file.glyph_name,
                 source_file,
             };
-            parse_svg_glyph(&work, preserve_aspect_ratio, &parser_options)
-                .map(|glyph| (index, glyph))
+            parse_svg_glyph_with_color(
+                &work,
+                preserve_aspect_ratio,
+                &parser_options,
+                options.selects_color(work.name),
+            )
+            .map(|glyph| (index, glyph))
         })
         .collect::<Result<Vec<_>, Error>>()
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
@@ -181,6 +201,7 @@ pub(super) fn parse_glyphs_incremental(
         let source_file = &source_files[*index];
         let hash = source_content_hash(&source_file.contents);
         let cached = Arc::new(CachedGlyph {
+            color_layers: glyph.color_layers.clone(),
             height: glyph.height,
             paths: glyph.paths.clone(),
             width: glyph.width,
@@ -273,6 +294,7 @@ fn finalize_glyphs_incremental(
             let path_index = glyph.index();
             process_glyph_with_plan(glyph.into_parsed(), &plan).map(|glyph| {
                 let cached = CachedProcessedGlyph {
+                    color_layers: glyph.color_layers.clone(),
                     height: glyph.height,
                     path_data: glyph.path_data.clone(),
                     ttf_path: glyph.ttf_path.clone(),
@@ -309,6 +331,7 @@ fn finalize_glyphs_incremental(
                     .expect("an unchanged file must have a processed cache entry");
                 let codepoint = glyphs_codepoint(options, source_file)?;
                 ProcessedGlyph {
+                    color_layers: cached.color_layers.clone(),
                     codepoint,
                     height: cached.height,
                     index,

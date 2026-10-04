@@ -7,6 +7,7 @@ use usvg::tiny_skia_path::Path as TinyPath;
 use crate::input::LoadedSvgFile;
 
 pub(crate) struct SvgOptions<'a> {
+    pub color_selection: Option<&'a ColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
     pub center_vertically: Option<bool>,
@@ -28,8 +29,66 @@ pub(crate) struct SvgOptions<'a> {
     pub structure_path: bool,
 }
 
+/// Internal selection of final logical names; public option resolution lands later.
+#[derive(Default)]
+#[allow(
+    dead_code,
+    reason = "internal color selection is exposed in the public API stack layer"
+)]
+pub(crate) enum ColorSelection {
+    All,
+    #[default]
+    None,
+    Named(std::collections::HashSet<String>),
+}
+
+impl ColorSelection {
+    pub fn contains(&self, name: &str) -> bool {
+        match self {
+            Self::All => true,
+            Self::None => false,
+            Self::Named(names) => names.contains(name),
+        }
+    }
+}
+
+impl SvgOptions<'_> {
+    pub fn selects_color(&self, name: &str) -> bool {
+        self.color_selection
+            .is_some_and(|selection| selection.contains(name))
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum ResolvedLayerPaint {
+    Foreground {
+        alpha: f32,
+    },
+    Solid {
+        red: u8,
+        green: u8,
+        blue: u8,
+        alpha: f32,
+    },
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ParsedColorLayer {
+    pub path_index: usize,
+    pub paint: ResolvedLayerPaint,
+    pub fill_rule: usvg::FillRule,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct ProcessedColorLayer {
+    pub outline: Arc<BezPath>,
+    pub outline_hash: u64,
+    pub paint: ResolvedLayerPaint,
+}
+
 #[derive(Clone)]
 pub(crate) struct ParsedGlyph {
+    pub color_layers: Option<Box<[ParsedColorLayer]>>,
     pub codepoint: u32,
     pub height: f64,
     pub index: usize,
@@ -47,6 +106,7 @@ pub(crate) struct GlyphWorkItem<'a> {
 
 #[derive(Clone)]
 pub(crate) struct ProcessedGlyph {
+    pub color_layers: Option<Box<[ProcessedColorLayer]>>,
     pub codepoint: u32,
     pub height: f64,
     pub index: usize,
@@ -59,6 +119,7 @@ pub(crate) struct ProcessedGlyph {
 
 #[derive(Clone)]
 pub(crate) struct CachedProcessedGlyph {
+    pub color_layers: Option<Box<[ProcessedColorLayer]>>,
     pub height: f64,
     pub path_data: Arc<str>,
     pub ttf_path: Option<Arc<BezPath>>,
@@ -103,6 +164,7 @@ pub(crate) struct ProcessedVariantGlyph {
 /// assigned `codepoint`/`index`/`name`, which are reassigned on every build). Cached so an
 /// incremental rebuild can reuse a glyph whose SVG source didn't change.
 pub(crate) struct CachedGlyph {
+    pub color_layers: Option<Box<[ParsedColorLayer]>>,
     pub height: f64,
     pub paths: Vec<TinyPath>,
     pub width: f64,
@@ -117,7 +179,8 @@ pub(crate) struct GlyphCache {
     pub entries: HashMap<String, Arc<CachedGlyph>>,
     /// Last seen source hash per path, used to ignore no-op watcher events.
     pub content_hashes: HashMap<String, [u8; 16]>,
-    /// Parsed geometry keyed by SVG source bytes so added/renamed duplicate icons can reuse it.
+    /// Most recently parsed mode per source hash. Reuse requires matching color-layer presence;
+    /// per-path entries retain both modes when identical sources have different selections.
     pub by_content_hash: HashMap<[u8; 16], Arc<CachedGlyph>>,
     /// Processed path data keyed by path for unchanged files while metrics/options stay stable.
     pub processed_entries: HashMap<String, CachedProcessedGlyph>,

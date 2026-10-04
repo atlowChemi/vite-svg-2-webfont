@@ -46,7 +46,11 @@ export default defineProject({
             'test:browser': {
                 cache: false,
                 command: 'vp test --root ../.. --project=webfont-generator-browser',
-                dependsOn: ['build'],
+                dependsOn: ['build', 'test:color-proof'],
+            },
+            'test:color-proof': {
+                cache: false,
+                command: 'node scripts/check-color-proof.mjs',
             },
             'test:coverage': {
                 cache: false,

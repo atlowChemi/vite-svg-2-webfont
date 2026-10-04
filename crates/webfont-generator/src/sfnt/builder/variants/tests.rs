@@ -57,6 +57,7 @@ fn outline(name: &str, codepoint: u32, width: f64, shape_width: f64) -> Processe
     path.line_to(Point::new(0.0, 10.0));
     path.close_path();
     ProcessedGlyph {
+        color_layers: None,
         codepoint,
         height: 10.0,
         index: 0,
