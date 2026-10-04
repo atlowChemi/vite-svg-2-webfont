@@ -68,7 +68,62 @@ viteSvgToWebfont({
 - Preload tags can be injected into built HTML with [`preloadFormats`](./configuration#preloadformats)
 - Preload injection can be limited to selected HTML entrypoints with [`shouldProcessHtml`](./configuration#shouldprocesshtml)
 - When [`inline`](./configuration#inline) is `true`, no preload tags are injected because assets are embedded in the CSS
-- File output during build is disabled unless [`allowWriteFilesInBuild`](./configuration#allowwritefilesinbuild) is enabled
+- Direct generator file output during build is disabled unless [`allowWriteFilesInBuild`](./configuration#allowwritefilesinbuild) is enabled; Vite still bundles fonts referenced by the virtual CSS import
+
+## Configure production font output
+
+With the [standard setup](#standard-setup), Vite processes the virtual CSS and bundles its referenced fonts. Vite's build settings control their output paths; the plugin's [`dest`](./configuration#dest) option controls [additional generator files](#write-additional-generator-files-during-builds).
+
+To change the directory for all bundled assets, set [`build.assetsDir`](https://vite.dev/config/build-options.html#build-assetsdir):
+
+```ts [vite.config.ts]
+export default defineConfig({
+    plugins: [viteSvgToWebfont({ context: './src/icons' })],
+    build: {
+        assetsDir: 'static',
+        assetsInlineLimit: 0,
+    },
+});
+```
+
+With the default `build.outDir`, emitted assets go into `dist/static/`. Setting `assetsInlineLimit: 0` prevents Vite from embedding small fonts as data URLs. Keep the plugin's `inline` option disabled when you want separate font files.
+
+To place fonts in their own directory while keeping other assets under `assets/`, configure `build.rollupOptions.output.assetFileNames` instead:
+
+```ts [vite.config.ts]
+export default defineConfig({
+    plugins: [viteSvgToWebfont({ context: './src/icons' })],
+    build: {
+        assetsInlineLimit: 0,
+        rollupOptions: {
+            output: {
+                assetFileNames: asset => (asset.names.some(name => /\.(woff2?|ttf|otf|eot)$/i.test(name)) ? 'fonts/[name]-[hash][extname]' : 'assets/[name]-[hash][extname]'),
+            },
+        },
+    },
+});
+```
+
+This emits matching fonts under `dist/fonts/`. The rule applies to all matching font assets in the application. SVG fonts use `.svg`, so this example leaves them under `assets/` alongside other SVG assets.
+
+Vite updates the bundled CSS URLs to match the emitted paths. Use Vite's [`base`](https://vite.dev/config/shared-options.html#base) for the public base path; the plugin's `cssFontsUrl` does not override URLs in the bundled virtual CSS.
+
+## Write additional generator files during builds
+
+To write fonts directly to `dest` during a production build, enable both `generateFiles` and `allowWriteFilesInBuild`:
+
+```ts [vite.config.ts]
+viteSvgToWebfont({
+    context: './src/icons',
+    dest: './generated-fonts',
+    generateFiles: true,
+    allowWriteFilesInBuild: true,
+});
+```
+
+The generator writes font files such as `generated-fonts/iconfont.woff2`, plus CSS and HTML at their configured destinations (also under `dest` by default). Use `generateFiles: 'fonts'` to write only the fonts.
+
+When the application also imports the virtual CSS, Vite bundles its own copies of the referenced fonts. These directly generated files are additional output; they do not move or replace Vite's bundled assets.
 
 ## Multi-weight icon families
 

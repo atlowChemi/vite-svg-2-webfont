@@ -61,8 +61,9 @@ See [multi-weight usage](./usage#multi-weight-icon-families) and the [generator'
 ## `dest`
 
 - Type: `string`
-- Description: Directory for generated font files
+- Description: Directory for font files written directly by the generator when [`generateFiles`](#generatefiles) includes fonts
 - Default: `path.resolve(context, '..', 'artifacts')`
+- Build behavior: Direct file output also requires [`allowWriteFilesInBuild`](#allowwritefilesinbuild). Fonts bundled through the virtual CSS import use Vite's output settings instead of `dest`; see [production font output](./usage#configure-production-font-output).
 - Reference: [`@atlowchemi/webfont-generator#dest`](/webfont-generator/node#dest)
 
 ## `cssDest`
@@ -70,6 +71,7 @@ See [multi-weight usage](./usage#multi-weight-icon-families) and the [generator'
 - Type: `string`
 - Description: Output path for generated CSS
 - Default: `path.join(dest, fontName + '.css')`
+- Scope: Applies to directly generated CSS files. Vite controls the output path of bundled CSS.
 - Reference: [`@atlowchemi/webfont-generator#cssDest`](/webfont-generator/node#cssdest)
 
 ## `cssTemplate`
@@ -94,6 +96,7 @@ See [multi-weight usage](./usage#multi-weight-icon-families) and the [generator'
 - Type: `string`
 - Description: Fonts path used in the generated CSS file
 - Default: value derived from `cssDest`
+- Build behavior: Does not override font URLs in the bundled virtual CSS. Vite resolves those URLs from its emitted assets and public `base` path.
 
 ## `htmlDest`
 
@@ -194,7 +197,7 @@ See [multi-weight usage](./usage#multi-weight-icon-families) and the [generator'
 ## `generateFiles`
 
 - Type: `boolean | string | string[]`
-- Description: Controls which generated files are written to disk during development
+- Description: Controls which generated files are written directly to disk during development, and during builds when [`allowWriteFilesInBuild`](#allowwritefilesinbuild) is enabled
 - Valid values:
     - `true` for all generated file types
     - `false` for no generated files
@@ -202,6 +205,8 @@ See [multi-weight usage](./usage#multi-weight-icon-families) and the [generator'
     - `'css'`
     - `'fonts'`
 - Default: `false`
+
+These files use [`dest`](#dest), [`cssDest`](#cssdest), and [`htmlDest`](#htmldest). This option does not control Vite's bundled assets: importing the virtual CSS lets Vite bundle the referenced fonts even when `generateFiles` is `false`.
 
 ## `types`
 
@@ -299,6 +304,8 @@ import 'virtual:vite-svg-2-webfont.css';
 ## `allowWriteFilesInBuild`
 
 - Type: `boolean`
-- Description: Allow HTML, CSS, and font files to be written during build
+- Description: Allow the generator to write the files selected by [`generateFiles`](#generatefiles) directly during a build
 - Default: `false`
 - Reference: [issue discussion](https://github.com/atlowChemi/vite-svg-2-webfont/issues/32#issuecomment-2203187501)
+
+With `generateFiles: true`, font files are written to [`dest`](#dest), and CSS/HTML use their configured destinations. These files are additional to any assets bundled by Vite through the virtual CSS import; enabling this option does not relocate Vite's copies. See [writing additional generator files during builds](./usage#write-additional-generator-files-during-builds).
