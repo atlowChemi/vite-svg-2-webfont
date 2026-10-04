@@ -93,9 +93,6 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
-            # Temporary guard until https://github.com/pnpm/pnpm/issues/16355 is fixed.
-            - name: Validate Cargo lockfile
-              run: cargo metadata --locked --offline --all-features --format-version 1 > /dev/null
             - run: vp check
             - run: vp run @atlowchemi/webfont-generator#check
 
