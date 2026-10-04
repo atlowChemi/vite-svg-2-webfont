@@ -88,16 +88,16 @@ export default defineConfig({
 
 With the default `build.outDir`, emitted assets go into `dist/static/`. Setting `assetsInlineLimit: 0` prevents Vite from embedding small fonts as data URLs. Keep the plugin's `inline` option disabled when you want separate font files.
 
-To place fonts in their own directory while keeping other assets under `assets/`, configure `build.rollupOptions.output.assetFileNames` instead:
+To place fonts in their own directory while keeping other assets under `assets/`, configure `build.rolldownOptions.output.assetFileNames` instead. The example below uses Vite 8 or newer, where Rolldown is the default bundler. On Rollup-based Vite 6 or 7, use `build.rollupOptions.output.assetFileNames` instead (replace `rolldownOptions` with `rollupOptions`):
 
 ```ts [vite.config.ts]
 export default defineConfig({
     plugins: [viteSvgToWebfont({ context: './src/icons' })],
     build: {
         assetsInlineLimit: 0,
-        rollupOptions: {
+        rolldownOptions: {
             output: {
-                assetFileNames: asset => (asset.names.some(name => /\.(woff2?|ttf|otf|eot)$/i.test(name)) ? 'fonts/[name]-[hash][extname]' : 'assets/[name]-[hash][extname]'),
+                assetFileNames: asset => (asset.names.some(name => /\.(woff2?|ttf|eot)$/i.test(name)) ? 'fonts/[name]-[hash][extname]' : 'assets/[name]-[hash][extname]'),
             },
         },
     },
