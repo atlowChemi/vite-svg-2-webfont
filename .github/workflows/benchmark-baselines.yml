@@ -14,6 +14,7 @@ on:
             - Cargo.lock
             - pnpm-workspace.yaml
             - pnpm-lock.yaml
+            - vite.config.ts
     pull_request:
         paths:
             - .github/workflows/benchmark-baselines.yml
@@ -25,6 +26,7 @@ on:
             - Cargo.lock
             - pnpm-workspace.yaml
             - pnpm-lock.yaml
+            - vite.config.ts
     schedule:
         - cron: '42 4 * * 1'
     workflow_dispatch:
@@ -106,7 +108,17 @@ jobs:
               run: |
                   set -euo pipefail
                   mkdir -p "$(dirname "$VITEST_BENCH_OUTPUT")"
-                  vp test bench --run --reporter=verbose --reporter=json --outputFile="$VITEST_BENCH_OUTPUT"
+                  /usr/bin/time -v -o benchmark-results/vitest/resources.txt \
+                    vp test bench --run --reporter=verbose --reporter=json --outputFile="$VITEST_BENCH_OUTPUT" \
+                    2>&1 | tee benchmark-results/vitest/run.log
+
+            - name: Upload Vitest benchmark diagnostics
+              if: always()
+              uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+              with:
+                  name: vitest-benchmark-results
+                  path: benchmark-results/vitest/
+                  if-no-files-found: ignore
 
             - name: Convert benchmark outputs
               run: |
