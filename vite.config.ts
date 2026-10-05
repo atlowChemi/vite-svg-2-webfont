@@ -133,6 +133,8 @@ const config: UserConfig = defineConfig({
                 test: {
                     name: 'scripts',
                     include: ['scripts/**/*.test.ts'],
+                    // Benchmark discovery has its own default include, independent of test.include.
+                    benchmark: { include: [] },
                     testTimeout: 30_000,
                     hookTimeout: 30_000,
                 },
