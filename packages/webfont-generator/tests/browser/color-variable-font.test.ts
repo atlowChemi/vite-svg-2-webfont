@@ -2,15 +2,17 @@
 import { expect, it } from 'vite-plus/test';
 
 const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
-// Approved compatibility contract: WebKit 26.6 uses the monochrome fallback.
+const platform = import.meta.env.VITE_COLOR_PROOF_PLATFORM;
+// Approved compatibility contract: macOS WebKit 26.6 uses monochrome fallback;
+// Linux WebKit must pass full color assertions. Its UA also claims macOS.
 // VITE_COLOR_PROOF_STRICT=1 is an optional future-support diagnostic, not the
 // release gate. Color remains mandatory in Chromium and Firefox.
-const recordFallback = webkit && import.meta.env.VITE_COLOR_PROOF_STRICT !== '1';
+const recordFallback = webkit && platform === 'darwin' && import.meta.env.VITE_COLOR_PROOF_STRICT !== '1';
 
 // These fonts are generated only by the Rust color_proof test task.
 for (const format of ['ttf', 'woff', 'woff2']) {
     it(`${recordFallback ? 'WebKit preserves the approved monochrome fallback' : 'COLR v1 follows rvrn and conditioned liga'} in ${format}`, async () => {
-        console.info(`COLR proof browser: ${navigator.userAgent}`);
+        console.info(`COLR proof host: ${platform}; browser: ${navigator.userAgent}`);
         const response = await fetch(`/color-rvrn.${format}`);
         expect(response.ok).toBe(true);
         const family = `ColorProof-${format}`;

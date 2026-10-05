@@ -78,6 +78,8 @@ Next investigations: isolate WebKit using a minimal static COLR v1 control and a
 
 ### Approved Browser Compatibility Contract
 
+- 2026-10-05 CI correction: Linux Playwright WebKit renders fixed-color pixels, unlike the tested macOS backend. It reports a macOS-style user agent even on Linux. Browser tests now receive the actual host platform from Vite configuration: macOS WebKit asserts fallback, Linux WebKit must pass the complete color/opacity assertions. Expectations are platform-specific, never selected from observed test pixels.
+
 - 2026-10-04: Accept and document the browser limitation. COLR v1 remains the color representation; no additional WebKit color representation is required for this release.
 - Chromium and Firefox must pass full fixed-color, host-foreground, alpha, layer-order, weight-selection, ligature, and advance assertions.
 - The tested WebKit/platform combination must render the monochrome glyf fallback correctly: selected weight outline, direct/ligature parity, host text color, and shared advances. Fixed colors and independent per-layer opacity are unavailable in that fallback. Full-color WebKit rendering is not a release gate.
