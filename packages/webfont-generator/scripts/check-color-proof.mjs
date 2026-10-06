@@ -12,6 +12,7 @@ try {
         cwd: resolve(import.meta.dirname, '../../..'),
         env: { ...process.env, COLOR_PROOF_OUTPUT_DIR: output },
         stdio: 'inherit',
+        shell: process.platform === 'win32',
     });
     await Promise.all(
         ['color-rvrn.ttf', 'color-rvrn.woff', 'color-rvrn.woff2'].map(async name => {

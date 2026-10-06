@@ -10,7 +10,16 @@ pub(super) fn marked_tree(
     options: &usvg::Options,
 ) -> Result<(usvg::Tree, Option<usvg::Color>), Error> {
     let root = document.root_element();
-    if root.attribute("fill").is_some() && root.attribute("color").is_some() {
+    let inherited_color = root.attribute_node("color").filter(|attribute| {
+        attribute
+            .value()
+            .trim()
+            .eq_ignore_ascii_case("currentColor")
+    });
+    if root.attribute("fill").is_some()
+        && root.attribute("color").is_some()
+        && inherited_color.is_none()
+    {
         // No defaults need insertion. Keep the resolved tree, with no marker.
         return Ok((original, None));
     }
@@ -33,7 +42,13 @@ pub(super) fn marked_tree(
             attributes.push_str(&format!(r##" {name}="#{value:06x}""##));
         }
     }
-    let rewritten = format!("{}{}{}", &source[..end], attributes, &source[end..]);
+    let mut rewritten = source.to_owned();
+    if let Some(attribute) = inherited_color {
+        // On the root, color=currentColor inherits the host color. Replace its
+        // value at presentation-attribute priority, so authored CSS still wins.
+        rewritten.replace_range(attribute.range_value(), &format!("#{value:06x}"));
+    }
+    rewritten.insert_str(end, &attributes);
     let document = super::parse_svg_document(&rewritten)?;
     let tree = usvg::Tree::from_xmltree(&document, options)
         .map_err(|error| Error::other(format!("Failed to extract SVG paint: {error}")))?;

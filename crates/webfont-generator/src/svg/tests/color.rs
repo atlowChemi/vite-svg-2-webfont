@@ -410,6 +410,41 @@ fn color_pipeline_resolves_authored_and_foreground_paint_in_order() {
 fn color_pipeline_root_fill_inline_color_and_marker_collision() {
     for (root, body, expected) in [
         (
+            r#"fill="currentColor" color="currentColor""#,
+            RECT,
+            ResolvedLayerPaint::Foreground { alpha: 1.0 },
+        ),
+        (
+            r#"color="currentColor""#,
+            r#"<path fill="currentColor" d="M10 10H90V90H10Z"/>"#,
+            ResolvedLayerPaint::Foreground { alpha: 1.0 },
+        ),
+        (
+            r#"fill="currentColor" color=" currentColor " style="color: red""#,
+            RECT,
+            ResolvedLayerPaint::Solid {
+                red: 255,
+                green: 0,
+                blue: 0,
+                alpha: 1.0,
+            },
+        ),
+        (
+            r#"fill="currentColor" color="currentColor""#,
+            r#"<style>svg { color: red }</style><path d="M10 10H90V90H10Z"/>"#,
+            ResolvedLayerPaint::Solid {
+                red: 255,
+                green: 0,
+                blue: 0,
+                alpha: 1.0,
+            },
+        ),
+        (
+            r#"color="red""#,
+            RECT,
+            ResolvedLayerPaint::Foreground { alpha: 1.0 },
+        ),
+        (
             r#"fill="currentColor" color="red""#,
             RECT,
             ResolvedLayerPaint::Solid {
@@ -469,6 +504,63 @@ fn color_pipeline_root_fill_inline_color_and_marker_collision() {
             prepared.processed_glyphs[0].color_layers.as_ref().unwrap()[0].paint,
             expected
         );
+    }
+}
+
+#[test]
+fn color_pipeline_preserves_mixed_paint_and_color_alpha() {
+    for (root, body, expected) in [
+        (
+            r#"fill="black""#,
+            format!(r#"{RECT}<path fill="currentColor" d="M20 20H80V80H20Z"/>"#),
+            vec![
+                ResolvedLayerPaint::Solid { red: 0, green: 0, blue: 0, alpha: 1.0 },
+                ResolvedLayerPaint::Foreground { alpha: 1.0 },
+            ],
+        ),
+        (
+            r#"color="rgba(255, 0, 0, 0.5)""#,
+            r##"<path fill="#ff000080" d="M10 10H90V90H10Z"/><path fill="rgba(255, 0, 0, 0.5)" d="M20 20H80V80H20Z"/><path fill="currentColor" d="M30 30H70V70H30Z"/>"##.into(),
+            vec![ResolvedLayerPaint::Solid { red: 255, green: 0, blue: 0, alpha: 128.0 / 255.0 }; 3],
+        ),
+    ] {
+        let files = vec![source("icon", root, &body)];
+        let resolved = options(&files);
+        let mut opts = svg_options_from_options(&resolved);
+        opts.color_selection = Some(&ColorSelection::All);
+        let prepared = prepare_svg_font(&opts, &files).unwrap();
+        let paints: Vec<_> = prepared.processed_glyphs[0].color_layers.as_ref().unwrap()
+            .iter().map(|layer| layer.paint).collect();
+        assert_eq!(paints, expected);
+    }
+}
+
+#[test]
+fn color_pipeline_evenodd_preserves_islands_and_sibling_holes() {
+    use kurbo::{BezPath, Point};
+    let data = "M0 0H100V100H0Z M10 10H40V90H10Z M20 20H30V80H20Z M60 10H90V90H60Z";
+    for optimize in [false, true] {
+        let files = vec![source(
+            "icon",
+            "",
+            &format!(r#"<path fill-rule="evenodd" d="{data}"/>"#),
+        )];
+        let mut resolved = options(&files);
+        resolved.optimize_output = Some(optimize);
+        let mut opts = svg_options_from_options(&resolved);
+        opts.color_selection = Some(&ColorSelection::All);
+        let prepared = prepare_svg_font(&opts, &files).unwrap();
+        let outline = &prepared.processed_glyphs[0].color_layers.as_ref().unwrap()[0].outline;
+        let original = BezPath::from_svg(data).unwrap();
+        for x in (0..100).step_by(3) {
+            for y in (0..100).step_by(3) {
+                let point = Point::new(f64::from(x) + 0.31, f64::from(y) + 0.73);
+                assert_eq!(
+                    original.winding(point).abs() % 2 == 1,
+                    outline.winding(Point::new(point.x, 100.0 - point.y)) != 0
+                );
+            }
+        }
     }
 }
 
