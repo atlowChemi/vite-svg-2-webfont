@@ -338,7 +338,7 @@ pub(crate) fn parse_glyphs(
     let mut glyphs = work_items
         .par_iter()
         .map(|item| {
-            parse::parse_svg_glyph_with_color(
+            parse::parse_svg_glyph(
                 item,
                 preserve_aspect_ratio,
                 &parser_options,

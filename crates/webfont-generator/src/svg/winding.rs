@@ -29,13 +29,14 @@ const GEOMETRY_EPSILON: f64 = 1e-9;
 /// larger contour determines nesting. Use the actual curves for that test and
 /// for signed area: a coarse polygon can miss small holes near curved edges.
 /// Intersecting/self-intersecting evenodd paths remain best-effort.
-pub(crate) fn normalize_evenodd(path: TinyPath) -> Vec<TinyPath> {
+pub(crate) fn normalize_evenodd(path: &TinyPath) -> std::borrow::Cow<'_, [TinyPath]> {
     use kurbo::{BezPath, Shape};
+    use std::borrow::Cow;
 
     let mut contours = Vec::new();
-    decompose(&path, &mut contours);
+    decompose(path, &mut contours);
     if contours.len() < 2 {
-        return vec![path];
+        return Cow::Borrowed(std::slice::from_ref(path));
     }
     let point = |p: Point| kurbo::Point::new(f64::from(p.x), f64::from(p.y));
     let curves: Vec<_> = contours
@@ -70,7 +71,7 @@ pub(crate) fn normalize_evenodd(path: TinyPath) -> Vec<TinyPath> {
         reverse[i] = wanted != sign(areas[i]);
     }
     if !reverse.iter().any(|&value| value) {
-        return vec![path];
+        return Cow::Borrowed(std::slice::from_ref(path));
     }
     let mut builder = PathBuilder::new();
     for (contour, reverse) in contours.iter().zip(reverse) {
@@ -80,7 +81,10 @@ pub(crate) fn normalize_evenodd(path: TinyPath) -> Vec<TinyPath> {
             emit_forward(&mut builder, contour);
         }
     }
-    vec![builder.finish().unwrap_or(path)]
+    match builder.finish() {
+        Some(path) => Cow::Owned(vec![path]),
+        None => Cow::Borrowed(std::slice::from_ref(path)),
+    }
 }
 
 enum Step {

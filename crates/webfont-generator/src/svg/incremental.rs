@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use rayon::prelude::*;
 
-use super::parse::parse_svg_glyph_with_color;
+use super::parse::parse_svg_glyph;
 use super::types::{
     CachedGlyph, CachedProcessedGlyph, GlyphCache, GlyphWorkItem, ParsedGlyph, PreparedSvgFont,
     ProcessedGlyph, SvgOptions,
@@ -180,7 +180,7 @@ pub(super) fn parse_glyphs_incremental(
                 name: &source_file.glyph_name,
                 source_file,
             };
-            parse_svg_glyph_with_color(
+            parse_svg_glyph(
                 &work,
                 preserve_aspect_ratio,
                 &parser_options,

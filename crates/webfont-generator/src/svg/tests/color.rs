@@ -26,6 +26,43 @@ fn options(files: &[LoadedSvgFile]) -> ResolvedGenerateWebfontsOptions {
 const RECT: &str = r#"<path d="M10 10H90V90H10Z"/>"#;
 
 #[test]
+fn color_pipeline_cache_and_results_share_layer_arrays() {
+    let files = vec![source("icon", "", RECT)];
+    let resolved = options(&files);
+    let mut opts = svg_options_from_options(&resolved);
+    opts.color_selection = Some(&ColorSelection::All);
+    let mut cache = super::super::types::GlyphCache::default();
+    let first = prepare_svg_font_incremental(&opts, &files, &mut cache).unwrap();
+    let second = prepare_svg_font_incremental(&opts, &files, &mut cache).unwrap();
+    let first_layers = first.processed_glyphs[0].color_layers.as_ref().unwrap();
+    assert!(Arc::ptr_eq(
+        first_layers,
+        second.processed_glyphs[0].color_layers.as_ref().unwrap()
+    ));
+    assert!(Arc::ptr_eq(
+        first_layers,
+        cache.processed_entries[&files[0].path]
+            .color_layers
+            .as_ref()
+            .unwrap()
+    ));
+    let parsed = crate::svg::incremental::parse_glyphs_incremental(&opts, &files, &mut cache)
+        .unwrap()
+        .pop()
+        .unwrap();
+    let cached_layers = cache.entries[&files[0].path].color_layers.as_ref().unwrap();
+    let materialized = parsed.to_parsed(first.processed_glyphs[0].codepoint, 0, "icon");
+    assert!(Arc::ptr_eq(
+        cached_layers,
+        materialized.color_layers.as_ref().unwrap()
+    ));
+    assert!(Arc::ptr_eq(
+        cached_layers,
+        parsed.into_parsed().color_layers.as_ref().unwrap()
+    ));
+}
+
+#[test]
 fn color_pipeline_preserves_namespaced_xml_entities_and_empty_selection() {
     let mut file = source("icon", "", "");
     file.contents = r##"<?xml version="1.0"?><!DOCTYPE svg [<!ENTITY red "#ff0000">]><!-- <svg fill='wrong'> --><s:svg xmlns:s="http://www.w3.org/2000/svg" width="100" height="100" data-note="a > b"><s:path fill="&red;" d="M1 1H9V9Z"/><s:path fill="#000000" d="M10 10H20V20Z"/><s:path fill="#000001" d="M20 20H30V30Z"/><s:path d="M30 30H40V40Z"/><s:path visibility="hidden" d="M40 40H50V50Z"/></s:svg>"##.into();
@@ -255,6 +292,10 @@ fn color_pipeline_variant_layers_use_shared_advance_and_independent_source_scale
         );
         for (actual, expected) in reused.glyphs[0].outlines.iter().zip(&glyph.outlines) {
             assert_glyph(actual.as_ref().unwrap(), expected.as_ref().unwrap());
+            assert!(Arc::ptr_eq(
+                actual.as_ref().unwrap().color_layers.as_ref().unwrap(),
+                expected.as_ref().unwrap().color_layers.as_ref().unwrap(),
+            ));
         }
     }
 }
@@ -368,6 +409,26 @@ fn color_pipeline_resolves_authored_and_foreground_paint_in_order() {
 #[test]
 fn color_pipeline_root_fill_inline_color_and_marker_collision() {
     for (root, body, expected) in [
+        (
+            r#"fill="currentColor" color="red""#,
+            RECT,
+            ResolvedLayerPaint::Solid {
+                red: 255,
+                green: 0,
+                blue: 0,
+                alpha: 1.0,
+            },
+        ),
+        (
+            r#"fill="currentColor" color="red""#,
+            r#"<g color="blue"><path d="M10 10H90V90H10Z"/></g>"#,
+            ResolvedLayerPaint::Solid {
+                red: 0,
+                green: 0,
+                blue: 255,
+                alpha: 1.0,
+            },
+        ),
         (
             r#"fill="black""#,
             RECT,

@@ -18,6 +18,7 @@ fn parse(svg: &str, preserve_aspect_ratio: bool) -> Result<ParsedGlyph, Error> {
         },
         preserve_aspect_ratio,
         &usvg::Options::default(),
+        false,
     )
 }
 

@@ -16,16 +16,7 @@ struct RootSvgMetrics {
     viewport_width: f64,
 }
 
-#[cfg(test)]
 pub(crate) fn parse_svg_glyph(
-    item: &GlyphWorkItem,
-    preserve_aspect_ratio: bool,
-    options: &usvg::Options,
-) -> Result<ParsedGlyph, Error> {
-    parse_svg_glyph_with_color(item, preserve_aspect_ratio, options, false)
-}
-
-pub(crate) fn parse_svg_glyph_with_color(
     item: &GlyphWorkItem,
     preserve_aspect_ratio: bool,
     options: &usvg::Options,
@@ -54,7 +45,7 @@ pub(crate) fn parse_svg_glyph_with_color(
                     ),
                 )
             })?;
-        (tree, Some(marker))
+        (tree, marker)
     } else {
         (tree, None)
     };
@@ -75,7 +66,7 @@ pub(crate) fn parse_svg_glyph_with_color(
     )?;
 
     Ok(ParsedGlyph {
-        color_layers: color_layers.map(Vec::into_boxed_slice),
+        color_layers: color_layers.map(Into::into),
         codepoint: item.codepoint,
         height: tree.size().height() as f64,
         index: item.index,

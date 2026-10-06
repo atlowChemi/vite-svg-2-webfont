@@ -80,15 +80,15 @@ pub(crate) fn process_glyph(
         layers
             .iter()
             .map(|layer| {
-                let path = transformed_paths[layer.path_index].clone();
+                let path = &transformed_paths[layer.path_index];
                 let paths = if layer.fill_rule == usvg::FillRule::EvenOdd {
                     normalize_evenodd(path)
                 } else {
-                    vec![path]
+                    std::borrow::Cow::Borrowed(std::slice::from_ref(path))
                 };
                 let outline = if optimize_output {
                     let mut data = String::new();
-                    for path in &paths {
+                    for path in paths.iter() {
                         append_path(&mut data, path, round);
                     }
                     optimize_path(data.trim_end())
@@ -103,7 +103,7 @@ pub(crate) fn process_glyph(
                     paint: layer.paint,
                 }
             })
-            .collect::<Box<[_]>>()
+            .collect::<Arc<[_]>>()
     });
     // Apply the monochrome icon-font containment heuristic: nested contours alternate winding so
     // foreground-on-background SVG layers become knockouts. No-op glyphs pass through byte-identical.

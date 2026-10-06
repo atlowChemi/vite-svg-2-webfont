@@ -72,14 +72,14 @@ pub(crate) enum ResolvedLayerPaint {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub(crate) struct ParsedColorLayer {
     pub path_index: usize,
     pub paint: ResolvedLayerPaint,
     pub fill_rule: usvg::FillRule,
 }
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) struct ProcessedColorLayer {
     pub outline: Arc<BezPath>,
     pub outline_hash: u64,
@@ -88,7 +88,7 @@ pub(crate) struct ProcessedColorLayer {
 
 #[derive(Clone)]
 pub(crate) struct ParsedGlyph {
-    pub color_layers: Option<Box<[ParsedColorLayer]>>,
+    pub color_layers: Option<Arc<[ParsedColorLayer]>>,
     pub codepoint: u32,
     pub height: f64,
     pub index: usize,
@@ -106,7 +106,7 @@ pub(crate) struct GlyphWorkItem<'a> {
 
 #[derive(Clone)]
 pub(crate) struct ProcessedGlyph {
-    pub color_layers: Option<Box<[ProcessedColorLayer]>>,
+    pub color_layers: Option<Arc<[ProcessedColorLayer]>>,
     pub codepoint: u32,
     pub height: f64,
     pub index: usize,
@@ -119,7 +119,7 @@ pub(crate) struct ProcessedGlyph {
 
 #[derive(Clone)]
 pub(crate) struct CachedProcessedGlyph {
-    pub color_layers: Option<Box<[ProcessedColorLayer]>>,
+    pub color_layers: Option<Arc<[ProcessedColorLayer]>>,
     pub height: f64,
     pub path_data: Arc<str>,
     pub ttf_path: Option<Arc<BezPath>>,
@@ -164,7 +164,7 @@ pub(crate) struct ProcessedVariantGlyph {
 /// assigned `codepoint`/`index`/`name`, which are reassigned on every build). Cached so an
 /// incremental rebuild can reuse a glyph whose SVG source didn't change.
 pub(crate) struct CachedGlyph {
-    pub color_layers: Option<Box<[ParsedColorLayer]>>,
+    pub color_layers: Option<Arc<[ParsedColorLayer]>>,
     pub height: f64,
     pub paths: Vec<TinyPath>,
     pub width: f64,
