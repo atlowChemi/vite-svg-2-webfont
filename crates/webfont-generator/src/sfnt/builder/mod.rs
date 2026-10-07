@@ -1,4 +1,5 @@
 mod cache;
+mod color;
 mod glyphs;
 mod ligatures;
 mod outlines;
@@ -82,8 +83,10 @@ fn build_uncached(
 
     let (compiled_glyphs, cmap_aliases) = compile_and_dedup_glyphs(glyphs)?;
     let ligature_placeholders = build_ligature_placeholders(&compiled_glyphs, options.ligature);
-    let (glyf, loca, loca_format) = build_glyf_table(&compiled_glyphs, &ligature_placeholders)?;
-    let metrics = compute_glyph_metrics(&compiled_glyphs);
+    let color = color::build_color(&compiled_glyphs, ligature_placeholders.len())?;
+    let (glyf, loca, loca_format) =
+        build_glyf_table(&compiled_glyphs, &ligature_placeholders, &color.layers)?;
+    let metrics = compute_glyph_metrics(compiled_glyphs.iter().chain(&color.layers));
 
     assemble_font(
         &options,
@@ -97,6 +100,7 @@ fn build_uncached(
         ascent,
         descent,
         font_height,
+        color,
         None,
     )
 }
@@ -117,8 +121,10 @@ fn build_cached(
 
     let (compiled_glyphs, cmap_aliases) = compile_and_dedup_glyphs_cached(glyphs, cache)?;
     let ligature_placeholders = build_ligature_placeholders(&compiled_glyphs, options.ligature);
-    let (glyf, loca, loca_format) = build_glyf_table(&compiled_glyphs, &ligature_placeholders)?;
-    let metrics = compute_glyph_metrics(&compiled_glyphs);
+    let color = color::build_color(&compiled_glyphs, ligature_placeholders.len())?;
+    let (glyf, loca, loca_format) =
+        build_glyf_table(&compiled_glyphs, &ligature_placeholders, &color.layers)?;
+    let metrics = compute_glyph_metrics(compiled_glyphs.iter().chain(&color.layers));
 
     assemble_font(
         &options,
@@ -132,6 +138,7 @@ fn build_cached(
         ascent,
         descent,
         font_height,
+        color,
         Some(cache),
     )
 }

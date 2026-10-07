@@ -1,5 +1,6 @@
 use std::cmp::{max, min};
 use std::collections::{HashMap, HashSet};
+use std::hash::Hasher;
 use std::io::Error;
 use std::sync::Arc;
 
@@ -7,8 +8,9 @@ use write_fonts::tables::glyf::{GlyfLocaBuilder, Glyph, SimpleGlyph};
 
 use crate::pipeline::TtfGlyphCache;
 use crate::svg::types::ProcessedGlyph;
+use crate::types::color::ResolvedLayerPaint;
 
-use super::cache::compiled_glyph_cache_key;
+use super::cache::{compiled_glyph_cache_key, table_cache_key};
 use super::ligatures::LigaturePlaceholderGlyph;
 use super::outlines::{quadratic_path, quadratic_path_from_svg_path_data};
 use super::types::{
@@ -85,6 +87,7 @@ pub(super) fn compile_and_dedup_glyphs_cached(
             let idx = compiled.len();
             seen.entry(key).or_default().push(idx);
             compiled.push(CompiledGlyph {
+                color_layers: glyph.color_layers.clone(),
                 advance_width: cached.advance_width,
                 bbox: cached.bbox,
                 codepoint: glyph.codepoint,
@@ -103,6 +106,7 @@ pub(super) fn compile_and_dedup_glyphs_cached(
 pub(super) fn build_glyf_table(
     compiled_glyphs: &[CompiledGlyph],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
+    layers: &[CompiledGlyph],
 ) -> Result<
     (
         write_fonts::tables::glyf::Glyf,
@@ -128,63 +132,64 @@ pub(super) fn build_glyf_table(
             ))
         })?;
     }
+    for layer in layers {
+        builder.add_glyph(layer.simple_glyph()).map_err(|error| {
+            Error::other(format!("Failed to compile layer '{}': {error}", layer.name))
+        })?;
+    }
     Ok(builder.build())
 }
 
-pub(super) fn compute_glyph_metrics(glyphs: &[CompiledGlyph]) -> GlyphMetrics {
-    let bbox = glyphs.iter().fold(
-        (0_i16, 0_i16, 0_i16, 0_i16),
-        |(x_min, y_min, x_max, y_max), g| {
-            (
-                min(x_min, g.bbox.x_min),
-                min(y_min, g.bbox.y_min),
-                max(x_max, g.bbox.x_max),
-                max(y_max, g.bbox.y_max),
-            )
-        },
-    );
-    GlyphMetrics {
-        advance_width_max: glyphs.iter().map(|g| g.advance_width).max().unwrap_or(0),
-        bbox,
-        max_contours: glyphs
-            .iter()
-            .map(|g| g.simple_glyph().contours.len() as u16)
-            .max()
-            .unwrap_or(0),
-        max_points: glyphs
-            .iter()
-            .map(|g| {
-                g.simple_glyph()
-                    .contours
-                    .iter()
-                    .map(|c| c.len())
-                    .sum::<usize>() as u16
-            })
-            .max()
-            .unwrap_or(0),
-        min_left_side_bearing: glyphs
-            .iter()
-            .map(|g| g.left_side_bearing)
-            .min()
-            .unwrap_or(0),
-        min_right_side_bearing: glyphs
-            .iter()
-            .map(|g| {
-                i32::from(g.advance_width)
-                    - (i32::from(g.left_side_bearing) + i32::from(g.bbox.x_max)
-                        - i32::from(g.bbox.x_min))
-            })
-            .min()
-            .unwrap_or(0),
-        x_avg_char_width: average_advance_width(glyphs),
-        x_max_extent: glyphs
-            .iter()
-            .map(|g| {
-                i32::from(g.left_side_bearing) + (i32::from(g.bbox.x_max) - i32::from(g.bbox.x_min))
-            })
-            .max()
-            .unwrap_or(0),
+pub(super) fn compute_glyph_metrics<'a>(
+    glyphs: impl Iterator<Item = &'a CompiledGlyph>,
+) -> GlyphMetrics {
+    let mut metrics = GlyphMetrics {
+        advance_width_max: 0,
+        bbox: (0, 0, 0, 0),
+        max_contours: 0,
+        max_points: 0,
+        min_left_side_bearing: i16::MAX,
+        min_right_side_bearing: i32::MAX,
+        x_avg_char_width: 0,
+        x_max_extent: i32::MIN,
+    };
+    let mut any = false;
+    let mut total_width = 0_u64;
+    let mut width_count = 0_u64;
+    for glyph in glyphs {
+        any = true;
+        let contours = &glyph.simple_glyph().contours;
+        let extent = i32::from(glyph.left_side_bearing) + i32::from(glyph.bbox.x_max)
+            - i32::from(glyph.bbox.x_min);
+        metrics.bbox.0 = min(metrics.bbox.0, glyph.bbox.x_min);
+        metrics.bbox.1 = min(metrics.bbox.1, glyph.bbox.y_min);
+        metrics.bbox.2 = max(metrics.bbox.2, glyph.bbox.x_max);
+        metrics.bbox.3 = max(metrics.bbox.3, glyph.bbox.y_max);
+        metrics.advance_width_max = max(metrics.advance_width_max, glyph.advance_width);
+        metrics.max_contours = max(metrics.max_contours, contours.len() as u16);
+        metrics.max_points = max(
+            metrics.max_points,
+            contours.iter().map(|c| c.len()).sum::<usize>() as u16,
+        );
+        metrics.min_left_side_bearing = min(metrics.min_left_side_bearing, glyph.left_side_bearing);
+        metrics.min_right_side_bearing = min(
+            metrics.min_right_side_bearing,
+            i32::from(glyph.advance_width) - extent,
+        );
+        metrics.x_max_extent = max(metrics.x_max_extent, extent);
+        if glyph.advance_width != 0 {
+            total_width += u64::from(glyph.advance_width);
+            width_count += 1;
+        }
     }
+    if !any {
+        metrics.min_left_side_bearing = 0;
+        metrics.min_right_side_bearing = 0;
+        metrics.x_max_extent = 0;
+    }
+    metrics.x_avg_char_width =
+        clamp_to_i16(total_width.checked_div(width_count).unwrap_or(0) as f64);
+    metrics
 }
 
 fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<CompiledGlyph, Error> {
@@ -192,6 +197,7 @@ fn compile_glyph(source_index: usize, glyph: &ProcessedGlyph) -> Result<Compiled
     let simple_glyph = compile_simple_glyph(glyph)?;
     let bbox = simple_glyph.bbox;
     Ok(CompiledGlyph {
+        color_layers: glyph.color_layers.clone(),
         advance_width,
         bbox,
         codepoint: glyph.codepoint,
@@ -217,25 +223,38 @@ pub(super) fn compile_simple_glyph(glyph: &ProcessedGlyph) -> Result<SimpleGlyph
 }
 
 fn glyph_path_bucket(glyph: &ProcessedGlyph) -> u64 {
-    glyph.ttf_path_hash.unwrap_or(glyph.path_data.len() as u64)
+    let fallback = glyph.ttf_path_hash.unwrap_or(glyph.path_data.len() as u64);
+    let Some(layers) = &glyph.color_layers else {
+        return fallback;
+    };
+    table_cache_key(b"COLR", |hasher| {
+        hasher.write_u64(fallback);
+        hasher.write_usize(layers.len());
+        for layer in layers.iter() {
+            hasher.write_u64(layer.outline_hash);
+            match layer.paint {
+                ResolvedLayerPaint::Foreground { alpha } => {
+                    hasher.write_u8(0);
+                    hasher.write_u32(if alpha == 0.0 { 0 } else { alpha.to_bits() });
+                }
+                ResolvedLayerPaint::Solid {
+                    red,
+                    green,
+                    blue,
+                    alpha,
+                } => {
+                    hasher.write(&[1, red, green, blue]);
+                    hasher.write_u32(if alpha == 0.0 { 0 } else { alpha.to_bits() });
+                }
+            }
+        }
+    })
 }
 
 fn glyph_paths_equal(left: &ProcessedGlyph, right: &ProcessedGlyph) -> bool {
-    match (&left.ttf_path, &right.ttf_path) {
-        (Some(left), Some(right)) => left.elements() == right.elements(),
-        _ => left.path_data == right.path_data,
-    }
-}
-
-fn average_advance_width(compiled_glyphs: &[CompiledGlyph]) -> i16 {
-    let non_zero_widths = compiled_glyphs
-        .iter()
-        .map(|glyph| glyph.advance_width)
-        .filter(|width| *width > 0)
-        .collect::<Vec<_>>();
-    if non_zero_widths.is_empty() {
-        return 0;
-    }
-    let total: u32 = non_zero_widths.iter().map(|width| u32::from(*width)).sum();
-    clamp_to_i16((total / non_zero_widths.len() as u32) as f64)
+    left.color_layers == right.color_layers
+        && match (&left.ttf_path, &right.ttf_path) {
+            (Some(left), Some(right)) => left.elements() == right.elements(),
+            _ => left.path_data == right.path_data,
+        }
 }

@@ -9,7 +9,7 @@ const platform = import.meta.env.VITE_COLOR_PROOF_PLATFORM;
 // release gate. Color remains mandatory in Chromium and Firefox.
 const recordFallback = webkit && platform === 'darwin' && import.meta.env.VITE_COLOR_PROOF_STRICT !== '1';
 
-// These fonts are generated only by the Rust color_proof test task.
+// These fonts use the production SVG-to-COLR pipeline via the Rust color_proof task.
 for (const format of ['ttf', 'woff', 'woff2']) {
     it(`${recordFallback ? 'WebKit preserves the approved monochrome fallback' : 'COLR v1 follows rvrn and conditioned liga'} in ${format}`, async () => {
         console.info(`COLR proof host: ${platform}; browser: ${navigator.userAgent}`);
@@ -42,7 +42,7 @@ for (const format of ['ttf', 'woff', 'woff2']) {
                     const fixedX = opaque.reduce((sum, pixel) => sum + pixel.x, 0) / opaque.length;
                     const foregroundX = translucent.reduce((sum, pixel) => sum + pixel.x, 0) / translucent.length;
                     expect(fixedX).toBeCloseTo(bold ? 79.5 : 19.5, 0);
-                    expect(foregroundX).toBeCloseTo(bold ? 19.5 : 79.5, 0);
+                    expect(foregroundX).toBeCloseTo(bold ? 19.5 : 69.5, 0);
                 }
             }
         } finally {
@@ -69,7 +69,8 @@ function assertMonochromeFallback(opaque: ReturnType<typeof pixels>, translucent
     for (const pixel of opaque) expect(pixel.rgb).toEqual(host);
     expect(translucent.length).toBeLessThan(10);
     const centroid = opaque.reduce((sum, pixel) => sum + pixel.x, 0) / opaque.length;
-    expect(centroid).toBeCloseTo(bold ? 79.5 : 19.5, 0);
+    // The fallback contains both source paths, with no independent layer alpha.
+    expect(centroid).toBeCloseTo(bold ? 49.5 : 44.5, 0);
 }
 
 function pixels(data: number[], minAlpha: number, maxAlpha: number) {

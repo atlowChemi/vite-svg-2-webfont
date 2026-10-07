@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use crate::types::color::ProcessedColorLayer;
 use write_fonts::tables::glyf::{Bbox, SimpleGlyph};
 
 pub(crate) struct TtfOptions<'a> {
@@ -18,6 +19,7 @@ pub(crate) struct TtfOptions<'a> {
 }
 
 pub(super) struct CompiledGlyph {
+    pub(super) color_layers: Option<Arc<[ProcessedColorLayer]>>,
     pub(super) advance_width: u16,
     pub(super) bbox: Bbox,
     pub(super) codepoint: u32,

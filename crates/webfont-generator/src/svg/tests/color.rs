@@ -1,6 +1,6 @@
 use super::*;
-use crate::svg::types::{ColorSelection, ResolvedLayerPaint};
 use crate::svg::{VariantGlyphCache, prepare_variant_svg_family_cached};
+use crate::types::color::{ColorSelection, ResolvedLayerPaint};
 
 fn source(name: &str, root: &str, body: &str) -> LoadedSvgFile {
     LoadedSvgFile {
