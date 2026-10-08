@@ -52,6 +52,27 @@ See [multi-weight usage](./usage#multi-weight-icon-families) and the [generator'
 - Default: Derived by the generator from `classPrefix` (normally `icon--`).
 - Description: Prefix for design modifier classes, such as `icon--bold`. A modifier accompanies the base and icon classes; it does not emit an icon by itself.
 
+## `colorGlyphs`
+
+- Type: `true | string[]`
+- Default: omitted (monochrome)
+
+By default, each SVG icon is flattened into a monochrome glyph. Set `colorGlyphs: true` to preserve solid SVG colors for all icons, or use logical glyph names such as `['logo']` to select icons. An empty array keeps monochrome output. `false`, `null`, and unknown names are rejected.
+
+Color output requires TTF, WOFF, or WOFF2. Set `types` explicitly for ordinary fonts because the plugin defaults include EOT and SVG-font output. Variant defaults are already compatible. Selection applies across all variants, including fallback designs.
+
+```ts
+viteSvgToWebfont({
+    context: './src/icons',
+    types: ['woff2', 'woff'],
+    colorGlyphs: ['logo'],
+});
+```
+
+Paint-only edits update the font and virtual CSS during development, including inline fonts. Production builds emit color fonts through the existing asset pipeline. Removing the last source of a selected name fails validation; the dev server retains the previous font until a valid update succeeds.
+
+See the [generator's color guidance](/webfont-generator/#color-glyphs) for supported SVG paint, monochrome fallback, and browser limitations.
+
 ## `fontName`
 
 - Type: `string`

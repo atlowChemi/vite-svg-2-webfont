@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build, createServer } from 'vite-plus';
 import { afterEach, expect, it, vi, type MockInstance } from 'vite-plus/test';
-import { viteSvgToWebfont, templates, type IconPluginVariantOptions } from './index';
+import { viteSvgToWebfont, templates, type IconPluginVariantOptions, type IconPluginOptions } from './index';
 import { parseOptions } from './optionParser';
 import type { GenerateWebfontsResult } from '@atlowchemi/webfont-generator';
 
@@ -68,7 +68,7 @@ async function fixture(overrides: Partial<IconPluginVariantOptions> = {}) {
     }
 }
 
-async function serve(options: IconPluginVariantOptions) {
+async function serve(options: IconPluginOptions) {
     let reload!: MockInstance<Awaited<ReturnType<typeof createServer>>['reloadModule']>;
     let handler!: Parameters<typeof watcher>[2];
     watcher.mockImplementationOnce(async (_roots, _signal, callback) => {
@@ -100,7 +100,10 @@ async function serve(options: IconPluginVariantOptions) {
         const css = () => fetch(`${url}/@id/__x00__virtual:vite-svg-2-webfont.css`).then(response => response.text());
         await css();
 
-        const font = async () => new Uint8Array(await (await fetch(`${url}/icons.woff2`)).arrayBuffer());
+        const font = async () =>
+            options.inline
+                ? new Uint8Array(Buffer.from((await css()).match(/base64,([A-Za-z0-9+/=]+)/)![1]!, 'base64'))
+                : new Uint8Array(await (await fetch(`${url}/icons.woff2`)).arrayBuffer());
 
         return { server, handler, reload, css, font, [Symbol.asyncDispose]: () => server.close() };
     } catch (error) {
@@ -108,6 +111,97 @@ async function serve(options: IconPluginVariantOptions) {
         throw error;
     }
 }
+
+it.each([
+    { variants: false, inline: false },
+    { variants: false, inline: true },
+    { variants: true, inline: false },
+    { variants: true, inline: true },
+])('regenerates selected paint in dev ($variants variants, $inline inline)', async ({ variants, inline }) => {
+    await using files = await fixture({ colorGlyphs: ['add'], inline, types: ['woff2'] });
+    const { root } = files;
+    const options: IconPluginOptions = variants
+        ? files.options
+        : {
+              context: root,
+              dest: files.options.dest,
+              fontName: 'icons',
+              formatOptions: files.options.formatOptions,
+              files: ['light/*.svg'],
+              types: ['woff2'],
+              colorGlyphs: ['add'],
+              inline,
+          };
+    const selected = join(root, 'light/add.svg');
+    const paint = (color: string) => svg(10).replace('<path ', `<path fill="${color}" `);
+    await writeFile(selected, paint('red'));
+    await writeFile(join(root, 'light/other.svg'), svg(8));
+    if (variants) {
+        await rm(join(root, 'bold/add.svg'));
+        await writeFile(join(root, 'bold/other.svg'), svg(18));
+        options.missingGlyphs = { behavior: 'fallback', variant: 'light' };
+    }
+    await using dev = await serve(options);
+    const before = await dev.font();
+    const css = await dev.css();
+    await writeFile(selected, paint('blue'));
+    await dev.handler([{ path: selected, kind: 'changed' }]);
+    const after = await dev.font();
+    expect(after).not.toEqual(before);
+    expect(await dev.css()).not.toBe(css);
+    expect(dev.reload).toHaveBeenCalledOnce();
+    expect(generate).toHaveBeenCalledOnce(); // Paint edits use incremental generation.
+    const fresh = await (await native()).generateWebfonts({ ...parseOptions(options), colorGlyphs: ['add'] });
+    expect(after).toEqual(fresh.woff2);
+
+    // Losing the selected logical name must retain the last published output.
+    await rm(selected);
+    await writeFile(join(root, 'light/other.svg'), svg(8));
+    await expect(dev.handler([{ path: selected, kind: 'removed' }])).rejects.toThrow('unknown glyph names: add');
+    expect(await dev.font()).toEqual(after);
+    await writeFile(selected, paint('green'));
+    await dev.handler([{ path: selected, kind: 'added' }]);
+    expect(await dev.font()).not.toEqual(after);
+});
+
+it.each([false, true])('emits color font assets in production (variants=%s)', async variants => {
+    await using files = await fixture({ colorGlyphs: true, types: ['ttf'], preloadFormats: ['ttf'] });
+    const options: IconPluginOptions = variants
+        ? files.options
+        : {
+              context: files.root,
+              dest: files.options.dest,
+              fontName: 'icons',
+              formatOptions: files.options.formatOptions,
+              files: ['light/*.svg'],
+              types: ['ttf'],
+              preloadFormats: ['ttf'],
+              colorGlyphs: true,
+          };
+    const result = await build({ configFile: false, root: files.root, logLevel: 'silent', plugins: [viteSvgToWebfont(options)], build: { write: false, assetsInlineLimit: 0 } });
+    const output = (Array.isArray(result) ? result[0]! : result) as { output: Array<{ type: string; fileName: string; source?: string | Uint8Array }> };
+    const font = output.output.find(asset => asset.fileName.endsWith('.ttf'))!;
+    const bytes = Buffer.from(font.source!);
+    expect(bytes.includes(Buffer.from('COLR'))).toBe(true);
+    expect(bytes).toEqual(Buffer.from((await (await native()).generateWebfonts({ ...parseOptions(options), colorGlyphs: true })).ttf!));
+    expect(String(output.output.find(asset => asset.fileName.endsWith('.html'))!.source)).toContain(font.fileName);
+});
+
+it('preserves generator validation at the plugin boundary', async () => {
+    await using files = await fixture();
+    const run = (colorGlyphs: unknown, types?: ['ttf'] | ['svg'] | ['eot']) =>
+        build({
+            configFile: false,
+            root: files.root,
+            logLevel: 'silent',
+            plugins: [viteSvgToWebfont({ ...files.options, variants: undefined, files: ['light/*.svg'], types, colorGlyphs } as IconPluginOptions)],
+            build: { write: false },
+        });
+    await Promise.all([false, null, 'add', ['add', 1]].map(value => expect(run(value, ['ttf'])).rejects.toThrow('colorGlyphs')));
+    await Promise.all([undefined, ['svg'] as ['svg'], ['eot'] as ['eot']].map(types => expect(run(true, types)).rejects.toThrow('incompatible output formats')));
+    await expect(run(['missing'], ['ttf'])).rejects.toThrow('unknown glyph names: missing');
+    await expect(run([], ['svg'])).resolves.toBeDefined();
+});
 
 it('serves one shared font, reloads on edits, and matches a fresh family build', async () => {
     await using files = await fixture();
