@@ -10,6 +10,16 @@ it('exports the plugin and its public API', () => {
     expectTypeOf<PublicApi['getGeneratedWebfonts']>().returns.toEqualTypeOf<GeneratedWebfont[]>();
 });
 
+it('accepts color selection in either source mode', () => {
+    expectTypeOf<IconPluginOptions['colorGlyphs']>().toEqualTypeOf<true | string[] | undefined>();
+    viteSvgToWebfont({ context: 'icons', types: 'woff2', colorGlyphs: true });
+    viteSvgToWebfont({ context: 'icons', variants: [{ name: 'light', default: true }], colorGlyphs: ['logo'] });
+    // @ts-expect-error Omit colorGlyphs or use [] to disable color.
+    viteSvgToWebfont({ context: 'icons', colorGlyphs: false });
+    // @ts-expect-error Named selection must be an array of strings.
+    viteSvgToWebfont({ context: 'icons', colorGlyphs: ['logo', 1] });
+});
+
 it('infers variant metadata and modern formats without weakening ordinary contracts', () => {
     viteSvgToWebfont({ context: 'icons', files: '*.svg' });
     viteSvgToWebfont({ context: 'icons', variants: [{ name: 'light', default: true, files: '*.svg' }] });
