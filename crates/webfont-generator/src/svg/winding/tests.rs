@@ -1,5 +1,29 @@
 use super::*;
 
+#[test]
+fn evenodd_reuses_paths_that_need_no_reversal() {
+    use std::borrow::Cow;
+
+    let mut builder = PathBuilder::new();
+    square(&mut builder, 0.0, 0.0, 30.0);
+    let single = builder.clone().finish().unwrap();
+    // One contour, then two disconnected contours: neither needs a new path.
+    square(&mut builder, 50.0, 0.0, 10.0);
+    let disjoint = builder.finish().unwrap();
+    let mut nested = PathBuilder::new();
+    square(&mut nested, 0.0, 0.0, 30.0);
+    square(&mut nested, 10.0, 10.0, 10.0);
+    let nested = nested.finish().unwrap();
+    let normalized = normalize_evenodd(&nested);
+    assert!(matches!(normalized, Cow::Owned(_)));
+    assert_ne!(signs(&normalized)[0], signs(&normalized)[1]);
+    for path in [&single, &disjoint, &normalized[0]] {
+        let result = normalize_evenodd(path);
+        assert!(matches!(result, Cow::Borrowed(_)));
+        assert!(std::ptr::eq(&result[0], path));
+    }
+}
+
 /// Signed-area sign of every contour across the given paths (after flattening).
 fn signs(paths: &[TinyPath]) -> Vec<i8> {
     let mut out = Vec::new();

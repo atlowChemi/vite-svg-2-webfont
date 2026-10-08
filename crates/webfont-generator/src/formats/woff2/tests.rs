@@ -189,6 +189,7 @@ fn acceptance_font_tables(glyph_count: usize) -> SerializedFontTables {
             let duplicate = index > 0 && index % 89 == 0;
             let shape = if duplicate { index - 1 } else { index };
             ProcessedGlyph {
+                color_layers: None,
                 codepoint: 0xe000 + index as u32,
                 height: 16.0 + (shape % 7) as f64,
                 index,
@@ -220,6 +221,7 @@ fn acceptance_font_tables(glyph_count: usize) -> SerializedFontTables {
 
 fn glyph(index: usize, name: &str, path_data: &str, width: f64, height: f64) -> ProcessedGlyph {
     ProcessedGlyph {
+        color_layers: None,
         codepoint: 0xe000 + index as u32,
         height,
         index,

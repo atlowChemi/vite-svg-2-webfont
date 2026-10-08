@@ -19,6 +19,8 @@ use crate::{
     FontType, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior, SvgFormatOptions,
 };
 
+mod color;
+
 #[derive(Clone, Copy)]
 struct SvgParityCase {
     fixture_dir: &'static str,
@@ -1123,6 +1125,7 @@ fn oracle_glyphs(prepared: &PreparedVariantFamily, variant_index: usize) -> Vec<
             glyph.outlines[variant_index]
                 .clone()
                 .unwrap_or_else(|| ProcessedGlyph {
+                    color_layers: None,
                     codepoint: glyph.codepoint,
                     height: 0.0,
                     index,

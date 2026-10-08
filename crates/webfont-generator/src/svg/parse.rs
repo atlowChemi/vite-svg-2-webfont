@@ -2,7 +2,9 @@ use std::io::{Error, ErrorKind};
 use usvg::Transform;
 use usvg::tiny_skia_path::Path as TinyPath;
 
-use crate::svg::types::{GlyphWorkItem, ParsedGlyph};
+use crate::svg::types::{GlyphWorkItem, ParsedColorLayer, ParsedGlyph, ResolvedLayerPaint};
+
+mod color;
 
 struct RootSvgMetrics {
     current_preserve_aspect_ratio: bool,
@@ -18,6 +20,7 @@ pub(crate) fn parse_svg_glyph(
     item: &GlyphWorkItem,
     preserve_aspect_ratio: bool,
     options: &usvg::Options,
+    color: bool,
 ) -> Result<ParsedGlyph, Error> {
     let svg = item.source_file.contents.as_ref();
     let document = parse_svg_document(svg)?;
@@ -31,16 +34,39 @@ pub(crate) fn parse_svg_glyph(
             ),
         )
     })?;
+    let (tree, marker) = if color {
+        let (tree, marker) =
+            color::marked_tree(svg, &document, tree, options).map_err(|error| {
+                Error::new(
+                    error.kind(),
+                    format!(
+                        "Failed to extract SVG paint for '{}': {error}",
+                        item.source_file.path
+                    ),
+                )
+            })?;
+        (tree, marker)
+    } else {
+        (tree, None)
+    };
     let mut paths = Vec::new();
+    let mut color_layers = color.then(Vec::new);
     let root_correction = if let Some(metrics) = root_metrics.as_ref() {
         build_root_viewbox_correction(metrics, preserve_aspect_ratio)?
     } else {
         None
     };
 
-    collect_paths(tree.root(), root_correction, &mut paths)?;
+    collect_paths(
+        tree.root(),
+        root_correction,
+        &mut paths,
+        marker,
+        &mut color_layers,
+    )?;
 
     Ok(ParsedGlyph {
+        color_layers: color_layers.map(Into::into),
         codepoint: item.codepoint,
         height: tree.size().height() as f64,
         index: item.index,
@@ -54,10 +80,14 @@ fn collect_paths(
     group: &usvg::Group,
     root_correction: Option<Transform>,
     paths: &mut Vec<TinyPath>,
+    marker: Option<usvg::Color>,
+    color_layers: &mut Option<Vec<ParsedColorLayer>>,
 ) -> Result<(), Error> {
     for node in group.children() {
         match node {
-            usvg::Node::Group(child_group) => collect_paths(child_group, root_correction, paths)?,
+            usvg::Node::Group(child_group) => {
+                collect_paths(child_group, root_correction, paths, marker, color_layers)?
+            }
             usvg::Node::Path(path) => {
                 // Convert stroke-only paths to filled outlines (matching upstream svgicons2svgfont behavior)
                 let path_data = if path.fill().is_some() {
@@ -103,6 +133,28 @@ fn collect_paths(
                 } else {
                     transformed
                 };
+                if let Some(layers) = color_layers
+                    && path.is_visible()
+                    && let Some(fill) = path.fill()
+                    && let usvg::Paint::Color(color) = fill.paint()
+                {
+                    let alpha = fill.opacity().get();
+                    let paint = if Some(*color) == marker {
+                        ResolvedLayerPaint::Foreground { alpha }
+                    } else {
+                        ResolvedLayerPaint::Solid {
+                            red: color.red,
+                            green: color.green,
+                            blue: color.blue,
+                            alpha,
+                        }
+                    };
+                    layers.push(ParsedColorLayer {
+                        path_index: paths.len(),
+                        paint,
+                        fill_rule: fill.rule(),
+                    });
+                }
                 paths.push(transformed);
             }
             _ => {}

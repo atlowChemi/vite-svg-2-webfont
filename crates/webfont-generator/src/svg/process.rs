@@ -4,8 +4,8 @@ use usvg::tiny_skia_path::Rect;
 
 use super::geometry::{bezpath_from_oxvg_path, bezpath_hash, rounded_bezpath_from_tiny_paths};
 use crate::svg::serialize::{append_path, optimize_path};
-use crate::svg::types::{ParsedGlyph, ProcessedGlyph};
-use crate::svg::winding::normalize_winding;
+use crate::svg::types::{ParsedGlyph, ProcessedColorLayer, ProcessedGlyph};
+use crate::svg::winding::{normalize_evenodd, normalize_winding};
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn process_glyph(
@@ -76,6 +76,35 @@ pub(crate) fn process_glyph(
                 .collect::<Result<Vec<_>, Error>>()?;
         }
     }
+    let color_layers = glyph.color_layers.map(|layers| {
+        layers
+            .iter()
+            .map(|layer| {
+                let path = &transformed_paths[layer.path_index];
+                let paths = if layer.fill_rule == usvg::FillRule::EvenOdd {
+                    normalize_evenodd(path)
+                } else {
+                    std::borrow::Cow::Borrowed(std::slice::from_ref(path))
+                };
+                let outline = if optimize_output {
+                    let mut data = String::new();
+                    for path in paths.iter() {
+                        append_path(&mut data, path, round);
+                    }
+                    optimize_path(data.trim_end())
+                        .map(|path| bezpath_from_oxvg_path(&path))
+                        .unwrap_or_else(|| rounded_bezpath_from_tiny_paths(&paths, round))
+                } else {
+                    rounded_bezpath_from_tiny_paths(&paths, round)
+                };
+                ProcessedColorLayer {
+                    outline_hash: bezpath_hash(&outline),
+                    outline: Arc::new(outline),
+                    paint: layer.paint,
+                }
+            })
+            .collect::<Arc<[_]>>()
+    });
     // Apply the monochrome icon-font containment heuristic: nested contours alternate winding so
     // foreground-on-background SVG layers become knockouts. No-op glyphs pass through byte-identical.
     let transformed_paths = normalize_winding(transformed_paths);
@@ -108,6 +137,7 @@ pub(crate) fn process_glyph(
     let ttf_path_hash = ttf_path.as_deref().map(bezpath_hash);
 
     Ok(ProcessedGlyph {
+        color_layers,
         codepoint: glyph.codepoint,
         height: scaled_height,
         index: glyph.index,

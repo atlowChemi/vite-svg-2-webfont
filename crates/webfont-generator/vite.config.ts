@@ -33,6 +33,10 @@ export default defineProject({
                 cache: false,
                 command: 'node ../../scripts/ci/doctests.mjs',
             },
+            'test:color-proof': {
+                cache: false,
+                command: 'cargo test -p webfont-generator color_proof -- --nocapture',
+            },
         },
     },
 });

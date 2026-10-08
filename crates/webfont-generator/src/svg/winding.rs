@@ -14,12 +14,78 @@
 //! instead of reading as a knockout. The containment heuristic matches that intent far better in
 //! practice. Trade-off: a genuinely-intended *filled* nested region of the same paint (rare) would
 //! be turned into a hole. Validated visually across a large real icon set.
+//!
+//! Selected evenodd color layers use [`normalize_evenodd`] instead: curve-aware
+//! nesting for ordinary disjoint boundaries, without changing this fallback heuristic.
 
 use usvg::tiny_skia_path::{Path as TinyPath, PathBuilder, PathSegment, PathVerb, Point};
 
-// Curves are flattened only to decide nesting + winding sign, so a coarse subdivision is plenty.
+// Historical monochrome heuristic; selected evenodd layers do not use this coarse subdivision.
 const FLATTEN_STEPS: usize = 6;
 const GEOMETRY_EPSILON: f64 = 1e-9;
+
+/// Convert ordinary, non-intersecting evenodd contours to nonzero winding.
+/// For disjoint simple boundaries, testing one point on a contour against a
+/// larger contour determines nesting. Use the actual curves for that test and
+/// for signed area: a coarse polygon can miss small holes near curved edges.
+/// Intersecting/self-intersecting evenodd paths remain best-effort.
+pub(crate) fn normalize_evenodd(path: &TinyPath) -> std::borrow::Cow<'_, [TinyPath]> {
+    use kurbo::{BezPath, Shape};
+    use std::borrow::Cow;
+
+    let mut contours = Vec::new();
+    decompose(path, &mut contours);
+    if contours.len() < 2 {
+        return Cow::Borrowed(std::slice::from_ref(path));
+    }
+    let point = |p: Point| kurbo::Point::new(f64::from(p.x), f64::from(p.y));
+    let curves: Vec<_> = contours
+        .iter()
+        .map(|contour| {
+            let mut curve = BezPath::new();
+            curve.move_to(point(contour.start));
+            for step in &contour.steps {
+                match *step {
+                    Step::Line(p) => curve.line_to(point(p)),
+                    Step::Quad(c, p) => curve.quad_to(point(c), point(p)),
+                    Step::Cubic(c1, c2, p) => curve.curve_to(point(c1), point(c2), point(p)),
+                }
+            }
+            curve.close_path();
+            curve
+        })
+        .collect();
+    let areas: Vec<_> = curves.iter().map(Shape::area).collect();
+    let mut order: Vec<_> = (0..contours.len()).collect();
+    order.sort_by(|&a, &b| areas[b].abs().total_cmp(&areas[a].abs()));
+    let mut final_sign = vec![0; contours.len()];
+    let mut reverse = vec![false; contours.len()];
+    for i in order {
+        let parent = (0..contours.len())
+            .filter(|&j| {
+                areas[j].abs() > areas[i].abs() && curves[j].winding(point(contours[i].start)) != 0
+            })
+            .min_by(|&a, &b| areas[a].abs().total_cmp(&areas[b].abs()));
+        let wanted = parent.map_or_else(|| sign(areas[i]), |p| -final_sign[p]);
+        final_sign[i] = wanted;
+        reverse[i] = wanted != sign(areas[i]);
+    }
+    if !reverse.iter().any(|&value| value) {
+        return Cow::Borrowed(std::slice::from_ref(path));
+    }
+    let mut builder = PathBuilder::new();
+    for (contour, reverse) in contours.iter().zip(reverse) {
+        if reverse {
+            emit_reversed(&mut builder, contour);
+        } else {
+            emit_forward(&mut builder, contour);
+        }
+    }
+    match builder.finish() {
+        Some(path) => Cow::Owned(vec![path]),
+        None => Cow::Borrowed(std::slice::from_ref(path)),
+    }
+}
 
 enum Step {
     Line(Point),

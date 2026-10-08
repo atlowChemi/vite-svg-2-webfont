@@ -20,6 +20,9 @@ use super::super::TtfOptions;
 const WOFF_HEADER_SIZE: usize = 44;
 const WOFF_TABLE_ENTRY_SIZE: usize = 20;
 
+#[path = "color_proof.rs"]
+mod color_proof;
+
 #[test]
 fn proof_font_declares_discrete_weight_variation() {
     let tables = build_proof_font();
@@ -203,6 +206,7 @@ fn proof_glyph(x_min: f64, x_max: f64) -> Option<ProcessedGlyph> {
     path.line_to(Point::new(x_min, 900.0));
     path.close_path();
     Some(ProcessedGlyph {
+        color_layers: None,
         codepoint: 0xe001,
         height: 1000.0,
         index: 0,

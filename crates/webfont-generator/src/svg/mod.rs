@@ -1,3 +1,5 @@
+#[cfg(test)]
+mod color_proof;
 mod geometry;
 mod incremental;
 mod parse;
@@ -12,7 +14,6 @@ use rayon::prelude::*;
 use std::io::{Error, ErrorKind};
 
 pub(crate) use incremental::{prepare_svg_font_incremental, source_content_hash};
-use parse::parse_svg_glyph;
 use process::{glyph_scale, process_glyph};
 pub(crate) use serialize::build_svg_font;
 pub(crate) use serialize::rounded_coordinate;
@@ -58,6 +59,7 @@ pub(crate) fn svg_options_from_options(
     let structure_path = wants_binary;
 
     SvgOptions {
+        color_selection: None,
         ascent: options.ascent,
         center_horizontally: options.center_horizontally,
         center_vertically: options.center_vertically,
@@ -128,6 +130,9 @@ pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgFile]>>(
                 for file in files {
                     if parsed_cache.content_hashes.get(&file.path)
                         != Some(&source_content_hash(&file.contents))
+                        || parsed_cache.entries.get(&file.path).is_some_and(|cached| {
+                            cached.color_layers.is_some() != options.selects_color(&file.glyph_name)
+                        })
                     {
                         parsed_cache.entries.remove(&file.path);
                         parsed_cache.content_hashes.remove(&file.path);
@@ -227,6 +232,7 @@ pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgFile]>>(
                                     cache.as_ref().and_then(|cache| cache.processed.get(&key))
                                 {
                                     return Ok(Some(types::ProcessedGlyph {
+                                        color_layers: cached.color_layers.clone(),
                                         name: glyph.name.clone(),
                                         codepoint: glyph.codepoint,
                                         index: glyph_index,
@@ -249,6 +255,7 @@ pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgFile]>>(
                                     cache.processed.insert(
                                         key,
                                         types::CachedProcessedGlyph {
+                                            color_layers: processed.color_layers.clone(),
                                             height: processed.height,
                                             width: processed.width,
                                             path_data: processed.path_data.clone(),
@@ -330,7 +337,14 @@ pub(crate) fn parse_glyphs(
 
     let mut glyphs = work_items
         .par_iter()
-        .map(|item| parse_svg_glyph(item, preserve_aspect_ratio, &parser_options))
+        .map(|item| {
+            parse::parse_svg_glyph(
+                item,
+                preserve_aspect_ratio,
+                &parser_options,
+                options.selects_color(item.name),
+            )
+        })
         .collect::<Result<Vec<_>, Error>>()
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;
     glyphs.sort_by_key(|glyph| glyph.index);
