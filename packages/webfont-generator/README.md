@@ -6,8 +6,6 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/@atlowchemi/webfont-generator"><img src="https://img.shields.io/npm/v/@atlowchemi/webfont-generator.svg?style=flat-square" alt="npm" /></a>
-  <a href="https://crates.io/crates/webfont-generator"><img src="https://img.shields.io/crates/v/webfont-generator.svg?style=flat-square" alt="crates.io" /></a>
-  <a href="https://docs.rs/webfont-generator"><img src="https://img.shields.io/docsrs/webfont-generator?style=flat-square" alt="docs.rs" /></a>
   <a href="https://github.com/atlowChemi/vite-svg-2-webfont/blob/master/LICENSE"><img src="https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square" alt="license" /></a>
 </p>
 
@@ -25,44 +23,18 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 - Generated font binaries (TTF, WOFF, etc.) may differ at the byte level because a different encoder is used, but the fonts are equally valid.
 - CSS, HTML, and template output is identical.
 - A new `variants` option supports multi-weight families with discrete designs.
-- A new [`colorGlyphs`](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/node#color-selection) option preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
+- A new [`colorGlyphs`](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#color-selection) option preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
 
-### Incremental regeneration
-
-Multi-weight families also support incremental builds. Set `incremental: true`, then use
-`regenerateAsync({ variants: [{ variant: 'bold', files: [...] }, ...] }, changes)`
-with every configured design's complete file list. Omit `changes` to re-diff every design. See the
-[variant regeneration reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/node#variant-regeneration)
-for input shapes, synchronous alternatives, and failure semantics.
-
-```js
-let files = ['./icons/home.svg', './icons/search.svg'];
-let result = await generateWebfonts({ files, dest, fontName: 'my-icons', incremental: true });
-
-// On a watch event, rebuild reusing cached geometry for unchanged glyphs. Pass the full file set
-// (in fresh-build order) so additions land in the right position, plus what changed:
-result = await result.regenerateAsync({ files }, [{ path: './icons/home.svg', changeType: 'changed' }]);
-// Or omit changes when watcher hints are unavailable/untrusted:
-result = await result.regenerateAsync({ files });
-result.woff2; // refreshed bytes
-```
-
-The first argument is the complete file set after the change, in the order a fresh build would use (e.g. your glob result) — any file omitted from it is dropped. Each change is `{ path, changeType: 'added' | 'changed' | 'removed', name? }`, where `name` is the resolved glyph name if you apply a custom rename; otherwise added files derive their name from the file stem, changed files keep their current name, and removed files ignore it. When `changes` is omitted or `null`, every current file is re-read and hashed to detect added/changed/removed paths automatically. `regenerateAsync()` returns a replacement result; the receiver stays readable and unchanged while work runs and after failure. Assign the replacement before starting another rebuild because overlapping calls from the same result lineage are rejected. Disk writes are not transactional. The synchronous, mutating `regenerate()` method remains available when blocking the event loop is acceptable. Results generated with `cssContext` or `htmlContext` callbacks cannot be regenerated because those JavaScript callbacks cannot be re-run during a rebuild.
-
-## Node.js (npm)
+## Installation and usage
 
 ```bash
 npm install @atlowchemi/webfont-generator
 ```
 
-Pre-built binaries are published for the following targets:
-
-Consumers on these platforms do not need Rust or Cargo. Keep optional dependencies
-enabled so your package manager installs the matching native binary. The Rust engine
-is published separately as `webfont-generator`; the internal `webfont-generator-napi`
-crate is not a consumer dependency. npm imports remain unchanged by the workspace split.
+Consumers on the following platforms do not need Rust or Cargo. Keep optional dependencies
+enabled so your package manager installs the matching pre-built native binary.
 
 | Platform       | Architecture      |
 | -------------- | ----------------- |
@@ -85,138 +57,27 @@ const css = result.generateCss();
 const html = result.generateHtml();
 ```
 
-## Rust library (crates.io)
+## Incremental regeneration
 
-```bash
-cargo add webfont-generator
+Multi-weight families also support incremental builds. Set `incremental: true`, then use
+`regenerateAsync({ variants: [{ variant: 'bold', files: [...] }, ...] }, changes)`
+with every configured design's complete file list. Omit `changes` to re-diff every design. See the
+[variant regeneration reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#variant-regeneration)
+for input shapes, synchronous alternatives, and failure semantics.
+
+```js
+let files = ['./icons/home.svg', './icons/search.svg'];
+let result = await generateWebfonts({ files, dest, fontName: 'my-icons', incremental: true });
+
+// On a watch event, rebuild reusing cached geometry for unchanged glyphs. Pass the full file set
+// (in fresh-build order) so additions land in the right position, plus what changed:
+result = await result.regenerateAsync({ files }, [{ path: './icons/home.svg', changeType: 'changed' }]);
+// Or omit changes when watcher hints are unavailable/untrusted:
+result = await result.regenerateAsync({ files });
+result.woff2; // refreshed bytes
 ```
 
-```rust
-use webfont_generator::{GenerateWebfontsOptions, FontType};
-
-let result = webfont_generator::generate_sync(
-    GenerateWebfontsOptions {
-        dest: "dist/fonts".to_owned(),
-        files: vec!["icons/home.svg".to_owned(), "icons/search.svg".to_owned()],
-        font_name: Some("my-icons".to_owned()),
-        types: Some(vec![FontType::Woff2, FontType::Woff]),
-        ..Default::default()
-    },
-    None,
-).unwrap();
-
-let css = result.generate_css_pure(None).unwrap();
-```
-
-Async generation and incremental regeneration are available for Tokio applications. Async
-regeneration consumes the old result, preventing stale-result reuse, and returns the next result:
-
-```rust
-let result = result.regenerate_async(webfont_generator::RegenerationFiles::Single(files.clone()), changes).await?;
-// Or re-diff the complete file set:
-let result = result.regenerate_all_async(webfont_generator::RegenerationFiles::Single(files)).await?;
-```
-
-On failure, `RegenerateError::into_result()` recovers the consumed result for retry when the
-blocking task returned normally. These consuming futures are not cancellation-safe: dropping one
-does not stop already-started blocking work and the consumed result cannot be recovered.
-
-Adapters that must keep the old result readable can use
-`result.regenerate_snapshot_async(files, changes).await`, which borrows the receiver and
-returns `std::io::Result<GenerateWebfontsResult>`. Pass `Some(changes)` for explicit changes
-or `None` to re-diff. Success disables further regeneration of the old snapshot; failure
-restores its regeneration state for retry. Dropping the future does not cancel blocking
-work or writes and can leave the old snapshot replaced without returning its successor.
-Prefer the consuming methods when Rust ownership can enforce replacement.
-
-## CLI
-
-The Rust engine and CLI live in [`crates/webfont-generator`](../../crates/webfont-generator).
-This npm package contains the separate, unpublished `webfont-generator-napi` adapter crate.
-`generate_with_hooks` and `GenerationHooks` provide runtime-independent asynchronous
-rename/context callbacks; the adapter owns JavaScript callback transport and conversions.
-Rename hooks borrow paths; only a configured JavaScript rename callback needs an owned path batch.
-The old Rust `napi` feature and Node-specific Rust entry point are removed, requiring a
-pre-1.0 minor release. The npm API and generated binding types are preserved.
-
-The CLI is available as an opt-in feature (to avoid pulling in `clap` for library users):
-
-```bash
-cargo install webfont-generator --features cli
-```
-
-### Usage
-
-```bash
-webfont-generator [OPTIONS] --dest <DEST> <FILES>...
-# Or use a configuration file
-webfont-generator --config <PATH>
-```
-
-### Examples
-
-```bash
-# Generate default formats (eot, woff, woff2) from a directory of SVGs
-webfont-generator --dest ./dist/fonts ./icons/
-
-# Generate specific formats with a custom font name
-webfont-generator --dest ./dist/fonts --types woff2,woff --font-name my-icons ./icons/
-
-# Generate fonts with an HTML preview page
-webfont-generator --dest ./dist/fonts --html ./icons/*.svg
-```
-
-### Configuration File
-
-Use a complete JSON configuration:
-
-```sh
-webfont-generator --config icons.webfont.json
-```
-
-```json
-{
-    "dest": "dist/fonts",
-    "fontName": "icons",
-    "variants": [
-        { "name": "outline", "files": ["icons/outline"], "weight": 300, "default": true },
-        { "name": "filled", "files": ["icons/filled"], "weight": 700 }
-    ]
-}
-```
-
-Manifest keys use the generator's camelCase option names. Relative input, output, and template paths resolve against the manifest directory. Input directories expand non-recursively into sorted lowercase `.svg` files at their array position; globs are not expanded. Duplicate normalized paths within a variant and nonexistent inputs are errors. Unknown fields and invalid values produce manifest-specific diagnostics.
-
-`--config` cannot be combined with positional inputs or generation flags; only `--help` and `--version` coexist. Ordinary manifests use `files` and retain SVG/EOT support. Variant manifests default to WOFF/WOFF2 and accept only TTF/WOFF/WOFF2. JSON callbacks are unsupported; use the Node API for callbacks. See the [CLI reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/cli) for the complete manifest contract.
-
-### Options
-
-```
-Arguments:
-  <FILES>...  SVG files or directories containing SVG files
-
-Options:
-  -d, --dest <DEST>                        Output directory
-  -n, --font-name <FONT_NAME>              Font name [default: iconfont]
-  -t, --types <TYPES>                      Font types to generate [possible values: svg, ttf, eot, woff, woff2]
-      --css                                Generate CSS (default)
-      --no-css                             Skip CSS generation
-      --html                               Generate HTML preview
-      --no-html                            Skip HTML generation (default)
-      --css-template <CSS_TEMPLATE>        Custom CSS template path
-      --html-template <HTML_TEMPLATE>      Custom HTML template path
-      --css-fonts-url <CSS_FONTS_URL>      CSS fonts URL prefix
-      --write                               Write output files to disk (default)
-      --no-write                           Do not write output files (dry run)
-      --ligature                           Enable ligatures (default)
-      --no-ligature                        Disable ligatures
-      --font-height <FONT_HEIGHT>          Font height
-      --ascent <ASCENT>                    Ascent value
-      --descent <DESCENT>                  Descent value
-      --start-codepoint <START_CODEPOINT>  Start codepoint (hex, e.g. 0xF101)
-  -h, --help                               Print help
-  -V, --version                            Print version
-```
+The first argument is the complete file set after the change, in the order a fresh build would use (e.g. your glob result) — any file omitted from it is dropped. Each change is `{ path, changeType: 'added' | 'changed' | 'removed', name? }`, where `name` is the resolved glyph name if you apply a custom rename; otherwise added files derive their name from the file stem, changed files keep their current name, and removed files ignore it. When `changes` is omitted or `null`, every current file is re-read and hashed, and changes are inferred automatically. `regenerateAsync()` returns a replacement result; the receiver stays readable and unchanged while work runs and after failure. Assign the replacement before starting another rebuild because overlapping calls from the same result lineage are rejected. Disk writes are not transactional. The synchronous, mutating `regenerate()` method remains available when blocking the event loop is acceptable. Results generated with `cssContext` or `htmlContext` callbacks cannot be regenerated because those JavaScript callbacks cannot be re-run during a rebuild.
 
 ## Templates
 
@@ -229,6 +90,10 @@ console.log(templates.css); // path to default CSS template
 console.log(templates.scss); // path to default SCSS template
 console.log(templates.html); // path to default HTML template
 ```
+
+## Documentation
+
+See the [Node.js reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node) for the complete API. For direct Rust or command-line use, see the separate [engine crate](../../crates/webfont-generator).
 
 ## License
 
