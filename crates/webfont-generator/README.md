@@ -1,5 +1,9 @@
 # webfont-generator
 
+[![crates.io](https://img.shields.io/crates/v/webfont-generator.svg?style=flat-square)](https://crates.io/crates/webfont-generator)
+[![docs.rs](https://img.shields.io/docsrs/webfont-generator?style=flat-square)](https://docs.rs/webfont-generator)
+[![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/master/LICENSE)
+
 [Changelog](./CHANGELOG.md) · [Engine releases](https://github.com/atlowChemi/vite-svg-2-webfont/releases?q=webfont-engine-v)
 
 Rust library and optional CLI for generating SVG, TTF, EOT, WOFF and WOFF2 fonts from SVG icons.
@@ -45,4 +49,4 @@ Templates live in `packages/webfont-generator/templates/` and ship with the npm 
 The Rust engine renders defaults directly. Adapter tests verify parity with the shipped
 templates; engine tests use engine-owned inputs without reading npm package assets.
 
-[Full Rust reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html)
+[Full Rust reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html) · [CLI reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/cli)
