@@ -24,6 +24,51 @@ use super::super::types::CompiledGlyphOutline;
 use super::super::{build, build_variant, ttf_options_from_options};
 
 #[test]
+fn color_layers_respect_post_custom_name_limit() {
+    let (resolved, mut glyphs) = prepare(&[r#"<path fill="red" d="M10 10H90V90H10Z"/>"#]);
+    let outline = Arc::clone(&glyphs[0].color_layers.as_ref().unwrap()[0].outline);
+    let outline_hash = glyphs[0].color_layers.as_ref().unwrap()[0].outline_hash;
+    let paint = glyphs[0].color_layers.as_ref().unwrap()[0].paint;
+    for (layer_count, name, succeeds) in [
+        (65_277, "icon0", true),       // Exactly 65,278 unique custom names.
+        (65_278, "icon0", false),      // One too many, but below the glyph limit.
+        (65_278, "colr.layer2", true), // Duplicate names consume one index.
+        (65_278, "A", true),           // Standard names consume no custom indices.
+    ] {
+        glyphs[0].name = name.into();
+        glyphs[0].color_layers = Some(
+            (0..layer_count)
+                .map(|_| ProcessedColorLayer {
+                    outline: Arc::clone(&outline),
+                    outline_hash,
+                    paint,
+                })
+                .collect(),
+        );
+        let result = build(ttf_options_from_options(&resolved), &glyphs, None);
+        if succeeds {
+            let tables = result.unwrap();
+            let font = FontRef::new(tables.ttf()).unwrap();
+            assert_eq!(
+                usize::from(font.maxp().unwrap().num_glyphs()),
+                layer_count + 2
+            );
+            assert_eq!(
+                usize::from(font.post().unwrap().num_glyphs().unwrap()),
+                layer_count + 2
+            );
+        } else {
+            let error = result.err().unwrap();
+            assert_eq!(error.kind(), ErrorKind::InvalidInput);
+            assert_eq!(
+                error.to_string(),
+                "Font exceeds the 65278 unique custom glyph-name limit in the post table."
+            );
+        }
+    }
+}
+
+#[test]
 fn color_allocation_validates_initial_glyph_count() {
     // Include .notdef in the limit even when there are no selectable glyphs.
     let empty = build_color(&[], usize::from(u16::MAX) - 1).unwrap();

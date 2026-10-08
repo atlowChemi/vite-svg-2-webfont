@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
+use write_fonts::read::tables::post::DEFAULT_GLYPH_NAMES;
 use write_fonts::tables::cmap::Cmap;
 use write_fonts::tables::head::Head;
 use write_fonts::tables::hhea::Hhea;
@@ -151,12 +152,29 @@ pub(super) fn assemble_font(
         options.manufacturer_url,
         derive_version_string(options.version).as_deref(),
     );
-    let post = Post::new_v2(
-        std::iter::once(".notdef")
-            .chain(compiled_glyphs.iter().map(|g| g.name.as_str()))
-            .chain(ligature_placeholders.iter().map(|g| g.name.as_str()))
-            .chain(color.layers.iter().map(|g| g.name.as_str())),
-    );
+    let glyph_names = std::iter::once(".notdef")
+        .chain(compiled_glyphs.iter().map(|g| g.name.as_str()))
+        .chain(ligature_placeholders.iter().map(|g| g.name.as_str()))
+        .chain(color.layers.iter().map(|g| g.name.as_str()));
+    let max_custom_names = usize::from(u16::MAX) + 1 - DEFAULT_GLYPH_NAMES.len();
+    // Post::new_v2 panics if a custom name index does not fit in u16.
+    // Small fonts cannot exhaust the indices, so avoid counting their names.
+    if glyph_names.clone().count() > max_custom_names {
+        let standard_names: HashSet<_> = DEFAULT_GLYPH_NAMES.iter().copied().collect();
+        let custom_names: HashSet<_> = glyph_names
+            .clone()
+            .filter(|name| !standard_names.contains(name))
+            .collect();
+        if custom_names.len() > max_custom_names {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "Font exceeds the {max_custom_names} unique custom glyph-name limit in the post table."
+                ),
+            ));
+        }
+    }
+    let post = Post::new_v2(glyph_names);
     let gsub = super::ligatures::build_ligature_gsub(compiled_glyphs, ligature_placeholders);
     let mut used_table_keys = HashSet::new();
     let mut tables = Vec::with_capacity(11);
