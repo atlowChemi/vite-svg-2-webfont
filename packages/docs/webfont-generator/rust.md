@@ -186,9 +186,11 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 | `variant_class_prefix`  | `Option<String>`               | `"icon--"`                                                                 | CSS variant modifier prefix                                  |
 | `variants`              | `Option<Vec<FontVariant>>`     | --                                                                         | Ordered designs; see [`FontVariant`](#fontvariant)           |
 
-### Color glyphs
+## Color glyphs
 
-Set `color_glyphs: Some(ColorGlyphSelection::All)` or `Some(ColorGlyphSelection::Named(vec!["logo".into()]))` on `GenerateWebfontsOptions`. Named selection uses final post-rename logical names across every variant, including fallback states; blank states have no color record. `None` or an empty named list disables color. Duplicates are harmless; unknown names are reported together in first-occurrence input order. Set `types` to TTF, WOFF, and/or WOFF2; ordinary defaults include incompatible EOT. See [color glyphs](./#color-glyphs) for SVG semantics and platform compatibility.
+By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG colors, set `color_glyphs: Some(ColorGlyphSelection::All)` for all glyphs or `Some(ColorGlyphSelection::Named(vec!["logo".into()]))` for selected names on `GenerateWebfontsOptions`.
+
+Named selection uses final post-rename logical names across every variant, including fallback states; blank states have no color record. `None` or an empty named list keeps monochrome output. Duplicates are harmless; unknown names are reported together in first-occurrence input order. Set `types` to TTF, WOFF, and/or WOFF2; ordinary defaults include incompatible EOT. See [color glyphs](./#color-glyphs) for SVG semantics and platform compatibility.
 
 ```rust
 use webfont_generator::{generate_sync, ColorGlyphSelection, FontType, GenerateWebfontsOptions};

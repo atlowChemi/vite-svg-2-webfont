@@ -64,6 +64,8 @@ const renderChart = async () => {
     const mermaidConfig = {
         securityLevel: 'loose',
         startOnLoad: false,
+        // SVG labels avoid HTML text being clipped by inherited page typography.
+        htmlLabels: false,
         theme: hasDarkClass ? 'dark' : 'default',
     };
     let svgCode = await render(props.id, code.value, mermaidConfig);

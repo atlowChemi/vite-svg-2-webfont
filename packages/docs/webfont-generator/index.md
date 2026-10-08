@@ -45,15 +45,15 @@ For a single-face font, the generation pipeline works as follows:
 
 1. **SVG loading** -- Read and validate source SVG files in parallel
 2. **Glyph preparation** -- Parse glyph paths and optional solid paint with `usvg`, process geometry with `oxvg_path`, and normalize shared layer/fallback geometry. Parsed and processed caches retain paint for selected glyphs.
-3. **Parallel SVG and table assembly** -- When color is disabled, serialize SVG if requested. Compile paint-aware selectable glyphs and auxiliary layers into shared tables using [`write-fonts`](https://github.com/googlefonts/fontations): `glyf` fallback plus COLR/CPAL for selected glyphs.
-4. **Requested binary outputs** -- Assemble TTF if requested; generate WOFF and WOFF2 from shared tables. Color-disabled builds also support EOT, which embeds TTF.
+3. **Parallel SVG and table assembly** -- Serialize the SVG font if requested and supported by the selected options. Compile paint-aware selectable glyphs and auxiliary layers into shared tables using [`write-fonts`](https://github.com/googlefonts/fontations): `glyf` fallback plus COLR/CPAL for selected glyphs.
+4. **Requested binary outputs** -- Assemble TTF if requested; generate WOFF and WOFF2 from shared tables, and EOT (which embeds TTF) when supported by the selected options.
 5. **Template rendering** -- Render CSS and HTML previews via Handlebars when writing those files or calling the result's rendering methods
 
 ```mermaid
 flowchart TD
     A[SVG files + optional color selection] --> B[Parse geometry &amp; optional paint<br/>usvg + oxvg_path]
     B --> C[Shared layer/fallback geometry<br/>Parsed &amp; processed caches]
-    C -.->|color disabled, if requested| D[SVG output]
+    C -.->|if supported and requested| D[SVG output]
     C -->|if binary formats requested| E[Paint-aware selectable IDs + layer glyphs<br/>glyf fallback + optional COLR/CPAL]
     E -.->|if requested| T[TTF output]
     E --> P
@@ -61,7 +61,7 @@ flowchart TD
         direction TD
         F[WOFF]
         G[WOFF2]
-        H[EOT when color disabled<br/>embeds TTF]
+        H[EOT when supported<br/>embeds TTF]
     end
 ```
 
@@ -140,6 +140,7 @@ The API is largely compatible with upstream `@vusion/webfonts-generator`, with a
 - Font binaries differ at the byte level (different TTF compiler, different path normalization) but are valid and render identically
 - CSS, HTML, and template output is identical.
 - [`variants`](./node#multi-variant-fonts) adds multi-weight families with discrete designs.
+- [`colorGlyphs`](./node#colorglyphs) preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
 
 ::: warning
 If you are migrating from `@vusion/webfonts-generator`, review the [Node.js usage](./node) page for the full options reference.
@@ -147,7 +148,7 @@ If you are migrating from `@vusion/webfonts-generator`, review the [Node.js usag
 
 ## Color glyphs
 
-Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](./node#color-selection), [Rust API](./rust#color-glyphs), and [CLI manifest](./cli#json-manifest); the Vite plugin does not yet expose it.
+Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](./node#color-selection), [Rust API](./rust#color-glyphs), and [CLI manifest](./cli#json-manifest).
 
 Active color supports **TTF, WOFF, and WOFF2**. SVG-font and EOT output are rejected during option resolution. Ordinary defaults include EOT, so ordinary color callers must specify compatible `types`. Variant defaults are already WOFF and WOFF2.
 
@@ -167,12 +168,7 @@ Advanced input is **best-effort**: gradients, strokes as color paint, text, imag
 
 ### Browser and platform compatibility
 
-| Tested renderer                 | Result                                           |
-| ------------------------------- | ------------------------------------------------ |
-| Chromium 153.0.8010.12          | Fixed color, foreground color, and layer opacity |
-| Firefox 155.0                   | Fixed color, foreground color, and layer opacity |
-| Playwright WebKit on Linux (CI) | Fixed color, foreground color, and layer opacity |
-| WebKit 26.6 on macOS 26.4.1     | Monochrome fallback                              |
+Chromium and Firefox render fixed colors, host foreground colors, and per-layer opacity. Linux WebKit also renders color; tested macOS WebKit uses the monochrome fallback.
 
 WebKit behavior depends on the operating system and platform text-rendering libraries. In the tested macOS configuration, the font still loads: the fallback retains host text color, selected weight, ligatures, and advances, but loses fixed colors and independent per-layer opacity. It uses the same font URL; no separate API or alternate resource is needed. These observations do not imply a permanent limitation in future Safari, WebKit, or macOS versions. See [WebKit issue 233496](https://bugs.webkit.org/show_bug.cgi?id=233496).
 

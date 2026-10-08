@@ -72,7 +72,7 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 
 ## Color selection
 
-Set `colorGlyphs: true` for all glyphs or `colorGlyphs: ['logo']` for final post-rename names. Omission or `[]` disables color. See [`colorGlyphs`](#colorglyphs) for validation rules and [color glyphs](./#color-glyphs) for paint semantics and browser/platform limits.
+By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG colors, set `colorGlyphs: true` for all glyphs or `colorGlyphs: ['logo']` for selected final post-rename names. Omission or `[]` keeps monochrome output. See [`colorGlyphs`](#colorglyphs) for validation rules and [color glyphs](./#color-glyphs) for paint semantics and browser/platform limits.
 
 ```ts
 const result = await generateWebfonts({
@@ -87,7 +87,9 @@ const result = await generateWebfonts({
 result.regenerate({ files: ['icons/logo.svg', 'icons/add.svg'] }, [{ path: 'icons/logo.svg', changeType: 'changed' }]);
 ```
 
-The unselected `add` glyph remains monochrome. Use `true` to select both.
+The unselected `add` glyph remains monochrome. In the example above, replace `colorGlyphs: ['logo']` with `colorGlyphs: true` to preserve colors for both icons.
+
+For a multi-variant family, the selected name applies across every variant. Each design can use different SVG colors:
 
 ```ts
 const family = await generateWebfonts({
