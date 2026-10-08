@@ -29,7 +29,7 @@ jobs:
             - name: Select jobs and record reasons
               id: selection
               run: node scripts/ci/affected-selection.ts
-            - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: affected-selection
                   path: artifacts/affected-selection/
@@ -475,7 +475,7 @@ jobs:
                   name: vite${{ matrix.vite_major }}-node${{ matrix.node_version }}-linux-x64
                   files: test-results/vite-compat.xml
                   token: ${{ secrets.CODECOV_TOKEN }}
-            - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               if: ${{ matrix.primary }}
               with:
                   name: coverage-node-${{ matrix.node_version }}-vite-${{ matrix.vite_major }}
