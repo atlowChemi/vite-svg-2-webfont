@@ -2,6 +2,7 @@ use std::collections::HashSet;
 use std::hash::Hasher;
 use std::io::{Error, ErrorKind};
 
+use write_fonts::read::tables::post::DEFAULT_GLYPH_NAMES;
 use write_fonts::tables::cmap::Cmap;
 use write_fonts::tables::head::Head;
 use write_fonts::tables::hhea::Hhea;
@@ -18,6 +19,7 @@ use crate::sfnt::SerializedFontTables;
 use super::cache::{
     dump_cached_ttf_table, dump_ttf_table, hash_option_str, hash_str, table_cache_key,
 };
+use super::color::ColorFont;
 use super::ligatures::LigaturePlaceholderGlyph;
 use super::types::{CompiledGlyph, GlyphMetrics, TtfOptions};
 use super::{clamp_to_i16, clamp_to_u16, current_unix_timestamp};
@@ -39,6 +41,7 @@ pub(super) fn assemble_font(
     ascent: f64,
     descent: f64,
     font_height: f64,
+    color: ColorFont,
     mut table_cache: Option<&mut TtfGlyphCache>,
 ) -> Result<SerializedFontTables, Error> {
     let units_per_em = clamp_to_u16(font_height.round(), 16, 16_384);
@@ -49,6 +52,12 @@ pub(super) fn assemble_font(
                 .map(|g| LongMetric::new(g.advance_width, g.left_side_bearing)),
         )
         .chain(ligature_placeholders.iter().map(|_| LongMetric::new(0, 0)))
+        .chain(
+            color
+                .layers
+                .iter()
+                .map(|g| LongMetric::new(0, g.left_side_bearing)),
+        )
         .collect::<Vec<_>>();
     let head_timestamp = derive_head_timestamp(options.ts);
     let head = Head::new(
@@ -81,7 +90,8 @@ pub(super) fn assemble_font(
     );
     let hmtx = Hmtx::new(h_metrics, Vec::new());
     let maxp = Maxp {
-        num_glyphs: (compiled_glyphs.len() + ligature_placeholders.len() + 1) as u16,
+        num_glyphs: (compiled_glyphs.len() + ligature_placeholders.len() + color.layers.len() + 1)
+            as u16,
         max_points: Some(metrics.max_points),
         max_contours: Some(metrics.max_contours),
         max_composite_points: Some(0),
@@ -142,11 +152,29 @@ pub(super) fn assemble_font(
         options.manufacturer_url,
         derive_version_string(options.version).as_deref(),
     );
-    let post = Post::new_v2(
-        std::iter::once(".notdef")
-            .chain(compiled_glyphs.iter().map(|g| g.name.as_str()))
-            .chain(ligature_placeholders.iter().map(|g| g.name.as_str())),
-    );
+    let glyph_names = std::iter::once(".notdef")
+        .chain(compiled_glyphs.iter().map(|g| g.name.as_str()))
+        .chain(ligature_placeholders.iter().map(|g| g.name.as_str()))
+        .chain(color.layers.iter().map(|g| g.name.as_str()));
+    let max_custom_names = usize::from(u16::MAX) + 1 - DEFAULT_GLYPH_NAMES.len();
+    // Post::new_v2 panics if a custom name index does not fit in u16.
+    // Small fonts cannot exhaust the indices, so avoid counting their names.
+    if glyph_names.clone().count() > max_custom_names {
+        let standard_names: HashSet<_> = DEFAULT_GLYPH_NAMES.iter().copied().collect();
+        let custom_names: HashSet<_> = glyph_names
+            .clone()
+            .filter(|name| !standard_names.contains(name))
+            .collect();
+        if custom_names.len() > max_custom_names {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "Font exceeds the {max_custom_names} unique custom glyph-name limit in the post table."
+                ),
+            ));
+        }
+    }
+    let post = Post::new_v2(glyph_names);
     let gsub = super::ligatures::build_ligature_gsub(compiled_glyphs, ligature_placeholders);
     let mut used_table_keys = HashSet::new();
     let mut tables = Vec::with_capacity(11);
@@ -157,7 +185,7 @@ pub(super) fn assemble_font(
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        || hmtx_cache_key(compiled_glyphs, ligature_placeholders),
+        || hmtx_cache_key(compiled_glyphs, ligature_placeholders, &color.layers),
         &hmtx,
         "hmtx",
     )?);
@@ -171,14 +199,28 @@ pub(super) fn assemble_font(
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        || glyf_loca_cache_key(b"loca", compiled_glyphs, ligature_placeholders),
+        || {
+            glyf_loca_cache_key(
+                b"loca",
+                compiled_glyphs,
+                ligature_placeholders,
+                &color.layers,
+            )
+        },
         &loca,
         "loca",
     )?);
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        || glyf_loca_cache_key(b"glyf", compiled_glyphs, ligature_placeholders),
+        || {
+            glyf_loca_cache_key(
+                b"glyf",
+                compiled_glyphs,
+                ligature_placeholders,
+                &color.layers,
+            )
+        },
         &glyf,
         "glyf",
     )?);
@@ -192,7 +234,7 @@ pub(super) fn assemble_font(
     tables.push(dump_cached_ttf_table(
         &mut table_cache,
         &mut used_table_keys,
-        || post_cache_key(compiled_glyphs, ligature_placeholders),
+        || post_cache_key(compiled_glyphs, ligature_placeholders, &color.layers),
         &post,
         "post",
     )?);
@@ -208,12 +250,14 @@ pub(super) fn assemble_font(
     if let Some(cache) = table_cache {
         cache.tables.retain(|key, _| used_table_keys.contains(key));
     }
+    tables.extend(color.tables);
     SerializedFontTables::new(tables)
 }
 
 fn hmtx_cache_key(
     compiled_glyphs: &[CompiledGlyph],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
+    layers: &[CompiledGlyph],
 ) -> u64 {
     table_cache_key(b"hmtx", |hasher| {
         for glyph in compiled_glyphs {
@@ -221,6 +265,10 @@ fn hmtx_cache_key(
             hasher.write_i16(glyph.left_side_bearing);
         }
         hasher.write_usize(ligature_placeholders.len());
+        for layer in layers {
+            hasher.write_u16(0);
+            hasher.write_i16(layer.left_side_bearing);
+        }
     })
 }
 fn cmap_cache_key(
@@ -245,6 +293,7 @@ fn glyf_loca_cache_key(
     tag: &[u8; 4],
     compiled_glyphs: &[CompiledGlyph],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
+    layers: &[CompiledGlyph],
 ) -> u64 {
     table_cache_key(tag, |hasher| {
         for glyph in compiled_glyphs {
@@ -255,6 +304,9 @@ fn glyf_loca_cache_key(
             );
         }
         hasher.write_usize(ligature_placeholders.len());
+        for layer in layers {
+            hasher.write_u64(layer.outline_key.expect("compiled layer outline key"));
+        }
     })
 }
 fn name_cache_key(options: &TtfOptions, font_subfamily: &str) -> u64 {
@@ -270,6 +322,7 @@ fn name_cache_key(options: &TtfOptions, font_subfamily: &str) -> u64 {
 fn post_cache_key(
     compiled_glyphs: &[CompiledGlyph],
     ligature_placeholders: &[LigaturePlaceholderGlyph],
+    layers: &[CompiledGlyph],
 ) -> u64 {
     table_cache_key(b"post", |hasher| {
         for glyph in compiled_glyphs {
@@ -277,6 +330,9 @@ fn post_cache_key(
         }
         for glyph in ligature_placeholders {
             hash_str(hasher, &glyph.name);
+        }
+        for layer in layers {
+            hash_str(hasher, &layer.name);
         }
     })
 }

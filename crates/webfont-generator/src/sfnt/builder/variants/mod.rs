@@ -22,6 +22,7 @@ use crate::sfnt::SerializedFontTables;
 use crate::svg::types::PreparedVariantFamily;
 
 use super::clamp_to_u16;
+use super::color::build_color;
 use super::glyphs::{build_glyf_table, compile_simple_glyph, compute_glyph_metrics};
 use super::ligatures;
 use super::tables::{
@@ -89,8 +90,10 @@ pub(crate) fn build_variant(
         ligatures::build_ligature_placeholders(&physical[..family.glyphs.len()], options.ligature);
     let presentation_gids = checked_gids(physical.len() + ligature_placeholders.len(), matrix)?;
 
-    let (glyf, loca, loca_format) = build_glyf_table(&physical, &ligature_placeholders)?;
-    let metrics = compute_glyph_metrics(&physical);
+    let color = build_color(&physical, ligature_placeholders.len())?;
+    let (glyf, loca, loca_format) =
+        build_glyf_table(&physical, &ligature_placeholders, &color.layers)?;
+    let metrics = compute_glyph_metrics(physical.iter().chain(&color.layers));
     let default_weight = variants.variants[variants.default_index].weight.to_string();
     let base_options = TtfOptions {
         ascent: Some(family.ascent),
@@ -118,6 +121,7 @@ pub(crate) fn build_variant(
         family.ascent,
         family.descent,
         family.font_height,
+        color,
         None,
     )?;
 
@@ -465,6 +469,9 @@ fn add_presentation(
 ) -> Result<(), Error> {
     let logical = &family.glyphs[logical_index];
     let advance_width = clamp_to_u16(logical.advance_width.round(), 0, u16::MAX);
+    let color_layers = logical.outlines[variant_index]
+        .as_ref()
+        .and_then(|glyph| glyph.color_layers.clone());
     let outline = match &logical.outlines[variant_index] {
         Some(glyph) => compile_simple_glyph(glyph)?,
         None => SimpleGlyph::default(),
@@ -475,12 +482,14 @@ fn add_presentation(
         .position(|glyph| {
             (!is_default || glyph.source_index == logical_index)
                 && glyph.advance_width == advance_width
+                && glyph.color_layers == color_layers
                 && glyph.simple_glyph() == &outline
         })
         .unwrap_or_else(|| {
             let index = physical.len();
             let bbox = outline.bbox;
             physical.push(CompiledGlyph {
+                color_layers,
                 advance_width,
                 bbox,
                 // Physical presentations have no Unicode mapping of their own. The shared

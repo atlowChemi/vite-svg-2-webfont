@@ -5,6 +5,7 @@ use kurbo::BezPath;
 use usvg::tiny_skia_path::Path as TinyPath;
 
 use crate::input::LoadedSvgFile;
+use crate::types::color::{ColorSelection, ProcessedColorLayer, ResolvedLayerPaint};
 
 pub(crate) struct SvgOptions<'a> {
     pub color_selection: Option<&'a ColorSelection>,
@@ -29,29 +30,6 @@ pub(crate) struct SvgOptions<'a> {
     pub structure_path: bool,
 }
 
-/// Internal selection of final logical names; public option resolution lands later.
-#[derive(Default)]
-#[allow(
-    dead_code,
-    reason = "internal color selection is exposed in the public API stack layer"
-)]
-pub(crate) enum ColorSelection {
-    All,
-    #[default]
-    None,
-    Named(std::collections::HashSet<String>),
-}
-
-impl ColorSelection {
-    pub fn contains(&self, name: &str) -> bool {
-        match self {
-            Self::All => true,
-            Self::None => false,
-            Self::Named(names) => names.contains(name),
-        }
-    }
-}
-
 impl SvgOptions<'_> {
     pub fn selects_color(&self, name: &str) -> bool {
         self.color_selection
@@ -59,31 +37,11 @@ impl SvgOptions<'_> {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub(crate) enum ResolvedLayerPaint {
-    Foreground {
-        alpha: f32,
-    },
-    Solid {
-        red: u8,
-        green: u8,
-        blue: u8,
-        alpha: f32,
-    },
-}
-
 #[derive(Debug)]
 pub(crate) struct ParsedColorLayer {
     pub path_index: usize,
     pub paint: ResolvedLayerPaint,
     pub fill_rule: usvg::FillRule,
-}
-
-#[derive(Debug, PartialEq)]
-pub(crate) struct ProcessedColorLayer {
-    pub outline: Arc<BezPath>,
-    pub outline_hash: u64,
-    pub paint: ResolvedLayerPaint,
 }
 
 #[derive(Clone)]

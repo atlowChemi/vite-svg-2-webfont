@@ -1,6 +1,9 @@
 //! Test-only feasibility spike: preserve production layout, append two unmapped
 //! layer outlines, and attach static COLR v1 paints to both selectable GIDs.
+use super::super::super::color::{append_layers, build_palette};
+use super::super::color::production_color_font;
 use super::*;
+use std::io::Error;
 use write_fonts::tables::colr::{
     BaseGlyphList, BaseGlyphPaint, Colr, LayerList, Paint, PaintColrLayers, PaintGlyph, PaintSolid,
 };
@@ -198,6 +201,62 @@ fn color_proof_combined_tables_and_containers() {
             table_bytes(&tables, tag)
         );
     }
+}
+
+#[test]
+fn color_proof_production_pipeline_and_containers() {
+    let tables = production_color_font();
+    let woff1 = crate::formats::woff1::tables_to_woff1(&tables, None).unwrap();
+    let woff2 = crate::formats::woff2::tables_to_woff2(&tables, 11, None).unwrap();
+    let decoded = woff::version2::decompress(&woff2).unwrap();
+    for bytes in [tables.ttf(), decoded.as_slice()] {
+        let font = FontRef::new(bytes).unwrap();
+        assert_eq!(font.maxp().unwrap().num_glyphs(), 9);
+        assert_eq!(font.hmtx().unwrap().h_metrics().len(), 9);
+        assert_eq!(
+            font.cmap().unwrap().map_codepoint(0xe001_u32),
+            Some(GlyphId::new(1))
+        );
+        let colr = font.colr().unwrap();
+        assert_eq!(colr.version(), 1);
+        let bases = colr.base_glyph_list().unwrap().unwrap();
+        assert_eq!(
+            bases
+                .base_glyph_paint_records()
+                .iter()
+                .map(|b| b.glyph_id())
+                .collect::<Vec<_>>(),
+            vec![GlyphId16::new(1), GlyphId16::new(2)]
+        );
+        let layers = colr.layer_list().unwrap().unwrap();
+        for (index, (palette, alpha)) in [(0, 1.0), (0xffff, 0.25), (1, 1.0), (0xffff, 0.25)]
+            .into_iter()
+            .enumerate()
+        {
+            use write_fonts::read::tables::colr::Paint as ReadPaint;
+            let ReadPaint::Glyph(layer) = layers.paints().get(index).unwrap() else {
+                panic!()
+            };
+            assert_eq!(layer.glyph_id(), GlyphId16::new(5 + index as u16));
+            let ReadPaint::Solid(solid) = layer.paint().unwrap() else {
+                panic!()
+            };
+            assert_eq!(solid.palette_index(), palette);
+            assert_eq!(solid.alpha(), F2Dot14::from_f32(alpha));
+            assert_eq!(font.hmtx().unwrap().h_metrics()[5 + index].advance(), 0);
+        }
+        let gsub = font.gsub().unwrap();
+        assert_eq!(ligature_target(&gsub, 1), GlyphId16::new(1));
+        assert_eq!(ligature_target(&gsub, 2), GlyphId16::new(2));
+        for tag in [*b"COLR", *b"CPAL", *b"fvar", *b"STAT", *b"GSUB", *b"cmap"] {
+            assert_eq!(
+                font.table_data(Tag::new(&tag)).unwrap().as_bytes(),
+                table_bytes(&tables, tag)
+            );
+            assert_eq!(woff1_table(&woff1, tag), table_bytes(&tables, tag));
+        }
+    }
+    assert_eq!(tables.ttf(), production_color_font().ttf());
     // Export only when requested by a downstream fixture task. Engine tests
     // validate their own generated data and never read adapter-owned assets.
     if let Some(directory) = std::env::var_os("COLOR_PROOF_OUTPUT_DIR") {
@@ -210,24 +269,6 @@ fn color_proof_combined_tables_and_containers() {
         ] {
             std::fs::write(directory.join(name), bytes).unwrap();
         }
-    }
-}
-
-// A PaintColrLayers node holds at most 255 children. Nested nodes preserve
-// source order while lifting that limit without extra selectable glyphs.
-fn nested_layers(nodes: Vec<Paint>, layers: &mut Vec<Paint>) -> Paint {
-    assert!(!nodes.is_empty());
-    if nodes.len() <= usize::from(u8::MAX) {
-        let start = u32::try_from(layers.len()).unwrap();
-        let count = u8::try_from(nodes.len()).unwrap();
-        layers.extend(nodes);
-        PaintColrLayers::new(count, start).into()
-    } else {
-        let groups = nodes
-            .chunks(usize::from(u8::MAX))
-            .map(|chunk| nested_layers(chunk.to_vec(), layers))
-            .collect();
-        nested_layers(groups, layers)
     }
 }
 
@@ -265,7 +306,7 @@ fn color_proof_nested_layer_boundaries_round_trip_in_source_order() {
             })
             .collect();
         let mut layers = vec![];
-        let root = nested_layers(paints, &mut layers);
+        let root = append_layers(paints, &mut layers).unwrap();
         let colr = Colr {
             base_glyph_list: Some(BaseGlyphList::new(
                 1,
@@ -298,19 +339,12 @@ fn color_proof_nested_layer_boundaries_round_trip_in_source_order() {
 
 #[test]
 fn color_proof_cpal_maximum_palette_and_checked_overflow() {
-    fn palette(count: usize) -> Result<Cpal, std::num::TryFromIntError> {
-        let count = u16::try_from(count)?;
-        Ok(Cpal::new(
-            count,
-            1,
-            count,
-            Some(
-                (0..count)
-                    .map(|i| ColorRecord::new(i as u8, (i >> 8) as u8, 0, 255))
-                    .collect(),
-            ),
-            vec![0],
-        ))
+    fn palette(count: usize) -> Result<Cpal, Error> {
+        build_palette(
+            (0..count)
+                .map(|i| ColorRecord::new(i as u8, (i >> 8) as u8, 0, 255))
+                .collect(),
+        )
     }
     let baseline = color_proof();
     let mut tables: Vec<_> = baseline

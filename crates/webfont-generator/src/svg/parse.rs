@@ -2,7 +2,8 @@ use std::io::{Error, ErrorKind};
 use usvg::Transform;
 use usvg::tiny_skia_path::Path as TinyPath;
 
-use crate::svg::types::{GlyphWorkItem, ParsedColorLayer, ParsedGlyph, ResolvedLayerPaint};
+use crate::svg::types::{GlyphWorkItem, ParsedColorLayer, ParsedGlyph};
+use crate::types::color::ResolvedLayerPaint;
 
 mod color;
 

@@ -59,7 +59,7 @@ pub(crate) fn svg_options_from_options(
     let structure_path = wants_binary;
 
     SvgOptions {
-        color_selection: None,
+        color_selection: options.color_selection.as_ref(),
         ascent: options.ascent,
         center_horizontally: options.center_horizontally,
         center_vertically: options.center_vertically,

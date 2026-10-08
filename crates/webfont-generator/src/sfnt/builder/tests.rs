@@ -461,3 +461,4 @@ fn preserves_a_genuinely_curved_quadratic() {
         "a genuinely curved quadratic must be kept",
     );
 }
+mod color;

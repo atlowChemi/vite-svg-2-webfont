@@ -12,6 +12,7 @@ use write_fonts::types::{F2Dot14, MajorMinor};
 
 use crate::input::resolve_generate_webfonts_options;
 use crate::svg::types::{PreparedVariantFamily, ProcessedGlyph, ProcessedVariantGlyph};
+use crate::types::color::{ProcessedColorLayer, ResolvedLayerPaint};
 use crate::{FontType, FontVariant, GenerateWebfontsOptions};
 
 use super::*;
@@ -47,6 +48,79 @@ fn resolved_variants() -> ResolvedVariants {
     .unwrap()
     .variants
     .unwrap()
+}
+
+#[test]
+fn color_presentations_do_not_alias_identical_fallback_outlines() {
+    let mut source = outline("a", 0xe001, 30.0, 20.0);
+    let red = ProcessedColorLayer {
+        outline: source.ttf_path.as_ref().unwrap().clone(),
+        outline_hash: 0,
+        paint: ResolvedLayerPaint::Solid {
+            red: 255,
+            green: 0,
+            blue: 0,
+            alpha: 1.0,
+        },
+    };
+    source.color_layers = Some(Arc::from([red]));
+    let mut blue = source.clone();
+    blue.color_layers = Some(Arc::from([ProcessedColorLayer {
+        outline: source.ttf_path.as_ref().unwrap().clone(),
+        outline_hash: 0,
+        paint: ResolvedLayerPaint::Solid {
+            red: 0,
+            green: 0,
+            blue: 255,
+            alpha: 1.0,
+        },
+    }]));
+    let mut family = PreparedVariantFamily {
+        ascent: 10.0,
+        descent: 0.0,
+        font_height: 1000.0,
+        glyphs: vec![ProcessedVariantGlyph {
+            name: "a".into(),
+            codepoint: 0xe001,
+            advance_width: 30.0,
+            outlines: vec![Some(source.clone()), Some(source), Some(blue)].into_boxed_slice(),
+        }],
+    };
+    let variants = resolved_variants();
+    let built = build_variant(options(), &family, &variants).unwrap();
+    assert_eq!(
+        built.presentation_gids[0].as_ref(),
+        &[GlyphId16::new(1), GlyphId16::new(1), GlyphId16::new(2)]
+    );
+    let font = FontRef::new(built.tables.ttf()).unwrap();
+    assert_eq!(
+        font.colr()
+            .unwrap()
+            .base_glyph_list()
+            .unwrap()
+            .unwrap()
+            .base_glyph_paint_records()
+            .len(),
+        2
+    );
+    family.glyphs[0].outlines[0].as_mut().unwrap().color_layers = None;
+    family.glyphs[0].outlines[2] = None;
+    let built = build_variant(options(), &family, &variants).unwrap();
+    assert_eq!(
+        built.presentation_gids[0].as_ref(),
+        &[GlyphId16::new(2), GlyphId16::new(1), GlyphId16::new(3)]
+    );
+    let font = FontRef::new(built.tables.ttf()).unwrap();
+    assert_eq!(
+        font.colr()
+            .unwrap()
+            .base_glyph_list()
+            .unwrap()
+            .unwrap()
+            .base_glyph_paint_records()
+            .len(),
+        1
+    );
 }
 
 fn outline(name: &str, codepoint: u32, width: f64, shape_width: f64) -> ProcessedGlyph {

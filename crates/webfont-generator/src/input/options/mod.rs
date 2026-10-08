@@ -6,6 +6,7 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 use super::files::LoadedSvgFile;
+use crate::types::color::ColorSelection;
 use crate::types::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
     MissingGlyphOptions,
@@ -36,6 +37,7 @@ pub(crate) struct ResolvedFontVariant {
 
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
+    pub color_selection: Option<ColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
     pub center_vertically: Option<bool>,
@@ -81,6 +83,28 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
 }
 
 const DEFAULT_FONT_TYPES: [FontType; 3] = [FontType::Eot, FontType::Woff, FontType::Woff2];
+
+fn validate_color_formats(
+    selection: Option<&ColorSelection>,
+    types: &[FontType],
+) -> std::io::Result<()> {
+    let active = selection.is_some_and(|selection| match selection {
+        ColorSelection::All => true,
+        ColorSelection::None => false,
+        ColorSelection::Named(names) => !names.is_empty(),
+    });
+    if active
+        && types
+            .iter()
+            .any(|kind| matches!(kind, FontType::Svg | FontType::Eot))
+    {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "Color glyphs require TTF, WOFF, or WOFF2; SVG and EOT are not supported.",
+        ));
+    }
+    Ok(())
+}
 
 const DEFAULT_FONT_ORDER: [FontType; 5] = [
     FontType::Eot,
@@ -464,8 +488,17 @@ fn resolve_variants(
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
+    resolve_generate_webfonts_options_with_color(options, None)
+}
+
+// Internal entry point until the public color option is introduced in PR 3.
+pub(crate) fn resolve_generate_webfonts_options_with_color(
+    options: GenerateWebfontsOptions,
+    color_selection: Option<ColorSelection>,
+) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
     let types = resolved_font_types(&options);
     validate_font_type_order(&options, &types)?;
+    validate_color_formats(color_selection.as_ref(), &types)?;
     let order = resolve_font_type_order(&options, &types);
     let css = options.css.unwrap_or(true);
     let html = options.html.unwrap_or(false);
@@ -505,6 +538,7 @@ pub(crate) fn resolve_generate_webfonts_options(
         .or(options.preserve_aspect_ratio);
 
     Ok(ResolvedGenerateWebfontsOptions {
+        color_selection,
         ascent: options.ascent,
         center_horizontally: options.center_horizontally,
         center_vertically,

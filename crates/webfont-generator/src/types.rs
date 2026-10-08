@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use serde_json::{Map, Value};
 
+pub(crate) mod color;
+
 /// What happened to a file, for [`crate::GenerateWebfontsResult::regenerate`]. `name` is the
 /// caller-resolved glyph name (the `rename` callback, if any, is applied by the caller).
 pub enum GlyphChange {

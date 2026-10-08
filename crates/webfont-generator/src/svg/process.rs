@@ -4,8 +4,9 @@ use usvg::tiny_skia_path::Rect;
 
 use super::geometry::{bezpath_from_oxvg_path, bezpath_hash, rounded_bezpath_from_tiny_paths};
 use crate::svg::serialize::{append_path, optimize_path};
-use crate::svg::types::{ParsedGlyph, ProcessedColorLayer, ProcessedGlyph};
+use crate::svg::types::{ParsedGlyph, ProcessedGlyph};
 use crate::svg::winding::{normalize_evenodd, normalize_winding};
+use crate::types::color::ProcessedColorLayer;
 
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn process_glyph(
