@@ -6,7 +6,7 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 use super::files::LoadedSvgFile;
-use crate::types::color::ColorSelection;
+use crate::types::color::ResolvedColorSelection;
 use crate::types::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
     MissingGlyphOptions,
@@ -38,7 +38,7 @@ pub(crate) struct ResolvedFontVariant {
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub color_glyphs: Option<crate::ColorGlyphSelection>,
-    pub color_selection: Option<ColorSelection>,
+    pub color_selection: Option<ResolvedColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
     pub center_vertically: Option<bool>,
@@ -86,13 +86,12 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
 const DEFAULT_FONT_TYPES: [FontType; 3] = [FontType::Eot, FontType::Woff, FontType::Woff2];
 
 fn validate_color_formats(
-    selection: Option<&ColorSelection>,
+    selection: Option<&ResolvedColorSelection>,
     types: &[FontType],
 ) -> std::io::Result<()> {
     let active = selection.is_some_and(|selection| match selection {
-        ColorSelection::All => true,
-        ColorSelection::None => false,
-        ColorSelection::Named(names) => !names.is_empty(),
+        ResolvedColorSelection::All => true,
+        ResolvedColorSelection::Named(names) => !names.is_empty(),
     });
     if active
         && types
@@ -497,7 +496,10 @@ fn resolve_variants(
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
-    let color_selection = options.color_glyphs.as_ref().map(ColorSelection::from);
+    let color_selection = options
+        .color_glyphs
+        .as_ref()
+        .map(ResolvedColorSelection::from);
     let types = resolved_font_types(&options);
     validate_font_type_order(&options, &types)?;
     validate_color_formats(color_selection.as_ref(), &types)?;

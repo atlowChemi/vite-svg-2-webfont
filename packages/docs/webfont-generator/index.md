@@ -87,7 +87,7 @@ flowchart TD
     end
 ```
 
-This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs. See [multi-variant fonts](./node#multi-variant-fonts) and [color glyphs](./color) for usage.
+This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs. See [multi-variant fonts](./node#multi-variant-fonts) and [color selection](./node#color-selection) for usage.
 
 ## Performance
 
@@ -144,6 +144,39 @@ The API is largely compatible with upstream `@vusion/webfonts-generator`, with a
 ::: warning
 If you are migrating from `@vusion/webfonts-generator`, review the [Node.js usage](./node) page for the full options reference.
 :::
+
+## Color glyphs
+
+Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](./node#color-selection), [Rust API](./rust#color-glyphs), and [CLI manifest](./cli#json-manifest); the Vite plugin does not yet expose it.
+
+Active color supports **TTF, WOFF, and WOFF2**. SVG-font and EOT output are rejected during option resolution. Ordinary defaults include EOT, so ordinary color callers must specify compatible `types`. Variant defaults are already WOFF and WOFF2.
+
+### SVG paint
+
+| SVG source                                               | Color glyph paint                         |
+| -------------------------------------------------------- | ----------------------------------------- |
+| No authored effective fill                               | Host text color                           |
+| Authored solid fill, including inherited root/group fill | Fixed SVG color                           |
+| `fill="currentColor"` without effective authored `color` | Host text color                           |
+| `fill="currentColor"` with effective authored `color`    | Fixed resolved SVG color                  |
+| Solid fill with `fill-opacity`                           | That paint with independent layer opacity |
+
+Source paint order, curves, nonzero winding, and ordinary nested evenodd holes are supported. Color layers and monochrome fallback share positioning and normalization. Authored inline styles and internal stylesheets use the SVG parser's cascade.
+
+Advanced input is **best-effort**: gradients, strokes as color paint, text, images, clipping, masks, filters, paint-dependent selectors, CSS resets/invalid declarations, and intersecting evenodd contours can produce incomplete or incorrect results. There is no dedicated unsupported-input detection, warning, or rejection. Please report a minimal SVG reproduction when a supported case renders incorrectly.
+
+### Browser and platform compatibility
+
+| Tested renderer                 | Result                                           |
+| ------------------------------- | ------------------------------------------------ |
+| Chromium 153.0.8010.12          | Fixed color, foreground color, and layer opacity |
+| Firefox 155.0                   | Fixed color, foreground color, and layer opacity |
+| Playwright WebKit on Linux (CI) | Fixed color, foreground color, and layer opacity |
+| WebKit 26.6 on macOS 26.4.1     | Monochrome fallback                              |
+
+WebKit behavior depends on the operating system and platform text-rendering libraries. In the tested macOS configuration, the font still loads: the fallback retains host text color, selected weight, ligatures, and advances, but loses fixed colors and independent per-layer opacity. It uses the same font URL; no separate API or alternate resource is needed. These observations do not imply a permanent limitation in future Safari, WebKit, or macOS versions. See [WebKit issue 233496](https://bugs.webkit.org/show_bug.cgi?id=233496).
+
+Color layers add physical glyphs and increase font size. Fonts must fit the 65,535-glyph limit and the `post` table's 65,278 unique custom-name limit; exceeding either returns a build error.
 
 ## Available as
 

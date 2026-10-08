@@ -24,12 +24,6 @@ are borrowed, and option conversion does not clone their strings or template JSO
 Use consuming `regenerate_async`/`regenerate_all_async` in Rust, or the borrowing
 `regenerate_snapshot_async` when an adapter must retain a readable old result.
 
-## Color glyphs
-
-Use `color_glyphs: Some(webfont_generator::ColorGlyphSelection::All)` or `Some(webfont_generator::ColorGlyphSelection::Named(vec!["logo".into()]))` to preserve solid SVG paint. Omission or an empty list preserves monochrome output. Selection uses final post-rename logical names in ordinary and multi-variant fonts, including incremental regeneration.
-
-Active color requires TTF, WOFF, or WOFF2; set `types` explicitly because ordinary defaults include EOT. Fonts retain a monochrome fallback. Tested macOS WebKit uses that fallback, while Chromium, Firefox, and Linux WebKit render color. Advanced SVG is best-effort. See the [color reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/color) for paint semantics, lifecycle behavior, and platform limitations.
-
 ## CLI
 
 ```sh

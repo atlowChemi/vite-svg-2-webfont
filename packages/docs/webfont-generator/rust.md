@@ -148,47 +148,64 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 [multi-variant family](#multi-variant-fonts). Set optional fields with `Some(...)`, or use
 `..Default::default()` for their defaults.
 
-| Field                   | Type                           | Default                                                                    | Description                                            |
-| ----------------------- | ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------ |
-| `dest`                  | `String`                       | --                                                                         | Output directory (required)                            |
-| `files`                 | `Vec<String>`                  | Empty                                                                      | SVG paths for a single design                          |
-| `color_glyphs`          | `Option<ColorGlyphSelection>`  | `None` (monochrome)                                                        | All or named color glyphs; see [color glyphs](./color) |
-| `font_name`             | `Option<String>`               | `"iconfont"`                                                               | Font family name                                       |
-| `types`                 | `Option<Vec<FontType>>`        | `[Eot, Woff, Woff2]` for single-variant; `[Woff, Woff2]` for multi-variant | Font formats to generate                               |
-| `order`                 | `Option<Vec<FontType>>`        | Filtered default order                                                     | `@font-face` src order                                 |
-| `css`                   | `Option<bool>`                 | `true`                                                                     | Generate CSS file                                      |
-| `html`                  | `Option<bool>`                 | `false`                                                                    | Generate HTML preview                                  |
-| `write_files`           | `Option<bool>`                 | `true`                                                                     | Write output to disk                                   |
-| `css_template`          | `Option<String>`               | Built-in template                                                          | Custom Handlebars CSS template path                    |
-| `html_template`         | `Option<String>`               | Built-in template                                                          | Custom Handlebars HTML template path                   |
-| `css_fonts_url`         | `Option<String>`               | Relative path                                                              | URL prefix for fonts in CSS                            |
-| `css_dest`              | `Option<String>`               | `dest/fontName.css`                                                        | CSS output path                                        |
-| `html_dest`             | `Option<String>`               | `dest/fontName.html`                                                       | HTML output path                                       |
-| `codepoints`            | `Option<HashMap<String, u32>>` | Empty                                                                      | Explicit glyph codepoints                              |
-| `start_codepoint`       | `Option<u32>`                  | `0xF101`                                                                   | Starting auto-codepoint                                |
-| `font_height`           | `Option<f64>`                  | --                                                                         | Explicit font height                                   |
-| `ascent`                | `Option<f64>`                  | --                                                                         | Font ascent                                            |
-| `descent`               | `Option<f64>`                  | --                                                                         | Font descent                                           |
-| `normalize`             | `Option<bool>`                 | `true`                                                                     | Normalize glyph heights                                |
-| `incremental`           | `Option<bool>`                 | `false`                                                                    | Retain parsed glyphs for `regenerate`                  |
-| `fixed_width`           | `Option<bool>`                 | --                                                                         | Monospace font                                         |
-| `center_horizontally`   | `Option<bool>`                 | --                                                                         | Center glyphs horizontally                             |
-| `center_vertically`     | `Option<bool>`                 | --                                                                         | Center glyphs vertically                               |
-| `ligature`              | `Option<bool>`                 | `true`                                                                     | Enable ligatures                                       |
-| `round`                 | `Option<f64>`                  | --                                                                         | Path rounding precision                                |
-| `preserve_aspect_ratio` | `Option<bool>`                 | --                                                                         | Preserve SVG aspect ratio                              |
-| `optimize_output`       | `Option<bool>`                 | --                                                                         | Optimize SVG output                                    |
-| `font_style`            | `Option<String>`               | --                                                                         | CSS `font-style` value                                 |
-| `font_weight`           | `Option<String>`               | --                                                                         | CSS `font-weight` value                                |
-| `missing_glyphs`        | `Option<MissingGlyphOptions>`  | `blank` in variant mode                                                    | Missing-glyph policy                                   |
-| `format_options`        | `Option<FormatOptions>`        | --                                                                         | Per-format options                                     |
-| `template_options`      | `Option<Map<String, Value>>`   | --                                                                         | Extra template context                                 |
-| `variant_class_prefix`  | `Option<String>`               | `"icon--"`                                                                 | CSS variant modifier prefix                            |
-| `variants`              | `Option<Vec<FontVariant>>`     | --                                                                         | Ordered designs; see [`FontVariant`](#fontvariant)     |
+| Field                   | Type                           | Default                                                                    | Description                                                  |
+| ----------------------- | ------------------------------ | -------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| `dest`                  | `String`                       | --                                                                         | Output directory (required)                                  |
+| `files`                 | `Vec<String>`                  | Empty                                                                      | SVG paths for a single design                                |
+| `color_glyphs`          | `Option<ColorGlyphSelection>`  | `None` (monochrome)                                                        | All or named color glyphs; see [color glyphs](#color-glyphs) |
+| `font_name`             | `Option<String>`               | `"iconfont"`                                                               | Font family name                                             |
+| `types`                 | `Option<Vec<FontType>>`        | `[Eot, Woff, Woff2]` for single-variant; `[Woff, Woff2]` for multi-variant | Font formats to generate                                     |
+| `order`                 | `Option<Vec<FontType>>`        | Filtered default order                                                     | `@font-face` src order                                       |
+| `css`                   | `Option<bool>`                 | `true`                                                                     | Generate CSS file                                            |
+| `html`                  | `Option<bool>`                 | `false`                                                                    | Generate HTML preview                                        |
+| `write_files`           | `Option<bool>`                 | `true`                                                                     | Write output to disk                                         |
+| `css_template`          | `Option<String>`               | Built-in template                                                          | Custom Handlebars CSS template path                          |
+| `html_template`         | `Option<String>`               | Built-in template                                                          | Custom Handlebars HTML template path                         |
+| `css_fonts_url`         | `Option<String>`               | Relative path                                                              | URL prefix for fonts in CSS                                  |
+| `css_dest`              | `Option<String>`               | `dest/fontName.css`                                                        | CSS output path                                              |
+| `html_dest`             | `Option<String>`               | `dest/fontName.html`                                                       | HTML output path                                             |
+| `codepoints`            | `Option<HashMap<String, u32>>` | Empty                                                                      | Explicit glyph codepoints                                    |
+| `start_codepoint`       | `Option<u32>`                  | `0xF101`                                                                   | Starting auto-codepoint                                      |
+| `font_height`           | `Option<f64>`                  | --                                                                         | Explicit font height                                         |
+| `ascent`                | `Option<f64>`                  | --                                                                         | Font ascent                                                  |
+| `descent`               | `Option<f64>`                  | --                                                                         | Font descent                                                 |
+| `normalize`             | `Option<bool>`                 | `true`                                                                     | Normalize glyph heights                                      |
+| `incremental`           | `Option<bool>`                 | `false`                                                                    | Retain parsed glyphs for `regenerate`                        |
+| `fixed_width`           | `Option<bool>`                 | --                                                                         | Monospace font                                               |
+| `center_horizontally`   | `Option<bool>`                 | --                                                                         | Center glyphs horizontally                                   |
+| `center_vertically`     | `Option<bool>`                 | --                                                                         | Center glyphs vertically                                     |
+| `ligature`              | `Option<bool>`                 | `true`                                                                     | Enable ligatures                                             |
+| `round`                 | `Option<f64>`                  | --                                                                         | Path rounding precision                                      |
+| `preserve_aspect_ratio` | `Option<bool>`                 | --                                                                         | Preserve SVG aspect ratio                                    |
+| `optimize_output`       | `Option<bool>`                 | --                                                                         | Optimize SVG output                                          |
+| `font_style`            | `Option<String>`               | --                                                                         | CSS `font-style` value                                       |
+| `font_weight`           | `Option<String>`               | --                                                                         | CSS `font-weight` value                                      |
+| `missing_glyphs`        | `Option<MissingGlyphOptions>`  | `blank` in variant mode                                                    | Missing-glyph policy                                         |
+| `format_options`        | `Option<FormatOptions>`        | --                                                                         | Per-format options                                           |
+| `template_options`      | `Option<Map<String, Value>>`   | --                                                                         | Extra template context                                       |
+| `variant_class_prefix`  | `Option<String>`               | `"icon--"`                                                                 | CSS variant modifier prefix                                  |
+| `variants`              | `Option<Vec<FontVariant>>`     | --                                                                         | Ordered designs; see [`FontVariant`](#fontvariant)           |
 
 ### Color glyphs
 
-Set `color_glyphs: Some(ColorGlyphSelection::All)` or `Some(ColorGlyphSelection::Named(vec!["logo".into()]))` on `GenerateWebfontsOptions`. Import `ColorGlyphSelection` from `webfont_generator`. Named selection uses final post-rename logical names across every variant. `None` or an empty named list disables color. Set `types` to TTF, WOFF, and/or WOFF2; ordinary defaults include incompatible EOT. Existing sync/async generation and regeneration APIs retain their result and failure contracts. See [color glyphs](./color) for SVG semantics and platform compatibility.
+Set `color_glyphs: Some(ColorGlyphSelection::All)` or `Some(ColorGlyphSelection::Named(vec!["logo".into()]))` on `GenerateWebfontsOptions`. Named selection uses final post-rename logical names across every variant, including fallback states; blank states have no color record. `None` or an empty named list disables color. Duplicates are harmless; unknown names are reported together in first-occurrence input order. Set `types` to TTF, WOFF, and/or WOFF2; ordinary defaults include incompatible EOT. See [color glyphs](./#color-glyphs) for SVG semantics and platform compatibility.
+
+```rust
+use webfont_generator::{generate_sync, ColorGlyphSelection, FontType, GenerateWebfontsOptions};
+
+let result = generate_sync(GenerateWebfontsOptions {
+    files: vec!["icons/logo.svg".into(), "icons/add.svg".into()],
+    dest: "dist/fonts".into(),
+    types: Some(vec![FontType::Woff2, FontType::Woff]),
+    color_glyphs: Some(ColorGlyphSelection::Named(vec!["logo".into()])),
+    incremental: Some(true),
+    ..Default::default()
+}, None)?;
+```
+
+The same option works with `variants` and the existing sync/async generation and regeneration APIs. Paint-only edits propagate to fallback consumers. Fresh and incremental builds of the same final inputs produce matching output. Paint and selection changes affect CSS font-URL hashes; name order and duplicates do not, and an empty list retains the omitted-selection hash.
+
+Regeneration validates selected names after rename and membership changes. Removing the last source for a selected name fails. Selection, parsing, and font-build failures preserve the previous output for retry. Ordinary regeneration restores the previous in-memory result after a write failure; retry the changes or perform a full re-diff. Variant regeneration retains the newly committed in-memory result and pending writes; a no-op retry completes them. See [`GenerateWebfontsResult`](#generatewebfontsresult) for regeneration methods.
 
 ## Multi-variant fonts
 

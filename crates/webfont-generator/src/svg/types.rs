@@ -5,10 +5,10 @@ use kurbo::BezPath;
 use usvg::tiny_skia_path::Path as TinyPath;
 
 use crate::input::LoadedSvgFile;
-use crate::types::color::{ColorSelection, ProcessedColorLayer, ResolvedLayerPaint};
+use crate::types::color::{ProcessedColorLayer, ResolvedColorSelection, ResolvedLayerPaint};
 
 pub(crate) struct SvgOptions<'a> {
-    pub color_selection: Option<&'a ColorSelection>,
+    pub color_selection: Option<&'a ResolvedColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
     pub center_vertically: Option<bool>,

@@ -4,9 +4,8 @@ use serde_json::{Map, Value};
 
 use super::context::resolved_template_options;
 use crate::{
-    ColorGlyphSelection,
     input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions},
-    types::FontType,
+    types::{FontType, color::ResolvedColorSelection},
 };
 
 /// Wraps md5::Context as an io::Write so serde_json can stream directly into
@@ -97,7 +96,7 @@ struct HashableVariant<'a> {
 #[serde(rename_all = "camelCase")]
 struct HashableGenerateWebfontsOptions<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
-    color_glyphs: Option<HashableColorSelection<'a>>,
+    color_glyphs: Option<&'a ResolvedColorSelection>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ascent: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -148,13 +147,6 @@ struct HashableGenerateWebfontsOptions<'a> {
     template_options: Map<String, Value>,
     #[serde(skip_serializing_if = "Option::is_none")]
     types: Option<Vec<&'static str>>,
-}
-
-#[derive(Serialize)]
-#[serde(untagged)]
-enum HashableColorSelection<'a> {
-    All(bool),
-    Named(Vec<&'a str>),
 }
 
 #[derive(Serialize)]
@@ -209,16 +201,13 @@ struct HashableWoffFormatOptions<'a> {
 impl<'a> From<&'a ResolvedGenerateWebfontsOptions> for HashableGenerateWebfontsOptions<'a> {
     fn from(options: &'a ResolvedGenerateWebfontsOptions) -> Self {
         Self {
-            color_glyphs: match options.color_glyphs.as_ref() {
-                Some(ColorGlyphSelection::All) => Some(HashableColorSelection::All(true)),
-                Some(ColorGlyphSelection::Named(names)) if !names.is_empty() => {
-                    let mut names: Vec<_> = names.iter().map(String::as_str).collect();
-                    names.sort_unstable();
-                    names.dedup();
-                    Some(HashableColorSelection::Named(names))
-                }
-                _ => None,
-            },
+            color_glyphs: options
+                .color_selection
+                .as_ref()
+                .filter(|selection| match selection {
+                    ResolvedColorSelection::All => true,
+                    ResolvedColorSelection::Named(names) => !names.is_empty(),
+                }),
             ascent: options.ascent,
             center_horizontally: options.center_horizontally,
             center_vertically: options.center_vertically,

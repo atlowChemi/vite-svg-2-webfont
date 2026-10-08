@@ -40,7 +40,7 @@ impl<'de> serde::Deserialize<'de> for ColorGlyphSelection {
     }
 }
 
-impl From<&ColorGlyphSelection> for ColorSelection {
+impl From<&ColorGlyphSelection> for ResolvedColorSelection {
     fn from(selection: &ColorGlyphSelection) -> Self {
         match selection {
             ColorGlyphSelection::All => Self::All,
@@ -50,24 +50,30 @@ impl From<&ColorGlyphSelection> for ColorSelection {
 }
 
 /// Compiled membership for final logical names during SVG preparation.
-#[derive(Clone, Default)]
-#[allow(
-    dead_code,
-    reason = "explicit disabled selection is used by internal regression tests"
-)]
-pub(crate) enum ColorSelection {
+#[derive(Clone)]
+pub(crate) enum ResolvedColorSelection {
     All,
-    #[default]
-    None,
     Named(HashSet<String>),
 }
 
-impl ColorSelection {
+impl ResolvedColorSelection {
     pub fn contains(&self, name: &str) -> bool {
         match self {
             Self::All => true,
-            Self::None => false,
             Self::Named(names) => names.contains(name),
+        }
+    }
+}
+
+impl serde::Serialize for ResolvedColorSelection {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::All => serializer.serialize_bool(true),
+            Self::Named(names) => {
+                let mut names: Vec<_> = names.iter().map(String::as_str).collect();
+                names.sort_unstable();
+                serde::Serialize::serialize(&names, serializer)
+            }
         }
     }
 }

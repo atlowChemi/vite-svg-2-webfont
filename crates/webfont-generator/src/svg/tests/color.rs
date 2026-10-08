@@ -1,6 +1,6 @@
 use super::*;
 use crate::svg::{VariantGlyphCache, prepare_variant_svg_family_cached};
-use crate::types::color::{ColorSelection, ResolvedLayerPaint};
+use crate::types::color::{ResolvedColorSelection, ResolvedLayerPaint};
 
 fn source(name: &str, root: &str, body: &str) -> LoadedSvgFile {
     LoadedSvgFile {
@@ -30,7 +30,7 @@ fn color_pipeline_cache_and_results_share_layer_arrays() {
     let files = vec![source("icon", "", RECT)];
     let resolved = options(&files);
     let mut opts = svg_options_from_options(&resolved);
-    opts.color_selection = Some(&ColorSelection::All);
+    opts.color_selection = Some(&ResolvedColorSelection::All);
     let mut cache = super::super::types::GlyphCache::default();
     let first = prepare_svg_font_incremental(&opts, &files, &mut cache).unwrap();
     let second = prepare_svg_font_incremental(&opts, &files, &mut cache).unwrap();
@@ -69,7 +69,7 @@ fn color_pipeline_preserves_namespaced_xml_entities_and_empty_selection() {
     let files = vec![file];
     let resolved = options(&files);
     let mut opts = svg_options_from_options(&resolved);
-    opts.color_selection = Some(&ColorSelection::All);
+    opts.color_selection = Some(&ResolvedColorSelection::All);
     let color = prepare_svg_font(&opts, &files).unwrap();
     let layers = color.processed_glyphs[0].color_layers.as_ref().unwrap();
     assert_eq!(layers.len(), 4);
@@ -104,7 +104,7 @@ fn color_pipeline_preserves_namespaced_xml_entities_and_empty_selection() {
         layers[3].paint,
         ResolvedLayerPaint::Foreground { alpha: 1.0 }
     );
-    let empty = ColorSelection::Named(Default::default());
+    let empty = ResolvedColorSelection::Named(Default::default());
     opts.color_selection = Some(&empty);
     assert!(
         prepare_svg_font(&opts, &files).unwrap().processed_glyphs[0]
@@ -112,7 +112,7 @@ fn color_pipeline_preserves_namespaced_xml_entities_and_empty_selection() {
             .is_none()
     );
     let files = vec![source("icon", "", "")];
-    opts.color_selection = Some(&ColorSelection::All);
+    opts.color_selection = Some(&ResolvedColorSelection::All);
     assert!(
         prepare_svg_font(&opts, &files).unwrap().processed_glyphs[0]
             .color_layers
@@ -136,7 +136,7 @@ fn color_pipeline_nested_curves_preserve_evenodd_coverage_after_reflection() {
     )];
     let resolved = options(&files);
     let mut opts = svg_options_from_options(&resolved);
-    opts.color_selection = Some(&ColorSelection::All);
+    opts.color_selection = Some(&ResolvedColorSelection::All);
     let prepared = prepare_svg_font(&opts, &files).unwrap();
     let outline = &prepared.processed_glyphs[0].color_layers.as_ref().unwrap()[0].outline;
     let original = BezPath::from_svg(data).unwrap();
@@ -178,7 +178,7 @@ fn color_pipeline_keeps_small_holes_next_to_curved_boundaries() {
         resolved.optimize_output = Some(optimize);
         let mut opts = svg_options_from_options(&resolved);
         let mono = prepare_svg_font(&opts, &files).unwrap();
-        opts.color_selection = Some(&ColorSelection::All);
+        opts.color_selection = Some(&ResolvedColorSelection::All);
         let color = prepare_svg_font(&opts, &files).unwrap();
         let glyph = &color.processed_glyphs[0];
         let outline = &glyph.color_layers.as_ref().unwrap()[0].outline;
@@ -212,7 +212,7 @@ fn color_pipeline_strokes_keep_fallback_and_only_extract_solid_fills() {
         let resolved = options(&files);
         let mut opts = svg_options_from_options(&resolved);
         let mono = prepare_svg_font(&opts, &files).unwrap();
-        opts.color_selection = Some(&ColorSelection::All);
+        opts.color_selection = Some(&ResolvedColorSelection::All);
         let color = prepare_svg_font(&opts, &files).unwrap();
         let glyph = &color.processed_glyphs[0];
         let layers = glyph.color_layers.as_ref().unwrap();
@@ -254,7 +254,7 @@ fn color_pipeline_variant_layers_use_shared_advance_and_independent_source_scale
         resolved.center_horizontally = Some(true);
         resolved.center_vertically = Some(true);
         let mut opts = svg_options_from_options(&resolved);
-        opts.color_selection = Some(&ColorSelection::All);
+        opts.color_selection = Some(&ResolvedColorSelection::All);
         let mut cache = VariantGlyphCache::default();
         let prepared = prepare_variant_svg_family_cached(&opts, &family, Some(&mut cache)).unwrap();
         let glyph = &prepared.glyphs[0];
@@ -306,7 +306,7 @@ fn color_pipeline_variant_logical_renames_reselect_unchanged_sources() {
         vec![source("a", "", RECT), source("b", r#"fill="red""#, RECT)],
         vec![source("a", "", RECT), source("b", r#"fill="red""#, RECT)],
     ];
-    let named = ColorSelection::Named(["a".into()].into());
+    let named = ResolvedColorSelection::Named(["a".into()].into());
     let mut cache = VariantGlyphCache::default();
     for renamed in [false, true] {
         if renamed {
@@ -370,7 +370,7 @@ fn color_pipeline_resolves_authored_and_foreground_paint_in_order() {
     )];
     let resolved = options(&files);
     let mut opts = svg_options_from_options(&resolved);
-    opts.color_selection = Some(&ColorSelection::All);
+    opts.color_selection = Some(&ResolvedColorSelection::All);
     let prepared = prepare_svg_font(&opts, &files).unwrap();
     let paints: Vec<_> = prepared.processed_glyphs[0]
         .color_layers
@@ -498,7 +498,7 @@ fn color_pipeline_root_fill_inline_color_and_marker_collision() {
         let files = vec![source("icon", root, body)];
         let resolved = options(&files);
         let mut opts = svg_options_from_options(&resolved);
-        opts.color_selection = Some(&ColorSelection::All);
+        opts.color_selection = Some(&ResolvedColorSelection::All);
         let prepared = prepare_svg_font(&opts, &files).unwrap();
         assert_eq!(
             prepared.processed_glyphs[0].color_layers.as_ref().unwrap()[0].paint,
@@ -527,7 +527,7 @@ fn color_pipeline_preserves_mixed_paint_and_color_alpha() {
         let files = vec![source("icon", root, &body)];
         let resolved = options(&files);
         let mut opts = svg_options_from_options(&resolved);
-        opts.color_selection = Some(&ColorSelection::All);
+        opts.color_selection = Some(&ResolvedColorSelection::All);
         let prepared = prepare_svg_font(&opts, &files).unwrap();
         let paints: Vec<_> = prepared.processed_glyphs[0].color_layers.as_ref().unwrap()
             .iter().map(|layer| layer.paint).collect();
@@ -548,7 +548,7 @@ fn color_pipeline_evenodd_preserves_islands_and_sibling_holes() {
         let mut resolved = options(&files);
         resolved.optimize_output = Some(optimize);
         let mut opts = svg_options_from_options(&resolved);
-        opts.color_selection = Some(&ColorSelection::All);
+        opts.color_selection = Some(&ResolvedColorSelection::All);
         let prepared = prepare_svg_font(&opts, &files).unwrap();
         let outline = &prepared.processed_glyphs[0].color_layers.as_ref().unwrap()[0].outline;
         let original = BezPath::from_svg(data).unwrap();
@@ -580,7 +580,7 @@ fn color_pipeline_keeps_nonzero_coverage_and_evenodd_holes_independent() {
             resolved.optimize_output = Some(optimize);
             let mut opts = svg_options_from_options(&resolved);
             let mono = prepare_svg_font(&opts, &files).unwrap();
-            opts.color_selection = Some(&ColorSelection::All);
+            opts.color_selection = Some(&ResolvedColorSelection::All);
             let color = prepare_svg_font(&opts, &files).unwrap();
             let glyph = &color.processed_glyphs[0];
             let layers = glyph.color_layers.as_ref().unwrap();
@@ -611,7 +611,7 @@ fn color_pipeline_shares_viewbox_scale_center_and_rounding_with_fallback() {
         resolved.round = Some(10.0);
         resolved.optimize_output = Some(optimize);
         let mut opts = svg_options_from_options(&resolved);
-        opts.color_selection = Some(&ColorSelection::All);
+        opts.color_selection = Some(&ResolvedColorSelection::All);
         let prepared = prepare_svg_font(&opts, &files).unwrap();
         let glyph = &prepared.processed_glyphs[0];
         let layer = &glyph.color_layers.as_ref().unwrap()[0];
@@ -628,12 +628,12 @@ fn color_pipeline_incremental_selection_rename_and_content_reuse_match_fresh() {
     let mut files = vec![source("a", "", RECT), source("b", "", RECT)];
     let resolved = options(&files);
     let mut opts = svg_options_from_options(&resolved);
-    let named = ColorSelection::Named(["a".into()].into());
+    let named = ResolvedColorSelection::Named(["a".into()].into());
     let mut cache = super::super::types::GlyphCache::default();
     for selection in [
         None,
         Some(&named),
-        Some(&ColorSelection::All),
+        Some(&ResolvedColorSelection::All),
         Some(&named),
         None,
     ] {
@@ -678,12 +678,12 @@ fn color_pipeline_variant_fallback_blank_and_paint_edits_match_fresh() {
     ];
     let resolved = options(&variants[0]);
     let mut opts = svg_options_from_options(&resolved);
-    let named = ColorSelection::Named(["b".into()].into());
+    let named = ResolvedColorSelection::Named(["b".into()].into());
     let mut cache = VariantGlyphCache::default();
     for behavior in [MissingGlyphBehavior::Fallback, MissingGlyphBehavior::Blank] {
         for selection in [
             None,
-            Some(&ColorSelection::All),
+            Some(&ResolvedColorSelection::All),
             Some(&named),
             None,
             Some(&named),

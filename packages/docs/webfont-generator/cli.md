@@ -63,9 +63,9 @@ webfont-generator --dest ./dist/fonts --start-codepoint 0xE000 ./icons/
 
 ### JSON manifest
 
-The manifest accepts `"colorGlyphs": true` or `"colorGlyphs": ["logo"]`. Omit it or use `[]` for monochrome output. Select compatible formats explicitly in ordinary mode, for example `"types": ["woff2", "woff"]`; the ordinary default includes incompatible EOT. Names are logical glyph names, and selection applies across all variants. There is no separate color CLI flag. See [color glyphs](./color) for the supported SVG subset and browser/platform behavior.
-
 `--config <PATH>` loads a complete JSON configuration using the camelCase [generator options](./node#options-reference). It cannot be combined with positional inputs or any generation flag, even a flag set to its default. `--help` and `--version` still work.
+
+The manifest accepts `"colorGlyphs": true` or `"colorGlyphs": ["logo"]`. Omit it or use `[]` for monochrome output; explicit `null`, `false`, strings, and mixed-type arrays are invalid. Select compatible formats explicitly in ordinary mode, for example `"types": ["woff2", "woff"]`; the ordinary default includes incompatible EOT. Names are logical glyph names, and selection applies across all variants, including fallbacks. Duplicates are harmless; unknown names are rejected in first-occurrence input order. There is no separate color CLI flag. See [`colorGlyphs`](./node#colorglyphs) for option details and [color glyphs](./#color-glyphs) for the supported SVG subset and browser/platform behavior.
 
 ::: code-group
 
