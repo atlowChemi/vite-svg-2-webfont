@@ -1,6 +1,7 @@
 use std::io::ErrorKind;
 use std::sync::Arc;
 
+use kurbo::{BezPath, PathEl, Point};
 use write_fonts::read::tables::colr::{Colr, Paint};
 use write_fonts::read::{FontRef, TableProvider};
 use write_fonts::types::{F2Dot14, GlyphId, GlyphId16, Tag};
@@ -17,8 +18,119 @@ use crate::svg::{prepare_svg_font, svg_options_from_options};
 use crate::types::color::{ColorSelection, ProcessedColorLayer};
 use crate::{FontType, FontVariant, GenerateWebfontsOptions, prepare_variant_family};
 
-use super::super::glyphs::{compile_and_dedup_glyphs, compute_glyph_metrics};
+use super::super::color::build_color;
+use super::super::glyphs::{build_glyf_table, compile_and_dedup_glyphs, compute_glyph_metrics};
+use super::super::types::CompiledGlyphOutline;
 use super::super::{build, build_variant, ttf_options_from_options};
+
+#[test]
+fn color_allocation_validates_initial_glyph_count() {
+    // Include .notdef in the limit even when there are no selectable glyphs.
+    let empty = build_color(&[], usize::from(u16::MAX) - 1).unwrap();
+    assert!(empty.layers.is_empty());
+    assert!(empty.tables.is_empty());
+    for (placeholders, message) in [
+        (
+            usize::from(u16::MAX),
+            "Font exceeds the 65,535-glyph limit.",
+        ),
+        (usize::MAX, "Font glyph count overflow."),
+    ] {
+        let error = build_color(&[], placeholders).err().unwrap();
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
+        assert_eq!(error.to_string(), message);
+    }
+}
+
+#[test]
+fn explicit_no_color_selection_matches_omitted_selection() {
+    let files = vec![LoadedSvgFile {
+        path: "icon.svg".into(), glyph_name: "icon".into(),
+        contents: r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path fill="red" d="M10 10H90V90H10Z"/></svg>"#.into(),
+    }];
+    let generate = |selection| {
+        let mut options = resolve_generate_webfonts_options_with_color(
+            GenerateWebfontsOptions {
+                dest: "unused".into(),
+                files: vec!["icon.svg".into()],
+                types: Some(vec![FontType::Ttf]),
+                write_files: Some(false),
+                ..Default::default()
+            },
+            selection,
+        )
+        .unwrap();
+        finalize_generate_webfonts_options(&mut options, &files).unwrap();
+        let prepared = prepare_svg_font(&svg_options_from_options(&options), &files).unwrap();
+        assert!(prepared.processed_glyphs[0].color_layers.is_none());
+        let mut ttf = ttf_options_from_options(&options);
+        ttf.ts = Some(0);
+        build(ttf, &prepared.processed_glyphs, None).unwrap()
+    };
+    let omitted = generate(None);
+    let disabled = generate(Some(ColorSelection::None));
+    assert_eq!(omitted.ttf(), disabled.ttf());
+    assert!(FontRef::new(disabled.ttf()).unwrap().colr().is_err());
+}
+
+#[test]
+fn malformed_color_layer_reports_source_glyph() {
+    let (options, mut glyphs) = prepare(&[r#"<path d="M10 10H90V90H10Z"/>"#]);
+    // A cubic after a closed contour has no current point. The container is
+    // valid, but this internal path cannot be converted to a TrueType outline.
+    let malformed = BezPath::from_vec(vec![
+        PathEl::MoveTo(Point::ZERO),
+        PathEl::ClosePath,
+        PathEl::CurveTo(
+            Point::new(1.0, 2.0),
+            Point::new(3.0, 4.0),
+            Point::new(5.0, 6.0),
+        ),
+    ]);
+    let paint = glyphs[0].color_layers.as_ref().unwrap()[0].paint;
+    glyphs[0].color_layers = Some(Arc::from([ProcessedColorLayer {
+        outline: Arc::new(malformed),
+        outline_hash: 0,
+        paint,
+    }]));
+    let error = build(ttf_options_from_options(&options), &glyphs, None)
+        .err()
+        .unwrap();
+    assert_eq!(error.kind(), ErrorKind::Other);
+    assert!(
+        error
+            .to_string()
+            .contains("Failed to compile color layer for 'icon0'")
+    );
+    assert!(
+        error
+            .to_string()
+            .contains("Encountered a cubic segment before a MoveTo")
+    );
+}
+
+#[test]
+fn rejected_auxiliary_glyph_reports_layer_name() {
+    let (_, glyphs) = prepare(&[r#"<path d="M10 10H90V90H10Z"/>"#]);
+    let (compiled, _) = compile_and_dedup_glyphs(&glyphs).unwrap();
+    let mut color = build_color(&compiled, 0).unwrap();
+    let CompiledGlyphOutline::Inline(outline) = &mut color.layers[0].outline else {
+        panic!("expected an inline layer")
+    };
+    // Production layers have no instructions. Inject invalid internal data to
+    // check that the table boundary preserves the layer context on rejection.
+    outline.instructions = vec![0; usize::from(u16::MAX) + 1];
+    let error = build_glyf_table(&compiled, &[], &color.layers)
+        .err()
+        .unwrap();
+    assert_eq!(error.kind(), ErrorKind::Other);
+    assert!(
+        error
+            .to_string()
+            .contains("Failed to compile layer 'colr.layer2'")
+    );
+    assert!(error.to_string().contains("instructions len overflows"));
+}
 
 #[test]
 fn glyph_metrics_preserve_empty_signed_and_average_values() {

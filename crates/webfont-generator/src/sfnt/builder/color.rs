@@ -29,7 +29,13 @@ pub(super) fn build_color(
         .checked_add(placeholder_count)
         .and_then(|count| count.checked_add(1))
         .ok_or_else(|| Error::new(ErrorKind::InvalidInput, "Font glyph count overflow."))?;
-    let count = glyphs.iter().try_fold(selectable_count, |count, glyph| {
+    if selectable_count > usize::from(u16::MAX) {
+        return Err(Error::new(
+            ErrorKind::InvalidInput,
+            "Font exceeds the 65,535-glyph limit.",
+        ));
+    }
+    glyphs.iter().try_fold(selectable_count, |count, glyph| {
         count
             .checked_add(glyph.color_layers.as_ref().map_or(0, |layers| layers.len()))
             .filter(|count| *count <= usize::from(u16::MAX))
@@ -43,12 +49,6 @@ pub(super) fn build_color(
                 )
             })
     })?;
-    if count > usize::from(u16::MAX) {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "Font exceeds the 65,535-glyph limit.",
-        ));
-    }
     let mut result = ColorFont::default();
     let mut palette = Vec::new();
     let mut palette_indices = HashMap::new();
@@ -76,12 +76,8 @@ pub(super) fn build_color(
                     let palette_index = match palette_indices.get(&key) {
                         Some(index) => *index,
                         None => {
-                            if palette.len() >= usize::from(u16::MAX) {
-                                return Err(Error::new(
-                                    ErrorKind::InvalidInput,
-                                    "CPAL exceeds 65,535 fixed colors.",
-                                ));
-                            }
+                            // Each new color needs a layer glyph, so the checked
+                            // total glyph count also bounds this palette index.
                             let index = palette.len() as u16;
                             palette.push(ColorRecord::new(blue, green, red, 255));
                             palette_indices.insert(key, index);
@@ -91,8 +87,12 @@ pub(super) fn build_color(
                     (palette_index, alpha)
                 }
             };
-            let outline =
-                SimpleGlyph::from_bezpath(&quadratic_path(&layer.outline)?).map_err(|error| {
+            let outline = quadratic_path(&layer.outline)
+                .and_then(|path| {
+                    SimpleGlyph::from_bezpath(&path)
+                        .map_err(|error| Error::other(format!("{error:?}")))
+                })
+                .map_err(|error| {
                     Error::other(format!(
                         "Failed to compile color layer for '{}': {error:?}",
                         glyph.name
