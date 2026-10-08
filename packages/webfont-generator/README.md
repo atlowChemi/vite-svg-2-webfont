@@ -25,6 +25,7 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 - Generated font binaries (TTF, WOFF, etc.) may differ at the byte level because a different encoder is used, but the fonts are equally valid.
 - CSS, HTML, and template output is identical.
 - A new `variants` option supports multi-weight families with discrete designs.
+- A new [`colorGlyphs`](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/node#color-selection) option preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
 
@@ -83,12 +84,6 @@ const result = await generateWebfonts({
 const css = result.generateCss();
 const html = result.generateHtml();
 ```
-
-## Color glyphs
-
-Pass `colorGlyphs: true` to preserve solid SVG paint for all glyphs, or `colorGlyphs: ['logo']` for final post-rename logical names. Omit it or use `[]` for monochrome output; `false` is invalid. Use TTF, WOFF, and/or WOFF2 explicitly in ordinary mode because its default includes incompatible EOT. Variant defaults are compatible. The option works with ordinary and multi-variant incremental regeneration.
-
-Color fonts retain a monochrome fallback. Tested macOS WebKit uses this fallback without fixed colors or per-layer opacity; Chromium, Firefox, and Linux WebKit render color. Advanced SVG is best-effort. See the [generator overview](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/#color-glyphs) for supported paint and compatibility details, and [Node usage](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/node#color-selection) for examples.
 
 ## Rust library (crates.io)
 
