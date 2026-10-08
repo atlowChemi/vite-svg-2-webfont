@@ -110,6 +110,7 @@ export default defineConfig({
                 items: [
                     { text: 'Overview', link: '/webfont-generator/' },
                     { text: 'Node.js', link: '/webfont-generator/node' },
+                    { text: 'Color glyphs', link: '/webfont-generator/color' },
                     { text: 'Rust', link: '/webfont-generator/rust' },
                     { text: 'CLI', link: '/webfont-generator/cli' },
                     { text: 'npm Adapter Changelog', link: '/webfont-generator/changelog' },
@@ -136,6 +137,7 @@ export default defineConfig({
                     items: [
                         { text: 'Overview', link: '/webfont-generator/' },
                         { text: 'Node.js', link: '/webfont-generator/node' },
+                        { text: 'Color glyphs', link: '/webfont-generator/color' },
                         { text: 'Rust', link: '/webfont-generator/rust' },
                         { text: 'CLI', link: '/webfont-generator/cli' },
                         { text: 'Templates', link: '/webfont-generator/templates' },

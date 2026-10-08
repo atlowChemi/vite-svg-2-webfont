@@ -661,6 +661,46 @@ mod cli {
     use std::process::Command;
 
     #[test]
+    fn color_manifest_generates_tables_and_reports_invalid_selection() {
+        use write_fonts::read::{FontRef, TableProvider};
+        let root = std::path::PathBuf::from(super::temp_dest("cli-color"));
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(root.join("icon.svg"), r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"><path fill="red" d="M0 0H10V10H0Z"/></svg>"#).unwrap();
+        let path = root.join("font.json");
+        for selection in [
+            serde_json::json!(true),
+            serde_json::json!(["icon"]),
+            serde_json::json!([]),
+        ] {
+            let manifest = serde_json::json!({"dest":"out", "files":["icon.svg"], "types":["ttf"], "colorGlyphs":selection});
+            std::fs::write(&path, manifest.to_string()).unwrap();
+            let output = cli_bin().arg("--config").arg(&path).output().unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let bytes = std::fs::read(root.join("out/iconfont.ttf")).unwrap();
+            assert_eq!(
+                FontRef::new(&bytes).unwrap().colr().is_ok(),
+                selection != serde_json::json!([])
+            );
+        }
+        for selection in [
+            serde_json::json!(null),
+            serde_json::json!(false),
+            serde_json::json!(["missing"]),
+            serde_json::json!([1]),
+        ] {
+            std::fs::write(&path, serde_json::json!({"dest":"out", "files":["icon.svg"], "types":["ttf"], "colorGlyphs":selection}).to_string()).unwrap();
+            let output = cli_bin().arg("--config").arg(&path).output().unwrap();
+            assert!(!output.status.success());
+            assert!(String::from_utf8_lossy(&output.stderr).contains("colorGlyphs"));
+        }
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn manifests_generate_from_an_unrelated_working_directory_and_report_fields() {
         use serde_json::json;
         let root = std::path::PathBuf::from(super::temp_dest("cli-manifest"));

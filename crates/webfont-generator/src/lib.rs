@@ -94,10 +94,10 @@ use rendering::{
 };
 pub use result::{GenerateWebfontsResult, RegenerateError};
 pub use types::{
-    CssContext, FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, GlyphChange,
-    GlyphChangeEntry, HtmlContext, MissingGlyphBehavior, MissingGlyphOptions, RegenerationFiles,
-    SvgFormatOptions, TemplateVariant, TtfFormatOptions, VariantFileSet, Woff2FormatOptions,
-    WoffFormatOptions,
+    ColorGlyphSelection, CssContext, FontType, FontVariant, FormatOptions, GenerateWebfontsOptions,
+    GlyphChange, GlyphChangeEntry, HtmlContext, MissingGlyphBehavior, MissingGlyphOptions,
+    RegenerationFiles, SvgFormatOptions, TemplateVariant, TtfFormatOptions, VariantFileSet,
+    Woff2FormatOptions, WoffFormatOptions,
 };
 
 type PreparedVariantInput = (
@@ -129,6 +129,10 @@ fn prepare_variant_family_cached(
         source_files,
         &options.explicit_codepoints,
         options.start_codepoint,
+    )?;
+    input::validate_color_names(
+        options,
+        family.glyphs.iter().map(|glyph| glyph.name.as_str()),
     )?;
     let variants = options
         .variants
@@ -270,12 +274,9 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
     hooks: &H,
 ) -> Result<GenerateWebfontsResult, H::Error> {
     validate_generate_webfonts_options(&options)?;
-    let mut result = if options.variants.is_some() {
-        let mut resolved_options = resolve_generate_webfonts_options(options)?;
-        let variant_paths = resolved_options
-            .variants
-            .as_ref()
-            .expect("validated variant options must resolve variants")
+    let mut resolved_options = resolve_generate_webfonts_options(options)?;
+    let mut result = if let Some(variants) = &resolved_options.variants {
+        let variant_paths = variants
             .variants
             .iter()
             .map(|variant| variant.files.clone())
@@ -288,8 +289,7 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
         });
         generation.await.map_err(variant_preparation_join_error)??
     } else {
-        let source_files = load_svg_files_with_hooks(&options.files, hooks, true).await?;
-        let mut resolved_options = resolve_generate_webfonts_options(options)?;
+        let source_files = load_svg_files_with_hooks(&resolved_options.files, hooks, true).await?;
         finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
         tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
             .await

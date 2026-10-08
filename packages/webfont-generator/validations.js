@@ -1,5 +1,12 @@
 function validateOptions(options) {
     if (!options.dest) throw new Error('"options.dest" is empty.');
+    const colorGlyphs = options.colorGlyphs;
+    if (colorGlyphs !== undefined && colorGlyphs !== true) {
+        if (!Array.isArray(colorGlyphs)) throw new TypeError('"options.colorGlyphs" must be true or an array of glyph names; omit it or use [] to disable color.');
+        for (const [index, name] of colorGlyphs.entries()) {
+            if (typeof name !== 'string') throw new TypeError(`"options.colorGlyphs[${index}]" must be a string.`);
+        }
+    }
     if (options.cssTemplate === '') throw new Error('"options.cssTemplate" must not be empty.');
     if (options.htmlTemplate === '') throw new Error('"options.htmlTemplate" must not be empty.');
     const types = options.types ?? (options.variants == null ? ['eot', 'woff', 'woff2'] : ['woff', 'woff2']);
@@ -11,6 +18,10 @@ function validateOptions(options) {
         if (!options.files?.length) throw new Error('Either "options.files" or "options.variants" must be provided.');
         if (options.missingGlyphs != null) throw new Error('"options.missingGlyphs" requires "options.variants".');
         if (options.variantClassPrefix != null) throw new Error('"options.variantClassPrefix" requires "options.variants".');
+        if (colorGlyphs === true || (Array.isArray(colorGlyphs) && colorGlyphs.length > 0)) {
+            const incompatible = types.filter(type => type === 'eot' || type === 'svg');
+            if (incompatible.length) throw new Error(`options.colorGlyphs: incompatible output formats: ${incompatible.join(', ')}. Use TTF, WOFF, or WOFF2.`);
+        }
         return;
     }
 

@@ -13,6 +13,6 @@ pub(crate) use files::{
 pub(crate) use files::{load_svg_files_with_hooks, load_variant_svg_files_with_hooks};
 pub(crate) use options::{
     ResolvedGenerateWebfontsOptions, ResolvedVariants, default_output_dest,
-    finalize_generate_webfonts_options, resolve_generate_webfonts_options,
+    finalize_generate_webfonts_options, resolve_generate_webfonts_options, validate_color_names,
     validate_generate_webfonts_options,
 };

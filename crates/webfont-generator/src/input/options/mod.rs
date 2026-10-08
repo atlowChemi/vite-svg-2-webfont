@@ -37,6 +37,7 @@ pub(crate) struct ResolvedFontVariant {
 
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
+    pub color_glyphs: Option<crate::ColorGlyphSelection>,
     pub color_selection: Option<ColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
@@ -100,7 +101,15 @@ fn validate_color_formats(
     {
         return Err(std::io::Error::new(
             ErrorKind::InvalidInput,
-            "Color glyphs require TTF, WOFF, or WOFF2; SVG and EOT are not supported.",
+            format!(
+                "options.colorGlyphs: incompatible output formats: {}. Use TTF, WOFF, or WOFF2.",
+                types
+                    .iter()
+                    .filter(|kind| matches!(kind, FontType::Svg | FontType::Eot))
+                    .map(|kind| kind.as_extension())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         ));
     }
     Ok(())
@@ -488,10 +497,11 @@ fn resolve_variants(
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
-    resolve_generate_webfonts_options_with_color(options, None)
+    let selection = options.color_glyphs.as_ref().map(ColorSelection::from);
+    resolve_generate_webfonts_options_with_color(options, selection)
 }
 
-// Internal entry point until the public color option is introduced in PR 3.
+// Shared resolution for public options and internal pipeline tests.
 pub(crate) fn resolve_generate_webfonts_options_with_color(
     options: GenerateWebfontsOptions,
     color_selection: Option<ColorSelection>,
@@ -538,6 +548,7 @@ pub(crate) fn resolve_generate_webfonts_options_with_color(
         .or(options.preserve_aspect_ratio);
 
     Ok(ResolvedGenerateWebfontsOptions {
+        color_glyphs: options.color_glyphs,
         color_selection,
         ascent: options.ascent,
         center_horizontally: options.center_horizontally,
@@ -599,6 +610,10 @@ pub(crate) fn finalize_generate_webfonts_options(
     options: &mut ResolvedGenerateWebfontsOptions,
     source_files: &[LoadedSvgFile],
 ) -> std::io::Result<()> {
+    validate_color_names(
+        options,
+        source_files.iter().map(|file| file.glyph_name.as_str()),
+    )?;
     options.codepoints = resolve_codepoints(
         source_files
             .iter()
@@ -607,6 +622,31 @@ pub(crate) fn finalize_generate_webfonts_options(
         options.start_codepoint,
     )?;
 
+    Ok(())
+}
+
+pub(crate) fn validate_color_names<'a>(
+    options: &ResolvedGenerateWebfontsOptions,
+    names: impl Iterator<Item = &'a str>,
+) -> std::io::Result<()> {
+    if let Some(crate::ColorGlyphSelection::Named(selected)) = &options.color_glyphs {
+        let names: HashSet<_> = names.collect();
+        let mut seen = HashSet::new();
+        let missing: Vec<_> = selected
+            .iter()
+            .filter(|name| !names.contains(name.as_str()) && seen.insert(name.as_str()))
+            .map(String::as_str)
+            .collect();
+        if !missing.is_empty() {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "options.colorGlyphs: unknown glyph names: {}",
+                    missing.join(", ")
+                ),
+            ));
+        }
+    }
     Ok(())
 }
 

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use napi::bindgen_prelude::Either;
 use napi_derive::napi;
 use serde_json::{Map, Value};
 
@@ -295,6 +296,10 @@ pub struct HtmlContext {
 #[napi(object)]
 #[derive(Clone, Default)]
 pub struct GenerateWebfontsOptions {
+    /// Preserve solid SVG paint for all or named post-rename glyphs, across every variant.
+    /// Omit or use [] for monochrome. Active color requires TTF, WOFF, or WOFF2.
+    #[napi(ts_type = "true | string[]")]
+    pub color_glyphs: Option<Either<bool, Vec<String>>>,
     /// Font ascent in font units. Overrides the value computed from the source
     /// glyphs.
     pub ascent: Option<f64>,

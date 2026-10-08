@@ -70,6 +70,10 @@ const css = result.generateCss();
 const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 ```
 
+## Color selection
+
+Set `colorGlyphs: true` for all glyphs or `colorGlyphs: ['logo']` for final post-rename names. Omission or `[]` disables color; `false` is invalid. Active color requires `types: ['ttf', 'woff', 'woff2']` or a subset. Ordinary defaults include incompatible EOT; variant defaults are compatible. See [color glyphs](./color) for paint semantics, regeneration, and browser/platform limits.
+
 ## Multi-variant fonts
 
 A multi-variant family groups several designs of the same icons, such as light and bold,
@@ -107,6 +111,14 @@ Custom templates receive extra family metadata; see the [template context compar
 For stylesheet customization and SCSS, see [Templates](./templates).
 
 ## Options reference
+
+### `colorGlyphs`
+
+- Type: `true | string[]`
+- Default: omitted (monochrome)
+- Description: Preserve solid SVG paint for all glyphs (`true`) or selected final post-rename logical names. An empty array disables color. `false`, `null`, strings, and mixed-type arrays are invalid. Selection applies across every variant, including resolved fallbacks. Unknown names are rejected.
+
+Active color requires TTF, WOFF, or WOFF2. Ordinary defaults include EOT, so specify compatible `types`; variant defaults are compatible. Color selection contributes to CSS font-URL hashes; array order and repeated names do not change the hash. See [color glyphs](./color) for SVG semantics, incremental examples, and browser/platform compatibility.
 
 ### `files`
 

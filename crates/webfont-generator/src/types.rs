@@ -3,6 +3,7 @@ use std::collections::HashMap;
 use serde_json::{Map, Value};
 
 pub(crate) mod color;
+pub use color::ColorGlyphSelection;
 
 /// What happened to a file, for [`crate::GenerateWebfontsResult::regenerate`]. `name` is the
 /// caller-resolved glyph name (the `rename` callback, if any, is applied by the caller).
@@ -328,6 +329,14 @@ pub struct HtmlContext {
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]
 pub struct GenerateWebfontsOptions {
+    /// Preserve solid SVG paint for all or named post-rename logical glyphs, in every variant.
+    /// Omission or an empty named list preserves monochrome output. Active color requires
+    /// TTF, WOFF, or WOFF2; ordinary defaults include EOT, so set `types` explicitly.
+    #[cfg_attr(
+        feature = "cli",
+        serde(default, deserialize_with = "color::deserialize_selection")
+    )]
+    pub color_glyphs: Option<ColorGlyphSelection>,
     /// Font ascent in font units. Overrides the value computed from the source
     /// glyphs.
     pub ascent: Option<f64>,

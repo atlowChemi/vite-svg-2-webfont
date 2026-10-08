@@ -14,9 +14,42 @@ const options = (overrides = {}) => ({
 });
 
 describe('validateOptions', () => {
+    it('accepts omitted, all, empty, and named color selection in both modes', () => {
+        for (const colorGlyphs of [undefined, true, [], ['icon'], ['icon', 'icon']]) {
+            expect(() => validateOptions({ dest: 'artifacts', files: ['icon.svg'], types: ['woff2'], colorGlyphs })).not.toThrow();
+            expect(() => validateOptions(options({ colorGlyphs }))).not.toThrow();
+        }
+    });
+
+    it('rejects invalid color values and sparse arrays before calling the native binding', () => {
+        const sparse: string[] = [];
+        sparse.length = 1;
+        for (const colorGlyphs of [null, false, 'icon', 1, {}, ['icon', 1], ['icon', undefined], sparse]) {
+            expect(() => validateOptions({ dest: 'artifacts', files: ['icon.svg'], colorGlyphs })).toThrow(/options\.colorGlyphs/);
+            expect(() => validateOptions(options({ colorGlyphs }))).toThrow(/options\.colorGlyphs/);
+        }
+        expect(() => validateOptions(options({ colorGlyphs: ['icon', 1] }))).toThrow('options.colorGlyphs[1]');
+    });
+
     it('accepts ordinary file options with default types', () => {
         expect(() => validateOptions({ dest: 'artifacts', files: ['icon.svg'] })).not.toThrow();
         expect(() => validateOptions({ dest: 'artifacts', files: ['icon.svg'], order: ['eot'] })).not.toThrow();
+    });
+
+    it('validates active color formats and preserves disabled ordinary legacy output', () => {
+        const ordinary = { dest: 'artifacts', files: ['icon.svg'] };
+        for (const colorGlyphs of [true, ['icon']]) {
+            expect(() => validateOptions({ ...ordinary, colorGlyphs })).toThrow('options.colorGlyphs: incompatible output formats: eot');
+            expect(() => validateOptions({ ...ordinary, colorGlyphs, types: ['woff2', 'svg', 'eot'] })).toThrow('incompatible output formats: svg, eot');
+            expect(() => validateOptions({ ...ordinary, colorGlyphs, types: ['ttf', 'woff', 'woff2'] })).not.toThrow();
+            expect(() => validateOptions(options({ colorGlyphs, types: undefined }))).not.toThrow();
+            expect(() => validateOptions(options({ colorGlyphs, types: ['eot'] }))).toThrow('options.types');
+            expect(() => validateOptions(options({ colorGlyphs, types: ['svg'] }))).toThrow('options.types');
+        }
+        for (const colorGlyphs of [undefined, []]) {
+            expect(() => validateOptions({ ...ordinary, colorGlyphs })).not.toThrow();
+            expect(() => validateOptions({ ...ordinary, colorGlyphs, types: ['svg', 'eot'] })).not.toThrow();
+        }
     });
 
     it('requires a destination', () => {

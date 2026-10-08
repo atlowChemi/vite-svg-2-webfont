@@ -175,6 +175,11 @@ export declare function generateWebfonts(options: GenerateWebfontsOptions, renam
  */
 export interface GenerateWebfontsOptions {
   /**
+   * Preserve solid SVG paint for all or named post-rename glyphs, across every variant.
+   * Omit or use [] for monochrome. Active color requires TTF, WOFF, or WOFF2.
+   */
+  colorGlyphs?: true | string[]
+  /**
    * Font ascent in font units. Overrides the value computed from the source
    * glyphs.
    */

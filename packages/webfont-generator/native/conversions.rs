@@ -1,4 +1,8 @@
 //! Explicit ownership transfer across the binding boundary.
+use napi::bindgen_prelude::Either;
+use napi::{Error, Status};
+use webfont_generator::ColorGlyphSelection;
+
 use crate::types::*;
 
 macro_rules! fields {
@@ -73,9 +77,23 @@ impl From<FormatOptions> for webfont_generator::FormatOptions {
     }
 }
 
-impl From<GenerateWebfontsOptions> for webfont_generator::GenerateWebfontsOptions {
-    fn from(value: GenerateWebfontsOptions) -> Self {
-        Self {
+impl TryFrom<GenerateWebfontsOptions> for webfont_generator::GenerateWebfontsOptions {
+    type Error = Error;
+
+    fn try_from(value: GenerateWebfontsOptions) -> Result<Self, Self::Error> {
+        let color_glyphs = match value.color_glyphs {
+            None => None,
+            Some(Either::A(true)) => Some(ColorGlyphSelection::All),
+            Some(Either::B(names)) => Some(ColorGlyphSelection::Named(names)),
+            Some(Either::A(false)) => {
+                return Err(Error::new(
+                    Status::InvalidArg,
+                    "options.colorGlyphs: expected true or an array of glyph names; omit or use [] to disable color",
+                ));
+            }
+        };
+        Ok(Self {
+            color_glyphs,
             ascent: value.ascent,
             center_horizontally: value.center_horizontally,
             center_vertically: value.center_vertically,
@@ -116,6 +134,6 @@ impl From<GenerateWebfontsOptions> for webfont_generator::GenerateWebfontsOption
                 .variants
                 .map(|values| values.into_iter().map(Into::into).collect()),
             write_files: value.write_files,
-        }
+        })
     }
 }
