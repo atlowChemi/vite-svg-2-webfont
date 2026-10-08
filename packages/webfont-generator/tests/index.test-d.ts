@@ -22,6 +22,11 @@ import {
 } from '../index.js';
 
 it('exports the public generator API', () => {
+    expectTypeOf<GenerateWebfontsFileOptions['colorGlyphs']>().toEqualTypeOf<true | string[] | undefined>();
+    expectTypeOf<GenerateWebfontsVariantOptions['colorGlyphs']>().toEqualTypeOf<true | string[] | undefined>();
+    expectTypeOf<{ dest: string; files: string[]; colorGlyphs: false }>().not.toExtend<GenerateWebfontsInputOptions>();
+    expectTypeOf<{ dest: string; files: string[]; colorGlyphs: string }>().not.toExtend<GenerateWebfontsInputOptions>();
+    expectTypeOf<{ dest: string; files: string[]; colorGlyphs: (string | number)[] }>().not.toExtend<GenerateWebfontsInputOptions>();
     expectTypeOf(generateWebfonts).toBeFunction();
     expectTypeOf(templates).toEqualTypeOf<{ html: string; css: string; scss: string }>();
     expectTypeOf(MissingGlyphBehavior).toEqualTypeOf<{

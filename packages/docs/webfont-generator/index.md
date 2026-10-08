@@ -44,24 +44,24 @@ separate package for consumers to install. See [Node.js](./node), [Rust](./rust)
 For a single-face font, the generation pipeline works as follows:
 
 1. **SVG loading** -- Read and validate source SVG files in parallel
-2. **Glyph preparation** -- Parse glyph paths with `usvg`, process geometry with `oxvg_path`, and normalize metrics into a shared prepared glyph set
-3. **Parallel SVG and table assembly** -- Serialize the SVG font if requested, and compile prepared geometry into shared TrueType/OpenType tables using [`write-fonts`](https://github.com/googlefonts/fontations) when binary formats are needed
-4. **Requested binary outputs** -- Assemble TTF if requested; generate WOFF, WOFF2, and EOT in parallel from the shared tables. EOT embeds a lazily assembled TTF binary, while WOFF and WOFF2 use the tables directly
+2. **Glyph preparation** -- Parse glyph paths and optional solid paint with `usvg`, process geometry with `oxvg_path`, and normalize shared layer/fallback geometry. Parsed and processed caches retain paint for selected glyphs.
+3. **Parallel SVG and table assembly** -- Serialize the SVG font if requested and supported by the selected options. Compile paint-aware selectable glyphs and auxiliary layers into shared tables using [`write-fonts`](https://github.com/googlefonts/fontations): `glyf` fallback plus COLR/CPAL for selected glyphs.
+4. **Requested binary outputs** -- Assemble TTF if requested; generate WOFF and WOFF2 from shared tables, and EOT (which embeds TTF) when supported by the selected options.
 5. **Template rendering** -- Render CSS and HTML previews via Handlebars when writing those files or calling the result's rendering methods
 
 ```mermaid
 flowchart TD
-    A[SVG files] --> B[Parse &amp; normalize<br/>usvg + oxvg_path]
-    B --> C[Prepared glyphs]
-    C -.->|if requested| D[SVG output]
-    C -->|if binary formats requested| E[Shared font tables<br/>via write-fonts]
+    A[SVG files + optional color selection] --> B[Parse geometry &amp; optional paint<br/>usvg + oxvg_path]
+    B --> C[Shared layer/fallback geometry<br/>Parsed &amp; processed caches]
+    C -.->|if supported and requested| D[SVG output]
+    C -->|if binary formats requested| E[Paint-aware selectable IDs + layer glyphs<br/>glyf fallback + optional COLR/CPAL]
     E -.->|if requested| T[TTF output]
     E --> P
     subgraph P[Parallel generation - requested formats only]
         direction TD
         F[WOFF]
         G[WOFF2]
-        H[EOT<br/>embeds TTF]
+        H[EOT when supported<br/>embeds TTF]
     end
 ```
 
@@ -70,15 +70,15 @@ flowchart TD
 For a family such as light, regular, and bold, the engine combines the designs into **one font file per requested format**:
 
 1. **Family assembly** -- Load each variant's SVGs, match icons by name, assign shared codepoints, and apply the missing-glyph policy.
-2. **Shared glyph preparation** -- Parse the designs and normalize them using family-wide metrics and shared advance widths, keeping icons aligned when switching variants.
-3. **Variant compilation** -- Compile all designs into shared font tables with weight-axis metadata and glyph-substitution rules. Selecting a weight chooses one of the supplied designs rather than interpolating between outlines.
+2. **Shared glyph preparation** -- Extract optional paint for selected logical names in every resolved variant. Cache shared layer/fallback geometry, normalized using family-wide metrics and shared advance widths.
+3. **Variant compilation** -- Allocate paint-aware selectable IDs and auxiliary layer glyphs. Emit weight-axis metadata, `glyf` fallback, and optional COLR/CPAL tables. `rvrn` and conditioned `liga` select a painted design while retaining the shared advance; outlines are not interpolated.
 4. **Output and templates** -- Assemble TTF if requested, encode requested WOFF and WOFF2 outputs in parallel, and render CSS/HTML with variant metadata and modifier classes.
 
 ```mermaid
 flowchart TD
-    A[SVG files for each variant] --> B[Match icons &amp; resolve missing glyphs]
-    B --> C[Parse &amp; normalize together<br/>Shared metrics and advance widths]
-    C --> D[Shared font tables<br/>Designs + weight-based substitutions]
+    A[SVG files for each variant + color selection] --> B[Match final names &amp; resolve missing glyphs]
+    B --> C[Optional paint extraction + cached layer/fallback geometry<br/>Shared metrics and advance widths]
+    C --> D[Paint-aware IDs + glyf + optional COLR/CPAL<br/>rvrn/liga select painted designs]
     D -.->|if requested| E[TTF]
     D --> P
     subgraph P[Parallel encoding - requested formats only]
@@ -87,7 +87,7 @@ flowchart TD
     end
 ```
 
-This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry for unchanged designs. See [multi-variant fonts](./node#multi-variant-fonts) for usage.
+This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs. See [multi-variant fonts](./node#multi-variant-fonts) and [color selection](./node#color-selection) for usage.
 
 ## Performance
 
@@ -140,10 +140,39 @@ The API is largely compatible with upstream `@vusion/webfonts-generator`, with a
 - Font binaries differ at the byte level (different TTF compiler, different path normalization) but are valid and render identically
 - CSS, HTML, and template output is identical.
 - [`variants`](./node#multi-variant-fonts) adds multi-weight families with discrete designs.
+- [`colorGlyphs`](./node#colorglyphs) preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
 
 ::: warning
 If you are migrating from `@vusion/webfonts-generator`, review the [Node.js usage](./node) page for the full options reference.
 :::
+
+## Color glyphs
+
+Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](./node#color-selection), [Rust API](./rust#color-glyphs), and [CLI manifest](./cli#json-manifest).
+
+Active color supports **TTF, WOFF, and WOFF2**. SVG-font and EOT output are rejected during option resolution. Ordinary defaults include EOT, so ordinary color callers must specify compatible `types`. Variant defaults are already WOFF and WOFF2.
+
+### SVG paint
+
+| SVG source                                               | Color glyph paint                         |
+| -------------------------------------------------------- | ----------------------------------------- |
+| No authored effective fill                               | Host text color                           |
+| Authored solid fill, including inherited root/group fill | Fixed SVG color                           |
+| `fill="currentColor"` without effective authored `color` | Host text color                           |
+| `fill="currentColor"` with effective authored `color`    | Fixed resolved SVG color                  |
+| Solid fill with `fill-opacity`                           | That paint with independent layer opacity |
+
+Source paint order, curves, nonzero winding, and ordinary nested evenodd holes are supported. Color layers and monochrome fallback share positioning and normalization. Authored inline styles and internal stylesheets use the SVG parser's cascade.
+
+Advanced input is **best-effort**: gradients, strokes as color paint, text, images, clipping, masks, filters, paint-dependent selectors, CSS resets/invalid declarations, and intersecting evenodd contours can produce incomplete or incorrect results. There is no dedicated unsupported-input detection, warning, or rejection. Please report a minimal SVG reproduction when a supported case renders incorrectly.
+
+### Browser and platform compatibility
+
+Chromium and Firefox render fixed colors, host foreground colors, and per-layer opacity. Linux WebKit also renders color; tested macOS WebKit uses the monochrome fallback.
+
+WebKit behavior depends on the operating system and platform text-rendering libraries. In the tested macOS configuration, the font still loads: the fallback retains host text color, selected weight, ligatures, and advances, but loses fixed colors and independent per-layer opacity. It uses the same font URL; no separate API or alternate resource is needed. These observations do not imply a permanent limitation in future Safari, WebKit, or macOS versions. See [WebKit issue 233496](https://bugs.webkit.org/show_bug.cgi?id=233496).
+
+Color layers add physical glyphs and increase font size. Fonts must fit the 65,535-glyph limit and the `post` table's 65,278 unique custom-name limit; exceeding either returns a build error.
 
 ## Available as
 

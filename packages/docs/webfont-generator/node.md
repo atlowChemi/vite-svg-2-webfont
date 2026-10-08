@@ -70,6 +70,57 @@ const css = result.generateCss();
 const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 ```
 
+## Color selection
+
+By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG colors, set `colorGlyphs: true` for all glyphs or `colorGlyphs: ['logo']` for selected final post-rename names. Omission or `[]` keeps monochrome output. See [`colorGlyphs`](#colorglyphs) for validation rules and [color glyphs](./#color-glyphs) for paint semantics and browser/platform limits.
+
+```ts
+const result = await generateWebfonts({
+    files: ['icons/logo.svg', 'icons/add.svg'],
+    dest: 'dist/fonts',
+    types: ['woff2', 'woff'],
+    colorGlyphs: ['logo'],
+    incremental: true,
+});
+
+// After changing only logo.svg's fill, update the existing result.
+result.regenerate({ files: ['icons/logo.svg', 'icons/add.svg'] }, [{ path: 'icons/logo.svg', changeType: 'changed' }]);
+```
+
+The unselected `add` glyph remains monochrome. In the example above, replace `colorGlyphs: ['logo']` with `colorGlyphs: true` to preserve colors for both icons.
+
+For a multi-variant family, the selected name applies across every variant. Each design can use different SVG colors:
+
+```ts
+const family = await generateWebfonts({
+    dest: 'dist/fonts',
+    variants: [
+        { name: 'light', files: ['light/logo.svg'], weight: 300, default: true },
+        { name: 'bold', files: ['bold/logo.svg'], weight: 700 },
+    ],
+    colorGlyphs: ['logo'],
+    incremental: true,
+});
+// Each SVG can use different fixed colors. Weight selection chooses its paint and outline.
+family.regenerate(
+    {
+        variants: [
+            { variant: 'light', files: ['light/logo.svg'] },
+            { variant: 'bold', files: ['bold/logo.svg'] },
+        ],
+    },
+    [{ path: 'bold/logo.svg', changeType: 'changed' }],
+);
+```
+
+### Color regeneration
+
+The existing result and regeneration methods are used; there are no color-specific getters. Paint-only edits change font bytes and their hashes, including generated CSS font URLs. Changing color selection between builds also changes the URL hash; array order and duplicate names do not. Omission and an empty array retain the same monochrome hash. A fresh build and an incremental build of the same final inputs produce matching output. Variant fallback consumers receive their source's paint changes, while blank/fallback membership transitions update the COLR records.
+
+Named selection is checked again after regeneration renames and membership changes. Removing the last source of a selected logical name fails rather than silently disabling that selection. Selection, parsing, or font-build failures retain the previous output and permit a corrected retry.
+
+The existing write-failure contracts still apply. Ordinary synchronous regeneration restores the previous in-memory result; retry with the changes or a full re-diff. Synchronous variant regeneration retains newly committed in-memory output and pending disk writes; a no-op retry completes those writes. Asynchronous regeneration preserves the receiver and returns a new result only on success; failed writes can be reconciled on retry. See [incremental generation](#incremental).
+
 ## Multi-variant fonts
 
 A multi-variant family groups several designs of the same icons, such as light and bold,
@@ -107,6 +158,16 @@ Custom templates receive extra family metadata; see the [template context compar
 For stylesheet customization and SCSS, see [Templates](./templates).
 
 ## Options reference
+
+### `colorGlyphs`
+
+- Type: `true | string[]`
+- Default: omitted (monochrome)
+- Description: Preserve solid SVG paint for all glyphs (`true`) or selected final post-rename logical names. An empty array disables color. `false`, `null`, strings, and mixed-type arrays are invalid. Selection applies across every variant, including resolved fallbacks. Unknown names are rejected.
+
+Duplicates are harmless. Unknown names are reported together in first-occurrence input order. A selected logical name applies to every resolved design, including fallback states; blank states have no color record.
+
+Active color requires TTF, WOFF, or WOFF2. Ordinary defaults include EOT, so specify compatible `types`; variant defaults are compatible. Color selection contributes to CSS font-URL hashes; array order and repeated names do not change the hash. See [color selection](#color-selection) for incremental examples and [color glyphs](./#color-glyphs) for SVG semantics and browser/platform compatibility.
 
 ### `files`
 

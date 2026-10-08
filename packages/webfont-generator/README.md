@@ -25,6 +25,7 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 - Generated font binaries (TTF, WOFF, etc.) may differ at the byte level because a different encoder is used, but the fonts are equally valid.
 - CSS, HTML, and template output is identical.
 - A new `variants` option supports multi-weight families with discrete designs.
+- A new [`colorGlyphs`](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/node#color-selection) option preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
 

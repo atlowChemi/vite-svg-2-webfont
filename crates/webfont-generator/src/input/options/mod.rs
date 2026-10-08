@@ -6,7 +6,7 @@ use std::io::{Error, ErrorKind};
 use std::path::Path;
 
 use super::files::LoadedSvgFile;
-use crate::types::color::ColorSelection;
+use crate::types::color::ResolvedColorSelection;
 use crate::types::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
     MissingGlyphOptions,
@@ -37,7 +37,7 @@ pub(crate) struct ResolvedFontVariant {
 
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
-    pub color_selection: Option<ColorSelection>,
+    pub color_selection: Option<ResolvedColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
     pub center_vertically: Option<bool>,
@@ -85,13 +85,12 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
 const DEFAULT_FONT_TYPES: [FontType; 3] = [FontType::Eot, FontType::Woff, FontType::Woff2];
 
 fn validate_color_formats(
-    selection: Option<&ColorSelection>,
+    selection: Option<&ResolvedColorSelection>,
     types: &[FontType],
 ) -> std::io::Result<()> {
     let active = selection.is_some_and(|selection| match selection {
-        ColorSelection::All => true,
-        ColorSelection::None => false,
-        ColorSelection::Named(names) => !names.is_empty(),
+        ResolvedColorSelection::All => true,
+        ResolvedColorSelection::Named(names) => !names.is_empty(),
     });
     if active
         && types
@@ -100,7 +99,15 @@ fn validate_color_formats(
     {
         return Err(std::io::Error::new(
             ErrorKind::InvalidInput,
-            "Color glyphs require TTF, WOFF, or WOFF2; SVG and EOT are not supported.",
+            format!(
+                "options.colorGlyphs: incompatible output formats: {}. Use TTF, WOFF, or WOFF2.",
+                types
+                    .iter()
+                    .filter(|kind| matches!(kind, FontType::Svg | FontType::Eot))
+                    .map(|kind| kind.as_extension())
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
         ));
     }
     Ok(())
@@ -488,18 +495,11 @@ fn resolve_variants(
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
-    resolve_generate_webfonts_options_with_color(options, None)
-}
-
-// Internal entry point until the public color option is introduced in PR 3.
-pub(crate) fn resolve_generate_webfonts_options_with_color(
-    options: GenerateWebfontsOptions,
-    color_selection: Option<ColorSelection>,
-) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
     let types = resolved_font_types(&options);
     validate_font_type_order(&options, &types)?;
-    validate_color_formats(color_selection.as_ref(), &types)?;
     let order = resolve_font_type_order(&options, &types);
+    let color_selection = options.color_glyphs.map(ResolvedColorSelection::from);
+    validate_color_formats(color_selection.as_ref(), &types)?;
     let css = options.css.unwrap_or(true);
     let html = options.html.unwrap_or(false);
     let font_name = options.font_name.unwrap_or_else(|| "iconfont".to_owned());
@@ -599,6 +599,10 @@ pub(crate) fn finalize_generate_webfonts_options(
     options: &mut ResolvedGenerateWebfontsOptions,
     source_files: &[LoadedSvgFile],
 ) -> std::io::Result<()> {
+    validate_color_names(
+        options,
+        source_files.iter().map(|file| file.glyph_name.as_str()),
+    )?;
     options.codepoints = resolve_codepoints(
         source_files
             .iter()
@@ -607,6 +611,30 @@ pub(crate) fn finalize_generate_webfonts_options(
         options.start_codepoint,
     )?;
 
+    Ok(())
+}
+
+pub(crate) fn validate_color_names<'a>(
+    options: &ResolvedGenerateWebfontsOptions,
+    names: impl Iterator<Item = &'a str>,
+) -> std::io::Result<()> {
+    if let Some(ResolvedColorSelection::Named(selected)) = &options.color_selection {
+        let names: HashSet<_> = names.collect();
+        let missing: Vec<_> = selected
+            .iter()
+            .filter(|name| !names.contains(name.as_str()))
+            .map(String::as_str)
+            .collect();
+        if !missing.is_empty() {
+            return Err(Error::new(
+                ErrorKind::InvalidInput,
+                format!(
+                    "options.colorGlyphs: unknown glyph names: {}",
+                    missing.join(", ")
+                ),
+            ));
+        }
+    }
     Ok(())
 }
 

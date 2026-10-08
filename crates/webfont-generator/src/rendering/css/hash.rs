@@ -5,7 +5,7 @@ use serde_json::{Map, Value};
 use super::context::resolved_template_options;
 use crate::{
     input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions},
-    types::FontType,
+    types::{FontType, color::ResolvedColorSelection},
 };
 
 /// Wraps md5::Context as an io::Write so serde_json can stream directly into
@@ -95,6 +95,8 @@ struct HashableVariant<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct HashableGenerateWebfontsOptions<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    color_glyphs: Option<&'a ResolvedColorSelection>,
     #[serde(skip_serializing_if = "Option::is_none")]
     ascent: Option<f64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -199,6 +201,13 @@ struct HashableWoffFormatOptions<'a> {
 impl<'a> From<&'a ResolvedGenerateWebfontsOptions> for HashableGenerateWebfontsOptions<'a> {
     fn from(options: &'a ResolvedGenerateWebfontsOptions) -> Self {
         Self {
+            color_glyphs: options
+                .color_selection
+                .as_ref()
+                .filter(|selection| match selection {
+                    ResolvedColorSelection::All => true,
+                    ResolvedColorSelection::Named(names) => !names.is_empty(),
+                }),
             ascent: options.ascent,
             center_horizontally: options.center_horizontally,
             center_vertically: options.center_vertically,

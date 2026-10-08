@@ -112,7 +112,7 @@ pub async fn generate_webfonts(
         css_context,
         html_context,
     };
-    webfont_generator::generate_with_hooks(options.into(), &hooks)
+    webfont_generator::generate_with_hooks(options.try_into()?, &hooks)
         .await
         .map(GenerateWebfontsResult)
 }

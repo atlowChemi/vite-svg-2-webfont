@@ -1,27 +1,79 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
+use indexmap::IndexSet;
 use kurbo::BezPath;
 
-/// Internal selection of final logical names; public option resolution lands later.
-#[derive(Clone, Default)]
-#[allow(
-    dead_code,
-    reason = "internal color selection is exposed in the public API stack layer"
-)]
-pub(crate) enum ColorSelection {
+/// Select logical glyphs whose solid SVG fills are preserved as COLR v1 paint.
+/// Names refer to the final names after rename hooks, across all variants.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum ColorGlyphSelection {
+    /// Preserve paint for every logical glyph.
     All,
-    #[default]
-    None,
-    Named(HashSet<String>),
+    /// Preserve paint for these names. An empty list disables color.
+    Named(Vec<String>),
 }
 
-impl ColorSelection {
+// Omission uses the field default; an explicitly supplied null must not disable color.
+#[cfg(feature = "cli")]
+pub(super) fn deserialize_selection<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<ColorGlyphSelection>, D::Error> {
+    <ColorGlyphSelection as serde::Deserialize>::deserialize(deserializer).map(Some)
+}
+
+#[cfg(feature = "cli")]
+impl<'de> serde::Deserialize<'de> for ColorGlyphSelection {
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        #[serde(untagged)]
+        enum Input {
+            All(bool),
+            Named(Vec<String>),
+        }
+        match Input::deserialize(deserializer)? {
+            Input::All(true) => Ok(Self::All),
+            Input::Named(names) => Ok(Self::Named(names)),
+            Input::All(false) => Err(serde::de::Error::custom(
+                "expected true or an array of glyph names; omit colorGlyphs or use [] to disable color",
+            )),
+        }
+    }
+}
+
+impl From<ColorGlyphSelection> for ResolvedColorSelection {
+    fn from(selection: ColorGlyphSelection) -> Self {
+        match selection {
+            ColorGlyphSelection::All => Self::All,
+            ColorGlyphSelection::Named(names) => Self::Named(names.into_iter().collect()),
+        }
+    }
+}
+
+/// Compiled membership for final logical names, preserving input order for errors.
+#[derive(Clone)]
+pub(crate) enum ResolvedColorSelection {
+    All,
+    Named(IndexSet<String>),
+}
+
+impl ResolvedColorSelection {
     pub fn contains(&self, name: &str) -> bool {
         match self {
             Self::All => true,
-            Self::None => false,
             Self::Named(names) => names.contains(name),
+        }
+    }
+}
+
+impl serde::Serialize for ResolvedColorSelection {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        match self {
+            Self::All => serializer.serialize_bool(true),
+            Self::Named(names) => {
+                let mut names: Vec<_> = names.iter().map(String::as_str).collect();
+                names.sort_unstable();
+                serde::Serialize::serialize(&names, serializer)
+            }
         }
     }
 }
