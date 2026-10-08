@@ -2,9 +2,6 @@ mod files;
 mod options;
 
 #[cfg(test)]
-pub(crate) use options::resolve_generate_webfonts_options_with_color;
-
-#[cfg(test)]
 pub(crate) use files::load_variant_svg_files;
 pub(crate) use files::{
     LoadedSvgFile, VariantFamilySources, VariantGlyphSource, build_variant_family_sources,

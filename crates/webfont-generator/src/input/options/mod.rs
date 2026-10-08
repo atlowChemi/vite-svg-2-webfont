@@ -497,15 +497,7 @@ fn resolve_variants(
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
-    let selection = options.color_glyphs.as_ref().map(ColorSelection::from);
-    resolve_generate_webfonts_options_with_color(options, selection)
-}
-
-// Shared resolution for public options and internal pipeline tests.
-pub(crate) fn resolve_generate_webfonts_options_with_color(
-    options: GenerateWebfontsOptions,
-    color_selection: Option<ColorSelection>,
-) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
+    let color_selection = options.color_glyphs.as_ref().map(ColorSelection::from);
     let types = resolved_font_types(&options);
     validate_font_type_order(&options, &types)?;
     validate_color_formats(color_selection.as_ref(), &types)?;

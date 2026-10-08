@@ -9,14 +9,16 @@ use write_fonts::types::{F2Dot14, GlyphId, GlyphId16, Tag};
 use crate::formats::woff2::tables_to_woff2;
 use crate::input::{
     LoadedSvgFile, ResolvedGenerateWebfontsOptions, finalize_generate_webfonts_options,
-    resolve_generate_webfonts_options_with_color,
+    resolve_generate_webfonts_options,
 };
 use crate::pipeline::TtfGlyphCache;
 use crate::sfnt::SerializedFontTables;
 use crate::svg::types::ProcessedGlyph;
 use crate::svg::{prepare_svg_font, svg_options_from_options};
-use crate::types::color::{ColorSelection, ProcessedColorLayer};
-use crate::{FontType, FontVariant, GenerateWebfontsOptions, prepare_variant_family};
+use crate::types::color::ProcessedColorLayer;
+use crate::{
+    ColorGlyphSelection, FontType, FontVariant, GenerateWebfontsOptions, prepare_variant_family,
+};
 
 use super::super::color::build_color;
 use super::super::glyphs::{build_glyf_table, compile_and_dedup_glyphs, compute_glyph_metrics};
@@ -94,16 +96,14 @@ fn explicit_no_color_selection_matches_omitted_selection() {
         contents: r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path fill="red" d="M10 10H90V90H10Z"/></svg>"#.into(),
     }];
     let generate = |selection| {
-        let mut options = resolve_generate_webfonts_options_with_color(
-            GenerateWebfontsOptions {
-                dest: "unused".into(),
-                files: vec!["icon.svg".into()],
-                types: Some(vec![FontType::Ttf]),
-                write_files: Some(false),
-                ..Default::default()
-            },
-            selection,
-        )
+        let mut options = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+            dest: "unused".into(),
+            files: vec!["icon.svg".into()],
+            types: Some(vec![FontType::Ttf]),
+            write_files: Some(false),
+            color_glyphs: selection,
+            ..Default::default()
+        })
         .unwrap();
         finalize_generate_webfonts_options(&mut options, &files).unwrap();
         let prepared = prepare_svg_font(&svg_options_from_options(&options), &files).unwrap();
@@ -113,7 +113,7 @@ fn explicit_no_color_selection_matches_omitted_selection() {
         build(ttf, &prepared.processed_glyphs, None).unwrap()
     };
     let omitted = generate(None);
-    let disabled = generate(Some(ColorSelection::None));
+    let disabled = generate(Some(ColorGlyphSelection::Named(vec![])));
     assert_eq!(omitted.ttf(), disabled.ttf());
     assert!(FontRef::new(disabled.ttf()).unwrap().colr().is_err());
 }
@@ -235,32 +235,30 @@ fn glyph_metrics_preserve_empty_signed_and_average_values() {
 }
 
 pub(super) fn production_color_font() -> SerializedFontTables {
-    let mut options = resolve_generate_webfonts_options_with_color(
-        GenerateWebfontsOptions {
-            dest: "unused".into(),
-            variants: Some(vec![
-                FontVariant {
-                    name: "Light".into(),
-                    files: vec!["light.svg".into()],
-                    weight: Some(300),
-                    default: Some(true),
-                },
-                FontVariant {
-                    name: "Bold".into(),
-                    files: vec!["bold.svg".into()],
-                    weight: Some(700),
-                    default: None,
-                },
-            ]),
-            types: Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]),
-            font_height: Some(1000.0),
-            start_codepoint: Some(0xe001),
-            ligature: Some(true),
-            write_files: Some(false),
-            ..Default::default()
-        },
-        Some(ColorSelection::All),
-    )
+    let mut options = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+        dest: "unused".into(),
+        variants: Some(vec![
+            FontVariant {
+                name: "Light".into(),
+                files: vec!["light.svg".into()],
+                weight: Some(300),
+                default: Some(true),
+            },
+            FontVariant {
+                name: "Bold".into(),
+                files: vec!["bold.svg".into()],
+                weight: Some(700),
+                default: None,
+            },
+        ]),
+        types: Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]),
+        font_height: Some(1000.0),
+        start_codepoint: Some(0xe001),
+        ligature: Some(true),
+        write_files: Some(false),
+        color_glyphs: Some(ColorGlyphSelection::All),
+        ..Default::default()
+    })
     .unwrap();
     let sources = [("light.svg", "red", 100, 600), ("bold.svg", "blue", 700, 100)]
         .into_iter().map(|(path, color, fixed, foreground)| vec![LoadedSvgFile {
@@ -287,17 +285,15 @@ fn prepare(bodies: &[&str]) -> (ResolvedGenerateWebfontsOptions, Vec<ProcessedGl
             .into(),
         })
         .collect();
-    let mut resolved = resolve_generate_webfonts_options_with_color(
-        GenerateWebfontsOptions {
-            files: files.iter().map(|f| f.path.clone()).collect(),
-            dest: "unused".into(),
-            types: Some(vec![FontType::Ttf]),
-            write_files: Some(false),
-            ligature: Some(false),
-            ..Default::default()
-        },
-        Some(ColorSelection::All),
-    )
+    let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
+        files: files.iter().map(|f| f.path.clone()).collect(),
+        dest: "unused".into(),
+        types: Some(vec![FontType::Ttf]),
+        write_files: Some(false),
+        ligature: Some(false),
+        color_glyphs: Some(ColorGlyphSelection::All),
+        ..Default::default()
+    })
     .unwrap();
     finalize_generate_webfonts_options(&mut resolved, &files).unwrap();
     let opts = svg_options_from_options(&resolved);
@@ -386,31 +382,25 @@ fn color_identity_cache_and_auxiliary_counts() {
 #[test]
 fn color_format_validation_preserves_disabled_and_empty_selection() {
     let resolve = |types, selection| {
-        resolve_generate_webfonts_options_with_color(
-            GenerateWebfontsOptions {
-                dest: "unused".into(),
-                files: vec!["icon.svg".into()],
-                types,
-                ..Default::default()
-            },
-            selection,
-        )
+        resolve_generate_webfonts_options(GenerateWebfontsOptions {
+            dest: "unused".into(),
+            files: vec!["icon.svg".into()],
+            types,
+            color_glyphs: selection,
+            ..Default::default()
+        })
     };
     for types in [
         vec![FontType::Eot],
         vec![FontType::Svg],
         vec![FontType::Eot, FontType::Woff, FontType::Woff2],
     ] {
-        for selection in [
-            None,
-            Some(ColorSelection::None),
-            Some(ColorSelection::Named(Default::default())),
-        ] {
+        for selection in [None, Some(ColorGlyphSelection::Named(vec![]))] {
             resolve(Some(types.clone()), selection).unwrap();
         }
         for selection in [
-            ColorSelection::All,
-            ColorSelection::Named(["icon0".into()].into()),
+            ColorGlyphSelection::All,
+            ColorGlyphSelection::Named(vec!["icon0".into()]),
         ] {
             assert_eq!(
                 resolve(Some(types.clone()), Some(selection))
@@ -426,10 +416,10 @@ fn color_format_validation_preserves_disabled_and_empty_selection() {
         vec![FontType::Ttf],
         vec![FontType::Woff, FontType::Woff2],
     ] {
-        resolve(Some(types), Some(ColorSelection::All)).unwrap();
+        resolve(Some(types), Some(ColorGlyphSelection::All)).unwrap();
     }
     assert_eq!(
-        resolve(None, Some(ColorSelection::All))
+        resolve(None, Some(ColorGlyphSelection::All))
             .err()
             .unwrap()
             .kind(),
