@@ -1,6 +1,6 @@
-use std::collections::HashSet;
 use std::sync::Arc;
 
+use indexmap::IndexSet;
 use kurbo::BezPath;
 
 /// Select logical glyphs whose solid SVG fills are preserved as COLR v1 paint.
@@ -40,20 +40,20 @@ impl<'de> serde::Deserialize<'de> for ColorGlyphSelection {
     }
 }
 
-impl From<&ColorGlyphSelection> for ResolvedColorSelection {
-    fn from(selection: &ColorGlyphSelection) -> Self {
+impl From<ColorGlyphSelection> for ResolvedColorSelection {
+    fn from(selection: ColorGlyphSelection) -> Self {
         match selection {
             ColorGlyphSelection::All => Self::All,
-            ColorGlyphSelection::Named(names) => Self::Named(names.iter().cloned().collect()),
+            ColorGlyphSelection::Named(names) => Self::Named(names.into_iter().collect()),
         }
     }
 }
 
-/// Compiled membership for final logical names during SVG preparation.
+/// Compiled membership for final logical names, preserving input order for errors.
 #[derive(Clone)]
 pub(crate) enum ResolvedColorSelection {
     All,
-    Named(HashSet<String>),
+    Named(IndexSet<String>),
 }
 
 impl ResolvedColorSelection {

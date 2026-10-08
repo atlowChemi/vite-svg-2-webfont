@@ -37,7 +37,6 @@ pub(crate) struct ResolvedFontVariant {
 
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
-    pub color_glyphs: Option<crate::ColorGlyphSelection>,
     pub color_selection: Option<ResolvedColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
@@ -496,14 +495,11 @@ fn resolve_variants(
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
-    let color_selection = options
-        .color_glyphs
-        .as_ref()
-        .map(ResolvedColorSelection::from);
     let types = resolved_font_types(&options);
     validate_font_type_order(&options, &types)?;
-    validate_color_formats(color_selection.as_ref(), &types)?;
     let order = resolve_font_type_order(&options, &types);
+    let color_selection = options.color_glyphs.map(ResolvedColorSelection::from);
+    validate_color_formats(color_selection.as_ref(), &types)?;
     let css = options.css.unwrap_or(true);
     let html = options.html.unwrap_or(false);
     let font_name = options.font_name.unwrap_or_else(|| "iconfont".to_owned());
@@ -542,7 +538,6 @@ pub(crate) fn resolve_generate_webfonts_options(
         .or(options.preserve_aspect_ratio);
 
     Ok(ResolvedGenerateWebfontsOptions {
-        color_glyphs: options.color_glyphs,
         color_selection,
         ascent: options.ascent,
         center_horizontally: options.center_horizontally,
@@ -623,12 +618,11 @@ pub(crate) fn validate_color_names<'a>(
     options: &ResolvedGenerateWebfontsOptions,
     names: impl Iterator<Item = &'a str>,
 ) -> std::io::Result<()> {
-    if let Some(crate::ColorGlyphSelection::Named(selected)) = &options.color_glyphs {
+    if let Some(ResolvedColorSelection::Named(selected)) = &options.color_selection {
         let names: HashSet<_> = names.collect();
-        let mut seen = HashSet::new();
         let missing: Vec<_> = selected
             .iter()
-            .filter(|name| !names.contains(name.as_str()) && seen.insert(name.as_str()))
+            .filter(|name| !names.contains(name.as_str()))
             .map(String::as_str)
             .collect();
         if !missing.is_empty() {
