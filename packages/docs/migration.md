@@ -12,7 +12,7 @@ v7 swaps the unmaintained [`@vusion/webfonts-generator`](https://www.npmjs.com/p
 
 ### What's new
 
-- [`optimizeOutput`](/configuration#optimizeoutput) — a new top-level plugin option that runs an SVG path optimizer over each glyph before assembling the font. Defaults to `false`; opt in for smaller output bytes at the cost of a small amount of build time.
+- [`optimizeOutput`](/configuration#optimizeoutput) — a new top-level plugin option that runs an SVG path optimizer over each glyph before assembling the font. Defaults to `false`; optimization may reduce SVG path data, but does not guarantee smaller binary font output, so compare the generated sizes for your input set.
 
 ### Do you need to migrate?
 

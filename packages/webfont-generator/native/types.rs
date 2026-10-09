@@ -145,8 +145,9 @@ pub struct SvgFormatOptions {
     /// Content embedded inside the generated SVG font's `<metadata>` element.
     pub metadata: Option<String>,
     /// SVG-format override of the top-level `optimizeOutput` option. When set,
-    /// it wins over the top-level value; runs an SVG path optimizer over each
-    /// glyph, trading a small amount of build time for smaller output bytes.
+    /// it wins over the top-level value. Path optimization may reduce SVG path
+    /// data, but does not guarantee smaller binary font output; compare the
+    /// generated sizes for the input set.
     pub optimize_output: Option<bool>,
     /// SVG-format override of the top-level `preserveAspectRatio` option. When
     /// set, it wins over the top-level value; preserves the source viewBox
@@ -371,8 +372,9 @@ pub struct GenerateWebfontsOptions {
     /// `['eot', 'woff2', 'woff', 'ttf', 'svg']` filtered to the requested
     /// `types`.
     pub order: Option<Vec<FontType>>,
-    /// Run an SVG path optimizer over each glyph, trading a small amount of
-    /// build time for smaller output bytes. Convenience alias for
+    /// Run an SVG path optimizer over each glyph. This may reduce SVG path
+    /// data, but does not guarantee smaller binary font output; compare the
+    /// generated sizes for the input set. Convenience alias for
     /// `formatOptions.svg.optimizeOutput`.
     pub optimize_output: Option<bool>,
     /// Preserve the source viewBox aspect ratio when scaling glyphs into the

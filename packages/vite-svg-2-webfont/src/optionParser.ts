@@ -62,7 +62,8 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
     centerVertically?: boolean;
     /**
      * Run an SVG path optimizer over each glyph before assembling the font.
-     * Trades a small amount of build time for smaller output bytes.
+     * This may reduce SVG path data, but does not guarantee smaller binary font
+     * output; compare the generated sizes for the input set.
      * @default false
      */
     optimizeOutput?: boolean;
