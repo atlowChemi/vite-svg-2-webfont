@@ -61,6 +61,8 @@ for (const [name, color, inset] of [
     );
 }
 const modern = ['ttf', 'woff', 'woff2'];
+const allFormats = ['svg', 'ttf', 'eot', 'woff', 'woff2'];
+const geometryFiles = ['rounding', 'curves', 'transforms'].map(name => `scripts/fixtures/platform-output/${name}.svg`);
 const variants = ['light', 'bold'].map((name, index) => ({
     name,
     files: [`${root}/inputs/${name}/paint.svg`, ...files],
@@ -68,12 +70,16 @@ const variants = ['light', 'bold'].map((name, index) => ({
     default: index === 0,
 }));
 const cases = [
-    { name: 'ordinary', files, types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] },
+    { name: 'ordinary', files, types: allFormats },
     { name: 'optimized', files, types: ['svg', ...modern], optimizeOutput: true },
     { name: 'woff2-q9', files, types: modern, formatOptions: { woff2: { compressionQuality: 9 } } },
     { name: 'color', files: variants[0].files, types: modern, colorGlyphs: ['paint'] },
     { name: 'variants', variants, types: modern },
     { name: 'color-variants', variants, types: modern, colorGlyphs: ['paint'] },
+    { name: 'geometry', files: geometryFiles, types: allFormats, fontHeight: 1000 },
+    { name: 'geometry-optimized', files: geometryFiles, types: allFormats, fontHeight: 1000, optimizeOutput: true },
+    { name: 'geometry-rounded', files: geometryFiles, types: allFormats, fontHeight: 1000, round: 1000 },
+    { name: 'geometry-centered', files: geometryFiles, types: allFormats, fontHeight: 1024, normalize: true, centerHorizontally: true, centerVertically: true },
 ];
 
 async function save(result, name, mode, types) {

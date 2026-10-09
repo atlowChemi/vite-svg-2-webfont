@@ -81,14 +81,17 @@ it('keeps byte mismatches diagnostic but fails when an expected platform artifac
         }
         writeFileSync(join(root, target, 'environment.json'), JSON.stringify({ node: 'test', rust: 'test', revision: 'test' }));
     }
-    const run = (targets: string[]) =>
+    const run = (targets: string[], strict = false) =>
         spawnSync(process.execPath, ['scripts/ci/compare-platform-output.mjs', root, ...targets], {
             encoding: 'utf8',
-            env: { ...process.env, GITHUB_STEP_SUMMARY: join(root, 'summary.md'), GITHUB_ACTIONS: 'true' },
+            env: { ...process.env, GITHUB_STEP_SUMMARY: join(root, 'summary.md'), GITHUB_ACTIONS: 'true', PLATFORM_OUTPUT_STRICT: strict ? '1' : '0' },
         });
     const diagnostic = run(['linux-x64', 'darwin-arm64']);
     expect(diagnostic.status).toBe(0);
     expect(diagnostic.stdout).toContain('::warning::Platform output parity: 2 differing file comparisons');
+    const required = run(['linux-x64', 'darwin-arm64'], true);
+    expect(required.status).toBe(1);
+    expect(required.stdout).toContain('::error::Platform output parity: 2 differing file comparisons');
     expect(run(['linux-x64', 'win32-x64']).status).not.toBe(0);
     writeFileSync(join(root, 'darwin-arm64', 'environment.json'), JSON.stringify({ revision: 'different' }));
     expect(run(['linux-x64', 'darwin-arm64']).stderr).toContain('cannot compare different source revisions');
@@ -111,7 +114,11 @@ it('executes every declared NAPI target exactly once and refuses an incomplete r
         }
         writeFileSync(join(directory, 'environment.json'), JSON.stringify({ revision: 'same', build: { target } }));
     }
-    const run = () => spawnSync(process.execPath, ['scripts/ci/compare-platform-output.mjs', root], { encoding: 'utf8', env: { ...process.env, GITHUB_STEP_SUMMARY: '' } });
+    const run = () =>
+        spawnSync(process.execPath, ['scripts/ci/compare-platform-output.mjs', root], {
+            encoding: 'utf8',
+            env: { ...process.env, GITHUB_STEP_SUMMARY: '', PLATFORM_OUTPUT_STRICT: '1' },
+        });
     expect(run().stdout).toContain('All compared files are byte-identical');
     expect(run().status).toBe(0);
     rmSync(join(root, 'platform-output-armv7-unknown-linux-gnueabihf'), { recursive: true });

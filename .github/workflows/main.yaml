@@ -273,6 +273,13 @@ jobs:
                   files: test-results/plugin-browser.xml
                   token: ${{ secrets.CODECOV_TOKEN }}
 
+    platform-output:
+        needs: [build, affected-selection]
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.platform-output }}
+        uses: ./.github/workflows/platform-output.yaml
+        with:
+            use-existing-build: true
+
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
         needs: [build, affected-selection]
@@ -488,7 +495,7 @@ jobs:
     required-checks:
         name: Required checks
         if: always()
-        needs: [affected-selection, ci, test-scripts, rust-coverage, native-coverage, build, docs, test-browser, test-host, test-docker, test-vite-compat]
+        needs: [affected-selection, ci, test-scripts, rust-coverage, native-coverage, build, docs, test-browser, test-host, test-docker, test-vite-compat, platform-output]
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -2,30 +2,26 @@ name: Platform output parity
 
 on:
     workflow_dispatch:
-    pull_request:
-        paths:
-            - '.github/workflows/platform-output.yaml'
-            - '.github/workflows/build-native.yaml'
-            - 'scripts/ci/*platform-output*'
-            - 'crates/webfont-generator/**'
-            - 'packages/webfont-generator/**'
-            - 'Cargo.*'
-            - 'pnpm-lock.yaml'
-            - 'pnpm-workspace.yaml'
-            - 'vite.config.ts'
-            - '.node-version'
+    workflow_call:
+        inputs:
+            use-existing-build:
+                description: Consume the calling workflow's full native-build artifacts
+                type: boolean
+                default: false
 
 permissions:
     contents: read
 
 jobs:
     build:
+        if: ${{ !inputs.use-existing-build }}
         uses: ./.github/workflows/build-native.yaml
         with:
             scope: full
 
     generate-host:
         needs: build
+        if: ${{ !cancelled() && (needs.build.result == 'success' || (inputs.use-existing-build && needs.build.result == 'skipped')) }}
         timeout-minutes: 10
         strategy:
             fail-fast: false
@@ -66,6 +62,7 @@ jobs:
 
     generate-container:
         needs: build
+        if: ${{ !cancelled() && (needs.build.result == 'success' || (inputs.use-existing-build && needs.build.result == 'skipped')) }}
         timeout-minutes: 15
         strategy:
             fail-fast: false

@@ -28,7 +28,7 @@ describe('affected CI', () => {
         );
         expect(workflow.jobs['required-checks'].needs.toSorted()).toEqual(['affected-selection', ...Object.keys(jobs)].toSorted());
         for (const name of Object.keys(jobs).filter(job => job !== 'ci')) expect(workflow.jobs[name].if).toContain(`.jobs.${name}`);
-        for (const name of ['test-host', 'test-docker', 'test-vite-compat']) expect(workflow.jobs[name].needs).toContain('build');
+        for (const name of ['test-host', 'test-docker', 'test-vite-compat', 'platform-output']) expect(workflow.jobs[name].needs).toContain('build');
     });
     it('selects only shared checks and docs for docs edits', () => {
         const selection = scenario(['packages/docs/guide.md'], [packageNames.docs]);
@@ -43,6 +43,7 @@ describe('affected CI', () => {
         const selection = scenario(['packages/vite-svg-2-webfont/src/index.ts'], [packageNames.plugin, packageNames.example]);
         expect(selection.jobs.build).toBe(true);
         expect(selection.jobs['rust-coverage']).toBe(false);
+        expect(selection.jobs['platform-output']).toBe(false);
         expect(selection.nativeBuildScope).toBe('linux-x64');
         expect(selection.rustSuites).toEqual([]);
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
@@ -51,6 +52,7 @@ describe('affected CI', () => {
         const selection = scenario(['packages/webfont-generator/native/lib.rs'], [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root]);
         expect(selection.rustSuites).toEqual(['adapter']);
         expect(selection.nativeBuildScope).toBe('full');
+        expect(selection.jobs['platform-output']).toBe(true);
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
     });
     it('runs all Rust suites and native targets for engine changes', () => {
@@ -67,6 +69,12 @@ describe('affected CI', () => {
         expect(() => verifyRequiredChecks(results(selection), { ...selection, nativeBuildScope: 'linux-x64' })).toThrow('full native build scope');
         expect(() => verifyRequiredChecks(results(selection), { ...selection, rustSuites: ['adapter'] })).toThrow('Rust coverage suites');
         expect(() => verifyRequiredChecks(results(selection), { ...selection, nativeBuildScope: undefined } as unknown as Selection)).toThrow('native build scope');
+    });
+    it('propagates parity failures through Required checks and reuses the full build', () => {
+        const selection = scenario(['scripts/fixtures/platform-output/curves.svg'], [packageNames.root]);
+        expect(selection.jobs['platform-output']).toBe(true);
+        expect(workflow.jobs['platform-output'].with['use-existing-build']).toBe(true);
+        expect(() => verifyRequiredChecks({ ...results(selection), 'platform-output': { result: 'failure' } }, selection)).toThrow('platform-output: failure');
     });
     it('uses separate coverage flags and only the selected matrix suites', () => {
         const config = parse(readFileSync(new URL('../../codecov.yml', import.meta.url), 'utf8'));

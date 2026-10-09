@@ -72,7 +72,7 @@ describe('real Git/pnpm affected selection', () => {
                     .map(([job]) => job),
             ).toEqual(
                 fallback
-                    ? ['ci', 'test-scripts', 'rust-coverage', 'native-coverage', 'build', 'docs', 'test-browser', 'test-host', 'test-docker', 'test-vite-compat']
+                    ? ['ci', 'test-scripts', 'rust-coverage', 'native-coverage', 'build', 'docs', 'test-browser', 'test-host', 'test-docker', 'platform-output', 'test-vite-compat']
                     : ['ci', 'docs'],
             );
         } finally {

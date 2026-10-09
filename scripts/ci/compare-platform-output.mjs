@@ -83,6 +83,7 @@ export function compareDirectories(baseline, candidate) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+    const strict = process.env.PLATFORM_OUTPUT_STRICT === '1';
     const [root = 'artifacts/platform-output', ...requested] = process.argv.slice(2);
     const targets = requested.length
         ? requested
@@ -92,7 +93,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
     if (targets.length < 2) throw new Error('Provide an artifact root and at least two target directories (baseline first)');
     const baseline = join(root, targets[0], 'fresh');
     const baselineEnvironment = JSON.parse(readFileSync(join(root, targets[0], 'environment.json'), 'utf8'));
-    const lines = ['# Platform output parity (diagnostic)', '', `Baseline: ${targets[0]}/fresh`, ''];
+    const lines = [`# Platform output parity (${strict ? 'required' : 'diagnostic'})`, '', `Baseline: ${targets[0]}/fresh`, ''];
     let count = 0;
     for (const target of targets) {
         // Missing artifacts are infrastructure failures, never a successful parity result.
@@ -107,9 +108,10 @@ if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1]
             lines.push(`### ${mode}: ${differences.length} differing files`, '', ...differences.map(line => `- ${line}`), '');
         }
     }
-    lines.push(count ? `Diagnostic only: ${count} file comparisons differ.` : 'All compared files are byte-identical.');
+    lines.push(count ? `${strict ? 'Parity failed' : 'Diagnostic only'}: ${count} file comparisons differ.` : 'All compared files are byte-identical.');
     const report = `${lines.join('\n')}\n`;
     console.log(report);
     if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, report);
-    if (count && process.env.GITHUB_ACTIONS) console.log(`::warning::Platform output parity: ${count} differing file comparisons (diagnostic only)`);
+    if (count && process.env.GITHUB_ACTIONS) console.log(`::${strict ? 'error' : 'warning'}::Platform output parity: ${count} differing file comparisons`);
+    if (count && strict) process.exitCode = 1;
 }

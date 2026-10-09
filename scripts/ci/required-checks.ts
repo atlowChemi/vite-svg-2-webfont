@@ -20,11 +20,11 @@ export function verifyRequiredChecks(needs: Record<string, { result?: string }>,
         else if (result !== 'success' && !(!decision && result === 'skipped')) failures.push(`${name}: ${result ?? 'missing'} (selected=${decision})`);
     }
     if (!decisions.ci) failures.push('Shared checks must always be selected');
-    if (['test-host', 'test-docker', 'test-vite-compat'].some(name => decisions[name]) && !decisions.build) {
+    if (['test-host', 'test-docker', 'test-vite-compat', 'platform-output'].some(name => decisions[name]) && !decisions.build) {
         failures.push('Selected artifact consumer lacks a selected native build');
     }
     if (!['full', 'linux-x64'].includes(selection.nativeBuildScope)) failures.push('Missing or invalid native build scope');
-    if ((decisions['test-host'] || decisions['test-docker']) && selection.nativeBuildScope !== 'full') {
+    if ((decisions['test-host'] || decisions['test-docker'] || decisions['platform-output']) && selection.nativeBuildScope !== 'full') {
         failures.push('Platform tests require the full native build scope');
     }
     const suites = selection.packages?.includes('@atlowchemi/webfont-engine')

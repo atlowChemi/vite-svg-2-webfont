@@ -28,6 +28,7 @@ export function selectJobs(packages: string[], files: string[], unknownChanges =
         'test-browser': plugin,
         'test-host': native,
         'test-docker': native,
+        'platform-output': native,
         'test-vite-compat': plugin,
     };
 }

@@ -114,12 +114,15 @@ The **Platform output parity** workflow generates a shared corpus through the pu
 JavaScript entrypoint on all nine declared NAPI targets. It downloads binaries from the
 same reusable build workflow used for releases, verifies their target, source revision,
 and SHA-256, and runs them without rebuilding or installing alternative addons.
+CI reuses its existing full native build; manual workflow dispatch builds the artifacts first.
 Linux musl runs in native Alpine containers; ARMv7 runs in Debian under QEMU. Node 22
 is used throughout because it supplies an ARMv7 runtime. It compares fresh
 and incremental font/CSS/HTML bytes against Linux glibc x64's fresh outputs. Differences are
 diagnostic warnings, not a parity gate; missing artifacts or tooling failures still fail.
 Download its `platform-output-*` artifacts to inspect the original files. The job summary
 lists changed TTF/WOFF tables and whether WOFF2's decompressed transformed stream differs.
+The corpus covers color and variants, optimization and both Brotli paths, plus rounding
+boundaries, near-flat curves, inflections, eccentric rotated arcs, thin holes, and transformed strokes.
 
 ```bash
 vp run test:platform-output:generate
@@ -133,6 +136,7 @@ For local runs, pass an artifact root followed by two or more directory names to
 Inputs use ordered relative
 paths and the public wrapper's existing fixed timestamp. This does not test direct Rust
 defaults, relocation of checkout paths, or equality across engine versions.
+Set `PLATFORM_OUTPUT_STRICT=1` to make byte differences fail the comparison command.
 
 ### Regenerating test fixtures
 
