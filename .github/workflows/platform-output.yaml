@@ -1,0 +1,61 @@
+name: Platform output parity
+
+on:
+    workflow_dispatch:
+    pull_request:
+        paths:
+            - '.github/workflows/platform-output.yaml'
+            - 'scripts/ci/*platform-output*'
+            - 'crates/webfont-generator/**'
+            - 'packages/webfont-generator/**'
+            - 'Cargo.*'
+            - 'pnpm-lock.yaml'
+            - 'pnpm-workspace.yaml'
+            - 'vite.config.ts'
+            - '.node-version'
+
+permissions:
+    contents: read
+
+jobs:
+    generate:
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - runner: ubuntu-24.04
+                      target: linux-x64
+                    - runner: windows-2025
+                      target: win32-x64
+                    - runner: macos-15
+                      target: darwin-arm64
+        runs-on: ${{ matrix.runner }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - run: vp run test:platform-output:generate
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: platform-output-${{ matrix.target }}
+                  path: artifacts/platform-output/${{ matrix.target }}/
+                  if-no-files-found: error
+
+    compare:
+        # Byte differences only produce a warning and summary; tooling failures still fail.
+        needs: generate
+        if: ${{ !cancelled() }}
+        runs-on: ubuntu-24.04
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  pattern: platform-output-*
+                  path: artifacts/platform-output/
+            - run: >-
+                  node scripts/ci/compare-platform-output.mjs artifacts/platform-output
+                  platform-output-linux-x64 platform-output-win32-x64 platform-output-darwin-arm64

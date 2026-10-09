@@ -76,6 +76,15 @@ const config: UserConfig = defineConfig({
     },
     run: {
         tasks: {
+            'test:platform-output:generate': {
+                cache: false,
+                // Build without unrelated platform-sensitive Rust snapshot tests gating the diagnostic.
+                command: 'vp run @atlowchemi/webfont-generator#build --release && node scripts/ci/generate-platform-output.mjs',
+            },
+            'test:platform-output:compare': {
+                cache: false,
+                command: 'node scripts/ci/compare-platform-output.mjs',
+            },
             'bench:vitest': {
                 cache: false,
                 command: 'vp test bench --run --reporter=verbose --hideSkippedTests',

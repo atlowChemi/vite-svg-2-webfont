@@ -108,6 +108,26 @@ Nextest produces individual Rust test results but does not run doctests. The doc
 task uses Cargo and writes two aggregate invocation results to `test-results/doctests.xml`.
 It requires Rust but does not require the coverage tools above.
 
+### Comparing platform output
+
+The **Platform output parity** workflow generates a shared corpus through the public
+JavaScript entrypoint on Linux x64, Windows x64, and macOS ARM64. It compares fresh
+and incremental font/CSS/HTML bytes against Linux's fresh outputs. Differences are
+diagnostic warnings, not a parity gate; missing artifacts or tooling failures still fail.
+Download its `platform-output-*` artifacts to inspect the original files. The job summary
+lists changed TTF/WOFF tables and whether WOFF2's decompressed transformed stream differs.
+
+```bash
+vp run test:platform-output:generate
+vp run test:platform-output:compare artifacts/platform-output platform-output-linux-x64 platform-output-win32-x64 platform-output-darwin-arm64
+```
+
+The generation task builds the release binding and writes `artifacts/platform-output/<platform>-<arch>/`. The comparison
+example assumes downloaded artifacts retain their `platform-output-*` directory names;
+pass local directory names instead when comparing local runs. Inputs use ordered relative
+paths and the public wrapper's existing fixed timestamp. This does not test direct Rust
+defaults, relocation of checkout paths, or equality across engine versions.
+
 ### Regenerating test fixtures
 
 After adding, removing, or modifying SVG icons in the plugin's fixture directory (`packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`), regenerate the expected font fixtures:
