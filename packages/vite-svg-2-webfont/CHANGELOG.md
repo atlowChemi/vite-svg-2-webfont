@@ -2,17 +2,15 @@
 
 ## [8.4.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.3.1...vite-svg-2-webfont-v8.4.0) (2026-10-09)
 
-
 ### Features
 
-* **vite-svg-2-webfont:** support selective color glyph generation ([#549](https://github.com/atlowChemi/vite-svg-2-webfont/issues/549)) ([3ca6e23](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3ca6e2313e68d1a61af9bd7f07c5f001892ca34c))
-
+- **vite-svg-2-webfont:** support selective color glyph generation ([#549](https://github.com/atlowChemi/vite-svg-2-webfont/issues/549)) ([3ca6e23](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3ca6e2313e68d1a61af9bd7f07c5f001892ca34c))
 
 ### Dependencies
 
-* The following workspace dependencies were updated
-  * dependencies
-    * @atlowchemi/webfont-generator bumped to 0.9.0
+- The following workspace dependencies were updated
+    - dependencies
+        - @atlowchemi/webfont-generator bumped to 0.9.0
 
 ## [8.3.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.3.0...vite-svg-2-webfont-v8.3.1) (2026-10-03)
 
