@@ -5,6 +5,7 @@ on:
     pull_request:
         paths:
             - '.github/workflows/platform-output.yaml'
+            - '.github/workflows/build-native.yaml'
             - 'scripts/ci/*platform-output*'
             - 'crates/webfont-generator/**'
             - 'packages/webfont-generator/**'
@@ -18,27 +19,91 @@ permissions:
     contents: read
 
 jobs:
-    generate:
+    build:
+        uses: ./.github/workflows/build-native.yaml
+        with:
+            scope: full
+
+    generate-host:
+        needs: build
+        timeout-minutes: 10
         strategy:
             fail-fast: false
             matrix:
                 include:
                     - runner: ubuntu-24.04
-                      target: linux-x64
+                      target: x86_64-unknown-linux-gnu
+                    - runner: ubuntu-24.04-arm
+                      target: aarch64-unknown-linux-gnu
                     - runner: windows-2025
-                      target: win32-x64
+                      target: x86_64-pc-windows-msvc
+                    - runner: windows-11-arm
+                      target: aarch64-pc-windows-msvc
+                    - runner: macos-15-intel
+                      target: x86_64-apple-darwin
                     - runner: macos-15
-                      target: darwin-arm64
+                      target: aarch64-apple-darwin
         runs-on: ${{ matrix.runner }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-            - uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
-            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+            - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
               with:
-                  node-version-file: .node-version
-                  run-install: true
-                  cache: true
-            - run: vp run test:platform-output:generate
+                  # Node 22 also supplies the ARMv7 runtime used below.
+                  node-version: '22'
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: bindings-${{ matrix.target }}
+                  path: packages/webfont-generator/
+            # This script uses only stdlib and the downloaded addon: no install or rebuild.
+            - run: node scripts/ci/generate-platform-output.mjs
+              env:
+                  PLATFORM_OUTPUT_TARGET: ${{ matrix.target }}
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: platform-output-${{ matrix.target }}
+                  path: artifacts/platform-output/${{ matrix.target }}/
+                  if-no-files-found: error
+
+    generate-container:
+        needs: build
+        timeout-minutes: 15
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - runner: ubuntu-24.04
+                      target: x86_64-unknown-linux-musl
+                      platform: linux/amd64
+                      image: node:22-alpine
+                    - runner: ubuntu-24.04-arm
+                      target: aarch64-unknown-linux-musl
+                      platform: linux/arm64
+                      image: node:22-alpine
+                    - runner: ubuntu-24.04
+                      target: armv7-unknown-linux-gnueabihf
+                      platform: linux/arm/v7
+                      image: node:22-bookworm-slim
+        runs-on: ${{ matrix.runner }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: bindings-${{ matrix.target }}
+                  path: packages/webfont-generator/
+            - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3
+              if: matrix.platform == 'linux/arm/v7'
+              with:
+                  platforms: arm
+            - name: Generate with the release binding
+              env:
+                  PLATFORM_OUTPUT_TARGET: ${{ matrix.target }}
+                  CONTAINER_PLATFORM: ${{ matrix.platform }}
+                  CONTAINER_IMAGE: ${{ matrix.image }}
+              run: |
+                  docker run --rm --platform "$CONTAINER_PLATFORM" \
+                    --volume "$PWD:/build" --workdir /build \
+                    --env PLATFORM_OUTPUT_TARGET --env GITHUB_SHA \
+                    "$CONTAINER_IMAGE" node scripts/ci/generate-platform-output.mjs
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: platform-output-${{ matrix.target }}
@@ -47,7 +112,7 @@ jobs:
 
     compare:
         # Byte differences only produce a warning and summary; tooling failures still fail.
-        needs: generate
+        needs: [generate-host, generate-container]
         if: ${{ !cancelled() }}
         runs-on: ubuntu-24.04
         steps:
@@ -56,6 +121,5 @@ jobs:
               with:
                   pattern: platform-output-*
                   path: artifacts/platform-output/
-            - run: >-
-                  node scripts/ci/compare-platform-output.mjs artifacts/platform-output
-                  platform-output-linux-x64 platform-output-win32-x64 platform-output-darwin-arm64
+            # With no target arguments, require every target declared in the NAPI package.
+            - run: node scripts/ci/compare-platform-output.mjs

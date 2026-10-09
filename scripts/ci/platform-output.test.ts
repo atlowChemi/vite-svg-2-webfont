@@ -1,9 +1,10 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { brotliCompressSync, constants, deflateSync } from 'node:zlib';
 import { afterEach, expect, it } from 'vite-plus/test';
+import { parse } from 'yaml';
 // @ts-expect-error Standalone JavaScript CLI has no declaration file.
 import { compareDirectories, diagnose } from './compare-platform-output.mjs';
 
@@ -89,4 +90,30 @@ it('keeps byte mismatches diagnostic but fails when an expected platform artifac
     expect(diagnostic.status).toBe(0);
     expect(diagnostic.stdout).toContain('::warning::Platform output parity: 2 differing file comparisons');
     expect(run(['linux-x64', 'win32-x64']).status).not.toBe(0);
+    writeFileSync(join(root, 'darwin-arm64', 'environment.json'), JSON.stringify({ revision: 'different' }));
+    expect(run(['linux-x64', 'darwin-arm64']).stderr).toContain('cannot compare different source revisions');
+});
+
+it('executes every declared NAPI target exactly once and refuses an incomplete release-artifact set', () => {
+    const { napi } = JSON.parse(readFileSync('packages/webfont-generator/package.json', 'utf8')) as { napi: { targets: string[] } };
+    const workflow = parse(readFileSync('.github/workflows/platform-output.yaml', 'utf8')) as {
+        jobs: Record<string, { strategy: { matrix: { include: { target: string }[] } } }>;
+    };
+    const matrix = ['generate-host', 'generate-container'].flatMap(job => workflow.jobs[job]!.strategy.matrix.include.map(row => row.target));
+    expect(matrix.toSorted()).toEqual(napi.targets.toSorted());
+    const root = mkdtempSync(join(tmpdir(), 'platform-output-all-'));
+    roots.push(root);
+    for (const target of napi.targets) {
+        const directory = join(root, `platform-output-${target}`);
+        for (const mode of ['fresh', 'incremental']) {
+            mkdirSync(join(directory, mode), { recursive: true });
+            writeFileSync(join(directory, mode, 'font.css'), 'same');
+        }
+        writeFileSync(join(directory, 'environment.json'), JSON.stringify({ revision: 'same', build: { target } }));
+    }
+    const run = () => spawnSync(process.execPath, ['scripts/ci/compare-platform-output.mjs', root], { encoding: 'utf8', env: { ...process.env, GITHUB_STEP_SUMMARY: '' } });
+    expect(run().stdout).toContain('All compared files are byte-identical');
+    expect(run().status).toBe(0);
+    rmSync(join(root, 'platform-output-armv7-unknown-linux-gnueabihf'), { recursive: true });
+    expect(run().status).not.toBe(0);
 });

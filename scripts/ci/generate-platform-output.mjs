@@ -1,12 +1,40 @@
 /* eslint-disable no-await-in-loop -- Run corpus cases sequentially to bound native build memory across CI runners. */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdir, rm, writeFile } from 'node:fs/promises';
-import { generateWebfonts } from '../../packages/webfont-generator/index.js';
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
+
+const target = process.env.PLATFORM_OUTPUT_TARGET;
+const revision = process.env.GITHUB_SHA ?? execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+let build;
+if (target) {
+    const adapter = 'packages/webfont-generator';
+    build = JSON.parse(await readFile(`${adapter}/binding-build.json`, 'utf8'));
+    assert.equal(build.target, target, 'Wrong release artifact');
+    assert.equal(build.revision, revision, 'Release artifact comes from a different revision');
+    assert.deepEqual(
+        (await readdir(adapter)).filter(file => file.endsWith('.node')),
+        [build.filename],
+        'Expected exactly the downloaded binding',
+    );
+    assert.ok(build.filename.includes(`.${process.platform}-${process.arch}-`) || build.filename.includes(`.${process.platform}-${process.arch}.`), 'Wrong runtime architecture');
+    const binding = resolve(adapter, build.filename);
+    assert.equal(
+        createHash('sha256')
+            .update(await readFile(binding))
+            .digest('hex'),
+        build.sha256,
+        'Release binding checksum mismatch',
+    );
+    // Prevent an installed optional package or stale local binary from hiding an artifact failure.
+    process.env.NAPI_RS_NATIVE_LIBRARY_PATH = binding;
+}
+const { generateWebfonts } = await import('../../packages/webfont-generator/index.js');
 
 // Run from the repo root. Forward-slash relative paths are deliberately identical on every OS.
 const root = 'artifacts/platform-output';
-const output = `${root}/${process.platform}-${process.arch}`;
+const output = `${root}/${target ?? `${process.platform}-${process.arch}`}`;
 await rm(output, { recursive: true, force: true });
 await mkdir(output, { recursive: true });
 const fixtures = 'crates/webfont-generator/src/svg/fixtures';
@@ -77,8 +105,9 @@ await writeFile(
             platform: process.platform,
             arch: process.arch,
             node: process.version,
-            rust: execFileSync('rustc', ['--version'], { encoding: 'utf8' }).trim(),
-            revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+            rust: build?.rust ?? execFileSync('rustc', ['--version'], { encoding: 'utf8' }).trim(),
+            revision,
+            build,
         },
         null,
         2,

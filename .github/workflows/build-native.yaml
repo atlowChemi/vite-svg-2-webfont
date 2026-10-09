@@ -119,8 +119,31 @@ jobs:
                   CFLAGS_aarch64_apple_darwin: -mmacosx-version-min=11.0
                   CXXFLAGS_aarch64_apple_darwin: -mmacosx-version-min=11.0
 
+            - name: Record binding provenance
+              working-directory: packages/webfont-generator
+              env:
+                  BINDING_TARGET: ${{ matrix.target }}
+              run: |
+                  node --input-type=module <<'NODE'
+                  import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
+                  import { createHash } from 'node:crypto';
+                  import { execFileSync } from 'node:child_process';
+                  const files = readdirSync('.').filter(file => file.endsWith('.node'));
+                  if (files.length !== 1) throw new Error(`Expected one release binding, found ${files.length}`);
+                  const filename = files[0];
+                  writeFileSync('binding-build.json', JSON.stringify({
+                      target: process.env.BINDING_TARGET,
+                      filename,
+                      sha256: createHash('sha256').update(readFileSync(filename)).digest('hex'),
+                      rust: execFileSync('rustc', ['--version'], { encoding: 'utf8' }).trim(),
+                      revision: execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(),
+                  }, null, 2));
+                  NODE
+
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: bindings-${{ matrix.target }}
-                  path: packages/webfont-generator/*.node
+                  path: |
+                      packages/webfont-generator/*.node
+                      packages/webfont-generator/binding-build.json
                   if-no-files-found: error

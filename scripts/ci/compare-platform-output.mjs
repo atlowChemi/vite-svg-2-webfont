@@ -83,15 +83,24 @@ export function compareDirectories(baseline, candidate) {
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-    const [root = 'artifacts/platform-output', ...targets] = process.argv.slice(2);
+    const [root = 'artifacts/platform-output', ...requested] = process.argv.slice(2);
+    const targets = requested.length
+        ? requested
+        : JSON.parse(readFileSync('packages/webfont-generator/package.json', 'utf8'))
+              .napi.targets.toSorted((first, second) => Number(second === 'x86_64-unknown-linux-gnu') - Number(first === 'x86_64-unknown-linux-gnu'))
+              .map(target => `platform-output-${target}`);
     if (targets.length < 2) throw new Error('Provide an artifact root and at least two target directories (baseline first)');
     const baseline = join(root, targets[0], 'fresh');
+    const baselineEnvironment = JSON.parse(readFileSync(join(root, targets[0], 'environment.json'), 'utf8'));
     const lines = ['# Platform output parity (diagnostic)', '', `Baseline: ${targets[0]}/fresh`, ''];
     let count = 0;
     for (const target of targets) {
         // Missing artifacts are infrastructure failures, never a successful parity result.
         const environment = JSON.parse(readFileSync(join(root, target, 'environment.json'), 'utf8'));
+        if (environment.revision !== baselineEnvironment.revision) throw new Error(`${target}: cannot compare different source revisions`);
+        if (!requested.length && environment.build?.target !== target.slice('platform-output-'.length)) throw new Error(`${target}: missing or incorrect release provenance`);
         lines.push(`## ${target}`, '', `Node ${environment.node}; ${environment.rust}; revision ${environment.revision}`, '');
+        if (environment.build) lines.push(`Release binding SHA-256: ${environment.build.sha256}`, '');
         for (const mode of ['fresh', 'incremental']) {
             const differences = compareDirectories(baseline, join(root, target, mode));
             count += differences.length;
