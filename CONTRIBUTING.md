@@ -117,8 +117,8 @@ and SHA-256, and runs them without rebuilding or installing alternative addons.
 CI reuses its existing full native build; manual workflow dispatch builds the artifacts first.
 Linux musl runs in native Alpine containers; ARMv7 runs in Debian under QEMU. Node 22
 is used throughout because it supplies an ARMv7 runtime. It compares fresh
-and incremental font/CSS/HTML bytes against Linux glibc x64's fresh outputs. Differences are
-diagnostic warnings, not a parity gate; missing artifacts or tooling failures still fail.
+and incremental font/CSS/HTML bytes against Linux glibc x64's fresh outputs. Byte differences,
+missing artifacts, and tooling failures fail CI's existing **Required checks** gate.
 Download its `platform-output-*` artifacts to inspect the original files. The job summary
 lists changed TTF/WOFF tables and whether WOFF2's decompressed transformed stream differs.
 The corpus covers color and variants, optimization and both Brotli paths, plus rounding
@@ -133,10 +133,11 @@ The local generation task builds a release binding and writes `artifacts/platfor
 The comparison defaults to requiring artifacts for every target in the NAPI package;
 download them under `artifacts/platform-output/`, retaining their `platform-output-<target>` directory names.
 For local runs, pass an artifact root followed by two or more directory names to compare instead.
-Inputs use ordered relative
-paths and the public wrapper's existing fixed timestamp. This does not test direct Rust
-defaults, relocation of checkout paths, or equality across engine versions.
-Set `PLATFORM_OUTPUT_STRICT=1` to make byte differences fail the comparison command.
+The checked contract is identical ordered source bytes, options and templates, and the
+public wrapper's fixed timestamp, using release binaries from the same source revision.
+Inputs use relative paths. This does not promise equality across engine versions,
+arbitrary toolchains/dependency resolutions, checkout relocation, or direct Rust defaults.
+CI sets `PLATFORM_OUTPUT_STRICT=1`; local comparison without that variable remains diagnostic.
 
 ### Regenerating test fixtures
 
