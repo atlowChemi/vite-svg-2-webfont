@@ -198,11 +198,12 @@ See the [generator's color guidance](/webfont-generator/#color-glyphs) for suppo
 ## `optimizeOutput`
 
 - Type: `boolean`
-- Description: Run an SVG path optimizer over each glyph before assembling the font, trading a small amount of build time for smaller output bytes
+- Description: Run an SVG path optimizer over each glyph before assembling the font
 - Default: `false`
 - Notes:
     - Available since v7 — exposes the underlying [`@atlowchemi/webfont-generator#optimizeOutput`](/webfont-generator/node#optimizeoutput) option through the plugin
     - Convenience alias for `formatOptions.svg.optimizeOutput`; the format-level option takes precedence when both are set
+    - Optimization may reduce SVG path data, but does not guarantee smaller binary font output; compare the generated sizes for your input set
 
 ## `woff2CompressionQuality`
 

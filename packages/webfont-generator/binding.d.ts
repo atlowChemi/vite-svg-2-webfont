@@ -281,8 +281,9 @@ export interface GenerateWebfontsOptions {
    */
   order?: Array<FontType>
   /**
-   * Run an SVG path optimizer over each glyph, trading a small amount of
-   * build time for smaller output bytes. Convenience alias for
+   * Run an SVG path optimizer over each glyph. This may reduce SVG path
+   * data, but does not guarantee smaller binary font output; compare the
+   * generated sizes for the input set. Convenience alias for
    * `formatOptions.svg.optimizeOutput`.
    */
   optimizeOutput?: boolean
@@ -434,8 +435,9 @@ export interface SvgFormatOptions {
   metadata?: string
   /**
    * SVG-format override of the top-level `optimizeOutput` option. When set,
-   * it wins over the top-level value; runs an SVG path optimizer over each
-   * glyph, trading a small amount of build time for smaller output bytes.
+   * it wins over the top-level value. Path optimization may reduce SVG path
+   * data, but does not guarantee smaller binary font output; compare the
+   * generated sizes for the input set.
    */
   optimizeOutput?: boolean
   /**

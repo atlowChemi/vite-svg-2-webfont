@@ -357,7 +357,8 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 ### `optimizeOutput`
 
 - Type: `boolean`
-- Description: Optimize SVG output paths. This is a convenience alias for `formatOptions.svg.optimizeOutput`.
+- Default: `false`
+- Description: Optimize SVG paths before assembling the font. This may reduce SVG path data, but does not guarantee smaller binary font output; compare the generated sizes for your input set. This is a convenience alias for `formatOptions.svg.optimizeOutput`.
 
 ### `fontStyle`
 

@@ -177,7 +177,7 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 | `ligature`              | `Option<bool>`                 | `true`                                                                     | Enable ligatures                                             |
 | `round`                 | `Option<f64>`                  | --                                                                         | Path rounding precision                                      |
 | `preserve_aspect_ratio` | `Option<bool>`                 | --                                                                         | Preserve SVG aspect ratio                                    |
-| `optimize_output`       | `Option<bool>`                 | --                                                                         | Optimize SVG output                                          |
+| `optimize_output`       | `Option<bool>`                 | `false`                                                                    | Optimize SVG paths; font output is not guaranteed to shrink  |
 | `font_style`            | `Option<String>`               | --                                                                         | CSS `font-style` value                                       |
 | `font_weight`           | `Option<String>`               | --                                                                         | CSS `font-weight` value                                      |
 | `missing_glyphs`        | `Option<MissingGlyphOptions>`  | `blank` in variant mode                                                    | Missing-glyph policy                                         |
