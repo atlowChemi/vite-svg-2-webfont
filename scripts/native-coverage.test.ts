@@ -35,3 +35,10 @@ it('normalizes native sources and package-local JS sources to repository paths',
     expect(js.status).toBe(0);
     expect(js.text).toContain('SF:packages/webfont-generator/index.js');
 });
+
+it('drops dependency sources outside repository crates and packages', () => {
+    const own = record(`${root}/crates/webfont-generator/src/lib.rs`, 1) + record(`${root}/packages/webfont-generator/native/lib.rs`, 1);
+    const result = validate(own + record(`${root}/.pnpm/crates/crates-io/geo-0.33.1/src/lib.rs`, 1) + record('/home/runner/.cargo/registry/src/x/src/lib.rs', 1));
+    expect(result.status).toBe(0);
+    expect(result.text).toBe(record('crates/webfont-generator/src/lib.rs', 1) + record('packages/webfont-generator/native/lib.rs', 1));
+});

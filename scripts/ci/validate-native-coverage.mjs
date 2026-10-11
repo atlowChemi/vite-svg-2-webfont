@@ -4,11 +4,16 @@ import { resolve } from 'node:path';
 const file = process.argv[2];
 const mode = process.argv[3] ?? 'native';
 const root = `${resolve(import.meta.dirname, '../..').replaceAll('\\', '/')}/`;
-const text = readFileSync(file, 'utf8').replace(/^SF:(.*)$/gm, (_, source) => {
-    const path = source.replaceAll('\\', '/');
-    const relative = path.startsWith(root) ? path.slice(root.length) : path;
-    return `SF:${mode === 'js' && !relative.startsWith('packages/') ? `packages/webfont-generator/${relative}` : relative}`;
-});
+const text = readFileSync(file, 'utf8')
+    .replace(/^SF:(.*)$/gm, (_, source) => {
+        const path = source.replaceAll('\\', '/');
+        const relative = path.startsWith(root) ? path.slice(root.length) : path;
+        return `SF:${mode === 'js' && !relative.startsWith('packages/') ? `packages/webfont-generator/${relative}` : relative}`;
+    })
+    // Drop dependency sources (e.g. pnpm-vendored crates under .pnpm/); Codecov would map them onto repo files by suffix.
+    .split(/(?<=^end_of_record\r?\n)/m)
+    .filter(record => !record.includes('SF:') || /^SF:(crates|packages)\//m.test(record))
+    .join('');
 const prefixes =
     mode === 'native'
         ? ['crates/webfont-generator/src/', 'packages/webfont-generator/native/']
