@@ -82,15 +82,15 @@ use std::sync::Mutex;
 
 use input::{
     ResolvedGenerateWebfontsOptions, build_variant_family_sources,
-    finalize_generate_webfonts_options, resolve_generate_webfonts_options, resolve_missing_glyphs,
-    validate_generate_webfonts_options,
+    finalize_generate_webfonts_options, resolve_missing_glyphs,
+    resolve_validated_generate_webfonts_options,
 };
 use input::{load_svg_files_with_hooks, load_variant_svg_files_with_hooks};
 use output::write_generate_webfonts_result;
 use pipeline::{generate_variant_webfonts_sync, generate_webfonts_sync};
 use rendering::{
     CachedTemplateData, SharedTemplateData, build_css_context, build_html_context,
-    build_html_registry_and_dependencies,
+    load_html_template,
 };
 pub use result::{GenerateWebfontsResult, RegenerateError};
 pub use types::{
@@ -102,13 +102,13 @@ pub use types::{
 
 type PreparedVariantInput = (
     svg::types::PreparedVariantFamily,
-    Vec<input::LoadedSvgFile>,
+    Vec<input::LoadedSvgSource>,
     Option<svg::VariantGlyphCache>,
 );
 
 fn prepare_variant_family(
     options: &mut ResolvedGenerateWebfontsOptions,
-    source_files: Vec<Vec<input::LoadedSvgFile>>,
+    source_files: Vec<Vec<input::LoadedSvgSource>>,
 ) -> std::io::Result<PreparedVariantInput> {
     let mut cache = options.incremental.then(svg::VariantGlyphCache::default);
     let family = prepare_variant_family_cached(
@@ -122,7 +122,7 @@ fn prepare_variant_family(
 
 fn prepare_variant_family_cached(
     options: &mut ResolvedGenerateWebfontsOptions,
-    source_files: Vec<&[input::LoadedSvgFile]>,
+    source_files: Vec<&[input::LoadedSvgSource]>,
     cache: Option<&mut svg::VariantGlyphCache>,
 ) -> std::io::Result<svg::types::PreparedVariantFamily> {
     let (mut family, codepoints) = build_variant_family_sources(
@@ -255,6 +255,53 @@ async fn hooked_generation_keeps_the_ordinary_source_path() {
     assert!(result.svg_string().is_some());
 }
 
+#[cfg(test)]
+#[tokio::test]
+async fn shared_variant_path_keeps_per_membership_hook_names() {
+    struct Names;
+    impl GenerationHooks for Names {
+        type Error = std::io::Error;
+
+        async fn rename(&self, paths: &[String]) -> std::io::Result<Option<Vec<String>>> {
+            assert_eq!(paths.len(), 2);
+            assert_eq!(paths[0], paths[1]);
+            Ok(Some(vec!["small-icon".into(), "large-icon".into()]))
+        }
+    }
+
+    let path = test_helpers::webfont_fixture("add.svg");
+    let result = generate_with_hooks(
+        GenerateWebfontsOptions {
+            dest: "artifacts".into(),
+            variants: Some(
+                ["small", "large"]
+                    .into_iter()
+                    .enumerate()
+                    .map(|(index, name)| FontVariant {
+                        name: name.into(),
+                        files: vec![path.clone()],
+                        weight: Some(300 + index as u16 * 400),
+                        default: Some(index == 0),
+                    })
+                    .collect(),
+            ),
+            types: Some(vec![FontType::Ttf]),
+            write_files: Some(false),
+            incremental: Some(true),
+            ..Default::default()
+        },
+        &Names,
+    )
+    .await
+    .unwrap();
+
+    assert!(result.ttf_bytes().is_some());
+    assert_eq!(result.source_files[0].id, result.source_files[1].id);
+    assert_eq!(result.source_files[0].glyph_name, "small-icon");
+    assert_eq!(result.source_files[1].glyph_name, "large-icon");
+    assert_eq!(result.options.codepoints.len(), 2);
+}
+
 /// Generate a webfont from a set of SVG files.
 ///
 /// Loads the SVGs listed in `options.files`, builds the configured
@@ -273,8 +320,7 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
     options: GenerateWebfontsOptions,
     hooks: &H,
 ) -> Result<GenerateWebfontsResult, H::Error> {
-    validate_generate_webfonts_options(&options)?;
-    let mut resolved_options = resolve_generate_webfonts_options(options)?;
+    let mut resolved_options = resolve_validated_generate_webfonts_options(options)?;
     let mut result = if let Some(variants) = &resolved_options.variants {
         let variant_paths = variants
             .variants
@@ -302,7 +348,7 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
     // When callbacks are present, we build SharedTemplateData here and seed the
     // OnceLock cache so it isn't re-created in get_cached() / writeFiles.
     if hooks.has_css_context() || hooks.has_html_context() {
-        let shared = SharedTemplateData::new(&result.options, &result.source_files)?;
+        let shared = SharedTemplateData::from_files(&result.options, &result.source_files)?;
 
         let mut css_ctx = build_css_context(&result.options, &shared);
         if hooks.has_css_context() {
@@ -336,8 +382,7 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
         }
 
         // Seed the OnceLock -- avoids re-creating SharedTemplateData in get_cached()
-        let (html_registry, html_template_dependencies) =
-            build_html_registry_and_dependencies(&result.options)?;
+        let html_template = load_html_template(&result.options)?;
         let css_hbs_context =
             handlebars::Context::wraps(&css_ctx).map_err(std::io::Error::other)?;
         let html_hbs_context =
@@ -348,9 +393,10 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
             css_hbs_context: Mutex::new(css_hbs_context),
             html_context: html_ctx,
             html_hbs_context: Mutex::new(html_hbs_context),
-            html_template_dependencies,
-            html_registry,
+            html_template,
             render_cache: Mutex::new(Default::default()),
+            #[cfg(test)]
+            html_render_count: Default::default(),
         }));
     }
 

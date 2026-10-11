@@ -16,7 +16,7 @@ mod variants;
 use std::io::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::input::ResolvedGenerateWebfontsOptions;
+use crate::input::ResolvedGenerationOptions;
 use crate::pipeline::TtfGlyphCache;
 use crate::svg::types::ProcessedGlyph;
 
@@ -34,9 +34,7 @@ use glyphs::{
 use ligatures::build_ligature_placeholders;
 use tables::assemble_font;
 
-pub(crate) fn ttf_options_from_options(
-    options: &ResolvedGenerateWebfontsOptions,
-) -> TtfOptions<'_> {
+pub(crate) fn ttf_options_from_options(options: &ResolvedGenerationOptions) -> TtfOptions<'_> {
     let ttf_format = options
         .format_options
         .as_ref()

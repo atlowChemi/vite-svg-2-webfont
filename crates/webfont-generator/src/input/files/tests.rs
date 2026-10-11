@@ -1,17 +1,19 @@
 use super::load_svg_files_with_hooks;
 use super::{
-    LoadedSvgFile, VariantGlyphSource, build_variant_family_sources, default_glyph_name_from_path,
-    glyph_name_from_path, load_svg_contents, load_variant_svg_files, resolve_missing_glyphs,
+    default_glyph_name_from_path, glyph_name_from_path, load_svg_contents, load_variant_svg_files,
+};
+use crate::input::{
+    LoadedSvgSource, VariantGlyphSource, build_variant_family_sources, resolve_missing_glyphs,
 };
 use crate::types::MissingGlyphBehavior;
 use std::collections::BTreeMap;
 use std::sync::{Arc, Mutex};
 
-fn loaded(path: &str, glyph_name: &str) -> LoadedSvgFile {
-    LoadedSvgFile {
+fn loaded(path: &str, glyph_name: &str) -> LoadedSvgSource {
+    LoadedSvgSource {
         contents: Arc::from("<svg />"),
         glyph_name: glyph_name.to_owned(),
-        path: path.to_owned(),
+        id: path.to_owned(),
     }
 }
 
@@ -160,7 +162,7 @@ fn builds_sparse_logical_glyphs_in_first_appearance_order() {
     assert_eq!(&*family.glyphs[0].sources, [source(0, 0), None]);
     assert_eq!(&*family.glyphs[1].sources, [source(0, 1), source(1, 0)]);
     assert_eq!(&*family.glyphs[2].sources, [None, source(1, 1)]);
-    assert_eq!(family.variants[1][0].path, "large/a.svg");
+    assert_eq!(family.variants[1][0].id, "large/a.svg");
     assert_eq!(
         codepoints,
         BTreeMap::from([

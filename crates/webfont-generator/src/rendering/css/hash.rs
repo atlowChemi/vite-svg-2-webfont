@@ -4,7 +4,7 @@ use serde_json::{Map, Value};
 
 use super::context::resolved_template_options;
 use crate::{
-    input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions},
+    input::{LoadedSvgSource, ResolvedGenerateWebfontsOptions},
     types::{FontType, color::ResolvedColorSelection},
 };
 
@@ -22,9 +22,9 @@ impl std::io::Write for Md5Writer<'_> {
     }
 }
 
-pub(super) fn calc_hash(
+pub(in crate::rendering) fn calc_hash(
     options: &ResolvedGenerateWebfontsOptions,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
 ) -> String {
     let mut hash = Context::new();
 

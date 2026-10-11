@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use crate::input::LoadedSvgFile;
+use crate::input::LoadedSvgSource;
 use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
 use crate::result::{FontOutputs, GenerateWebfontsResult};
 use crate::types::{FontType, GenerateWebfontsOptions};
@@ -37,10 +37,10 @@ fn build_result_with_templates(
     };
 
     let mut resolved = resolve_generate_webfonts_options(options).unwrap();
-    let source_files: Vec<LoadedSvgFile> = resolved
+    let source_files: Vec<LoadedSvgSource> = resolved
         .files
         .iter()
-        .map(|path| LoadedSvgFile {
+        .map(|path| LoadedSvgSource {
             contents: std::fs::read_to_string(path).unwrap().into(),
             glyph_name: std::path::Path::new(path)
                 .file_stem()
@@ -48,7 +48,7 @@ fn build_result_with_templates(
                 .to_str()
                 .unwrap()
                 .to_owned(),
-            path: path.clone(),
+            id: path.clone(),
         })
         .collect();
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
@@ -63,6 +63,45 @@ fn build_result_with_templates(
         regeneration_state: Arc::new(Mutex::new(None)),
         source_files: Arc::new(source_files),
     }
+}
+
+#[test]
+fn collection_reuses_companion_payloads_and_invalidates_changed_templates() {
+    use crate::output::collect::{OutputContents, OutputKind};
+    use std::sync::atomic::Ordering;
+
+    let mut result = build_result_with_templates(Some("first css"), Some("first html"));
+    let css = result.generate_css_shared(None).unwrap();
+    let html = result.generate_html_shared(None).unwrap();
+    let cached = result.get_cached_io().unwrap();
+    let renders = cached.shared.css_render_count.load(Ordering::Relaxed);
+    for output in result.collect_outputs().unwrap() {
+        let OutputContents::Text(text) = output.contents else {
+            panic!("expected text")
+        };
+        match output.kind {
+            OutputKind::Css => assert!(Arc::ptr_eq(&css, &text)),
+            OutputKind::Html => assert!(Arc::ptr_eq(&html, &text)),
+            OutputKind::Font(_) => panic!("no fonts in this fixture"),
+        }
+    }
+    assert_eq!(
+        cached.shared.css_render_count.load(Ordering::Relaxed),
+        renders
+    );
+    assert_eq!(cached.shared.css_compile_count.load(Ordering::Relaxed), 1);
+    assert_eq!(cached.html_render_count.load(Ordering::Relaxed), 1);
+
+    result.carried_render = result.render_cache_source();
+    result.cached.take();
+    std::fs::write(result.options.css_template.as_ref().unwrap(), "second css").unwrap();
+    std::fs::write(
+        result.options.html_template.as_ref().unwrap(),
+        "second html",
+    )
+    .unwrap();
+    assert_eq!(&*result.generate_css_shared(None).unwrap(), "second css");
+    assert_eq!(&*result.generate_html_shared(None).unwrap(), "second html");
 }
 
 #[test]
@@ -349,10 +388,10 @@ fn build_multi_type_result() -> GenerateWebfontsResult {
     };
 
     let mut resolved = resolve_generate_webfonts_options(options).unwrap();
-    let source_files: Vec<LoadedSvgFile> = resolved
+    let source_files: Vec<LoadedSvgSource> = resolved
         .files
         .iter()
-        .map(|path| LoadedSvgFile {
+        .map(|path| LoadedSvgSource {
             contents: std::fs::read_to_string(path).unwrap().into(),
             glyph_name: std::path::Path::new(path)
                 .file_stem()
@@ -360,7 +399,7 @@ fn build_multi_type_result() -> GenerateWebfontsResult {
                 .to_str()
                 .unwrap()
                 .to_owned(),
-            path: path.clone(),
+            id: path.clone(),
         })
         .collect();
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();

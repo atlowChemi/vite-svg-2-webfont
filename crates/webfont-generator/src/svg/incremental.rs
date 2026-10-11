@@ -10,7 +10,7 @@ use super::types::{
     ProcessedGlyph, SvgOptions,
 };
 use super::{finalize_plan, process_glyph_with_plan};
-use crate::input::LoadedSvgFile;
+use crate::input::LoadedSvgSource;
 
 pub(super) enum IncrementalGlyph {
     Fresh(ParsedGlyph),
@@ -85,7 +85,7 @@ impl IncrementalGlyph {
 /// byte-identical to [`super::prepare_svg_font`] for the same inputs.
 pub(crate) fn prepare_svg_font_incremental(
     options: &SvgOptions,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
     cache: &mut GlyphCache,
 ) -> Result<PreparedSvgFont, Error> {
     let glyphs = parse_glyphs_incremental(options, source_files, cache)?;
@@ -98,7 +98,7 @@ pub(crate) fn source_content_hash(contents: &str) -> [u8; 16] {
 
 pub(super) fn parse_glyphs_incremental(
     options: &SvgOptions,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
     cache: &mut GlyphCache,
 ) -> Result<Vec<IncrementalGlyph>, Error> {
     if source_files.is_empty() {
@@ -110,41 +110,37 @@ pub(super) fn parse_glyphs_incremental(
 
     let preserve_aspect_ratio = options.preserve_aspect_ratio.unwrap_or(false);
 
-    // Forget cache entries for files no longer in the set.
-    let current: HashSet<&str> = source_files.iter().map(|file| file.path.as_str()).collect();
-    cache
-        .entries
-        .retain(|path, _| current.contains(path.as_str()));
+    // Forget cache entries for source IDs no longer in the set.
+    let current: HashSet<&str> = source_files.iter().map(|file| file.id.as_str()).collect();
+    cache.entries.retain(|id, _| current.contains(id.as_str()));
     cache
         .content_hashes
-        .retain(|path, _| current.contains(path.as_str()));
+        .retain(|id, _| current.contains(id.as_str()));
     cache
         .processed_entries
-        .retain(|path, _| current.contains(path.as_str()));
+        .retain(|id, _| current.contains(id.as_str()));
 
-    // Rehydrate path entries from content-addressed geometry where possible. This handles added
-    // files whose SVG bytes match an existing glyph (including rename-like remove/add events).
+    // Rehydrate source-ID entries from content-addressed geometry where possible. This handles
+    // added sources whose SVG bytes match an existing glyph (including remove/add events).
     for source_file in source_files {
         let selected = options.selects_color(&source_file.glyph_name);
         if cache
             .entries
-            .get(&source_file.path)
+            .get(&source_file.id)
             .is_some_and(|cached| cached.color_layers.is_some() != selected)
         {
-            cache.entries.remove(&source_file.path);
-            cache.processed_entries.remove(&source_file.path);
+            cache.entries.remove(&source_file.id);
+            cache.processed_entries.remove(&source_file.id);
         }
-        if cache.entries.contains_key(&source_file.path) {
+        if cache.entries.contains_key(&source_file.id) {
             continue;
         }
         let hash = source_content_hash(&source_file.contents);
         if let Some(cached) = cache.by_content_hash.get(&hash)
             && cached.color_layers.is_some() == selected
         {
-            cache
-                .entries
-                .insert(source_file.path.clone(), cached.clone());
-            cache.content_hashes.insert(source_file.path.clone(), hash);
+            cache.entries.insert(source_file.id.clone(), cached.clone());
+            cache.content_hashes.insert(source_file.id.clone(), hash);
         }
     }
 
@@ -172,7 +168,7 @@ pub(super) fn parse_glyphs_incremental(
     let parsed: Vec<(usize, ParsedGlyph)> = source_files
         .par_iter()
         .enumerate()
-        .filter(|(_, source_file)| !cache.entries.contains_key(&source_file.path))
+        .filter(|(_, source_file)| !cache.entries.contains_key(&source_file.id))
         .map(|(index, source_file)| {
             let work = GlyphWorkItem {
                 codepoint: codepoints[index],
@@ -207,8 +203,8 @@ pub(super) fn parse_glyphs_incremental(
             width: glyph.width,
         });
         cache.by_content_hash.insert(hash, cached.clone());
-        cache.content_hashes.insert(source_file.path.clone(), hash);
-        cache.entries.insert(source_file.path.clone(), cached);
+        cache.content_hashes.insert(source_file.id.clone(), hash);
+        cache.entries.insert(source_file.id.clone(), cached);
     }
 
     let active_hashes: HashSet<[u8; 16]> = cache.content_hashes.values().copied().collect();
@@ -225,7 +221,7 @@ pub(super) fn parse_glyphs_incremental(
             None => {
                 let cached = cache
                     .entries
-                    .get(&source_file.path)
+                    .get(&source_file.id)
                     .expect("an unchanged file must have a cache entry");
                 IncrementalGlyph::Cached {
                     codepoint: codepoints[index],
@@ -267,7 +263,7 @@ pub(super) fn processed_glyph_cache_signature(plan: &super::FinalizePlan) -> [u8
 fn finalize_glyphs_incremental(
     options: &SvgOptions,
     glyphs: Vec<IncrementalGlyph>,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
     cache: &mut GlyphCache,
 ) -> Result<PreparedSvgFont, Error> {
     let plan = finalize_plan(
@@ -288,7 +284,7 @@ fn finalize_glyphs_incremental(
         .filter(|(_, glyph)| {
             !cache
                 .processed_entries
-                .contains_key(&source_files[glyph.index()].path)
+                .contains_key(&source_files[glyph.index()].id)
         })
         .map(|(_, glyph)| {
             let path_index = glyph.index();
@@ -316,7 +312,7 @@ fn finalize_glyphs_incremental(
     for (index, glyph, cached) in processed {
         cache
             .processed_entries
-            .insert(source_files[index].path.clone(), cached);
+            .insert(source_files[index].id.clone(), cached);
         freshly_processed.insert(index, glyph);
     }
 
@@ -327,7 +323,7 @@ fn finalize_glyphs_incremental(
             None => {
                 let cached = cache
                     .processed_entries
-                    .get(&source_file.path)
+                    .get(&source_file.id)
                     .expect("an unchanged file must have a processed cache entry");
                 let codepoint = glyphs_codepoint(options, source_file)?;
                 ProcessedGlyph {
@@ -358,7 +354,7 @@ fn finalize_glyphs_incremental(
     })
 }
 
-fn glyphs_codepoint(options: &SvgOptions, source_file: &LoadedSvgFile) -> Result<u32, Error> {
+fn glyphs_codepoint(options: &SvgOptions, source_file: &LoadedSvgSource) -> Result<u32, Error> {
     options
         .codepoints
         .get(source_file.glyph_name.as_str())

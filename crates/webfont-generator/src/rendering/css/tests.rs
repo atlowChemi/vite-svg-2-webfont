@@ -3,7 +3,7 @@ use super::{
     build_css_context, calc_hash, make_ctx, make_src, make_urls, render_css_with_context,
     template_dependencies,
 };
-use crate::input::LoadedSvgFile;
+use crate::input::LoadedSvgSource;
 use crate::input::ResolvedGenerateWebfontsOptions;
 use crate::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
@@ -16,14 +16,42 @@ use std::io::{Error, ErrorKind};
 
 fn render_css(
     options: &ResolvedGenerateWebfontsOptions,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
 ) -> Result<String, Error> {
-    let shared = SharedTemplateData::new(options, source_files)?;
+    let shared = SharedTemplateData::from_files(options, source_files)?;
     let ctx = build_css_context(options, &shared);
     render_css_with_context(&shared, &ctx)
 }
 
 use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};
+
+#[test]
+fn text_template_compilation_needs_only_common_settings() {
+    let options = crate::input::GenerationOptions::default()
+        .resolve(false)
+        .unwrap();
+    let shared = SharedTemplateData::new(&options, Some("{{label}}".into()), "fingerprint".into());
+    let context = Map::from_iter([("label".into(), Value::String("inline".into()))]);
+    assert_eq!(
+        render_css_with_context(&shared, &context).unwrap(),
+        "inline"
+    );
+    assert_eq!(
+        render_css_with_context(&shared, &context).unwrap(),
+        "inline"
+    );
+    assert_eq!(
+        shared
+            .css_compile_count
+            .load(std::sync::atomic::Ordering::Relaxed),
+        1
+    );
+    let html = crate::rendering::html::compile_html_template(Some("{{label}}".into())).unwrap();
+    assert_eq!(
+        html.registry.unwrap().render("html", &context).unwrap(),
+        "inline"
+    );
+}
 
 #[test]
 fn variant_default_css_uses_resolved_weights() {
@@ -47,7 +75,7 @@ fn variant_default_css_uses_resolved_weights() {
         ]),
         ..Default::default()
     });
-    let shared = SharedTemplateData::new(&options, &[]).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &[]).unwrap();
     let ctx = build_css_context(&options, &shared);
     let css = render_css_with_context(&shared, &ctx).unwrap();
     assert_eq!(css.matches("@font-face").count(), 2);
@@ -115,12 +143,12 @@ fn hash_matches_expected_value_for_known_options() {
     };
 
     let options = resolve_options(options);
-    let source_files = vec![LoadedSvgFile {
+    let source_files = vec![LoadedSvgSource {
         contents: fs::read_to_string(&options.files[0])
             .expect("fixture should load")
             .into(),
         glyph_name: "add".to_owned(),
-        path: options.files[0].clone(),
+        id: options.files[0].clone(),
     }];
     let hash1 = calc_hash(&options, &source_files);
     let hash2 = calc_hash(&options, &source_files);
@@ -142,12 +170,12 @@ fn make_urls_uses_hash_and_requested_type_order() {
         ..Default::default()
     };
     let options = resolve_options(options);
-    let source_files = vec![LoadedSvgFile {
+    let source_files = vec![LoadedSvgSource {
         contents: fs::read_to_string(&options.files[0])
             .expect("fixture should load")
             .into(),
         glyph_name: "add".to_owned(),
-        path: options.files[0].clone(),
+        id: options.files[0].clone(),
     }];
     let hash = calc_hash(&options, &source_files);
 
@@ -181,12 +209,12 @@ fn make_urls_joins_against_css_fonts_url_and_normalizes_backslashes() {
         ..Default::default()
     };
     let options = resolve_options(options);
-    let source_files = vec![LoadedSvgFile {
+    let source_files = vec![LoadedSvgSource {
         contents: fs::read_to_string(&options.files[0])
             .expect("fixture should load")
             .into(),
         glyph_name: "add".to_owned(),
-        path: options.files[0].clone(),
+        id: options.files[0].clone(),
     }];
     let hash = calc_hash(&options, &source_files);
 
@@ -216,12 +244,12 @@ fn make_urls_preserves_leading_slash_when_css_fonts_url_is_only_slashes() {
         ..Default::default()
     };
     let options = resolve_options(options);
-    let source_files = vec![LoadedSvgFile {
+    let source_files = vec![LoadedSvgSource {
         contents: fs::read_to_string(&options.files[0])
             .expect("fixture should load")
             .into(),
         glyph_name: "add".to_owned(),
-        path: options.files[0].clone(),
+        id: options.files[0].clone(),
     }];
     let hash = calc_hash(&options, &source_files);
 
@@ -339,7 +367,7 @@ fn make_ctx_builds_codepoints_and_merges_template_options() {
     let urls = HashMap::from([(FontType::Ttf, "iconfont.ttf?hash".to_owned())]);
 
     let options = resolve_options(options);
-    let shared = SharedTemplateData::new(&options, &[]).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &[]).unwrap();
     let ctx = make_ctx(&options, &urls, &shared);
 
     assert_eq!(
@@ -385,12 +413,12 @@ fn render_default_css_uses_generated_urls() {
         ..Default::default()
     };
     let options = resolve_options(options);
-    let source_files = vec![LoadedSvgFile {
+    let source_files = vec![LoadedSvgSource {
         contents: fs::read_to_string(&options.files[0])
             .expect("fixture should load")
             .into(),
         glyph_name: "add".to_owned(),
-        path: options.files[0].clone(),
+        id: options.files[0].clone(),
     }];
 
     let css = render_css(&options, &source_files).expect("css should render");
@@ -506,7 +534,7 @@ fn render_css_with_hbs_context_matches_direct_render_for_default_template() {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &source_files).unwrap();
     let ctx = build_css_context(&options, &shared);
     let hbs_ctx = handlebars::Context::wraps(&ctx).unwrap();
 
@@ -540,7 +568,7 @@ fn render_css_with_hbs_context_matches_direct_render_for_custom_template() {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &source_files).unwrap();
     let ctx = build_css_context(&options, &shared);
     let hbs_ctx = handlebars::Context::wraps(&ctx).unwrap();
 
@@ -574,7 +602,7 @@ fn render_css_with_src_swap_matches_manual_context_rewrite() {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &source_files).unwrap();
     let ctx = build_css_context(&options, &shared);
     let hbs_ctx = handlebars::Context::wraps(&ctx).unwrap();
 
@@ -630,7 +658,7 @@ fn render_css_with_src_mutate_produces_correct_results_on_repeated_calls() {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &source_files).unwrap();
     let ctx = build_css_context(&options, &shared);
     let mut hbs_ctx = handlebars::Context::wraps(&ctx).unwrap();
 
@@ -669,8 +697,8 @@ fn css_registry_rejects_invalid_template_syntax_on_first_access() {
         ..Default::default()
     });
 
-    // SharedTemplateData::new succeeds (file is read, compilation is deferred)
-    let shared = SharedTemplateData::new(&options, &[])
+    // Acquisition succeeds (file is read, compilation is deferred).
+    let shared = SharedTemplateData::from_files(&options, &[])
         .expect("init should succeed — template source is read but not compiled");
 
     // First access to css_registry triggers compilation and fails
@@ -702,7 +730,7 @@ fn shared_template_data_reads_source_but_does_not_compile_invalid_css_template_e
     });
 
     // Init succeeds — source is read but not compiled
-    let shared = SharedTemplateData::new(&options, &[]);
+    let shared = SharedTemplateData::from_files(&options, &[]);
     assert!(
         shared.is_ok(),
         "init should succeed even with invalid template content"
@@ -744,10 +772,10 @@ fn variant_hash_options(quality: Option<u8>) -> ResolvedGenerateWebfontsOptions 
 
 #[test]
 fn variant_hash_includes_resolved_variants_missing_policy_and_explicit_woff2_quality() {
-    let files = vec![LoadedSvgFile {
+    let files = vec![LoadedSvgSource {
         contents: "same source".into(),
         glyph_name: "add".to_owned(),
-        path: "add.svg".to_owned(),
+        id: "add.svg".to_owned(),
     }];
     let base = variant_hash_options(Some(9));
 
@@ -806,6 +834,40 @@ fn ordinary_hash_serialization_still_ignores_the_woff2_quality_value() {
     assert_eq!(
         calc_hash(&ordinary(8), &files),
         calc_hash(&ordinary(9), &files)
+    );
+}
+
+#[test]
+fn variant_hash_matches_before_common_options_extraction() {
+    // Captured from the pre-refactor native binding with these relative source paths.
+    let path = "crates/webfont-generator/src/svg/fixtures/unit/add.svg";
+    let mut options = variant_hash_options(Some(9));
+    for variant in &mut options.variants.as_mut().unwrap().variants {
+        variant.files = vec![path.to_owned()];
+    }
+    options.codepoints.insert("add".to_owned(), 0xf101);
+    let mut sources = vec![
+        LoadedSvgSource {
+            id: path.to_owned(),
+            glyph_name: "add".to_owned(),
+            contents: include_str!("../../svg/fixtures/unit/add.svg").into(),
+        };
+        2
+    ];
+    assert_eq!(
+        calc_hash(&options, &sources),
+        "2ac1d7b83068419fb7eda0cb8960be40"
+    );
+    // File hashes use the adapter's recorded membership paths, not opaque cache IDs.
+    sources[0].id = "opaque-id".to_owned();
+    assert_eq!(
+        calc_hash(&options, &sources),
+        "2ac1d7b83068419fb7eda0cb8960be40"
+    );
+    options.variants.as_mut().unwrap().variants[0].files[0] = "other/add.svg".to_owned();
+    assert_ne!(
+        calc_hash(&options, &sources),
+        "2ac1d7b83068419fb7eda0cb8960be40"
     );
 }
 

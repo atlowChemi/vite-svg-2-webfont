@@ -1,9 +1,9 @@
 use std::fmt::Write as _;
-use std::fs;
 use std::io::Error;
 use std::path::Path;
+use std::sync::Arc;
 
-use crate::input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::input::{LoadedSvgSource, ResolvedGenerateWebfontsOptions};
 use crate::rendering::css::{SharedTemplateData, TemplateDependencies};
 
 use crate::rendering::css::build_css_context_with_fonts_url;
@@ -19,7 +19,7 @@ use serde_json::{Map, Value};
 pub(crate) fn build_html_context(
     options: &ResolvedGenerateWebfontsOptions,
     shared: &SharedTemplateData,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
     styles: Option<String>,
 ) -> Result<Map<String, Value>, Error> {
     let styles = match styles {
@@ -38,7 +38,7 @@ pub(crate) fn build_html_context(
 pub(crate) fn build_html_context_with_css(
     options: &ResolvedGenerateWebfontsOptions,
     shared: &SharedTemplateData,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
     finalized_css: &Map<String, Value>,
 ) -> Result<Map<String, Value>, Error> {
     let mut css_ctx = finalized_css.clone();
@@ -104,24 +104,34 @@ fn render_html_with_context(
 pub(crate) fn build_html_registry(
     options: &ResolvedGenerateWebfontsOptions,
 ) -> Result<Option<Handlebars<'static>>, Error> {
-    Ok(build_html_registry_and_dependencies(options)?.0)
+    Ok(super::files::load_html_template(options)?.registry)
 }
 
-pub(crate) fn build_html_registry_and_dependencies(
-    options: &ResolvedGenerateWebfontsOptions,
-) -> Result<(Option<Handlebars<'static>>, TemplateDependencies), Error> {
-    let path = match &options.html_template {
-        Some(path) => path,
-        None => return Ok((None, TemplateDependencies::html_default())),
+pub(crate) struct HtmlTemplate {
+    pub(crate) source: Option<Arc<str>>,
+    pub(crate) registry: Option<Handlebars<'static>>,
+    pub(crate) dependencies: TemplateDependencies,
+}
+
+pub(crate) fn compile_html_template(source: Option<Arc<str>>) -> Result<HtmlTemplate, Error> {
+    let Some(text) = source.as_deref() else {
+        return Ok(HtmlTemplate {
+            source,
+            registry: None,
+            dependencies: TemplateDependencies::html_default(),
+        });
     };
-    let source = fs::read_to_string(path)?;
-    let dependencies = template_dependencies(&source);
+    let dependencies = template_dependencies(text);
     let mut registry = Handlebars::new();
     registry.register_helper("removePeriods", Box::new(RemovePeriodsHelper));
     registry
-        .register_template_string("html", &source)
+        .register_template_string("html", text)
         .map_err(|error| to_io_err(format!("Failed to compile HTML template: {error}")))?;
-    Ok((Some(registry), dependencies))
+    Ok(HtmlTemplate {
+        source,
+        registry: Some(registry),
+        dependencies,
+    })
 }
 
 #[inline]
@@ -182,7 +192,7 @@ fn html_css_fonts_url(options: &ResolvedGenerateWebfontsOptions) -> String {
 fn make_ctx(
     options: &ResolvedGenerateWebfontsOptions,
     shared: &SharedTemplateData,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
     styles: String,
 ) -> Map<String, Value> {
     let mut ctx = shared.template_options.clone();

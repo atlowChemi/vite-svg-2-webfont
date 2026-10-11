@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
 use super::*;
-use crate::input::LoadedSvgFile;
+use crate::input::LoadedSvgSource;
 
 fn parse(svg: &str, preserve_aspect_ratio: bool) -> Result<ParsedGlyph, Error> {
-    let source_file = LoadedSvgFile {
+    let source_file = LoadedSvgSource {
         contents: Arc::from(svg),
         glyph_name: "inline".to_owned(),
-        path: "inline.svg".to_owned(),
+        id: "inline.svg".to_owned(),
     };
     parse_svg_glyph(
         &GlyphWorkItem {

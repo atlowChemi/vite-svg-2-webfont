@@ -8,7 +8,7 @@ use std::sync::{Arc, Mutex, OnceLock};
 use serde_json::{Map, Value};
 
 use crate::incremental::RegenerationState;
-use crate::input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::input::{LoadedSvgSource, ResolvedGenerateWebfontsOptions};
 use crate::rendering::{CachedTemplateData, CarriedRenderCache};
 #[cfg(feature = "bench")]
 use crate::types::GlyphChange;
@@ -88,7 +88,7 @@ pub struct GenerateWebfontsResult {
     pub(crate) html_context: Option<Map<String, Value>>,
     pub(crate) options: Arc<ResolvedGenerateWebfontsOptions>,
     pub(crate) regeneration_state: Arc<Mutex<Option<RegenerationState>>>,
-    pub(crate) source_files: Arc<Vec<LoadedSvgFile>>,
+    pub(crate) source_files: Arc<Vec<LoadedSvgSource>>,
 }
 
 impl GenerateWebfontsResult {

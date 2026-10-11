@@ -18,13 +18,12 @@ fn temp_root(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn output_contents_exposes_shared_text_shared_bytes_and_owned_bytes() {
+fn output_contents_exposes_shared_text_and_shared_bytes() {
     let bytes = Arc::new(vec![1, 2, 3]);
     let text = Arc::new("css".to_owned());
 
     assert_eq!(OutputContents::Bytes(bytes).as_bytes(), &[1, 2, 3]);
     assert_eq!(OutputContents::Text(text).as_bytes(), b"css");
-    assert_eq!(OutputContents::Owned(vec![4, 5, 6]).as_bytes(), &[4, 5, 6]);
 }
 
 #[test]

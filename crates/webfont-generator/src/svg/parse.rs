@@ -31,7 +31,7 @@ pub(crate) fn parse_svg_glyph(
             ErrorKind::InvalidInput,
             format!(
                 "Failed to parse SVG fixture '{}': {error}",
-                item.source_file.path
+                item.source_file.id
             ),
         )
     })?;
@@ -42,7 +42,7 @@ pub(crate) fn parse_svg_glyph(
                     error.kind(),
                     format!(
                         "Failed to extract SVG paint for '{}': {error}",
-                        item.source_file.path
+                        item.source_file.id
                     ),
                 )
             })?;

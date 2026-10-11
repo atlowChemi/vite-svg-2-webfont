@@ -12,8 +12,7 @@ pub(crate) use render::{render_css_with_hbs_context, render_css_with_src_mutate}
 
 #[cfg(test)]
 use context::{make_ctx, make_urls};
-#[cfg(test)]
-use hash::calc_hash;
+pub(super) use hash::calc_hash;
 #[cfg(test)]
 use render::render_default_css;
 

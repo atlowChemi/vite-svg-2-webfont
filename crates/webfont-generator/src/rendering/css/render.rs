@@ -13,6 +13,10 @@ pub(crate) fn render_css_with_hbs_context(
     hbs_ctx: &handlebars::Context,
     map_ctx: &Map<String, Value>,
 ) -> Result<String, Error> {
+    #[cfg(test)]
+    shared
+        .css_render_count
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     match shared.css_registry()? {
         Some(registry) => registry
             .render_with_context("css", hbs_ctx)
@@ -26,6 +30,10 @@ pub(in crate::rendering) fn render_css_with_context(
     shared: &SharedTemplateData,
     ctx: &Map<String, Value>,
 ) -> Result<String, Error> {
+    #[cfg(test)]
+    shared
+        .css_render_count
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     match shared.css_registry()? {
         Some(registry) => registry.render("css", ctx).map_err(to_io_err),
         None => Ok(render_default_css(ctx)),
@@ -41,6 +49,10 @@ pub(crate) fn render_css_with_src_mutate(
     map_ctx: &Map<String, Value>,
     src: &str,
 ) -> Result<String, Error> {
+    #[cfg(test)]
+    shared
+        .css_render_count
+        .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     match shared.css_registry()? {
         Some(registry) => crate::rendering::shared::render_with_field_swap(
             hbs_ctx,

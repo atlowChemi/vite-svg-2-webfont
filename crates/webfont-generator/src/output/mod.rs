@@ -1,4 +1,4 @@
-mod collect;
+pub(crate) mod collect;
 #[cfg(test)]
 mod tests;
 mod write;
@@ -9,11 +9,59 @@ use tokio::task::JoinSet;
 
 use crate::result::GenerateWebfontsResult;
 
-use collect::collect_write_outputs;
+use collect::{CollectedOutput, OutputContents, OutputKind, collect_outputs};
 use write::{
     native_write_task_error, record_written_output, write_output_file,
     write_output_file_if_changed, write_output_file_sync,
 };
+
+impl GenerateWebfontsResult {
+    pub(crate) fn collect_outputs(&self) -> std::io::Result<Vec<CollectedOutput>> {
+        let css = self
+            .options
+            .css
+            .then(|| self.generate_css_shared(None))
+            .transpose()?;
+        let html = self
+            .options
+            .html
+            .then(|| self.generate_html_shared(None))
+            .transpose()?;
+        Ok(collect_outputs(&self.fonts, css, html))
+    }
+}
+
+struct OutputFile {
+    path: String,
+    contents: OutputContents,
+    skip_unchanged: bool,
+}
+
+fn collect_write_outputs(result: &GenerateWebfontsResult) -> std::io::Result<Vec<OutputFile>> {
+    Ok(result
+        .collect_outputs()?
+        .into_iter()
+        .map(|output| {
+            let (path, skip_unchanged) = match output.kind {
+                OutputKind::Font(kind) => (
+                    crate::input::default_output_dest(
+                        &result.options.dest,
+                        &result.options.font_name,
+                        kind.as_extension(),
+                    ),
+                    false,
+                ),
+                OutputKind::Css => (result.options.css_dest.clone(), true),
+                OutputKind::Html => (result.options.html_dest.clone(), true),
+            };
+            OutputFile {
+                path,
+                contents: output.contents,
+                skip_unchanged,
+            }
+        })
+        .collect())
+}
 
 /// Write every output to disk concurrently. For incremental results, also return hashes for
 /// CSS/HTML outputs so a later `regenerate` can skip companion files unchanged from this initial

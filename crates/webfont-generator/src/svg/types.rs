@@ -4,7 +4,7 @@ use std::sync::Arc;
 use kurbo::BezPath;
 use usvg::tiny_skia_path::Path as TinyPath;
 
-use crate::input::LoadedSvgFile;
+use crate::input::LoadedSvgSource;
 use crate::types::color::{ProcessedColorLayer, ResolvedColorSelection, ResolvedLayerPaint};
 
 pub(crate) struct SvgOptions<'a> {
@@ -59,7 +59,7 @@ pub(crate) struct GlyphWorkItem<'a> {
     pub codepoint: u32,
     pub index: usize,
     pub name: &'a str,
-    pub source_file: &'a LoadedSvgFile,
+    pub source_file: &'a LoadedSvgSource,
 }
 
 #[derive(Clone)]
@@ -128,19 +128,19 @@ pub(crate) struct CachedGlyph {
     pub width: f64,
 }
 
-/// Per-file parsed-glyph cache keyed by file path, retained on a `GenerateWebfontsResult` when
-/// `incremental` is enabled. A present entry is treated as up to date: `regenerate` evicts the
-/// paths it was told changed, so the rest can be reused without re-reading or re-hashing them.
+/// Parsed-glyph cache keyed by opaque source ID. A present entry is treated as up to date:
+/// the caller evicts IDs whose content changed, so unchanged sources need no re-hashing.
+/// File adapters use verbatim input paths as IDs; the cache never interprets them as paths.
 #[derive(Clone, Default)]
 pub(crate) struct GlyphCache {
-    /// Parsed geometry keyed by path for the current/last known file set.
+    /// Parsed geometry keyed by ID for the current/last known source set.
     pub entries: HashMap<String, Arc<CachedGlyph>>,
-    /// Last seen source hash per path, used to ignore no-op watcher events.
+    /// Last seen source hash per ID, used to ignore no-op updates.
     pub content_hashes: HashMap<String, [u8; 16]>,
     /// Most recently parsed mode per source hash. Reuse requires matching color-layer presence;
-    /// per-path entries retain both modes when identical sources have different selections.
+    /// per-ID entries retain both modes when identical sources have different selections.
     pub by_content_hash: HashMap<[u8; 16], Arc<CachedGlyph>>,
-    /// Processed path data keyed by path for unchanged files while metrics/options stay stable.
+    /// Processed path data keyed by ID for unchanged sources while metrics/options stay stable.
     pub processed_entries: HashMap<String, CachedProcessedGlyph>,
     pub processed_signature: Option<[u8; 16]>,
     #[cfg(test)]

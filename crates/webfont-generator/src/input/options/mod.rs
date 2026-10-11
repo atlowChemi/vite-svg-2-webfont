@@ -1,3 +1,4 @@
+mod common;
 #[cfg(test)]
 mod tests;
 
@@ -5,12 +6,107 @@ use std::collections::{BTreeMap, HashSet};
 use std::io::{Error, ErrorKind};
 use std::path::Path;
 
-use super::files::LoadedSvgFile;
+use super::LoadedSvgSource;
 use crate::types::color::ResolvedColorSelection;
 use crate::types::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
-    MissingGlyphOptions,
 };
+
+use common::VariantMetadata;
+pub(crate) use common::{GenerationOptions, ResolvedGenerationOptions};
+
+struct FileGenerationOptions {
+    common: GenerationOptions,
+    css_dest: Option<String>,
+    css_template: Option<String>,
+    dest: String,
+    files: Vec<String>,
+    html_dest: Option<String>,
+    html_template: Option<String>,
+    variants: Option<Vec<FontVariant>>,
+    write_files: Option<bool>,
+}
+
+impl From<GenerateWebfontsOptions> for FileGenerationOptions {
+    fn from(options: GenerateWebfontsOptions) -> Self {
+        let GenerateWebfontsOptions {
+            color_glyphs,
+            ascent,
+            center_horizontally,
+            center_vertically,
+            css,
+            css_dest,
+            css_template,
+            codepoints,
+            css_fonts_url,
+            descent,
+            dest,
+            files,
+            fixed_width,
+            format_options,
+            html,
+            html_dest,
+            html_template,
+            incremental,
+            font_height,
+            font_name,
+            font_style,
+            font_weight,
+            ligature,
+            missing_glyphs,
+            normalize,
+            order,
+            optimize_output,
+            preserve_aspect_ratio,
+            round,
+            start_codepoint,
+            template_options,
+            types,
+            variant_class_prefix,
+            variants,
+            write_files,
+        } = options;
+        Self {
+            common: GenerationOptions {
+                color_glyphs,
+                ascent,
+                center_horizontally,
+                center_vertically,
+                css,
+                codepoints,
+                css_fonts_url,
+                descent,
+                fixed_width,
+                format_options,
+                html,
+                incremental,
+                font_height,
+                font_name,
+                font_style,
+                font_weight,
+                ligature,
+                missing_glyphs,
+                normalize,
+                order,
+                optimize_output,
+                preserve_aspect_ratio,
+                round,
+                start_codepoint,
+                template_options,
+                types,
+                variant_class_prefix,
+            },
+            css_dest,
+            css_template,
+            dest,
+            files,
+            html_dest,
+            html_template,
+            variants,
+            write_files,
+        }
+    }
+}
 
 #[derive(Clone)]
 #[allow(
@@ -37,49 +133,35 @@ pub(crate) struct ResolvedFontVariant {
 
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerateWebfontsOptions {
-    pub color_selection: Option<ResolvedColorSelection>,
-    pub ascent: Option<f64>,
-    pub center_horizontally: Option<bool>,
-    pub center_vertically: Option<bool>,
-    pub css: bool,
+    pub common: ResolvedGenerationOptions,
     pub css_dest: String,
     pub css_template: Option<String>,
-    /// Fully-resolved codepoints for the current glyph set (explicit + auto-assigned). Rebuilt
-    /// by `finalize_generate_webfonts_options` from `explicit_codepoints` whenever the set changes.
-    pub codepoints: BTreeMap<String, u32>,
-    /// The user-supplied codepoints, kept as the stable base so re-resolving after an
-    /// incremental add/remove assigns the same codepoints a fresh build would.
-    pub explicit_codepoints: BTreeMap<String, u32>,
-    pub css_fonts_url: Option<String>,
-    pub descent: Option<f64>,
     pub dest: String,
     pub files: Vec<String>,
-    pub fixed_width: Option<bool>,
-    pub format_options: Option<FormatOptions>,
-    pub html: bool,
-    pub incremental: bool,
     pub html_dest: String,
     pub html_template: Option<String>,
-    pub font_height: Option<f64>,
-    pub font_name: String,
-    pub font_style: Option<String>,
-    pub font_weight: Option<String>,
-    pub ligature: bool,
-    pub missing_glyphs: MissingGlyphOptions,
-    pub normalize: bool,
-    pub order: Vec<FontType>,
-    pub optimize_output: Option<bool>,
-    pub preserve_aspect_ratio: Option<bool>,
-    pub round: Option<f64>,
-    pub start_codepoint: u32,
-    pub template_options: Option<serde_json::Map<String, serde_json::Value>>,
-    pub types: Vec<FontType>,
     #[allow(
         dead_code,
         reason = "variant metadata is consumed by later generation phases"
     )]
     pub variants: Option<ResolvedVariants>,
     pub write_files: bool,
+}
+
+// The file adapter extends shared settings; existing internal field readers keep borrowing
+// the same settings without cloning them. Content-only consumers accept the common type.
+impl std::ops::Deref for ResolvedGenerateWebfontsOptions {
+    type Target = ResolvedGenerationOptions;
+
+    fn deref(&self) -> &Self::Target {
+        &self.common
+    }
+}
+
+impl std::ops::DerefMut for ResolvedGenerateWebfontsOptions {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.common
+    }
 }
 
 const DEFAULT_FONT_TYPES: [FontType; 3] = [FontType::Eot, FontType::Woff, FontType::Woff2];
@@ -121,9 +203,14 @@ const DEFAULT_FONT_ORDER: [FontType; 5] = [
     FontType::Svg,
 ];
 
+#[cfg(test)]
 pub(crate) fn validate_generate_webfonts_options(
     options: &GenerateWebfontsOptions,
 ) -> std::io::Result<()> {
+    validate_file_options(&options.clone().into())
+}
+
+fn validate_file_options(options: &FileGenerationOptions) -> std::io::Result<()> {
     if options.dest.is_empty() {
         return Err(std::io::Error::new(
             ErrorKind::InvalidInput,
@@ -139,23 +226,20 @@ pub(crate) fn validate_generate_webfonts_options(
                     "\"options.files\" is empty.".to_owned(),
                 ));
             }
-            if options.missing_glyphs.is_some() {
-                return Err(std::io::Error::new(
-                    ErrorKind::InvalidInput,
-                    "\"options.missingGlyphs\" requires \"options.variants\".",
-                ));
-            }
-            if options.variant_class_prefix.is_some() {
-                return Err(std::io::Error::new(
-                    ErrorKind::InvalidInput,
-                    "\"options.variantClassPrefix\" requires \"options.variants\".",
-                ));
-            }
+            options.common.validate_without_variants()?;
         }
-        Some(variants) => validate_variants(options, variants)?,
+        Some(variants) => {
+            if !options.files.is_empty() {
+                return Err(Error::new(
+                    ErrorKind::InvalidInput,
+                    "\"options.files\" must be empty when \"options.variants\" is provided.",
+                ));
+            }
+            validate_variants(&options.common, &file_variant_metadata(variants), "files")?;
+        }
     }
 
-    if options.css.unwrap_or(true)
+    if options.common.css.unwrap_or(true)
         && let Some(ref path) = options.css_template
         && !Path::new(path).exists()
     {
@@ -165,7 +249,7 @@ pub(crate) fn validate_generate_webfonts_options(
         ));
     }
 
-    if options.html.unwrap_or(false)
+    if options.common.html.unwrap_or(false)
         && let Some(ref path) = options.html_template
         && !Path::new(path).exists()
     {
@@ -175,9 +259,11 @@ pub(crate) fn validate_generate_webfonts_options(
         ));
     }
 
+    validate_format_options(options.common.format_options.as_ref())
+}
+
+fn validate_format_options(options: Option<&FormatOptions>) -> std::io::Result<()> {
     if let Some(quality) = options
-        .format_options
-        .as_ref()
         .and_then(|value| value.woff2.as_ref())
         .and_then(|value| value.compression_quality)
         && quality > 11
@@ -193,16 +279,23 @@ pub(crate) fn validate_generate_webfonts_options(
     Ok(())
 }
 
+fn file_variant_metadata(variants: &[FontVariant]) -> Vec<VariantMetadata<'_>> {
+    variants
+        .iter()
+        .map(|variant| VariantMetadata {
+            name: &variant.name,
+            weight: variant.weight,
+            default: variant.default,
+            source_count: variant.files.len(),
+        })
+        .collect()
+}
+
 fn validate_variants(
-    options: &GenerateWebfontsOptions,
-    variants: &[crate::types::FontVariant],
+    options: &GenerationOptions,
+    variants: &[VariantMetadata<'_>],
+    membership_field: &str,
 ) -> std::io::Result<()> {
-    if !options.files.is_empty() {
-        return Err(Error::new(
-            ErrorKind::InvalidInput,
-            "\"options.files\" must be empty when \"options.variants\" is provided.",
-        ));
-    }
     if variants.len() < 2 {
         return Err(Error::new(
             ErrorKind::InvalidInput,
@@ -251,10 +344,10 @@ fn validate_variants(
     let mut default_count = 0;
     for (index, variant) in variants.iter().enumerate() {
         let path = format!("options.variants[{index}]");
-        if variant.files.is_empty() {
+        if variant.source_count == 0 {
             return Err(Error::new(
                 ErrorKind::InvalidInput,
-                format!("\"{path}.files\" is empty."),
+                format!("\"{path}.{membership_field}\" is empty."),
             ));
         }
         if variant.name.is_empty() {
@@ -382,7 +475,7 @@ fn serialize_css_identifier(value: &str) -> String {
 }
 
 fn resolve_variant_weights(
-    variants: &[FontVariant],
+    variants: &[VariantMetadata<'_>],
     default_index: usize,
 ) -> std::io::Result<Vec<u16>> {
     let mut weights = variants
@@ -471,7 +564,7 @@ fn resolve_variants(
                 "\"options.variants\" must contain a default variant.",
             )
         })?;
-    let weights = resolve_variant_weights(variants, default_index)?;
+    let weights = resolve_variant_weights(&file_variant_metadata(variants), default_index)?;
     let mut resolved = Vec::with_capacity(variants.len());
 
     for (variant, weight) in variants.iter().zip(weights) {
@@ -492,57 +585,42 @@ fn resolve_variants(
     })
 }
 
+pub(crate) fn resolve_validated_generate_webfonts_options(
+    options: GenerateWebfontsOptions,
+) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
+    let options = FileGenerationOptions::from(options);
+    validate_file_options(&options)?;
+    resolve_file_options(options)
+}
+
+#[cfg(any(test, feature = "bench"))]
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
-    let types = resolved_font_types(&options);
-    validate_font_type_order(&options, &types)?;
-    let order = resolve_font_type_order(&options, &types);
-    let color_selection = options.color_glyphs.map(ResolvedColorSelection::from);
-    validate_color_formats(color_selection.as_ref(), &types)?;
-    let css = options.css.unwrap_or(true);
-    let html = options.html.unwrap_or(false);
-    let font_name = options.font_name.unwrap_or_else(|| "iconfont".to_owned());
+    resolve_file_options(options.into())
+}
+
+fn resolve_file_options(
+    options: FileGenerationOptions,
+) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
+    let mut settings = options.common;
+    let class_prefix = settings.variant_class_prefix.take();
+    let common = settings.resolve(options.variants.is_some())?;
     let css_dest = options
         .css_dest
-        .unwrap_or_else(|| default_output_dest(&options.dest, &font_name, "css"));
+        .unwrap_or_else(|| default_output_dest(&options.dest, &common.font_name, "css"));
     let html_dest = options
         .html_dest
-        .unwrap_or_else(|| default_output_dest(&options.dest, &font_name, "html"));
+        .unwrap_or_else(|| default_output_dest(&options.dest, &common.font_name, "html"));
     let write_files = options.write_files.unwrap_or(true);
-    let explicit_codepoints: BTreeMap<String, u32> =
-        options.codepoints.unwrap_or_default().into_iter().collect();
     let variants = options
         .variants
         .as_deref()
-        .map(|variants| {
-            resolve_variants(
-                variants,
-                options.variant_class_prefix.as_deref().unwrap_or("icon--"),
-            )
-        })
+        .map(|variants| resolve_variants(variants, class_prefix.as_deref().unwrap_or("icon--")))
         .transpose()?;
 
-    let svg_format = options
-        .format_options
-        .as_ref()
-        .and_then(|fo| fo.svg.as_ref());
-    let center_vertically = svg_format
-        .and_then(|s| s.center_vertically)
-        .or(options.center_vertically);
-    let optimize_output = svg_format
-        .and_then(|s| s.optimize_output)
-        .or(options.optimize_output);
-    let preserve_aspect_ratio = svg_format
-        .and_then(|s| s.preserve_aspect_ratio)
-        .or(options.preserve_aspect_ratio);
-
     Ok(ResolvedGenerateWebfontsOptions {
-        color_selection,
-        ascent: options.ascent,
-        center_horizontally: options.center_horizontally,
-        center_vertically,
-        css,
+        common,
         css_dest,
         css_template: match options.css_template {
             Some(ref t) if t.is_empty() => {
@@ -553,15 +631,8 @@ pub(crate) fn resolve_generate_webfonts_options(
             }
             other => other,
         },
-        codepoints: explicit_codepoints.clone(),
-        explicit_codepoints,
-        css_fonts_url: options.css_fonts_url,
-        descent: options.descent,
         dest: options.dest,
         files: options.files,
-        fixed_width: options.fixed_width,
-        format_options: options.format_options,
-        html,
         html_dest,
         html_template: match options.html_template {
             Some(ref t) if t.is_empty() => {
@@ -572,32 +643,14 @@ pub(crate) fn resolve_generate_webfonts_options(
             }
             other => other,
         },
-        incremental: options.incremental.unwrap_or(false),
-        font_height: options.font_height,
-        font_name,
-        font_style: options.font_style,
-        font_weight: options.font_weight,
-        ligature: options.ligature.unwrap_or(true),
-        missing_glyphs: options.missing_glyphs.unwrap_or(MissingGlyphOptions {
-            behavior: MissingGlyphBehavior::Blank,
-            variant: None,
-        }),
-        normalize: options.normalize.unwrap_or(true),
-        order,
-        optimize_output,
-        preserve_aspect_ratio,
-        round: options.round,
-        start_codepoint: options.start_codepoint.unwrap_or(0xF101),
-        template_options: options.template_options,
-        types,
         variants,
         write_files,
     })
 }
 
 pub(crate) fn finalize_generate_webfonts_options(
-    options: &mut ResolvedGenerateWebfontsOptions,
-    source_files: &[LoadedSvgFile],
+    options: &mut ResolvedGenerationOptions,
+    source_files: &[LoadedSvgSource],
 ) -> std::io::Result<()> {
     validate_color_names(
         options,
@@ -615,7 +668,7 @@ pub(crate) fn finalize_generate_webfonts_options(
 }
 
 pub(crate) fn validate_color_names<'a>(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedGenerationOptions,
     names: impl Iterator<Item = &'a str>,
 ) -> std::io::Result<()> {
     if let Some(ResolvedColorSelection::Named(selected)) = &options.color_selection {
@@ -638,17 +691,17 @@ pub(crate) fn validate_color_names<'a>(
     Ok(())
 }
 
-fn resolved_font_types(options: &GenerateWebfontsOptions) -> Vec<FontType> {
-    match &options.types {
-        Some(types) => types.clone(),
-        None if options.variants.is_some() => vec![FontType::Woff, FontType::Woff2],
+fn resolved_font_types(types: Option<&[FontType]>, variants: bool) -> Vec<FontType> {
+    match types {
+        Some(types) => types.to_vec(),
+        None if variants => vec![FontType::Woff, FontType::Woff2],
         None => DEFAULT_FONT_TYPES.to_vec(),
     }
 }
 
-fn resolve_font_type_order(options: &GenerateWebfontsOptions, types: &[FontType]) -> Vec<FontType> {
-    match &options.order {
-        Some(order) => order.clone(),
+fn resolve_font_type_order(order: Option<&[FontType]>, types: &[FontType]) -> Vec<FontType> {
+    match order {
+        Some(order) => order.to_vec(),
         None => DEFAULT_FONT_ORDER
             .iter()
             .copied()
@@ -665,10 +718,10 @@ pub(crate) fn default_output_dest(dest: &str, font_name: &str, extension: &str) 
 }
 
 fn validate_font_type_order(
-    options: &GenerateWebfontsOptions,
+    order: Option<&[FontType]>,
     requested_types: &[FontType],
 ) -> std::io::Result<()> {
-    if let Some(order) = &options.order
+    if let Some(order) = order
         && let Some(invalid_type) = order
             .iter()
             .copied()

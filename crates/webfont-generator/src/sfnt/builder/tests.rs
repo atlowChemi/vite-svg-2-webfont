@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use kurbo::{PathEl, Point};
 use write_fonts::read::{FontRef, TableProvider};
 
-use crate::input::LoadedSvgFile;
+use crate::input::LoadedSvgSource;
 use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
 use crate::svg::{prepare_svg_font, svg_options_from_options};
 use crate::test_helpers::icons_root;
@@ -23,14 +23,14 @@ fn generate_ttf_font_bytes(options: GenerateWebfontsOptions) -> Result<Vec<u8>, 
         .files
         .iter()
         .map(|path| {
-            Ok(LoadedSvgFile {
+            Ok(LoadedSvgSource {
                 contents: std::fs::read_to_string(path)?.into(),
                 glyph_name: std::path::Path::new(path)
                     .file_stem()
                     .and_then(|stem| stem.to_str())
                     .unwrap_or_default()
                     .to_owned(),
-                path: path.clone(),
+                id: path.clone(),
             })
         })
         .collect::<Result<Vec<_>, Error>>()?;
