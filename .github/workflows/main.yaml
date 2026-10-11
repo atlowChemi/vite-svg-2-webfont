@@ -301,7 +301,7 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
-            - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+            - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
               with:
                   runtime: node@${{ matrix.node }}
                   cache: true
@@ -351,7 +351,7 @@ jobs:
             - name: extract node version from .node-version
               id: node-version
               run: echo "node_version=$(cat .node-version)" >> "$GITHUB_OUTPUT"
-            - uses: pnpm/setup@fbda4c85fc2e1e08721cd8763afea8f48d60f024 # v3.0.0
+            - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
               with:
                   runtime: node@${{ steps.node-version.outputs.node_version }}
                   cache: true
