@@ -25,7 +25,7 @@ cp "$RUN/junit.xml" "$OUT/junit.xml"
 test -s "$RUN/js/lcov.info"
 node scripts/ci/validate-native-coverage.mjs "$RUN/js/lcov.info" js
 cp -R "$RUN/js" "$OUT/js"
-cargo llvm-cov report -p webfont-generator -p webfont-generator-napi --target "$TARGET" --lcov --output-path "$RUN/rust.lcov"
+cargo llvm-cov report -p webfont-generator -p webfont-generator-napi --target "$TARGET" --ignore-filename-regex '/\.pnpm/' --lcov --output-path "$RUN/rust.lcov"
 node scripts/ci/validate-native-coverage.mjs "$RUN/rust.lcov"
 cp "$RUN/rust.lcov" "$OUT/rust.lcov"
 exit "$status"
