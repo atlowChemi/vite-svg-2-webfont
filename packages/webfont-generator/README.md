@@ -29,11 +29,6 @@ Performance scales better with glyph count — for larger icon sets the native p
 
 ## Installation and usage
 
-Rust applications that already own SVG text can use the engine's
-[`generate_from_sources_sync` / `generate_from_sources` API](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html#svg-text-api),
-including inline templates and incremental source updates without temporary files.
-These entry points are Rust-only; npm/NAPI and CLI inputs remain file-based.
-
 ```bash
 npm install @atlowchemi/webfont-generator
 ```

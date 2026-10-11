@@ -310,6 +310,200 @@ fn invalid_source_batches_are_rejected_and_fingerprints_include_identity_and_tem
 }
 
 #[test]
+fn async_calls_without_a_runtime_return_errors_and_preserve_update_state() {
+    use std::future::Future;
+    use std::pin::pin;
+    use std::task::{Context, Poll, Waker};
+
+    let mut context = Context::from_waker(Waker::noop());
+    let Poll::Ready(Err(error)) = pin!(generate_from_sources(options())).poll(&mut context) else {
+        panic!("generation without a runtime must fail immediately");
+    };
+    assert!(error.to_string().contains("Tokio runtime"));
+
+    let result = generate_from_sources_sync(options()).unwrap();
+    let font = result.fonts.ttf_font.clone().unwrap();
+    let text = result.options.sources[0][0].contents.clone();
+    let parsed = result.caches.as_ref().unwrap().glyphs.parse_count;
+    let css = result.generate_css().unwrap();
+    let update = || {
+        vec![SourceChange::Changed {
+            id: "opaque://not/a/file.svg".into(),
+            name: Some("renamed".into()),
+            svg: SVG.into(),
+        }]
+    };
+    let Poll::Ready(Err(error)) =
+        pin!(result.regenerate(membership(&["opaque://not/a/file.svg"]), update(),))
+            .poll(&mut context)
+    else {
+        panic!("update without a runtime must return its receiver immediately");
+    };
+    assert!(
+        error
+            .to_string()
+            .contains("Source update requires a Tokio runtime")
+    );
+    assert_eq!(error.to_string(), error.error().to_string());
+    assert_eq!(
+        std::error::Error::source(&error).unwrap().to_string(),
+        error.error().to_string()
+    );
+    assert!(format!("{error:?}").contains("recoverable: true"));
+    let (cause, recovered) = error.into_parts();
+    assert!(cause.to_string().contains("Tokio runtime"));
+    let mut recovered = recovered.unwrap();
+    assert!(Arc::ptr_eq(
+        &font,
+        recovered.fonts.ttf_font.as_ref().unwrap()
+    ));
+    assert!(Arc::ptr_eq(
+        &text,
+        &recovered.options.sources[0][0].contents
+    ));
+    assert!(Arc::ptr_eq(&css, &recovered.generate_css().unwrap()));
+    assert_eq!(
+        recovered.caches.as_ref().unwrap().glyphs.parse_count,
+        parsed
+    );
+    recovered
+        .regenerate_sync(membership(&["opaque://not/a/file.svg"]), update())
+        .unwrap();
+    let mut settings = options();
+    settings.sources[0].name = "renamed".into();
+    assert_fonts_equal(&recovered, &generate_from_sources_sync(settings).unwrap());
+}
+
+#[test]
+fn rejects_empty_or_mixed_inputs_and_updates_without_incremental_mode() {
+    let mut empty = options();
+    empty.sources.clear();
+    let mut mixed = variant_options();
+    mixed.sources = options().sources;
+    for (settings, message) in [
+        (empty, "options.sources is empty"),
+        (
+            mixed,
+            "options.sources must be empty when variants are supplied",
+        ),
+    ] {
+        let error = generate_from_sources_sync(settings).err().unwrap();
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+        assert_eq!(error.to_string(), message);
+    }
+    let mut settings = options();
+    settings.incremental = Some(false);
+    let mut result = generate_from_sources_sync(settings).unwrap();
+    let font = result.fonts.ttf_font.clone().unwrap();
+    let error = result
+        .regenerate_sync(membership(&["opaque://not/a/file.svg"]), vec![])
+        .unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Source updates require incremental generation"
+    );
+    assert!(Arc::ptr_eq(&font, result.fonts.ttf_font.as_ref().unwrap()));
+}
+
+#[test]
+fn incomplete_or_reordered_variant_membership_preserves_state_for_retry() {
+    let mut result = generate_from_sources_sync(variant_options()).unwrap();
+    let font = result.fonts.ttf_font.clone().unwrap();
+    let css = result.generate_css().unwrap();
+    let parsed = result
+        .caches
+        .as_ref()
+        .unwrap()
+        .variants
+        .parsed
+        .iter()
+        .map(|cache| cache.parse_count)
+        .collect::<Vec<_>>();
+    let sets = |names: &[&str]| {
+        SourceMembership::Variants(
+            names
+                .iter()
+                .map(|name| VariantSourceSet {
+                    name: (*name).into(),
+                    ids: vec!["shared".into()],
+                })
+                .collect(),
+        )
+    };
+    for names in [
+        vec!["light"],
+        vec!["bold", "light"],
+        vec!["light", "unknown"],
+    ] {
+        let error = result.regenerate_sync(sets(&names), vec![]).unwrap_err();
+        assert_eq!(
+            error.to_string(),
+            "Supply every variant in its original order"
+        );
+        assert!(Arc::ptr_eq(&font, result.fonts.ttf_font.as_ref().unwrap()));
+        assert!(Arc::ptr_eq(&css, &result.generate_css().unwrap()));
+        assert_eq!(
+            result
+                .caches
+                .as_ref()
+                .unwrap()
+                .variants
+                .parsed
+                .iter()
+                .map(|cache| cache.parse_count)
+                .collect::<Vec<_>>(),
+            parsed
+        );
+    }
+    result
+        .regenerate_sync(
+            sets(&["light", "bold"]),
+            vec![SourceChange::Changed {
+                id: "shared".into(),
+                name: None,
+                svg: OTHER.into(),
+            }],
+        )
+        .unwrap();
+    let mut settings = variant_options();
+    for variant in settings.variants.as_mut().unwrap() {
+        variant.sources[0].svg = OTHER.into();
+    }
+    assert_fonts_equal(&result, &generate_from_sources_sync(settings).unwrap());
+}
+
+#[test]
+fn memory_fingerprints_distinguish_missing_glyph_policies() {
+    use crate::{MissingGlyphBehavior, MissingGlyphOptions};
+
+    let mut fingerprints = std::collections::HashSet::new();
+    let baseline = generate_from_sources_sync(variant_options()).unwrap();
+    for behavior in [
+        MissingGlyphBehavior::Blank,
+        MissingGlyphBehavior::Error,
+        MissingGlyphBehavior::Fallback,
+    ] {
+        let mut settings = variant_options();
+        settings.missing_glyphs = Some(MissingGlyphOptions {
+            behavior,
+            variant: (behavior == MissingGlyphBehavior::Fallback).then(|| "light".into()),
+        });
+        let result = generate_from_sources_sync(settings.clone()).unwrap();
+        // Complete designs encode the same fonts, but policy is part of the generation identity.
+        assert_fonts_equal(&baseline, &result);
+        assert!(fingerprints.insert(result.shared().hash.clone()));
+        assert_eq!(
+            result.generate_css().unwrap(),
+            generate_from_sources_sync(settings)
+                .unwrap()
+                .generate_css()
+                .unwrap()
+        );
+    }
+}
+
+#[test]
 fn unsafe_names_are_rejected_on_input_and_updates_and_unicode_is_supported() {
     for name in ["", "a b", "a\"b", "<script>", "a.b", "a:b", "a/b", "x\n"] {
         let mut settings = options();
