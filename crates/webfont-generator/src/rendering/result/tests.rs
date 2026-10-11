@@ -105,6 +105,43 @@ fn collection_reuses_companion_payloads_and_invalidates_changed_templates() {
 }
 
 #[test]
+fn template_edits_invalidate_companions_independently() {
+    let mut result = build_result_with_templates(Some("first css"), Some("old {{{styles}}}"));
+    let css = result.generate_css_shared(None).unwrap();
+    let html = result.generate_html_shared(None).unwrap();
+    assert_eq!(&*html, "old first css");
+
+    result.carried_render = result.render_cache_source();
+    result.cached.take();
+    std::fs::write(
+        result.options.html_template.as_ref().unwrap(),
+        "new {{{styles}}}",
+    )
+    .unwrap();
+    assert!(Arc::ptr_eq(
+        &css,
+        &result.generate_css_shared(None).unwrap()
+    ));
+    let updated_html = result.generate_html_shared(None).unwrap();
+    assert_eq!(&*updated_html, "new first css");
+    assert!(!Arc::ptr_eq(&html, &updated_html));
+
+    result.carried_render = result.render_cache_source();
+    result.cached.take();
+    std::fs::write(result.options.css_template.as_ref().unwrap(), "second css").unwrap();
+    let updated_css = result.generate_css_shared(None).unwrap();
+    assert_eq!(&*updated_css, "second css");
+    assert!(!Arc::ptr_eq(&css, &updated_css));
+    assert_eq!(
+        &*result.generate_html_shared(None).unwrap(),
+        "new second css"
+    );
+
+    std::fs::remove_file(result.options.css_template.as_ref().unwrap()).unwrap();
+    std::fs::remove_file(result.options.html_template.as_ref().unwrap()).unwrap();
+}
+
+#[test]
 fn generate_css_returns_cached_result_on_repeated_calls_without_urls() {
     let result = build_result(None);
 

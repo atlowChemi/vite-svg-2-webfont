@@ -21,6 +21,70 @@ fn generate_writing(paths: Vec<String>, dest: &Path) -> GenerateWebfontsResult {
 }
 
 #[test]
+fn regeneration_writes_edited_templates_instead_of_carried_companions() {
+    let dir = temp_dir();
+    let dest = dir.join("out");
+    let source = write_icon(&dir, "a", D1);
+    let css_template = dir.join("style.hbs");
+    let html_template = dir.join("page.hbs");
+    std::fs::write(&css_template, "first css").unwrap();
+    std::fs::write(&html_template, "old {{{styles}}}").unwrap();
+    let mut result = crate::generate_sync(
+        GenerateWebfontsOptions {
+            files: vec![source.clone()],
+            dest: dest.to_string_lossy().into_owned(),
+            font_name: Some("rc".into()),
+            types: Some(vec![FontType::Svg]),
+            css: Some(true),
+            html: Some(true),
+            css_template: Some(css_template.to_string_lossy().into_owned()),
+            html_template: Some(html_template.to_string_lossy().into_owned()),
+            incremental: Some(true),
+            write_files: Some(true),
+            ..Default::default()
+        },
+        None,
+    )
+    .unwrap();
+    let css = dest.join("rc.css");
+    let html = dest.join("rc.html");
+    assert_eq!(std::fs::read_to_string(&css).unwrap(), "first css");
+    assert_eq!(std::fs::read_to_string(&html).unwrap(), "old first css");
+
+    for (template, text, geometry, expected_css, expected_html) in [
+        (
+            &html_template,
+            "new {{{styles}}}",
+            D_CHANGED,
+            "first css",
+            "new first css",
+        ),
+        (
+            &css_template,
+            "second css",
+            D1,
+            "second css",
+            "new second css",
+        ),
+    ] {
+        std::fs::write(template, text).unwrap();
+        // A real source edit triggers regeneration; template-only watching is not supported.
+        write_icon(&dir, "a", geometry);
+        result
+            .regenerate(
+                &crate::RegenerationFiles::Single(vec![source.clone()]),
+                &[(source.clone(), GlyphChange::Changed { name: None })],
+            )
+            .unwrap();
+        assert_eq!(std::fs::read_to_string(&css).unwrap(), expected_css);
+        assert_eq!(std::fs::read_to_string(&html).unwrap(), expected_html);
+        assert_eq!(result.generate_css_pure(None).unwrap(), expected_css);
+        assert_eq!(result.generate_html_pure(None).unwrap(), expected_html);
+    }
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
 fn regenerate_writes_changed_outputs_and_skips_unchanged() {
     let dir = temp_dir();
     let dest = dir.join("out");
