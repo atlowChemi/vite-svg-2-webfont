@@ -10,7 +10,7 @@ use super::{
 };
 
 /// Validation needs membership size, never the source paths or SVG payloads.
-pub(super) struct VariantMetadata<'a> {
+pub(crate) struct VariantMetadata<'a> {
     pub name: &'a str,
     pub weight: Option<u16>,
     pub default: Option<bool>,
@@ -52,6 +52,8 @@ pub(crate) struct GenerationOptions {
 /// Shared generation settings contain neither source paths nor template/output locations.
 #[derive(Clone)]
 pub(crate) struct ResolvedGenerationOptions {
+    /// Disable implicit filesystem acquisition by the SVG parser for text inputs.
+    pub filesystem_free: bool,
     pub color_selection: Option<ResolvedColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
@@ -84,7 +86,7 @@ pub(crate) struct ResolvedGenerationOptions {
 }
 
 impl GenerationOptions {
-    pub(super) fn validate_without_variants(&self) -> std::io::Result<()> {
+    pub(crate) fn validate_without_variants(&self) -> std::io::Result<()> {
         if self.missing_glyphs.is_some() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::InvalidInput,
@@ -123,6 +125,7 @@ impl GenerationOptions {
             .or(self.preserve_aspect_ratio);
 
         Ok(ResolvedGenerationOptions {
+            filesystem_free: false,
             color_selection,
             ascent: self.ascent,
             center_horizontally: self.center_horizontally,

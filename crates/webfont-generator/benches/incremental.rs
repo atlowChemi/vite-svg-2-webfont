@@ -876,6 +876,75 @@ fn bench_regenerate_by_format(c: &mut Criterion) {
     group.finish();
 }
 
+fn bench_memory(c: &mut Criterion) {
+    use webfont_generator::{
+        GenerateWebfontsFromSourcesOptions, SourceChange, SourceMembership, SvgSource,
+        generate_from_sources_sync,
+    };
+    let mut group = c.benchmark_group("memory_sources");
+    for size in [100, 600] {
+        let fixture = fixtures(size);
+        let file_options = options(fixture.paths.clone(), true);
+        let settings = GenerateWebfontsFromSourcesOptions {
+            sources: fixture
+                .sources
+                .iter()
+                .map(|source| SvgSource {
+                    id: source.path.clone(),
+                    name: source.glyph_name.clone(),
+                    svg: source.contents.clone(),
+                })
+                .collect(),
+            css: file_options.css,
+            html: file_options.html,
+            font_name: file_options.font_name,
+            format_options: file_options.format_options,
+            ligature: file_options.ligature,
+            types: file_options.types,
+            incremental: Some(true),
+            ..Default::default()
+        };
+        group.bench_function(format!("generation/{size}"), |b| {
+            b.iter_batched(
+                || {
+                    let mut settings = settings.clone();
+                    settings.incremental = Some(false);
+                    settings
+                },
+                |settings| generate_from_sources_sync(settings).unwrap(),
+                BatchSize::SmallInput,
+            )
+        });
+        let mut result = generate_from_sources_sync(settings.clone()).unwrap();
+        group.bench_function(format!("noop/{size}"), |b| {
+            b.iter(|| {
+                result
+                    .regenerate_sync(SourceMembership::Sources(fixture.paths.clone()), vec![])
+                    .unwrap()
+            })
+        });
+        group.bench_function(format!("content_edit/{size}"), |b| {
+            b.iter_batched(
+                || generate_from_sources_sync(settings.clone()).unwrap(),
+                |mut result| {
+                    result
+                        .regenerate_sync(
+                            SourceMembership::Sources(fixture.paths.clone()),
+                            vec![SourceChange::Changed {
+                                id: fixture.paths[size / 2].clone(),
+                                name: None,
+                                svg: svg(&changed_path_data()),
+                            }],
+                        )
+                        .unwrap()
+                },
+                BatchSize::SmallInput,
+            )
+        });
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_svg_prepare,
@@ -885,6 +954,7 @@ criterion_group!(
     bench_regenerate_by_format,
     bench_render_cache_after_regenerate,
     bench_incremental_write_content_edit,
-    bench_specialized_incremental_paths
+    bench_specialized_incremental_paths,
+    bench_memory
 );
 criterion_main!(benches);

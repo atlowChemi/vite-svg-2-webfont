@@ -7,7 +7,9 @@ use crate::formats::woff1::Woff1PayloadCache;
 use crate::formats::woff2::Woff2TransformCache;
 use crate::formats::{eot, woff1, woff2};
 use crate::incremental::RegenerationState;
-use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions};
+use crate::input::{
+    LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants,
+};
 use crate::result::{FontOutputs, GenerateWebfontsResult};
 use crate::sfnt;
 use crate::sfnt::CachedCompiledGlyph;
@@ -326,16 +328,27 @@ pub(crate) fn build_variant_font_outputs(
     options: &ResolvedFileGenerationOptions,
     family: &crate::svg::types::PreparedVariantFamily,
 ) -> std::io::Result<FontOutputs> {
+    build_content_variant_outputs(
+        options,
+        options
+            .variants
+            .as_ref()
+            .expect("variant outputs require resolved variants"),
+        family,
+    )
+}
+
+pub(crate) fn build_content_variant_outputs(
+    options: &ResolvedGenerationOptions,
+    variants: &ResolvedVariants,
+    family: &crate::svg::types::PreparedVariantFamily,
+) -> std::io::Result<FontOutputs> {
     let wants_ttf = options.types.contains(&FontType::Ttf);
     let wants_woff = options.types.contains(&FontType::Woff);
     let wants_woff2 = options.types.contains(&FontType::Woff2);
     if !wants_ttf && !wants_woff && !wants_woff2 {
         return Ok(FontOutputs::default());
     }
-    let variants = options
-        .variants
-        .as_ref()
-        .expect("variant outputs require resolved variants");
     let variable =
         sfnt::build_variant(sfnt::ttf_options_from_options(options), family, variants)?.tables;
     let metadata = options

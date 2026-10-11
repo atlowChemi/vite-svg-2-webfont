@@ -8,13 +8,13 @@ use serde_json::{Map, Value};
 
 use super::dependencies::{TemplateDependencies, template_dependencies};
 use crate::{
-    input::{ResolvedFileGenerationOptions, ResolvedGenerationOptions},
+    input::{ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants},
     rendering::{paths::join_url, shared::to_io_err},
     types::FontType,
 };
 
-pub(super) fn make_urls(
-    options: &ResolvedFileGenerationOptions,
+pub(crate) fn make_urls(
+    options: &ResolvedGenerationOptions,
     hash: &str,
     css_fonts_url: Option<&str>,
 ) -> HashMap<FontType, String> {
@@ -43,7 +43,7 @@ pub(super) fn make_urls(
 }
 
 pub(crate) fn make_src(
-    options: &ResolvedFileGenerationOptions,
+    options: &ResolvedGenerationOptions,
     urls: &HashMap<FontType, String>,
 ) -> String {
     let mut result = String::new();
@@ -85,6 +85,15 @@ pub(super) fn make_ctx(
     urls: &HashMap<FontType, String>,
     shared: &SharedTemplateData,
 ) -> Map<String, Value> {
+    make_content_css_context(options, options.variants.as_ref(), urls, shared)
+}
+
+pub(crate) fn make_content_css_context(
+    options: &ResolvedGenerationOptions,
+    variants: Option<&ResolvedVariants>,
+    urls: &HashMap<FontType, String>,
+    shared: &SharedTemplateData,
+) -> Map<String, Value> {
     let mut ctx = Map::from_iter([
         (
             "fontName".to_owned(),
@@ -101,10 +110,10 @@ pub(super) fn make_ctx(
     // Engine-owned: arbitrary template data must not switch the rendering mode.
     ctx.insert(
         "__webfontVariantMode".to_owned(),
-        Value::Bool(options.variants.is_some()),
+        Value::Bool(variants.is_some()),
     );
 
-    if let Some(variants) = &options.variants {
+    if let Some(variants) = variants {
         ctx.insert(
             "defaultWeight".to_owned(),
             Value::Number(variants.variants[variants.default_index].weight.into()),

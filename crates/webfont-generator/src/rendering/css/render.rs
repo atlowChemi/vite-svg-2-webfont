@@ -26,7 +26,7 @@ pub(crate) fn render_css_with_hbs_context(
 }
 
 /// Render CSS from a Map context (used during init when no pre-built hbs Context exists yet).
-pub(in crate::rendering) fn render_css_with_context(
+pub(crate) fn render_css_with_context(
     shared: &SharedTemplateData,
     ctx: &Map<String, Value>,
 ) -> Result<String, Error> {

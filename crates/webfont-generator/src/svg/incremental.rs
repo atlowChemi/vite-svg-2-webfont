@@ -164,7 +164,7 @@ pub(super) fn parse_glyphs_incremental(
     }
 
     // Parse (in parallel) only files not already cached — a present entry is reused as-is.
-    let parser_options = usvg::Options::default();
+    let parser_options = options.parser_options();
     let parsed: Vec<(usize, ParsedGlyph)> = source_files
         .par_iter()
         .enumerate()
@@ -182,6 +182,7 @@ pub(super) fn parse_glyphs_incremental(
                 &parser_options,
                 options.selects_color(work.name),
             )
+            .map_err(|error| options.source_error(&source_file.id, error))
             .map(|glyph| (index, glyph))
         })
         .collect::<Result<Vec<_>, Error>>()

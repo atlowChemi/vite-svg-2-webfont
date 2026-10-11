@@ -67,6 +67,7 @@ mod formats;
 mod hooks;
 mod incremental;
 mod input;
+mod memory;
 mod output;
 mod pipeline;
 mod rendering;
@@ -81,11 +82,17 @@ pub use hooks::GenerationHooks;
 use std::sync::Mutex;
 
 use input::{
-    ResolvedFileGenerationOptions, build_variant_family_sources,
-    finalize_generate_webfonts_options, resolve_missing_glyphs,
+    ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants,
+    build_variant_family_sources, finalize_generate_webfonts_options, resolve_missing_glyphs,
     resolve_validated_generate_webfonts_options,
 };
 use input::{load_svg_files_with_hooks, load_variant_svg_files_with_hooks};
+pub use memory::{
+    GenerateWebfontsFromSourcesOptions, GenerateWebfontsFromSourcesResult, SourceChange,
+    SourceFontVariant, SourceMembership, SourceRegenerateError, SvgSource, VariantSourceSet,
+    generate_from_sources, generate_from_sources_sync,
+};
+pub use output::collect::{CollectedOutput, OutputContents, OutputKind};
 use output::write_generate_webfonts_result;
 use pipeline::{generate_variant_webfonts_sync, generate_webfonts_sync};
 use rendering::{
@@ -125,6 +132,32 @@ fn prepare_variant_family_cached(
     source_files: Vec<&[input::LoadedSvgSource]>,
     cache: Option<&mut svg::VariantGlyphCache>,
 ) -> std::io::Result<svg::types::PreparedVariantFamily> {
+    let variants = options
+        .variants
+        .as_ref()
+        .expect("variant source preparation requires resolved variants");
+    prepare_content_variant_family(&mut options.common, variants, source_files, cache)
+}
+
+fn prepare_content_variant_family(
+    options: &mut ResolvedGenerationOptions,
+    variants: &ResolvedVariants,
+    source_files: Vec<&[input::LoadedSvgSource]>,
+    cache: Option<&mut svg::VariantGlyphCache>,
+) -> std::io::Result<svg::types::PreparedVariantFamily> {
+    let family = resolve_content_variant_sources(options, variants, source_files)?;
+    let svg_options = svg::svg_options_from_options(options);
+    match cache {
+        Some(cache) => svg::prepare_variant_svg_family_cached(&svg_options, &family, Some(cache)),
+        None => svg::prepare_variant_svg_family(&svg_options, &family),
+    }
+}
+
+fn resolve_content_variant_sources<'a>(
+    options: &mut ResolvedGenerationOptions,
+    variants: &ResolvedVariants,
+    source_files: Vec<&'a [input::LoadedSvgSource]>,
+) -> std::io::Result<input::VariantFamilySources<&'a [input::LoadedSvgSource]>> {
     let (mut family, codepoints) = build_variant_family_sources(
         source_files,
         &options.explicit_codepoints,
@@ -134,10 +167,6 @@ fn prepare_variant_family_cached(
         options,
         family.glyphs.iter().map(|glyph| glyph.name.as_str()),
     )?;
-    let variants = options
-        .variants
-        .as_ref()
-        .expect("variant source preparation requires resolved variants");
     let variant_names = variants
         .variants
         .iter()
@@ -156,12 +185,7 @@ fn prepare_variant_family_cached(
         &variant_names,
     )?;
     options.codepoints = codepoints;
-    let svg_options = svg::svg_options_from_options(options);
-    let prepared = match cache {
-        Some(cache) => svg::prepare_variant_svg_family_cached(&svg_options, &family, Some(cache))?,
-        None => svg::prepare_variant_svg_family(&svg_options, &family)?,
-    };
-    Ok(prepared)
+    Ok(family)
 }
 
 fn variant_preparation_join_error(error: tokio::task::JoinError) -> std::io::Error {
@@ -270,7 +294,7 @@ async fn shared_variant_path_keeps_per_membership_hook_names() {
     }
 
     let path = test_helpers::webfont_fixture("add.svg");
-    let result = generate_with_hooks(
+    let mut result = generate_with_hooks(
         GenerateWebfontsOptions {
             dest: "artifacts".into(),
             variants: Some(
@@ -300,6 +324,89 @@ async fn shared_variant_path_keeps_per_membership_hook_names() {
     assert_eq!(result.source_files[0].glyph_name, "small-icon");
     assert_eq!(result.source_files[1].glyph_name, "large-icon");
     assert_eq!(result.options.codepoints.len(), 2);
+    result
+        .regenerate(
+            &RegenerationFiles::Variants(vec![
+                VariantFileSet {
+                    variant: "small".into(),
+                    files: vec![path.clone(), test_helpers::webfont_fixture("test.svg")],
+                },
+                VariantFileSet {
+                    variant: "large".into(),
+                    files: vec![path],
+                },
+            ]),
+            &[],
+        )
+        .unwrap();
+    assert_eq!(result.source_files[0].id, result.source_files[2].id);
+    assert_eq!(result.source_files[0].glyph_name, "small-icon");
+    assert_eq!(result.source_files[2].glyph_name, "large-icon");
+}
+
+#[cfg(test)]
+#[tokio::test]
+async fn variant_update_replaces_a_collapsed_duplicate_hook_occurrence() {
+    struct Names;
+    impl GenerationHooks for Names {
+        type Error = std::io::Error;
+        async fn rename(&self, _: &[String]) -> std::io::Result<Option<Vec<String>>> {
+            Ok(Some(vec!["first".into(), "last".into(), "other".into()]))
+        }
+    }
+    let path = test_helpers::webfont_fixture("add.svg");
+    let mut result = generate_with_hooks(
+        GenerateWebfontsOptions {
+            dest: "artifacts".into(),
+            write_files: Some(false),
+            incremental: Some(true),
+            types: Some(vec![FontType::Ttf]),
+            variants: Some(vec![
+                FontVariant {
+                    name: "light".into(),
+                    files: vec![path.clone(), path.clone()],
+                    weight: Some(300),
+                    default: Some(true),
+                },
+                FontVariant {
+                    name: "bold".into(),
+                    files: vec![path.clone()],
+                    weight: Some(700),
+                    default: None,
+                },
+            ]),
+            ..Default::default()
+        },
+        &Names,
+    )
+    .await
+    .unwrap();
+    result
+        .regenerate(
+            &RegenerationFiles::Variants(
+                ["light", "bold"]
+                    .map(|variant| VariantFileSet {
+                        variant: variant.into(),
+                        files: vec![path.clone()],
+                    })
+                    .into(),
+            ),
+            &[(
+                path,
+                GlyphChange::Changed {
+                    name: Some("updated".into()),
+                },
+            )],
+        )
+        .unwrap();
+    assert_eq!(result.source_files.len(), 2);
+    assert!(
+        result
+            .source_files
+            .iter()
+            .all(|source| source.glyph_name == "updated")
+    );
+    assert_eq!(result.options.codepoints.len(), 1);
 }
 
 /// Generate a webfont from a set of SVG files.
@@ -325,7 +432,7 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
         let variant_paths = variants
             .variants
             .iter()
-            .map(|variant| variant.files.clone())
+            .map(|variant| variant.source_ids.clone())
             .collect::<Vec<_>>();
         let source_files = load_variant_svg_files_with_hooks(&variant_paths, hooks).await?;
         let generation = tokio::task::spawn_blocking(move || {

@@ -4,7 +4,9 @@ use serde_json::{Map, Value};
 
 use super::context::resolved_template_options;
 use crate::{
-    input::{LoadedSvgSource, ResolvedFileGenerationOptions},
+    input::{
+        LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants,
+    },
     types::{FontType, color::ResolvedColorSelection},
 };
 
@@ -49,7 +51,7 @@ pub(in crate::rendering) fn calc_hash(
                 .enumerate()
                 .map(|(index, variant)| HashableVariant {
                     name: &variant.name,
-                    files: &variant.files,
+                    files: &variant.source_ids,
                     weight: variant.weight,
                     default: index == variants.default_index,
                     class_name: &variant.class_name,
@@ -79,6 +81,64 @@ struct HashableVariantOptions<'a> {
     variants: Vec<HashableVariant<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     woff2_compression_quality: Option<u8>,
+}
+
+/// Text-mode fingerprint: framed JSON values, ordered memberships, and no file provenance.
+pub(crate) fn calc_content_hash(
+    options: &ResolvedGenerationOptions,
+    variants: Option<&ResolvedVariants>,
+    sources: &[LoadedSvgSource],
+    css_template: Option<&str>,
+    html_template: Option<&str>,
+) -> String {
+    let mut hash = Context::new();
+    let mut settings = HashableGenerateWebfontsOptions::from(options);
+    settings.css_template = css_template;
+    settings.html_template = html_template;
+    let mut settings = serde_json::to_value(settings).expect("settings serialize");
+    settings.sort_all_objects();
+    serde_json::to_writer(Md5Writer(&mut hash), &settings).expect("settings serialize");
+    for source in sources {
+        serde_json::to_writer(
+            Md5Writer(&mut hash),
+            &(&source.id, &source.glyph_name, source.contents.as_ref()),
+        )
+        .expect("source serializes");
+    }
+    if let Some(variants) = variants {
+        for (index, variant) in variants.variants.iter().enumerate() {
+            serde_json::to_writer(
+                Md5Writer(&mut hash),
+                &(
+                    &variant.name,
+                    variant.weight,
+                    index == variants.default_index,
+                    &variant.class_name,
+                    &variant.source_ids,
+                ),
+            )
+            .expect("variant serializes");
+        }
+    }
+    let missing = match options.missing_glyphs.behavior {
+        crate::MissingGlyphBehavior::Blank => "blank",
+        crate::MissingGlyphBehavior::Error => "error",
+        crate::MissingGlyphBehavior::Fallback => "fallback",
+    };
+    serde_json::to_writer(
+        Md5Writer(&mut hash),
+        &(
+            missing,
+            &options.missing_glyphs.variant,
+            options
+                .format_options
+                .as_ref()
+                .and_then(|options| options.woff2.as_ref())
+                .and_then(|options| options.compression_quality),
+        ),
+    )
+    .expect("settings serialize");
+    format!("{:x}", hash.finalize())
 }
 
 #[derive(Serialize)]
@@ -113,7 +173,8 @@ struct HashableGenerateWebfontsOptions<'a> {
     css_fonts_url: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     descent: Option<f64>,
-    files: &'a [String],
+    #[serde(skip_serializing_if = "Option::is_none")]
+    files: Option<&'a [String]>,
     #[serde(skip_serializing_if = "Option::is_none")]
     fixed_width: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -201,6 +262,17 @@ struct HashableWoffFormatOptions<'a> {
 impl<'a> From<&'a ResolvedFileGenerationOptions> for HashableGenerateWebfontsOptions<'a> {
     fn from(options: &'a ResolvedFileGenerationOptions) -> Self {
         Self {
+            files: Some(&options.files),
+            css_template: options.css_template.as_deref(),
+            html_template: options.html_template.as_deref(),
+            ..Self::from(&options.common)
+        }
+    }
+}
+
+impl<'a> From<&'a ResolvedGenerationOptions> for HashableGenerateWebfontsOptions<'a> {
+    fn from(options: &'a ResolvedGenerationOptions) -> Self {
+        Self {
             color_glyphs: options
                 .color_selection
                 .as_ref()
@@ -212,7 +284,7 @@ impl<'a> From<&'a ResolvedFileGenerationOptions> for HashableGenerateWebfontsOpt
             center_horizontally: options.center_horizontally,
             center_vertically: options.center_vertically,
             css: Some(options.css),
-            css_template: options.css_template.as_deref(),
+            css_template: None,
             codepoints: if options.codepoints.is_empty() {
                 None
             } else {
@@ -229,14 +301,14 @@ impl<'a> From<&'a ResolvedFileGenerationOptions> for HashableGenerateWebfontsOpt
             },
             css_fonts_url: options.css_fonts_url.as_deref(),
             descent: options.descent,
-            files: &options.files,
+            files: None,
             fixed_width: options.fixed_width,
             format_options: options
                 .format_options
                 .as_ref()
                 .map(HashableFormatOptions::from),
             html: Some(options.html),
-            html_template: options.html_template.as_deref(),
+            html_template: None,
             font_height: options.font_height,
             font_name: Some(&options.font_name),
             font_style: options.font_style.as_deref(),

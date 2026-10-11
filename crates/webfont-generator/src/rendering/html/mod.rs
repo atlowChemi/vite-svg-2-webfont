@@ -3,7 +3,7 @@ use std::io::Error;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions};
+use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions};
 use crate::rendering::css::{SharedTemplateData, TemplateDependencies};
 
 use crate::rendering::css::build_css_context_with_fonts_url;
@@ -195,6 +195,19 @@ fn make_ctx(
     source_files: &[LoadedSvgSource],
     styles: String,
 ) -> Map<String, Value> {
+    let css_ctx = options.variants.as_ref().map(|_| {
+        build_css_context_with_fonts_url(options, shared, Some(&html_css_fonts_url(options)))
+    });
+    make_content_html_context(options, shared, source_files, styles, css_ctx.as_ref())
+}
+
+pub(crate) fn make_content_html_context(
+    options: &ResolvedGenerationOptions,
+    shared: &SharedTemplateData,
+    source_files: &[LoadedSvgSource],
+    styles: String,
+    variant_css_context: Option<&Map<String, Value>>,
+) -> Map<String, Value> {
     let mut ctx = shared.template_options.clone();
     ctx.extend(Map::from_iter([
         (
@@ -217,9 +230,7 @@ fn make_ctx(
         ("styles".to_owned(), Value::String(styles)),
     ]));
 
-    if options.variants.is_some() {
-        let css_ctx =
-            build_css_context_with_fonts_url(options, shared, Some(&html_css_fonts_url(options)));
+    if let Some(css_ctx) = variant_css_context {
         for key in [
             "variants",
             "variantClassPrefix",

@@ -843,7 +843,7 @@ fn variant_hash_matches_before_common_options_extraction() {
     let path = "crates/webfont-generator/src/svg/fixtures/unit/add.svg";
     let mut options = variant_hash_options(Some(9));
     for variant in &mut options.variants.as_mut().unwrap().variants {
-        variant.files = vec![path.to_owned()];
+        variant.source_ids = vec![path.to_owned()];
     }
     options.codepoints.insert("add".to_owned(), 0xf101);
     let mut sources = vec![
@@ -864,7 +864,7 @@ fn variant_hash_matches_before_common_options_extraction() {
         calc_hash(&options, &sources),
         "2ac1d7b83068419fb7eda0cb8960be40"
     );
-    options.variants.as_mut().unwrap().variants[0].files[0] = "other/add.svg".to_owned();
+    options.variants.as_mut().unwrap().variants[0].source_ids[0] = "other/add.svg".to_owned();
     assert_ne!(
         calc_hash(&options, &sources),
         "2ac1d7b83068419fb7eda0cb8960be40"

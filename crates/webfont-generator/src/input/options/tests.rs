@@ -485,7 +485,7 @@ fn resolves_ordered_variant_metadata() {
     assert_eq!(variants.default_index, 1);
     assert_eq!(variants.variants[0].weight, 300);
     assert_eq!(variants.variants[0].name, "small");
-    assert_eq!(variants.variants[0].files, ["small.svg"]);
+    assert_eq!(variants.variants[0].source_ids, ["small.svg"]);
     assert_eq!(variants.variants[0].class_name, "weight--small");
     assert_eq!(variants.variants[0].selector, "weight--small");
 }

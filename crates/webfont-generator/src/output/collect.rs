@@ -3,13 +3,18 @@ use std::sync::Arc;
 use crate::FontType;
 use crate::result::FontOutputs;
 
-pub(crate) enum OutputContents {
+/// Shared output payload. Cloning it does not copy font bytes or rendered text.
+#[derive(Clone)]
+pub enum OutputContents {
+    /// Binary font payload.
     Bytes(Arc<Vec<u8>>),
+    /// SVG font or rendered companion text.
     Text(Arc<String>),
 }
 
 impl OutputContents {
-    pub(crate) fn as_bytes(&self) -> &[u8] {
+    /// Borrow the encoded output without copying it.
+    pub fn as_bytes(&self) -> &[u8] {
         match self {
             Self::Bytes(bytes) => bytes.as_slice(),
             Self::Text(text) => text.as_bytes(),
@@ -23,15 +28,24 @@ impl AsRef<[u8]> for OutputContents {
     }
 }
 
-pub(crate) enum OutputKind {
+/// Format of a destination-free generated output.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum OutputKind {
+    /// A generated font format.
     Font(FontType),
+    /// CSS stylesheet.
     Css,
+    /// HTML preview.
     Html,
 }
 
-pub(crate) struct CollectedOutput {
-    pub(crate) kind: OutputKind,
-    pub(crate) contents: OutputContents,
+/// A generated payload with no filesystem destination.
+#[derive(Clone)]
+pub struct CollectedOutput {
+    /// Identifies the format.
+    pub kind: OutputKind,
+    /// Reference-counted output data.
+    pub contents: OutputContents,
 }
 
 /// Collect already-produced contents without assigning destinations or copying payloads.
