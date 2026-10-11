@@ -96,10 +96,6 @@ pub(crate) struct PreparedSvgFont {
     pub processed_glyphs: Vec<ProcessedGlyph>,
 }
 
-#[allow(
-    dead_code,
-    reason = "prepared variant geometry is consumed by later generation phases"
-)]
 pub(crate) struct PreparedVariantFamily {
     pub ascent: f64,
     pub descent: f64,
@@ -107,10 +103,6 @@ pub(crate) struct PreparedVariantFamily {
     pub glyphs: Vec<ProcessedVariantGlyph>,
 }
 
-#[allow(
-    dead_code,
-    reason = "processed variant glyphs are consumed by later generation phases"
-)]
 pub(crate) struct ProcessedVariantGlyph {
     pub name: String,
     pub codepoint: u32,

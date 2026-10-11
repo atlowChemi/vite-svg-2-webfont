@@ -1,7 +1,7 @@
 //! File-adapter template acquisition. Shared compilation only consumes text.
 use std::sync::Arc;
 
-use crate::input::{LoadedSvgSource, ResolvedGenerateWebfontsOptions};
+use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions};
 
 use super::css::SharedTemplateData;
 use super::css::calc_hash;
@@ -16,7 +16,7 @@ impl SharedTemplateData {
     /// Preserve file-mode acquisition timing: read CSS on shared-context initialization,
     /// then compile it only when a renderer first requests the registry.
     pub(crate) fn from_files(
-        options: &ResolvedGenerateWebfontsOptions,
+        options: &ResolvedFileGenerationOptions,
         sources: &[LoadedSvgSource],
     ) -> std::io::Result<Self> {
         let source = read_template(options.css_template.as_deref())?;
@@ -29,7 +29,7 @@ impl SharedTemplateData {
 }
 
 pub(crate) fn load_html_template(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
 ) -> std::io::Result<HtmlTemplate> {
     let source = read_template(options.html_template.as_deref())?;
     compile_html_template(source)

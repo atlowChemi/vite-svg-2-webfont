@@ -7,7 +7,7 @@ use crate::formats::woff1::Woff1PayloadCache;
 use crate::formats::woff2::Woff2TransformCache;
 use crate::formats::{eot, woff1, woff2};
 use crate::incremental::RegenerationState;
-use crate::input::{LoadedSvgSource, ResolvedGenerateWebfontsOptions, ResolvedGenerationOptions};
+use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions};
 use crate::result::{FontOutputs, GenerateWebfontsResult};
 use crate::sfnt;
 use crate::sfnt::CachedCompiledGlyph;
@@ -141,7 +141,7 @@ impl TtfGlyphCache {
 }
 
 pub(crate) fn generate_webfonts_sync(
-    options: ResolvedGenerateWebfontsOptions,
+    options: ResolvedFileGenerationOptions,
     source_files: Vec<LoadedSvgSource>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     let svg_options = svg_options_from_options(&options);
@@ -178,7 +178,7 @@ pub(crate) fn generate_webfonts_sync(
 }
 
 pub(crate) fn generate_variant_webfonts_sync(
-    options: ResolvedGenerateWebfontsOptions,
+    options: ResolvedFileGenerationOptions,
     source_files: Vec<LoadedSvgSource>,
     family: crate::svg::types::PreparedVariantFamily,
     cache: Option<crate::svg::VariantGlyphCache>,
@@ -323,7 +323,7 @@ pub(crate) fn build_font_outputs(
 }
 
 pub(crate) fn build_variant_font_outputs(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     family: &crate::svg::types::PreparedVariantFamily,
 ) -> std::io::Result<FontOutputs> {
     let wants_ttf = options.types.contains(&FontType::Ttf);

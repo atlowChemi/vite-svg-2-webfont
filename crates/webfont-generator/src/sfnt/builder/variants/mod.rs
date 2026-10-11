@@ -35,6 +35,7 @@ const FIRST_VARIANT_NAME_ID: u16 = 257;
 
 pub(crate) struct VariantFontBuild {
     pub(crate) tables: SerializedFontTables,
+    #[cfg(test)]
     pub(crate) presentation_gids: Vec<Box<[GlyphId16]>>,
 }
 
@@ -282,6 +283,7 @@ pub(crate) fn build_variant(
 
     Ok(VariantFontBuild {
         tables: SerializedFontTables::new(tables)?,
+        #[cfg(test)]
         presentation_gids,
     })
 }

@@ -2,8 +2,9 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use super::{
-    resolve_codepoints, resolve_generate_webfonts_options, resolved_font_types,
-    serialize_css_identifier, validate_font_type_order, validate_generate_webfonts_options,
+    GenerationOptions, file_variant_metadata, finalize_generate_webfonts_options,
+    resolve_codepoints, resolve_generate_webfonts_options, resolve_variant_weights,
+    resolved_font_types, serialize_css_identifier, validate_file_options, validate_font_type_order,
 };
 use crate::input::LoadedSvgSource;
 use crate::{
@@ -20,11 +21,8 @@ fn variant(name: &str, weight: Option<u16>, is_default: bool) -> FontVariant {
     }
 }
 
-fn resolve_variant_weights(
-    variants: &[FontVariant],
-    default_index: usize,
-) -> std::io::Result<Vec<u16>> {
-    super::resolve_variant_weights(&super::file_variant_metadata(variants), default_index)
+fn validate_generate_webfonts_options(options: &GenerateWebfontsOptions) -> std::io::Result<()> {
+    validate_file_options(&options.clone().into())
 }
 
 fn variant_options() -> GenerateWebfontsOptions {
@@ -151,7 +149,7 @@ fn file_validation_precedes_shared_format_validation() {
 
 #[test]
 fn common_settings_resolve_without_file_options_and_preserve_svg_overrides() {
-    let common = super::GenerationOptions {
+    let common = GenerationOptions {
         center_vertically: Some(true),
         optimize_output: Some(true),
         preserve_aspect_ratio: Some(false),
@@ -174,9 +172,9 @@ fn common_settings_resolve_without_file_options_and_preserve_svg_overrides() {
     assert!(resolved.types == [FontType::Eot, FontType::Woff, FontType::Woff2]);
     assert_eq!(resolved.font_name, "iconfont");
 
-    let omitted = super::GenerationOptions::default().resolve(true).unwrap();
+    let omitted = GenerationOptions::default().resolve(true).unwrap();
     assert!(omitted.types == [FontType::Woff, FontType::Woff2]);
-    let explicit = super::GenerationOptions {
+    let explicit = GenerationOptions {
         types: Some(vec![]),
         ..Default::default()
     }
@@ -359,7 +357,7 @@ fn resolved_weights(spec: &[(Option<u16>, bool)]) -> std::io::Result<Vec<u16>> {
         })
         .collect::<Vec<_>>();
     let default_index = spec.iter().position(|(_, is_default)| *is_default).unwrap();
-    resolve_variant_weights(&variants, default_index)
+    resolve_variant_weights(&file_variant_metadata(&variants), default_index)
 }
 
 #[test]
@@ -828,7 +826,7 @@ fn propagates_codepoint_exhaustion_while_finalizing() {
     .unwrap();
     let source_files = vec![loaded_svg_file("first.svg"), loaded_svg_file("second.svg")];
 
-    let error = super::finalize_generate_webfonts_options(&mut options, &source_files)
+    let error = finalize_generate_webfonts_options(&mut options, &source_files)
         .expect_err("finalization must propagate exhausted codepoints");
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);

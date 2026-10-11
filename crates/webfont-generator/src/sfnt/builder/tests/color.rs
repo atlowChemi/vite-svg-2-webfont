@@ -8,7 +8,7 @@ use write_fonts::types::{F2Dot14, GlyphId, GlyphId16, Tag};
 
 use crate::formats::woff2::tables_to_woff2;
 use crate::input::{
-    LoadedSvgSource, ResolvedGenerateWebfontsOptions, finalize_generate_webfonts_options,
+    LoadedSvgSource, ResolvedFileGenerationOptions, finalize_generate_webfonts_options,
     resolve_generate_webfonts_options,
 };
 use crate::pipeline::TtfGlyphCache;
@@ -272,7 +272,7 @@ pub(super) fn production_color_font() -> SerializedFontTables {
         .unwrap()
         .tables
 }
-fn prepare(bodies: &[&str]) -> (ResolvedGenerateWebfontsOptions, Vec<ProcessedGlyph>) {
+fn prepare(bodies: &[&str]) -> (ResolvedFileGenerationOptions, Vec<ProcessedGlyph>) {
     let files: Vec<_> = bodies
         .iter()
         .enumerate()

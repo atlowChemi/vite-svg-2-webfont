@@ -3,7 +3,7 @@ use std::io::Error;
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::input::{LoadedSvgSource, ResolvedGenerateWebfontsOptions};
+use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions};
 use crate::rendering::css::{SharedTemplateData, TemplateDependencies};
 
 use crate::rendering::css::build_css_context_with_fonts_url;
@@ -17,7 +17,7 @@ use handlebars::{
 use serde_json::{Map, Value};
 
 pub(crate) fn build_html_context(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
     source_files: &[LoadedSvgSource],
     styles: Option<String>,
@@ -36,7 +36,7 @@ pub(crate) fn build_html_context(
 
 /// Reuse callback-mutated CSS while resolving default font URLs for the HTML destination.
 pub(crate) fn build_html_context_with_css(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
     source_files: &[LoadedSvgSource],
     finalized_css: &Map<String, Value>,
@@ -82,7 +82,7 @@ pub(crate) fn render_html_with_hbs_context(
 
 #[cfg(test)]
 fn render_html_with_context(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     cached_registry: Option<&Handlebars<'static>>,
     ctx: &Map<String, Value>,
 ) -> Result<String, Error> {
@@ -102,7 +102,7 @@ fn render_html_with_context(
 /// Returns Err when the template exists but fails to compile.
 #[cfg(test)]
 pub(crate) fn build_html_registry(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
 ) -> Result<Option<Handlebars<'static>>, Error> {
     Ok(super::files::load_html_template(options)?.registry)
 }
@@ -182,7 +182,7 @@ fn render_default_html_inner(ctx: &Map<String, Value>, styles: &str) -> String {
     result
 }
 
-fn html_css_fonts_url(options: &ResolvedGenerateWebfontsOptions) -> String {
+fn html_css_fonts_url(options: &ResolvedFileGenerationOptions) -> String {
     let html_dir = Path::new(&options.html_dest)
         .parent()
         .unwrap_or_else(|| Path::new("."));
@@ -190,7 +190,7 @@ fn html_css_fonts_url(options: &ResolvedGenerateWebfontsOptions) -> String {
 }
 
 fn make_ctx(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
     source_files: &[LoadedSvgSource],
     styles: String,

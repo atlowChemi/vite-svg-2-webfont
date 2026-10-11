@@ -8,13 +8,13 @@ use serde_json::{Map, Value};
 
 use super::dependencies::{TemplateDependencies, template_dependencies};
 use crate::{
-    input::{ResolvedGenerateWebfontsOptions, ResolvedGenerationOptions},
+    input::{ResolvedFileGenerationOptions, ResolvedGenerationOptions},
     rendering::{paths::join_url, shared::to_io_err},
     types::FontType,
 };
 
 pub(super) fn make_urls(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     hash: &str,
     css_fonts_url: Option<&str>,
 ) -> HashMap<FontType, String> {
@@ -43,7 +43,7 @@ pub(super) fn make_urls(
 }
 
 pub(crate) fn make_src(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     urls: &HashMap<FontType, String>,
 ) -> String {
     let mut result = String::new();
@@ -81,7 +81,7 @@ pub(crate) fn make_src(
 }
 
 pub(super) fn make_ctx(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     urls: &HashMap<FontType, String>,
     shared: &SharedTemplateData,
 ) -> Map<String, Value> {
@@ -145,14 +145,14 @@ pub(super) fn make_ctx(
 }
 
 pub(crate) fn build_css_context(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
 ) -> Map<String, Value> {
     build_css_context_with_fonts_url(options, shared, options.css_fonts_url.as_deref())
 }
 
 pub(crate) fn build_css_context_with_fonts_url(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
     css_fonts_url: Option<&str>,
 ) -> Map<String, Value> {

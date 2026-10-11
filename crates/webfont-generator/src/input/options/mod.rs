@@ -109,20 +109,12 @@ impl From<GenerateWebfontsOptions> for FileGenerationOptions {
 }
 
 #[derive(Clone)]
-#[allow(
-    dead_code,
-    reason = "variant metadata is consumed by later generation phases"
-)]
 pub(crate) struct ResolvedVariants {
     pub variants: Vec<ResolvedFontVariant>,
     pub default_index: usize,
 }
 
 #[derive(Clone)]
-#[allow(
-    dead_code,
-    reason = "variant metadata is consumed by later generation phases"
-)]
 pub(crate) struct ResolvedFontVariant {
     pub name: String,
     pub files: Vec<String>,
@@ -132,7 +124,7 @@ pub(crate) struct ResolvedFontVariant {
 }
 
 #[derive(Clone)]
-pub(crate) struct ResolvedGenerateWebfontsOptions {
+pub(crate) struct ResolvedFileGenerationOptions {
     pub common: ResolvedGenerationOptions,
     pub css_dest: String,
     pub css_template: Option<String>,
@@ -140,17 +132,13 @@ pub(crate) struct ResolvedGenerateWebfontsOptions {
     pub files: Vec<String>,
     pub html_dest: String,
     pub html_template: Option<String>,
-    #[allow(
-        dead_code,
-        reason = "variant metadata is consumed by later generation phases"
-    )]
     pub variants: Option<ResolvedVariants>,
     pub write_files: bool,
 }
 
 // The file adapter extends shared settings; existing internal field readers keep borrowing
 // the same settings without cloning them. Content-only consumers accept the common type.
-impl std::ops::Deref for ResolvedGenerateWebfontsOptions {
+impl std::ops::Deref for ResolvedFileGenerationOptions {
     type Target = ResolvedGenerationOptions;
 
     fn deref(&self) -> &Self::Target {
@@ -158,7 +146,7 @@ impl std::ops::Deref for ResolvedGenerateWebfontsOptions {
     }
 }
 
-impl std::ops::DerefMut for ResolvedGenerateWebfontsOptions {
+impl std::ops::DerefMut for ResolvedFileGenerationOptions {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.common
     }
@@ -202,13 +190,6 @@ const DEFAULT_FONT_ORDER: [FontType; 5] = [
     FontType::Ttf,
     FontType::Svg,
 ];
-
-#[cfg(test)]
-pub(crate) fn validate_generate_webfonts_options(
-    options: &GenerateWebfontsOptions,
-) -> std::io::Result<()> {
-    validate_file_options(&options.clone().into())
-}
 
 fn validate_file_options(options: &FileGenerationOptions) -> std::io::Result<()> {
     if options.dest.is_empty() {
@@ -587,7 +568,7 @@ fn resolve_variants(
 
 pub(crate) fn resolve_validated_generate_webfonts_options(
     options: GenerateWebfontsOptions,
-) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
+) -> std::io::Result<ResolvedFileGenerationOptions> {
     let options = FileGenerationOptions::from(options);
     validate_file_options(&options)?;
     resolve_file_options(options)
@@ -596,13 +577,13 @@ pub(crate) fn resolve_validated_generate_webfonts_options(
 #[cfg(any(test, feature = "bench"))]
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
-) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
+) -> std::io::Result<ResolvedFileGenerationOptions> {
     resolve_file_options(options.into())
 }
 
 fn resolve_file_options(
     options: FileGenerationOptions,
-) -> std::io::Result<ResolvedGenerateWebfontsOptions> {
+) -> std::io::Result<ResolvedFileGenerationOptions> {
     let mut settings = options.common;
     let class_prefix = settings.variant_class_prefix.take();
     let common = settings.resolve(options.variants.is_some())?;
@@ -619,7 +600,7 @@ fn resolve_file_options(
         .map(|variants| resolve_variants(variants, class_prefix.as_deref().unwrap_or("icon--")))
         .transpose()?;
 
-    Ok(ResolvedGenerateWebfontsOptions {
+    Ok(ResolvedFileGenerationOptions {
         common,
         css_dest,
         css_template: match options.css_template {

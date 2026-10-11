@@ -14,7 +14,7 @@ use super::{
     prepare_variant_svg_family, source_content_hash, svg_options_from_options,
 };
 
-use crate::input::{self, LoadedSvgSource, ResolvedGenerateWebfontsOptions, VariantFamilySources};
+use crate::input::{self, LoadedSvgSource, ResolvedFileGenerationOptions, VariantFamilySources};
 use crate::{
     FontType, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior, SvgFormatOptions,
 };
@@ -979,7 +979,7 @@ fn resolved_family(
 fn prepare_family(
     family: &VariantFamilySources,
     codepoints: BTreeMap<String, u32>,
-    configure: impl FnOnce(&mut ResolvedGenerateWebfontsOptions),
+    configure: impl FnOnce(&mut ResolvedFileGenerationOptions),
 ) -> PreparedVariantFamily {
     let mut options = input::resolve_generate_webfonts_options(GenerateWebfontsOptions {
         dest: "artifacts".to_owned(),
@@ -1095,7 +1095,7 @@ fn variant_family_metrics_are_order_independent_and_center_with_explicit_overrid
         reversed_natural.glyphs[0].advance_width
     );
 
-    let configure = |options: &mut ResolvedGenerateWebfontsOptions| {
+    let configure = |options: &mut ResolvedFileGenerationOptions| {
         options.ascent = Some(80.0);
         options.descent = Some(20.0);
         options.font_height = Some(100.0);

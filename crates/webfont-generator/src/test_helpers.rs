@@ -2,10 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::input::{LoadedSvgSource, ResolvedGenerateWebfontsOptions};
+use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions};
 
 use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
-pub fn resolve_options(options: crate::GenerateWebfontsOptions) -> ResolvedGenerateWebfontsOptions {
+pub fn resolve_options(options: crate::GenerateWebfontsOptions) -> ResolvedFileGenerationOptions {
     resolve_generate_webfonts_options(options)
         .unwrap_or_else(|error| panic!("native options should resolve: {error}"))
 }
@@ -20,7 +20,7 @@ pub fn write_temp_template(prefix: &str, contents: &str) -> String {
     path.to_string_lossy().into_owned()
 }
 
-pub fn fixture_source_files(options: &ResolvedGenerateWebfontsOptions) -> Vec<LoadedSvgSource> {
+pub fn fixture_source_files(options: &ResolvedFileGenerationOptions) -> Vec<LoadedSvgSource> {
     vec![LoadedSvgSource {
         contents: fs::read_to_string(&options.files[0])
             .expect("fixture should load")

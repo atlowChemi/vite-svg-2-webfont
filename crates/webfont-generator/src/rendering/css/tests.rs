@@ -4,7 +4,7 @@ use super::{
     template_dependencies,
 };
 use crate::input::LoadedSvgSource;
-use crate::input::ResolvedGenerateWebfontsOptions;
+use crate::input::ResolvedFileGenerationOptions;
 use crate::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
     MissingGlyphOptions, SvgFormatOptions, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
@@ -15,7 +15,7 @@ use std::fs;
 use std::io::{Error, ErrorKind};
 
 fn render_css(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     source_files: &[LoadedSvgSource],
 ) -> Result<String, Error> {
     let shared = SharedTemplateData::from_files(options, source_files)?;
@@ -737,7 +737,7 @@ fn shared_template_data_reads_source_but_does_not_compile_invalid_css_template_e
     );
 }
 
-fn variant_hash_options(quality: Option<u8>) -> ResolvedGenerateWebfontsOptions {
+fn variant_hash_options(quality: Option<u8>) -> ResolvedFileGenerationOptions {
     resolve_options(GenerateWebfontsOptions {
         dest: "artifacts".to_owned(),
         format_options: Some(FormatOptions {

@@ -5,7 +5,7 @@ use write_fonts::types::Tag;
 
 use crate::formats::woff2::Woff2TransformCache;
 use crate::input::{
-    LoadedSvgSource, ResolvedGenerateWebfontsOptions, finalize_generate_webfonts_options,
+    LoadedSvgSource, ResolvedFileGenerationOptions, finalize_generate_webfonts_options,
     resolve_generate_webfonts_options,
 };
 use crate::pipeline::build_font_outputs;
@@ -31,7 +31,7 @@ pub struct BenchGlyphCache(GlyphCache);
 
 /// Opaque loaded sources and resolved options for incremental SVG preparation benchmarks.
 pub struct BenchSvgPrepareInput {
-    options: ResolvedGenerateWebfontsOptions,
+    options: ResolvedFileGenerationOptions,
     sources: Vec<LoadedSvgSource>,
 }
 
@@ -68,7 +68,7 @@ fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgSource> {
 fn resolve(
     options: GenerateWebfontsOptions,
     sources: &[LoadedSvgSource],
-) -> io::Result<ResolvedGenerateWebfontsOptions> {
+) -> io::Result<ResolvedFileGenerationOptions> {
     let mut options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut options, sources)?;
     Ok(options)

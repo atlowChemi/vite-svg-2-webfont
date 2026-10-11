@@ -81,7 +81,7 @@ pub use hooks::GenerationHooks;
 use std::sync::Mutex;
 
 use input::{
-    ResolvedGenerateWebfontsOptions, build_variant_family_sources,
+    ResolvedFileGenerationOptions, build_variant_family_sources,
     finalize_generate_webfonts_options, resolve_missing_glyphs,
     resolve_validated_generate_webfonts_options,
 };
@@ -107,7 +107,7 @@ type PreparedVariantInput = (
 );
 
 fn prepare_variant_family(
-    options: &mut ResolvedGenerateWebfontsOptions,
+    options: &mut ResolvedFileGenerationOptions,
     source_files: Vec<Vec<input::LoadedSvgSource>>,
 ) -> std::io::Result<PreparedVariantInput> {
     let mut cache = options.incremental.then(svg::VariantGlyphCache::default);
@@ -121,7 +121,7 @@ fn prepare_variant_family(
 }
 
 fn prepare_variant_family_cached(
-    options: &mut ResolvedGenerateWebfontsOptions,
+    options: &mut ResolvedFileGenerationOptions,
     source_files: Vec<&[input::LoadedSvgSource]>,
     cache: Option<&mut svg::VariantGlyphCache>,
 ) -> std::io::Result<svg::types::PreparedVariantFamily> {

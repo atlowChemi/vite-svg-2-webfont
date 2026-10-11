@@ -11,7 +11,7 @@ pub(crate) use files::{load_svg_files_with_hooks, load_variant_svg_files_with_ho
 #[cfg(any(test, feature = "bench"))]
 pub(crate) use options::resolve_generate_webfonts_options;
 pub(crate) use options::{
-    ResolvedGenerateWebfontsOptions, ResolvedGenerationOptions, ResolvedVariants,
+    ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants,
     default_output_dest, finalize_generate_webfonts_options,
     resolve_validated_generate_webfonts_options, validate_color_names,
 };

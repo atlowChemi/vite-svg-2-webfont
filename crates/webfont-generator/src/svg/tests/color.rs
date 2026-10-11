@@ -10,7 +10,7 @@ fn source(name: &str, root: &str, body: &str) -> LoadedSvgSource {
     }
 }
 
-fn options(files: &[LoadedSvgSource]) -> ResolvedGenerateWebfontsOptions {
+fn options(files: &[LoadedSvgSource]) -> ResolvedFileGenerationOptions {
     let mut options = input::resolve_generate_webfonts_options(GenerateWebfontsOptions {
         dest: "unused".into(),
         files: files.iter().map(|f| f.id.clone()).collect(),
