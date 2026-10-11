@@ -5,7 +5,7 @@ use write_fonts::types::Tag;
 
 use crate::formats::woff2::Woff2TransformCache;
 use crate::input::{
-    LoadedSvgFile, ResolvedGenerateWebfontsOptions, finalize_generate_webfonts_options,
+    LoadedSvgSource, ResolvedFileGenerationOptions, finalize_generate_webfonts_options,
     resolve_generate_webfonts_options,
 };
 use crate::pipeline::build_font_outputs;
@@ -31,8 +31,8 @@ pub struct BenchGlyphCache(GlyphCache);
 
 /// Opaque loaded sources and resolved options for incremental SVG preparation benchmarks.
 pub struct BenchSvgPrepareInput {
-    options: ResolvedGenerateWebfontsOptions,
-    sources: Vec<LoadedSvgFile>,
+    options: ResolvedFileGenerationOptions,
+    sources: Vec<LoadedSvgSource>,
 }
 
 /// Opaque parsed glyph set used to isolate parse and finalize stages.
@@ -54,21 +54,21 @@ pub struct BenchWoff2TransformCache(Woff2TransformCache);
 /// Opaque prepared WOFF2 directory and table stream.
 pub struct BenchPreparedWoff2(crate::formats::woff2::PreparedWoff2);
 
-fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgFile> {
+fn load_sources(sources: &[BenchSvgSource]) -> Vec<LoadedSvgSource> {
     sources
         .iter()
-        .map(|source| LoadedSvgFile {
+        .map(|source| LoadedSvgSource {
             contents: source.contents.clone().into(),
             glyph_name: source.glyph_name.clone(),
-            path: source.path.clone(),
+            id: source.path.clone(),
         })
         .collect()
 }
 
 fn resolve(
     options: GenerateWebfontsOptions,
-    sources: &[LoadedSvgFile],
-) -> io::Result<ResolvedGenerateWebfontsOptions> {
+    sources: &[LoadedSvgSource],
+) -> io::Result<ResolvedFileGenerationOptions> {
     let mut options = resolve_generate_webfonts_options(options)?;
     finalize_generate_webfonts_options(&mut options, sources)?;
     Ok(options)

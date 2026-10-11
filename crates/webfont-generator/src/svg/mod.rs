@@ -23,7 +23,7 @@ use types::{
 };
 
 use crate::input::{
-    LoadedSvgFile, ResolvedGenerateWebfontsOptions, VariantFamilySources, VariantGlyphSource,
+    LoadedSvgSource, ResolvedGenerationOptions, VariantFamilySources, VariantGlyphSource,
 };
 use crate::types::FontType;
 
@@ -45,9 +45,7 @@ struct FinalizePlan {
     structure_path: bool,
 }
 
-pub(crate) fn svg_options_from_options(
-    options: &ResolvedGenerateWebfontsOptions,
-) -> SvgOptions<'_> {
+pub(crate) fn svg_options_from_options(options: &ResolvedGenerationOptions) -> SvgOptions<'_> {
     let svg_format = options
         .format_options
         .as_ref()
@@ -84,13 +82,13 @@ pub(crate) fn svg_options_from_options(
 
 pub(crate) fn prepare_svg_font(
     options: &SvgOptions,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
 ) -> Result<PreparedSvgFont, Error> {
     let glyphs = parse_glyphs(options, source_files)?;
     finalize_glyphs(options, glyphs)
 }
 
-pub(crate) fn prepare_variant_svg_family<Files: AsRef<[LoadedSvgFile]>>(
+pub(crate) fn prepare_variant_svg_family<Files: AsRef<[LoadedSvgSource]>>(
     options: &SvgOptions,
     family: &VariantFamilySources<Files>,
 ) -> Result<PreparedVariantFamily, Error> {
@@ -109,7 +107,7 @@ pub(crate) struct VariantGlyphCache {
     pub(crate) materialize_count: usize,
 }
 
-pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgFile]>>(
+pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgSource]>>(
     options: &SvgOptions,
     family: &VariantFamilySources<Files>,
     mut cache: Option<&mut VariantGlyphCache>,
@@ -128,17 +126,17 @@ pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgFile]>>(
             if let Some(cache) = cache.as_mut() {
                 let parsed_cache = &mut cache.parsed[variant_index];
                 for file in files {
-                    if parsed_cache.content_hashes.get(&file.path)
+                    if parsed_cache.content_hashes.get(&file.id)
                         != Some(&source_content_hash(&file.contents))
-                        || parsed_cache.entries.get(&file.path).is_some_and(|cached| {
+                        || parsed_cache.entries.get(&file.id).is_some_and(|cached| {
                             cached.color_layers.is_some() != options.selects_color(&file.glyph_name)
                         })
                     {
-                        parsed_cache.entries.remove(&file.path);
-                        parsed_cache.content_hashes.remove(&file.path);
-                        cache.processed.retain(|(index, path, _), _| {
-                            *index != variant_index || path != &file.path
-                        });
+                        parsed_cache.entries.remove(&file.id);
+                        parsed_cache.content_hashes.remove(&file.id);
+                        cache
+                            .processed
+                            .retain(|(index, id, _), _| *index != variant_index || id != &file.id);
                     }
                 }
                 incremental::parse_glyphs_incremental(options, files, parsed_cache)
@@ -223,7 +221,7 @@ pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgFile]>>(
                                 let key = (
                                     variant_index,
                                     family.variants[variant_index].as_ref()[source_index]
-                                        .path
+                                        .id
                                         .clone(),
                                     advance_width.to_bits(),
                                 );
@@ -301,7 +299,7 @@ pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgFile]>>(
 /// [`finalize_glyphs`].
 pub(crate) fn parse_glyphs(
     options: &SvgOptions,
-    source_files: &[LoadedSvgFile],
+    source_files: &[LoadedSvgSource],
 ) -> Result<Vec<ParsedGlyph>, Error> {
     if source_files.is_empty() {
         return Err(Error::new(

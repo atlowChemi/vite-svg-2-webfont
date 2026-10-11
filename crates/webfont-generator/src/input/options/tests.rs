@@ -2,11 +2,11 @@ use std::collections::BTreeMap;
 use std::path::Path;
 
 use super::{
+    GenerationOptions, file_variant_metadata, finalize_generate_webfonts_options,
     resolve_codepoints, resolve_generate_webfonts_options, resolve_variant_weights,
-    resolved_font_types, serialize_css_identifier, validate_font_type_order,
-    validate_generate_webfonts_options,
+    resolved_font_types, serialize_css_identifier, validate_file_options, validate_font_type_order,
 };
-use crate::input::LoadedSvgFile;
+use crate::input::LoadedSvgSource;
 use crate::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
     MissingGlyphOptions, Woff2FormatOptions,
@@ -19,6 +19,10 @@ fn variant(name: &str, weight: Option<u16>, is_default: bool) -> FontVariant {
         weight,
         default: is_default.then_some(true),
     }
+}
+
+fn validate_generate_webfonts_options(options: &GenerateWebfontsOptions) -> std::io::Result<()> {
+    validate_file_options(&options.clone().into())
 }
 
 fn variant_options() -> GenerateWebfontsOptions {
@@ -43,15 +47,15 @@ fn validation_error(options: GenerateWebfontsOptions, expected: &str) {
     );
 }
 
-fn loaded_svg_file(path: &str) -> LoadedSvgFile {
-    LoadedSvgFile {
+fn loaded_svg_file(path: &str) -> LoadedSvgSource {
+    LoadedSvgSource {
         contents: "<svg />".into(),
         glyph_name: Path::new(path)
             .file_stem()
             .and_then(|stem| stem.to_str())
             .unwrap_or_default()
             .to_owned(),
-        path: path.to_owned(),
+        id: path.to_owned(),
     }
 }
 
@@ -67,7 +71,11 @@ fn rejects_order_entries_that_are_not_present_in_types() {
         ..Default::default()
     };
 
-    let error = validate_font_type_order(&options, &resolved_font_types(&options)).unwrap_err();
+    let error = validate_font_type_order(
+        options.order.as_deref(),
+        &resolved_font_types(options.types.as_deref(), options.variants.is_some()),
+    )
+    .unwrap_err();
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
     let message = error.to_string();
@@ -113,6 +121,92 @@ fn accepts_non_empty_files_without_variants() {
         ..Default::default()
     })
     .unwrap();
+}
+
+#[test]
+fn file_validation_precedes_shared_format_validation() {
+    let mut options = GenerateWebfontsOptions {
+        format_options: Some(FormatOptions {
+            woff2: Some(Woff2FormatOptions {
+                compression_quality: Some(12),
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    validation_error(options.clone(), "\"options.dest\" is empty");
+    options.dest = "artifacts".into();
+    validation_error(options.clone(), "\"options.files\" is empty");
+    options.files = vec!["not-read.svg".into()];
+    options.css_template = Some(format!(
+        "{}/missing-template.hbs",
+        env!("CARGO_MANIFEST_DIR")
+    ));
+    validation_error(options.clone(), "\"options.cssTemplate\" file not found");
+    options.css_template = None;
+    validation_error(options, "options.formatOptions.woff2.compressionQuality");
+}
+
+#[test]
+fn common_settings_resolve_without_file_options_and_preserve_svg_overrides() {
+    let common = GenerationOptions {
+        center_vertically: Some(true),
+        optimize_output: Some(true),
+        preserve_aspect_ratio: Some(false),
+        format_options: Some(FormatOptions {
+            svg: Some(crate::SvgFormatOptions {
+                center_vertically: Some(false),
+                optimize_output: Some(false),
+                preserve_aspect_ratio: Some(true),
+                ..Default::default()
+            }),
+            ..Default::default()
+        }),
+        ..Default::default()
+    };
+    common.validate_without_variants().unwrap();
+    let resolved = common.resolve(false).unwrap();
+    assert_eq!(resolved.center_vertically, Some(false));
+    assert_eq!(resolved.optimize_output, Some(false));
+    assert_eq!(resolved.preserve_aspect_ratio, Some(true));
+    assert!(resolved.types == [FontType::Eot, FontType::Woff, FontType::Woff2]);
+    assert_eq!(resolved.font_name, "iconfont");
+
+    let omitted = GenerationOptions::default().resolve(true).unwrap();
+    assert!(omitted.types == [FontType::Woff, FontType::Woff2]);
+    let explicit = GenerationOptions {
+        types: Some(vec![]),
+        ..Default::default()
+    }
+    .resolve(true)
+    .unwrap();
+    assert!(explicit.types.is_empty());
+}
+
+#[test]
+fn resolution_keeps_format_color_variant_and_template_error_precedence() {
+    let mut options = variant_options();
+    options.types = Some(vec![FontType::Svg]);
+    options.order = Some(vec![FontType::Woff2]);
+    options.color_glyphs = Some(crate::ColorGlyphSelection::All);
+    options.variants.as_mut().unwrap()[1].weight = Some(100);
+    options.css_template = Some(String::new());
+    options.html_template = Some(String::new());
+    let error = |options| {
+        resolve_generate_webfonts_options(options)
+            .err()
+            .unwrap()
+            .to_string()
+    };
+    assert!(error(options.clone()).contains("Invalid font type order"));
+    options.order = None;
+    assert!(error(options.clone()).contains("options.colorGlyphs"));
+    options.color_glyphs = None;
+    assert!(error(options.clone()).contains("preceding resolved weight"));
+    options.variants.as_mut().unwrap()[1].weight = Some(700);
+    assert!(error(options.clone()).contains("options.cssTemplate"));
+    options.css_template = None;
+    assert!(error(options).contains("options.htmlTemplate"));
 }
 
 #[test]
@@ -263,7 +357,7 @@ fn resolved_weights(spec: &[(Option<u16>, bool)]) -> std::io::Result<Vec<u16>> {
         })
         .collect::<Vec<_>>();
     let default_index = spec.iter().position(|(_, is_default)| *is_default).unwrap();
-    resolve_variant_weights(&variants, default_index)
+    resolve_variant_weights(&file_variant_metadata(&variants), default_index)
 }
 
 #[test]
@@ -691,10 +785,10 @@ fn preserves_explicit_codepoints_and_skips_used_values() {
 
 #[test]
 fn assigns_a_codepoint_to_an_empty_glyph_name() {
-    let source_files = vec![LoadedSvgFile {
+    let source_files = vec![LoadedSvgSource {
         contents: "<svg />".into(),
         glyph_name: String::new(),
-        path: "/tmp/icons/..".to_owned(),
+        id: "/tmp/icons/..".to_owned(),
     }];
 
     let resolved = resolve_codepoints(
@@ -732,7 +826,7 @@ fn propagates_codepoint_exhaustion_while_finalizing() {
     .unwrap();
     let source_files = vec![loaded_svg_file("first.svg"), loaded_svg_file("second.svg")];
 
-    let error = super::finalize_generate_webfonts_options(&mut options, &source_files)
+    let error = finalize_generate_webfonts_options(&mut options, &source_files)
         .expect_err("finalization must propagate exhausted codepoints");
 
     assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);

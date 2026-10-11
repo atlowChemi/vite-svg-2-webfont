@@ -8,7 +8,7 @@ use std::io::ErrorKind;
 use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use crate::input::{LoadedSvgFile, finalize_generate_webfonts_options, validate_glyph_names};
+use crate::input::{LoadedSvgSource, finalize_generate_webfonts_options, validate_glyph_names};
 use crate::output::write_generate_webfonts_result_sync;
 use crate::pipeline::{TtfGlyphCache, build_font_outputs};
 use crate::result::{GenerateWebfontsResult, RegenerateError};
@@ -201,7 +201,7 @@ impl GenerateWebfontsResult {
         let order_changed = self
             .source_files
             .iter()
-            .map(|file| file.path.as_str())
+            .map(|file| file.id.as_str())
             .ne(ordered_paths.iter().map(String::as_str));
         let mut changed_inputs = order_changed;
 
@@ -210,7 +210,7 @@ impl GenerateWebfontsResult {
                 GlyphChange::Removed => {
                     state.caches_dirty = true;
                     let before = source_files.len();
-                    source_files.retain(|file| &file.path != path);
+                    source_files.retain(|file| &file.id != path);
                     cache.entries.remove(path);
                     cache.content_hashes.remove(path);
                     cache.processed_entries.remove(path);
@@ -240,7 +240,7 @@ impl GenerateWebfontsResult {
                     let name_changed = name.as_ref().is_some_and(|name| {
                         source_files
                             .iter()
-                            .find(|file| &file.path == path)
+                            .find(|file| &file.id == path)
                             .is_none_or(|file| file.glyph_name != *name)
                     });
 
@@ -272,9 +272,9 @@ impl GenerateWebfontsResult {
         // Reorder to the caller's order so additions land in their fresh-build position rather than
         // at the tail. `ordered_paths` is authoritative for membership: any file not listed is
         // dropped here (handling removals), and every listed path must resolve to a known file.
-        let mut by_path: std::collections::HashMap<String, LoadedSvgFile> = source_files
+        let mut by_path: std::collections::HashMap<String, LoadedSvgSource> = source_files
             .into_iter()
-            .map(|file| (file.path.clone(), file))
+            .map(|file| (file.id.clone(), file))
             .collect();
         let mut reordered = Vec::with_capacity(ordered_paths.len());
         for path in ordered_paths {
@@ -383,9 +383,9 @@ impl GenerateWebfontsResult {
         let mut changes = Vec::new();
 
         for source_file in self.source_files.iter() {
-            previous_paths.insert(source_file.path.as_str());
-            if !ordered_set.contains(source_file.path.as_str()) {
-                changes.push((source_file.path.clone(), GlyphChange::Removed));
+            previous_paths.insert(source_file.id.as_str());
+            if !ordered_set.contains(source_file.id.as_str()) {
+                changes.push((source_file.id.clone(), GlyphChange::Removed));
             }
         }
 
@@ -462,12 +462,12 @@ impl GenerateWebfontsResult {
 /// Insert or update a source file by path: update an existing entry's contents (and name, if
 /// given), or append a new entry (deriving the glyph name from the file stem when none is given).
 fn upsert_source_file(
-    source_files: &mut Vec<LoadedSvgFile>,
+    source_files: &mut Vec<LoadedSvgSource>,
     path: &str,
     contents: String,
     name: Option<String>,
 ) {
-    if let Some(file) = source_files.iter_mut().find(|file| file.path == path) {
+    if let Some(file) = source_files.iter_mut().find(|file| file.id == path) {
         file.contents = contents.into();
         if let Some(name) = name {
             file.glyph_name = name;
@@ -480,10 +480,10 @@ fn upsert_source_file(
                 .unwrap_or_default()
                 .to_owned()
         });
-        source_files.push(LoadedSvgFile {
+        source_files.push(LoadedSvgSource {
             contents: contents.into(),
             glyph_name,
-            path: path.to_owned(),
+            id: path.to_owned(),
         });
     }
 }

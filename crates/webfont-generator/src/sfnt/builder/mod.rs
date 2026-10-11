@@ -7,25 +7,17 @@ mod tables;
 #[cfg(test)]
 mod tests;
 mod types;
-#[allow(
-    dead_code,
-    reason = "variant SFNT output is connected to public formats in a later phase"
-)]
 mod variants;
 
 use std::io::Error;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::input::ResolvedGenerateWebfontsOptions;
+use crate::input::ResolvedGenerationOptions;
 use crate::pipeline::TtfGlyphCache;
 use crate::svg::types::ProcessedGlyph;
 
 pub(crate) use types::{CachedCompiledGlyph, TtfOptions};
-#[allow(
-    unused_imports,
-    reason = "variant SFNT output is connected to public formats in a later phase"
-)]
-pub(crate) use variants::{VariantFontBuild, build_variant};
+pub(crate) use variants::build_variant;
 
 use glyphs::{
     build_glyf_table, compile_and_dedup_glyphs, compile_and_dedup_glyphs_cached,
@@ -34,9 +26,7 @@ use glyphs::{
 use ligatures::build_ligature_placeholders;
 use tables::assemble_font;
 
-pub(crate) fn ttf_options_from_options(
-    options: &ResolvedGenerateWebfontsOptions,
-) -> TtfOptions<'_> {
+pub(crate) fn ttf_options_from_options(options: &ResolvedGenerationOptions) -> TtfOptions<'_> {
     let ttf_format = options
         .format_options
         .as_ref()

@@ -2,7 +2,7 @@ use std::path::Path;
 
 use super::RegenerationState;
 use crate::input::{
-    LoadedSvgFile, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
+    LoadedSvgSource, finalize_generate_webfonts_options, resolve_generate_webfonts_options,
 };
 use crate::pipeline::generate_webfonts_sync;
 use crate::result::GenerateWebfontsResult;
@@ -64,17 +64,17 @@ fn write_icon_with_viewbox(dir: &Path, name: &str, width: u32, height: u32, d: &
     path.to_string_lossy().into_owned()
 }
 
-fn load(paths: &[String]) -> Vec<LoadedSvgFile> {
+fn load(paths: &[String]) -> Vec<LoadedSvgSource> {
     paths
         .iter()
-        .map(|path| LoadedSvgFile {
+        .map(|path| LoadedSvgSource {
             contents: std::fs::read_to_string(path).unwrap().into(),
             glyph_name: Path::new(path)
                 .file_stem()
                 .and_then(|stem| stem.to_str())
                 .unwrap_or_default()
                 .to_owned(),
-            path: path.clone(),
+            id: path.clone(),
         })
         .collect()
 }

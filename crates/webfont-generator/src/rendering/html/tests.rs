@@ -3,8 +3,8 @@ use std::io::ErrorKind;
 use std::path::Path;
 
 use super::{build_html_context, build_html_registry, render_html_with_context};
-use crate::input::LoadedSvgFile;
-use crate::input::ResolvedGenerateWebfontsOptions;
+use crate::input::LoadedSvgSource;
+use crate::input::ResolvedFileGenerationOptions;
 use crate::rendering::css::SharedTemplateData;
 use crate::rendering::paths::{path_to_slashes, relative_path};
 use crate::{FontType, GenerateWebfontsOptions};
@@ -12,10 +12,10 @@ use crate::{FontType, GenerateWebfontsOptions};
 use crate::test_helpers::{fixture_source_files, resolve_options, write_temp_template};
 
 fn render_html(
-    options: &ResolvedGenerateWebfontsOptions,
-    source_files: &[LoadedSvgFile],
+    options: &ResolvedFileGenerationOptions,
+    source_files: &[LoadedSvgSource],
 ) -> Result<String, std::io::Error> {
-    let shared = SharedTemplateData::new(options, source_files)?;
+    let shared = SharedTemplateData::from_files(options, source_files)?;
     let ctx = build_html_context(options, &shared, source_files, None)?;
     let registry = build_html_registry(options)?;
     render_html_with_context(options, registry.as_ref(), &ctx)
@@ -59,7 +59,7 @@ fn finalized_css_preserves_mutations_and_rebases_only_default_src() {
         ..Default::default()
     });
     let files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &files).unwrap();
     let mut css = crate::rendering::css::build_css_context(&options, &shared);
     css.insert("fontName".to_owned(), serde_json::json!("callback-family"));
     css.insert("baseSelector".to_owned(), serde_json::json!(".preview"));
@@ -219,7 +219,7 @@ fn render_html_with_hbs_context_matches_direct_render_for_default_template() {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &source_files).unwrap();
     let ctx = build_html_context(&options, &shared, &source_files, None).unwrap();
     let hbs_ctx = handlebars::Context::wraps(&ctx).unwrap();
 
@@ -252,7 +252,7 @@ fn render_html_with_hbs_context_matches_direct_render_for_custom_template() {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &source_files).unwrap();
     let ctx = build_html_context(&options, &shared, &source_files, None).unwrap();
     let hbs_ctx = handlebars::Context::wraps(&ctx).unwrap();
     let registry = build_html_registry(&options).unwrap();
@@ -286,7 +286,7 @@ fn render_html_with_styles_swap_via_hbs_context_matches_manual_rewrite() {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &source_files).unwrap();
     let ctx = build_html_context(&options, &shared, &source_files, None).unwrap();
     let registry = build_html_registry(&options).unwrap().unwrap();
 
@@ -339,7 +339,7 @@ fn html_styles_in_place_mutation_restores_original_and_works_repeatedly() {
         ..Default::default()
     });
     let source_files = fixture_source_files(&options);
-    let shared = SharedTemplateData::new(&options, &source_files).unwrap();
+    let shared = SharedTemplateData::from_files(&options, &source_files).unwrap();
     let ctx = build_html_context(&options, &shared, &source_files, None).unwrap();
     let registry = build_html_registry(&options).unwrap().unwrap();
     let mut hbs_ctx = handlebars::Context::wraps(&ctx).unwrap();

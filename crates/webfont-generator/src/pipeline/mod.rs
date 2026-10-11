@@ -7,7 +7,7 @@ use crate::formats::woff1::Woff1PayloadCache;
 use crate::formats::woff2::Woff2TransformCache;
 use crate::formats::{eot, woff1, woff2};
 use crate::incremental::RegenerationState;
-use crate::input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions};
+use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions};
 use crate::result::{FontOutputs, GenerateWebfontsResult};
 use crate::sfnt;
 use crate::sfnt::CachedCompiledGlyph;
@@ -141,8 +141,8 @@ impl TtfGlyphCache {
 }
 
 pub(crate) fn generate_webfonts_sync(
-    options: ResolvedGenerateWebfontsOptions,
-    source_files: Vec<LoadedSvgFile>,
+    options: ResolvedFileGenerationOptions,
+    source_files: Vec<LoadedSvgSource>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     let svg_options = svg_options_from_options(&options);
     // When incremental, retain the parsed-glyph cache so a later `regenerate` can reuse the
@@ -178,8 +178,8 @@ pub(crate) fn generate_webfonts_sync(
 }
 
 pub(crate) fn generate_variant_webfonts_sync(
-    options: ResolvedGenerateWebfontsOptions,
-    source_files: Vec<LoadedSvgFile>,
+    options: ResolvedFileGenerationOptions,
+    source_files: Vec<LoadedSvgSource>,
     family: crate::svg::types::PreparedVariantFamily,
     cache: Option<crate::svg::VariantGlyphCache>,
 ) -> std::io::Result<GenerateWebfontsResult> {
@@ -210,7 +210,7 @@ pub(crate) fn generate_variant_webfonts_sync(
 
 /// Build every requested output format from an already-prepared glyph set.
 pub(crate) fn build_font_outputs(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedGenerationOptions,
     svg_options: &SvgOptions<'_>,
     prepared: &PreparedSvgFont,
     mut ttf_cache: Option<&mut TtfGlyphCache>,
@@ -323,7 +323,7 @@ pub(crate) fn build_font_outputs(
 }
 
 pub(crate) fn build_variant_font_outputs(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     family: &crate::svg::types::PreparedVariantFamily,
 ) -> std::io::Result<FontOutputs> {
     let wants_ttf = options.types.contains(&FontType::Ttf);

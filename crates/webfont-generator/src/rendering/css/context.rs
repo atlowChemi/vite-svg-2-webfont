@@ -1,21 +1,20 @@
 use std::collections::HashMap;
 use std::fmt::Write as _;
-use std::fs;
 use std::io::Error;
+use std::sync::Arc;
 
 use handlebars::Handlebars;
 use serde_json::{Map, Value};
 
 use super::dependencies::{TemplateDependencies, template_dependencies};
-use super::hash::calc_hash;
 use crate::{
-    input::{LoadedSvgFile, ResolvedGenerateWebfontsOptions},
+    input::{ResolvedFileGenerationOptions, ResolvedGenerationOptions},
     rendering::{paths::join_url, shared::to_io_err},
     types::FontType,
 };
 
 pub(super) fn make_urls(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     hash: &str,
     css_fonts_url: Option<&str>,
 ) -> HashMap<FontType, String> {
@@ -44,7 +43,7 @@ pub(super) fn make_urls(
 }
 
 pub(crate) fn make_src(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     urls: &HashMap<FontType, String>,
 ) -> String {
     let mut result = String::new();
@@ -82,7 +81,7 @@ pub(crate) fn make_src(
 }
 
 pub(super) fn make_ctx(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     urls: &HashMap<FontType, String>,
     shared: &SharedTemplateData,
 ) -> Map<String, Value> {
@@ -146,14 +145,14 @@ pub(super) fn make_ctx(
 }
 
 pub(crate) fn build_css_context(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
 ) -> Map<String, Value> {
     build_css_context_with_fonts_url(options, shared, options.css_fonts_url.as_deref())
 }
 
 pub(crate) fn build_css_context_with_fonts_url(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
     css_fonts_url: Option<&str>,
 ) -> Map<String, Value> {
@@ -162,31 +161,30 @@ pub(crate) fn build_css_context_with_fonts_url(
 }
 
 /// Pre-computed values shared between CSS and HTML context building.
-/// Avoids recomputing the hash, codepoints map, template options, and reading
-/// the CSS template file multiple times. The CSS template source is read eagerly
-/// (so file-not-found errors surface at init time), but compilation is deferred
-/// to first render via OnceLock (matching upstream's lazy behavior).
+/// Owns shared template text without acquiring it. Compilation is deferred to the
+/// first render via OnceLock; the caller supplies its mode-specific fingerprint.
 pub(crate) struct SharedTemplateData {
     pub codepoints_hex: Map<String, Value>,
     pub codepoints_num: Map<String, Value>,
-    css_template_source: Option<String>,
+    pub(crate) css_template_source: Option<Arc<str>>,
     css_registry_cache: std::sync::OnceLock<Result<Handlebars<'static>, String>>,
     pub css_template_dependencies: TemplateDependencies,
     /// Whether the CSS template references `{src}` — if false, URL overrides are a no-op.
     pub css_template_uses_src: bool,
     pub hash: String,
     pub template_options: Map<String, Value>,
+    #[cfg(test)]
+    pub(crate) css_compile_count: std::sync::atomic::AtomicUsize,
+    #[cfg(test)]
+    pub(crate) css_render_count: std::sync::atomic::AtomicUsize,
 }
 
 impl SharedTemplateData {
     pub fn new(
-        options: &ResolvedGenerateWebfontsOptions,
-        source_files: &[LoadedSvgFile],
-    ) -> Result<Self, Error> {
-        let css_template_source = match &options.css_template {
-            Some(path) => Some(fs::read_to_string(path)?),
-            None => None,
-        };
+        options: &ResolvedGenerationOptions,
+        css_template_source: Option<Arc<str>>,
+        hash: String,
+    ) -> Self {
         // Default template always uses src. Dynamic custom templates stay URL-sensitive because
         // helpers, partials, or whole-context reads may observe `src` indirectly.
         let css_template_dependencies = match &css_template_source {
@@ -195,16 +193,20 @@ impl SharedTemplateData {
         };
         let css_template_uses_src = css_template_dependencies.may_depend_on_src();
         let (codepoints_hex, codepoints_num) = make_codepoints(options);
-        Ok(Self {
+        Self {
             codepoints_hex,
             codepoints_num,
             css_template_source,
             css_registry_cache: std::sync::OnceLock::new(),
             css_template_dependencies,
             css_template_uses_src,
-            hash: calc_hash(options, source_files),
+            hash,
             template_options: resolved_template_options(options),
-        })
+            #[cfg(test)]
+            css_compile_count: Default::default(),
+            #[cfg(test)]
+            css_render_count: Default::default(),
+        }
     }
 
     /// Returns the compiled CSS Handlebars registry, compiling on first access.
@@ -214,11 +216,13 @@ impl SharedTemplateData {
             None => Ok(None),
             Some(source) => {
                 let result = self.css_registry_cache.get_or_init(|| {
+                    #[cfg(test)]
+                    self.css_compile_count.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                     let mut registry = Handlebars::new();
                     handlebars::handlebars_helper!(sass_string: |value: str| value.replace('\\', "\\\\").replace('\'', "\\'"));
                     registry.register_helper("sassString", Box::new(sass_string));
                     registry
-                        .register_template_string("css", source)
+                        .register_template_string("css", source.as_ref())
                         .map_err(|error| format!("Failed to compile CSS template: {error}"))?;
                     Ok(registry)
                 });
@@ -234,7 +238,7 @@ impl SharedTemplateData {
 /// Build both codepoint maps sorted by codepoint value (matching upstream iteration order).
 /// The sort is O(n log n) but only runs once during SharedTemplateData init, not per render.
 fn make_codepoints(
-    options: &ResolvedGenerateWebfontsOptions,
+    options: &ResolvedGenerationOptions,
 ) -> (Map<String, Value>, Map<String, Value>) {
     let mut by_value: Vec<_> = options.codepoints.iter().collect();
     by_value.sort_by_key(|(_, cp)| *cp);
@@ -247,9 +251,7 @@ fn make_codepoints(
     (hex, num)
 }
 
-pub(super) fn resolved_template_options(
-    options: &ResolvedGenerateWebfontsOptions,
-) -> Map<String, Value> {
+pub(super) fn resolved_template_options(options: &ResolvedGenerationOptions) -> Map<String, Value> {
     let mut template_options = Map::from_iter([
         ("baseSelector".to_owned(), Value::String(".icon".to_owned())),
         ("classPrefix".to_owned(), Value::String("icon-".to_owned())),

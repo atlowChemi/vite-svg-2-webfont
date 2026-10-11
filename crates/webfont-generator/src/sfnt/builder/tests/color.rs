@@ -8,7 +8,7 @@ use write_fonts::types::{F2Dot14, GlyphId, GlyphId16, Tag};
 
 use crate::formats::woff2::tables_to_woff2;
 use crate::input::{
-    LoadedSvgFile, ResolvedGenerateWebfontsOptions, finalize_generate_webfonts_options,
+    LoadedSvgSource, ResolvedFileGenerationOptions, finalize_generate_webfonts_options,
     resolve_generate_webfonts_options,
 };
 use crate::pipeline::TtfGlyphCache;
@@ -91,8 +91,8 @@ fn color_allocation_validates_initial_glyph_count() {
 
 #[test]
 fn explicit_no_color_selection_matches_omitted_selection() {
-    let files = vec![LoadedSvgFile {
-        path: "icon.svg".into(), glyph_name: "icon".into(),
+    let files = vec![LoadedSvgSource {
+        id: "icon.svg".into(), glyph_name: "icon".into(),
         contents: r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100"><path fill="red" d="M10 10H90V90H10Z"/></svg>"#.into(),
     }];
     let generate = |selection| {
@@ -261,8 +261,8 @@ pub(super) fn production_color_font() -> SerializedFontTables {
     })
     .unwrap();
     let sources = [("light.svg", "red", 100, 600), ("bold.svg", "blue", 700, 100)]
-        .into_iter().map(|(path, color, fixed, foreground)| vec![LoadedSvgFile {
-            path: path.into(), glyph_name: "ab".into(),
+        .into_iter().map(|(path, color, fixed, foreground)| vec![LoadedSvgSource {
+            id: path.into(), glyph_name: "ab".into(),
             contents: format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1000"><path fill="{color}" d="M{fixed} 100h200v800h-200Z"/><path fill="currentColor" fill-opacity="0.25" d="M{foreground} 100h200v800h-200Z"/></svg>"#).into(),
         }]).collect();
     let (family, _, _) = prepare_variant_family(&mut options, sources).unwrap();
@@ -272,12 +272,12 @@ pub(super) fn production_color_font() -> SerializedFontTables {
         .unwrap()
         .tables
 }
-fn prepare(bodies: &[&str]) -> (ResolvedGenerateWebfontsOptions, Vec<ProcessedGlyph>) {
+fn prepare(bodies: &[&str]) -> (ResolvedFileGenerationOptions, Vec<ProcessedGlyph>) {
     let files: Vec<_> = bodies
         .iter()
         .enumerate()
-        .map(|(i, body)| LoadedSvgFile {
-            path: format!("icon{i}.svg"),
+        .map(|(i, body)| LoadedSvgSource {
+            id: format!("icon{i}.svg"),
             glyph_name: format!("icon{i}"),
             contents: format!(
                 r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">{body}</svg>"#
@@ -286,7 +286,7 @@ fn prepare(bodies: &[&str]) -> (ResolvedGenerateWebfontsOptions, Vec<ProcessedGl
         })
         .collect();
     let mut resolved = resolve_generate_webfonts_options(GenerateWebfontsOptions {
-        files: files.iter().map(|f| f.path.clone()).collect(),
+        files: files.iter().map(|f| f.id.clone()).collect(),
         dest: "unused".into(),
         types: Some(vec![FontType::Ttf]),
         write_files: Some(false),

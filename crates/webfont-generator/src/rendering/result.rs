@@ -2,7 +2,7 @@
 mod tests;
 
 use std::collections::HashMap;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use serde_json::{Map, Value};
 
@@ -10,9 +10,9 @@ use super::css::{
     SharedTemplateData, TemplateDependencies, build_css_context, make_src,
     render_css_with_hbs_context, render_css_with_src_mutate,
 };
+use super::files::load_html_template;
 use super::html::{
-    build_html_context, build_html_registry_and_dependencies, render_default_html_with_styles,
-    render_html_with_hbs_context,
+    build_html_context, render_default_html_with_styles, render_html_with_hbs_context,
 };
 use super::shared::{render_with_field_swap, to_io_err};
 use crate::result::GenerateWebfontsResult;
@@ -24,15 +24,15 @@ use crate::types::FontType;
 #[derive(Clone, Default)]
 pub(crate) struct RenderCache {
     /// Result of generateCss() with no urls (computed once).
-    css_no_urls: Option<String>,
+    css_no_urls: Option<Arc<String>>,
     /// Last generateCss(urls) result.
     css_last_urls: Option<HashMap<FontType, String>>,
-    css_last_result: Option<String>,
+    css_last_result: Option<Arc<String>>,
     /// Result of generateHtml() with no urls (computed once).
-    html_no_urls: Option<String>,
+    html_no_urls: Option<Arc<String>>,
     /// Last generateHtml(urls) result.
     html_last_urls: Option<HashMap<FontType, String>>,
-    html_last_result: Option<String>,
+    html_last_result: Option<Arc<String>>,
 }
 
 #[derive(Clone)]
@@ -40,6 +40,8 @@ pub(crate) struct CarriedRenderCache {
     cache: RenderCache,
     css_dependencies: TemplateDependencies,
     html_dependencies: TemplateDependencies,
+    css_template_source: Option<Arc<str>>,
+    html_template_source: Option<Arc<str>>,
 }
 
 pub(crate) struct CachedTemplateData {
@@ -48,9 +50,10 @@ pub(crate) struct CachedTemplateData {
     pub(crate) css_hbs_context: Mutex<handlebars::Context>,
     pub(crate) html_context: Map<String, Value>,
     pub(crate) html_hbs_context: Mutex<handlebars::Context>,
-    pub(crate) html_template_dependencies: TemplateDependencies,
-    pub(crate) html_registry: Option<handlebars::Handlebars<'static>>,
+    pub(crate) html_template: super::html::HtmlTemplate,
     pub(crate) render_cache: Mutex<RenderCache>,
+    #[cfg(test)]
+    pub(crate) html_render_count: std::sync::atomic::AtomicUsize,
 }
 
 impl GenerateWebfontsResult {
@@ -87,7 +90,7 @@ impl GenerateWebfontsResult {
     pub(crate) fn get_cached_io(&self) -> std::io::Result<&CachedTemplateData> {
         self.cached
             .get_or_init(|| {
-                let shared = SharedTemplateData::new(&self.options, &self.source_files)
+                let shared = SharedTemplateData::from_files(&self.options, &self.source_files)
                     .map_err(|e| e.to_string())?;
                 let css_context = match &self.css_context {
                     Some(ctx) => ctx.clone(),
@@ -98,29 +101,42 @@ impl GenerateWebfontsResult {
                     None => build_html_context(&self.options, &shared, &self.source_files, None)
                         .map_err(|e| e.to_string())?,
                 };
-                let (html_registry, html_template_dependencies) =
-                    build_html_registry_and_dependencies(&self.options)
-                        .map_err(|e| e.to_string())?;
+                let html_template = load_html_template(&self.options).map_err(|e| e.to_string())?;
+                let render_cache = self
+                    .carried_render
+                    .as_ref()
+                    .map(|carried| {
+                        if carried.css_template_source != shared.css_template_source {
+                            // HTML may embed CSS, so changing CSS invalidates both companions.
+                            RenderCache::default()
+                        } else if carried.html_template_source != html_template.source {
+                            RenderCache {
+                                html_no_urls: None,
+                                html_last_urls: None,
+                                html_last_result: None,
+                                ..carried.cache.clone()
+                            }
+                        } else {
+                            carried.cache.clone()
+                        }
+                    })
+                    .unwrap_or_default();
                 let css_hbs_context =
                     handlebars::Context::wraps(&css_context).map_err(|e| e.to_string())?;
                 let html_hbs_context =
                     handlebars::Context::wraps(&html_context).map_err(|e| e.to_string())?;
                 Ok(CachedTemplateData {
+                    #[cfg(test)]
+                    html_render_count: Default::default(),
                     shared,
                     css_context,
                     css_hbs_context: Mutex::new(css_hbs_context),
                     html_context,
                     html_hbs_context: Mutex::new(html_hbs_context),
-                    html_template_dependencies,
-                    html_registry,
+                    html_template,
                     // Seed with entries carried across a regenerate;
                     // these are renders that don't depend on what changed, so reusing them is safe.
-                    render_cache: Mutex::new(
-                        self.carried_render
-                            .as_ref()
-                            .map(|carried| carried.cache.clone())
-                            .unwrap_or_default(),
-                    ),
+                    render_cache: Mutex::new(render_cache),
                 })
             })
             .as_ref()
@@ -153,6 +169,8 @@ impl GenerateWebfontsResult {
             CarriedRenderCache {
                 css_dependencies: carried.css_dependencies,
                 html_dependencies: carried.html_dependencies,
+                css_template_source: carried.css_template_source,
+                html_template_source: carried.html_template_source,
                 cache: RenderCache {
                     css_no_urls: css_no_urls_unchanged
                         .then(|| rc.css_no_urls.clone())
@@ -184,7 +202,9 @@ impl GenerateWebfontsResult {
             .map(|cached| CarriedRenderCache {
                 cache: cached.render_cache.lock().unwrap().clone(),
                 css_dependencies: cached.shared.css_template_dependencies,
-                html_dependencies: cached.html_template_dependencies,
+                html_dependencies: cached.html_template.dependencies,
+                css_template_source: cached.shared.css_template_source.clone(),
+                html_template_source: cached.html_template.source.clone(),
             })
             .or_else(|| self.carried_render.clone())
     }
@@ -196,6 +216,14 @@ impl GenerateWebfontsResult {
         &self,
         urls: Option<HashMap<FontType, String>>,
     ) -> std::io::Result<String> {
+        self.generate_css_shared(urls)
+            .map(|text| text.as_ref().clone())
+    }
+
+    pub(crate) fn generate_css_shared(
+        &self,
+        urls: Option<HashMap<FontType, String>>,
+    ) -> std::io::Result<Arc<String>> {
         self.validate_render_urls(urls.as_ref())?;
         let cached = self.get_cached_io()?;
         let mut rc = cached.render_cache.lock().unwrap();
@@ -206,8 +234,11 @@ impl GenerateWebfontsResult {
                     return Ok(result.clone());
                 }
                 let ctx = cached.css_hbs_context.lock().unwrap();
-                let result =
-                    render_css_with_hbs_context(&cached.shared, &ctx, &cached.css_context)?;
+                let result = Arc::new(render_css_with_hbs_context(
+                    &cached.shared,
+                    &ctx,
+                    &cached.css_context,
+                )?);
                 rc.css_no_urls = Some(result.clone());
                 Ok(result)
             }
@@ -215,7 +246,7 @@ impl GenerateWebfontsResult {
                 // If the template doesn't reference {{src}}, URLs don't affect output
                 if !cached.shared.css_template_uses_src {
                     drop(rc);
-                    return self.generate_css_pure(None);
+                    return self.generate_css_shared(None);
                 }
                 if rc.css_last_urls.as_ref() == Some(urls)
                     && let Some(result) = &rc.css_last_result
@@ -224,12 +255,12 @@ impl GenerateWebfontsResult {
                 }
                 let src = make_src(&self.options, urls);
                 let mut ctx = cached.css_hbs_context.lock().unwrap();
-                let result = render_css_with_src_mutate(
+                let result = Arc::new(render_css_with_src_mutate(
                     &cached.shared,
                     &mut ctx,
                     &cached.css_context,
                     &src,
-                )?;
+                )?);
                 rc.css_last_urls = Some(urls.clone());
                 rc.css_last_result = Some(result.clone());
                 Ok(result)
@@ -244,6 +275,14 @@ impl GenerateWebfontsResult {
         &self,
         urls: Option<HashMap<FontType, String>>,
     ) -> std::io::Result<String> {
+        self.generate_html_shared(urls)
+            .map(|text| text.as_ref().clone())
+    }
+
+    pub(crate) fn generate_html_shared(
+        &self,
+        urls: Option<HashMap<FontType, String>>,
+    ) -> std::io::Result<Arc<String>> {
         self.validate_render_urls(urls.as_ref())?;
         let cached = self.get_cached_io()?;
         let mut rc = cached.render_cache.lock().unwrap();
@@ -254,11 +293,15 @@ impl GenerateWebfontsResult {
                     return Ok(result.clone());
                 }
                 let ctx = cached.html_hbs_context.lock().unwrap();
-                let result = render_html_with_hbs_context(
-                    cached.html_registry.as_ref(),
+                #[cfg(test)]
+                cached
+                    .html_render_count
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                let result = Arc::new(render_html_with_hbs_context(
+                    cached.html_template.registry.as_ref(),
                     &ctx,
                     &cached.html_context,
-                )?;
+                )?);
                 rc.html_no_urls = Some(result.clone());
                 Ok(result)
             }
@@ -266,7 +309,7 @@ impl GenerateWebfontsResult {
                 // If the CSS template doesn't reference {{src}}, URLs don't affect output
                 if !cached.shared.css_template_uses_src {
                     drop(rc);
-                    return self.generate_html_pure(None);
+                    return self.generate_html_shared(None);
                 }
                 if rc.html_last_urls.as_ref() == Some(urls)
                     && let Some(result) = &rc.html_last_result
@@ -274,6 +317,10 @@ impl GenerateWebfontsResult {
                     return Ok(result.clone());
                 }
                 // Render CSS with the custom URLs (in-place src mutate, no clone)
+                #[cfg(test)]
+                cached
+                    .html_render_count
+                    .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
                 let src = make_src(&self.options, urls);
                 let styles = {
                     let mut css_ctx = cached.css_hbs_context.lock().unwrap();
@@ -285,8 +332,11 @@ impl GenerateWebfontsResult {
                     )?
                 };
                 // Hot path: default HTML template -- inject styles directly, skip clone
-                if self.options.html_template.is_none() {
-                    let result = render_default_html_with_styles(&cached.html_context, &styles);
+                if cached.html_template.registry.is_none() {
+                    let result = Arc::new(render_default_html_with_styles(
+                        &cached.html_context,
+                        &styles,
+                    ));
                     rc.html_last_urls = Some(urls.clone());
                     rc.html_last_result = Some(result.clone());
                     return Ok(result);
@@ -294,15 +344,16 @@ impl GenerateWebfontsResult {
                 // Custom HTML template: in-place styles mutate, no clone
                 let mut html_ctx = cached.html_hbs_context.lock().unwrap();
                 let registry = cached
-                    .html_registry
+                    .html_template
+                    .registry
                     .as_ref()
                     .expect("HTML registry should exist for custom template");
-                let result = render_with_field_swap(
+                let result = Arc::new(render_with_field_swap(
                     &mut html_ctx,
                     "styles",
                     serde_json::Value::String(styles),
                     |ctx| registry.render_with_context("html", ctx).map_err(to_io_err),
-                )?;
+                )?);
                 rc.html_last_urls = Some(urls.clone());
                 rc.html_last_result = Some(result.clone());
                 Ok(result)

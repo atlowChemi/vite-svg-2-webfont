@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 
-use crate::input::LoadedSvgFile;
+use crate::input::LoadedSvgSource;
 use crate::{GenerateWebfontsResult, GlyphChange, VariantFileSet};
 
 #[cfg(test)]
@@ -68,8 +68,7 @@ impl GenerateWebfontsResult {
                 files
             })
             .collect();
-        let previous_paths: HashSet<_> =
-            self.source_files.iter().map(|s| s.path.as_str()).collect();
+        let previous_paths: HashSet<_> = self.source_files.iter().map(|s| s.id.as_str()).collect();
         let mut hints = HashMap::new();
         for (path, change) in changes.unwrap_or_default() {
             if hints.insert(path.as_str(), change).is_some() {
@@ -100,7 +99,7 @@ impl GenerateWebfontsResult {
                 .unwrap();
             let previous: HashMap<_, _> = sources[index]
                 .iter()
-                .map(|source| (source.path.as_str(), source))
+                .map(|source| (source.id.as_str(), source))
                 .collect();
             let next = set
                 .files
@@ -132,8 +131,8 @@ impl GenerateWebfontsResult {
                                 .to_string_lossy()
                                 .into_owned()
                         });
-                    Ok(LoadedSvgFile {
-                        path: path.clone(),
+                    Ok(LoadedSvgSource {
+                        id: path.clone(),
                         contents,
                         glyph_name,
                     })
@@ -142,7 +141,7 @@ impl GenerateWebfontsResult {
             crate::input::validate_glyph_names(&next)?;
             effective |= next.len() != sources[index].len()
                 || next.iter().zip(sources[index]).any(|(a, b)| {
-                    a.path != b.path || a.glyph_name != b.glyph_name || a.contents != b.contents
+                    a.id != b.id || a.glyph_name != b.glyph_name || a.contents != b.contents
                 });
             next_sources.push(next);
             options.variants.as_mut().unwrap().variants[index].files = set.files.clone();

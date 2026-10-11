@@ -14,7 +14,7 @@ use super::{
     prepare_variant_svg_family, source_content_hash, svg_options_from_options,
 };
 
-use crate::input::{self, LoadedSvgFile, ResolvedGenerateWebfontsOptions, VariantFamilySources};
+use crate::input::{self, LoadedSvgSource, ResolvedFileGenerationOptions, VariantFamilySources};
 use crate::{
     FontType, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior, SvgFormatOptions,
 };
@@ -67,10 +67,10 @@ fn generate_svg_font(options: GenerateWebfontsOptions) -> String {
     build_svg_font(&svg_options, &prepared)
 }
 
-fn load_source_files(paths: &[String]) -> Vec<LoadedSvgFile> {
+fn load_source_files(paths: &[String]) -> Vec<LoadedSvgSource> {
     paths
         .iter()
-        .map(|path| LoadedSvgFile {
+        .map(|path| LoadedSvgSource {
             contents: fs::read_to_string(path)
                 .unwrap_or_else(|error| panic!("failed to load source SVG '{}': {error}", path))
                 .into(),
@@ -79,7 +79,7 @@ fn load_source_files(paths: &[String]) -> Vec<LoadedSvgFile> {
                 .and_then(|stem| stem.to_str())
                 .unwrap_or_default()
                 .to_owned(),
-            path: path.clone(),
+            id: path.clone(),
         })
         .collect()
 }
@@ -655,7 +655,7 @@ fn incremental_prepare_matches_full_prepare_and_reuses_cache() {
     );
 
     let parse_count = cache.parse_count;
-    source_files[0].path.push_str("-renamed");
+    source_files[0].id.push_str("-renamed");
     source_files[0].glyph_name = "renamed".to_string();
     let renamed = build_svg_font(
         &svg_options,
@@ -947,19 +947,25 @@ fn quadratic_tiny_paths_are_rounded_and_fully_hashed() {
     );
 }
 
-fn variant_svg(path: &str, name: &str, width: u32, height: u32, shape_width: u32) -> LoadedSvgFile {
-    LoadedSvgFile {
+fn variant_svg(
+    path: &str,
+    name: &str,
+    width: u32,
+    height: u32,
+    shape_width: u32,
+) -> LoadedSvgSource {
+    LoadedSvgSource {
         contents: format!(
             "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"{width}\" height=\"{height}\" viewBox=\"0 0 {width} {height}\"><rect width=\"{shape_width}\" height=\"{height}\"/></svg>"
         )
         .into(),
         glyph_name: name.to_owned(),
-        path: path.to_owned(),
+        id: path.to_owned(),
     }
 }
 
 fn resolved_family(
-    variants: Vec<Vec<LoadedSvgFile>>,
+    variants: Vec<Vec<LoadedSvgSource>>,
     behavior: MissingGlyphBehavior,
     fallback_index: Option<usize>,
     variant_names: &[&str],
@@ -973,7 +979,7 @@ fn resolved_family(
 fn prepare_family(
     family: &VariantFamilySources,
     codepoints: BTreeMap<String, u32>,
-    configure: impl FnOnce(&mut ResolvedGenerateWebfontsOptions),
+    configure: impl FnOnce(&mut ResolvedFileGenerationOptions),
 ) -> PreparedVariantFamily {
     let mut options = input::resolve_generate_webfonts_options(GenerateWebfontsOptions {
         dest: "artifacts".to_owned(),
@@ -1089,7 +1095,7 @@ fn variant_family_metrics_are_order_independent_and_center_with_explicit_overrid
         reversed_natural.glyphs[0].advance_width
     );
 
-    let configure = |options: &mut ResolvedGenerateWebfontsOptions| {
+    let configure = |options: &mut ResolvedFileGenerationOptions| {
         options.ascent = Some(80.0);
         options.descent = Some(20.0);
         options.font_height = Some(100.0);

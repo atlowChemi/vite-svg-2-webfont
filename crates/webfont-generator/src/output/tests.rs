@@ -18,13 +18,12 @@ fn temp_root(name: &str) -> std::path::PathBuf {
 }
 
 #[test]
-fn output_contents_exposes_shared_text_shared_bytes_and_owned_bytes() {
+fn output_contents_exposes_shared_text_and_shared_bytes() {
     let bytes = Arc::new(vec![1, 2, 3]);
     let text = Arc::new("css".to_owned());
 
     assert_eq!(OutputContents::Bytes(bytes).as_bytes(), &[1, 2, 3]);
     assert_eq!(OutputContents::Text(text).as_bytes(), b"css");
-    assert_eq!(OutputContents::Owned(vec![4, 5, 6]).as_bytes(), &[4, 5, 6]);
 }
 
 #[test]
@@ -75,10 +74,12 @@ async fn async_writer_dispatches_every_font_format() {
     let root = temp_root("formats");
     let options = resolve_options(GenerateWebfontsOptions {
         css: Some(false),
+        css_template: Some(root.join("missing.css.hbs").to_string_lossy().into_owned()),
         dest: root.to_string_lossy().into_owned(),
         files: vec![webfont_fixture("add.svg")],
         font_name: Some("icons".to_owned()),
         html: Some(false),
+        html_template: Some(root.join("missing.html.hbs").to_string_lossy().into_owned()),
         incremental: Some(true),
         types: Some(vec![
             FontType::Svg,
@@ -106,12 +107,41 @@ async fn async_writer_dispatches_every_font_format() {
         source_files: Arc::new(Vec::new()),
     };
 
+    let outputs = result.collect_outputs().unwrap();
+    assert_eq!(outputs.len(), 5);
+    for output in outputs {
+        match (output.kind, output.contents) {
+            (OutputKind::Font(FontType::Svg), OutputContents::Text(text)) => {
+                assert!(Arc::ptr_eq(&text, result.fonts.svg_font.as_ref().unwrap()));
+            }
+            (OutputKind::Font(kind), OutputContents::Bytes(bytes)) => {
+                let original = match kind {
+                    FontType::Ttf => &result.fonts.ttf_font,
+                    FontType::Woff => &result.fonts.woff_font,
+                    FontType::Woff2 => &result.fonts.woff2_font,
+                    FontType::Eot => &result.fonts.eot_font,
+                    FontType::Svg => panic!("SVG must be text"),
+                };
+                assert!(Arc::ptr_eq(&bytes, original.as_ref().unwrap()));
+            }
+            _ => panic!("expected only font payloads"),
+        }
+    }
+    assert!(
+        result.cached.get().is_none(),
+        "font collection must not initialize templates"
+    );
+
     assert!(
         write_generate_webfonts_result(&result)
             .await
             .unwrap()
             .unwrap()
             .is_empty()
+    );
+    assert!(
+        result.cached.get().is_none(),
+        "font writing must not initialize templates"
     );
     for (extension, expected) in [
         ("svg", b"svg".as_slice()),

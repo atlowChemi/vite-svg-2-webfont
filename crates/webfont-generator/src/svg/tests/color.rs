@@ -2,18 +2,18 @@ use super::*;
 use crate::svg::{VariantGlyphCache, prepare_variant_svg_family_cached};
 use crate::types::color::{ResolvedColorSelection, ResolvedLayerPaint};
 
-fn source(name: &str, root: &str, body: &str) -> LoadedSvgFile {
-    LoadedSvgFile {
-        path: format!("{name}.svg"),
+fn source(name: &str, root: &str, body: &str) -> LoadedSvgSource {
+    LoadedSvgSource {
+        id: format!("{name}.svg"),
         glyph_name: name.into(),
         contents: format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" {root}>{body}</svg>"#).into(),
     }
 }
 
-fn options(files: &[LoadedSvgFile]) -> ResolvedGenerateWebfontsOptions {
+fn options(files: &[LoadedSvgSource]) -> ResolvedFileGenerationOptions {
     let mut options = input::resolve_generate_webfonts_options(GenerateWebfontsOptions {
         dest: "unused".into(),
-        files: files.iter().map(|f| f.path.clone()).collect(),
+        files: files.iter().map(|f| f.id.clone()).collect(),
         types: Some(vec![FontType::Ttf]),
         write_files: Some(false),
         ..Default::default()
@@ -41,7 +41,7 @@ fn color_pipeline_cache_and_results_share_layer_arrays() {
     ));
     assert!(Arc::ptr_eq(
         first_layers,
-        cache.processed_entries[&files[0].path]
+        cache.processed_entries[&files[0].id]
             .color_layers
             .as_ref()
             .unwrap()
@@ -50,7 +50,7 @@ fn color_pipeline_cache_and_results_share_layer_arrays() {
         .unwrap()
         .pop()
         .unwrap();
-    let cached_layers = cache.entries[&files[0].path].color_layers.as_ref().unwrap();
+    let cached_layers = cache.entries[&files[0].id].color_layers.as_ref().unwrap();
     let materialized = parsed.to_parsed(first.processed_glyphs[0].codepoint, 0, "icon");
     assert!(Arc::ptr_eq(
         cached_layers,
@@ -663,8 +663,8 @@ fn color_pipeline_incremental_selection_rename_and_content_reuse_match_fresh() {
     assert!(cached.processed_glyphs[0].color_layers.is_none());
     assert!(cached.processed_glyphs[1].color_layers.is_some());
     files[1].contents = source("a", r#"fill="red""#, RECT).contents;
-    cache.entries.remove(&files[1].path);
-    cache.processed_entries.remove(&files[1].path);
+    cache.entries.remove(&files[1].id);
+    cache.processed_entries.remove(&files[1].id);
     let cached = prepare_svg_font_incremental(&opts, &files, &mut cache).unwrap();
     let fresh = prepare_svg_font(&opts, &files).unwrap();
     assert_glyph(&cached.processed_glyphs[1], &fresh.processed_glyphs[1]);
