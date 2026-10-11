@@ -28,6 +28,38 @@ are borrowed, and option conversion does not clone their strings or template JSO
 Use consuming `regenerate_async`/`regenerate_all_async` in Rust, or the borrowing
 `regenerate_snapshot_async` when an adapter must retain a readable old result.
 
+## SVG text input
+
+`generate_from_sources_sync` accepts named SVG text without files or a Tokio runtime:
+
+```rust
+use webfont_generator::{generate_from_sources_sync, GenerateWebfontsFromSourcesOptions, SvgSource};
+
+let result = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+    sources: vec![SvgSource {
+        id: "icon-42".into(),
+        name: "square".into(),
+        svg: r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>"#.into(),
+    }],
+    ..Default::default()
+})?;
+let css = result.generate_css()?; // Shared, lazy render; no output files.
+let outputs = result.collect_outputs()?; // Reuses CSS and font payloads.
+# Ok::<(), std::io::Error>(())
+```
+
+`generate_from_sources` runs the same pipeline on Tokio's blocking pool. Text options
+support ordinary and variant designs, color glyphs, and inline CSS/HTML templates.
+IDs are opaque and must be nonempty; shared IDs across designs must agree on name and text.
+Glyph names accept Unicode letters/numbers, hyphens and underscores; empty or unsafe names are rejected.
+External SVG image paths are not loaded. This is a native Rust API, not a WASM guarantee.
+
+Set `incremental: Some(true)` to use `regenerate_sync` or consuming async `regenerate`.
+Supply `SourceChange` entries only for changed sources and complete `SourceMembership`
+for the final order. Settings and templates stay fixed. Failed synchronous updates leave
+the previous result usable; async failures expose it through `SourceRegenerateError::into_result`
+unless the worker itself failed. See the [text-input reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html#svg-text-api).
+
 ## CLI
 
 ```sh

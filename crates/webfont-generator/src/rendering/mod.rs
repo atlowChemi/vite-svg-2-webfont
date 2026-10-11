@@ -1,6 +1,6 @@
-mod css;
+pub(crate) mod css;
 mod files;
-mod html;
+pub(crate) mod html;
 mod paths;
 mod result;
 mod shared;

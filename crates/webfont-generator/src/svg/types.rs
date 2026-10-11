@@ -8,6 +8,7 @@ use crate::input::LoadedSvgSource;
 use crate::types::color::{ProcessedColorLayer, ResolvedColorSelection, ResolvedLayerPaint};
 
 pub(crate) struct SvgOptions<'a> {
+    pub filesystem_free: bool,
     pub color_selection: Option<&'a ResolvedColorSelection>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
@@ -31,6 +32,22 @@ pub(crate) struct SvgOptions<'a> {
 }
 
 impl SvgOptions<'_> {
+    pub(super) fn source_error(&self, id: &str, error: std::io::Error) -> std::io::Error {
+        if self.filesystem_free {
+            std::io::Error::new(error.kind(), format!("SVG source {id:?}: {error}"))
+        } else {
+            error
+        }
+    }
+
+    pub(crate) fn parser_options(&self) -> usvg::Options<'static> {
+        let mut options = usvg::Options::default();
+        if self.filesystem_free {
+            options.image_href_resolver.resolve_string = Box::new(|_, _| None);
+        }
+        options
+    }
+
     pub fn selects_color(&self, name: &str) -> bool {
         self.color_selection
             .is_some_and(|selection| selection.contains(name))

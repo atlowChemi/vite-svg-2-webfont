@@ -12,7 +12,7 @@ use crate::types::{
     FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
 };
 
-use common::VariantMetadata;
+pub(crate) use common::VariantMetadata;
 pub(crate) use common::{GenerationOptions, ResolvedGenerationOptions};
 
 struct FileGenerationOptions {
@@ -117,7 +117,7 @@ pub(crate) struct ResolvedVariants {
 #[derive(Clone)]
 pub(crate) struct ResolvedFontVariant {
     pub name: String,
-    pub files: Vec<String>,
+    pub source_ids: Vec<String>,
     pub weight: u16,
     pub class_name: String,
     pub selector: String,
@@ -243,7 +243,7 @@ fn validate_file_options(options: &FileGenerationOptions) -> std::io::Result<()>
     validate_format_options(options.common.format_options.as_ref())
 }
 
-fn validate_format_options(options: Option<&FormatOptions>) -> std::io::Result<()> {
+pub(crate) fn validate_format_options(options: Option<&FormatOptions>) -> std::io::Result<()> {
     if let Some(quality) = options
         .and_then(|value| value.woff2.as_ref())
         .and_then(|value| value.compression_quality)
@@ -272,7 +272,7 @@ fn file_variant_metadata(variants: &[FontVariant]) -> Vec<VariantMetadata<'_>> {
         .collect()
 }
 
-fn validate_variants(
+pub(crate) fn validate_variants(
     options: &GenerationOptions,
     variants: &[VariantMetadata<'_>],
     membership_field: &str,
@@ -536,6 +536,21 @@ fn resolve_variants(
     variants: &[FontVariant],
     class_prefix: &str,
 ) -> std::io::Result<ResolvedVariants> {
+    resolve_variant_metadata(
+        &file_variant_metadata(variants),
+        variants
+            .iter()
+            .map(|variant| variant.files.clone())
+            .collect(),
+        class_prefix,
+    )
+}
+
+pub(crate) fn resolve_variant_metadata(
+    variants: &[VariantMetadata<'_>],
+    memberships: Vec<Vec<String>>,
+    class_prefix: &str,
+) -> std::io::Result<ResolvedVariants> {
     let default_index = variants
         .iter()
         .position(|variant| variant.default == Some(true))
@@ -545,15 +560,15 @@ fn resolve_variants(
                 "\"options.variants\" must contain a default variant.",
             )
         })?;
-    let weights = resolve_variant_weights(&file_variant_metadata(variants), default_index)?;
+    let weights = resolve_variant_weights(variants, default_index)?;
     let mut resolved = Vec::with_capacity(variants.len());
 
-    for (variant, weight) in variants.iter().zip(weights) {
+    for ((variant, weight), source_ids) in variants.iter().zip(weights).zip(memberships) {
         let class_name = format!("{class_prefix}{}", variant.name);
         let selector = serialize_css_identifier(&class_name);
         resolved.push(ResolvedFontVariant {
-            name: variant.name.clone(),
-            files: variant.files.clone(),
+            name: variant.name.to_owned(),
+            source_ids,
             weight,
             class_name,
             selector,

@@ -1,20 +1,23 @@
 #[cfg(test)]
 mod tests;
 
+mod files;
+pub(crate) mod sources;
 mod variants;
 
 use std::collections::{HashMap, HashSet};
 use std::io::ErrorKind;
-use std::path::Path;
 use std::sync::{Arc, Mutex};
 
-use crate::input::{LoadedSvgSource, finalize_generate_webfonts_options, validate_glyph_names};
+use crate::input::{finalize_generate_webfonts_options, validate_glyph_names};
 use crate::output::write_generate_webfonts_result_sync;
 use crate::pipeline::{TtfGlyphCache, build_font_outputs};
 use crate::result::{GenerateWebfontsResult, RegenerateError};
 use crate::svg::types::GlyphCache;
 use crate::svg::{prepare_svg_font_incremental, source_content_hash, svg_options_from_options};
 use crate::types::{GlyphChange, RegenerationFiles};
+use files::load_source_updates;
+use sources::{ordered_sources, updated_sources};
 
 pub(crate) struct RegenerationState {
     pub(crate) variant_cache: Option<crate::svg::VariantGlyphCache>,
@@ -185,8 +188,6 @@ impl GenerateWebfontsResult {
         changes: &[(String, GlyphChange)],
         state: &mut RegenerationState,
     ) -> std::io::Result<()> {
-        let cache = &mut state.glyph_cache;
-        let mut source_files = self.source_files.as_ref().clone();
         let mut options = self.options.as_ref().clone();
 
         // Snapshot the inputs the CSS/HTML templates depend on (glyph names + codepoints) so we
@@ -203,90 +204,21 @@ impl GenerateWebfontsResult {
             .iter()
             .map(|file| file.id.as_str())
             .ne(ordered_paths.iter().map(String::as_str));
-        let mut changed_inputs = order_changed;
-
-        for (path, change) in changes {
-            match change {
-                GlyphChange::Removed => {
-                    state.caches_dirty = true;
-                    let before = source_files.len();
-                    source_files.retain(|file| &file.id != path);
-                    cache.entries.remove(path);
-                    cache.content_hashes.remove(path);
-                    cache.processed_entries.remove(path);
-                    changed_inputs |= source_files.len() != before;
-                }
-                GlyphChange::Added { name } => {
-                    let contents = std::fs::read_to_string(path)?;
-                    state.caches_dirty = true;
-                    let hash = source_content_hash(&contents);
-                    upsert_source_file(&mut source_files, path, contents, name.clone());
-                    // Reuse identical SVG geometry if another path already parsed these bytes;
-                    // otherwise prepare_svg_font_incremental will parse and populate the cache.
-                    if let Some(cached) = cache.by_content_hash.get(&hash) {
-                        cache.entries.insert(path.clone(), cached.clone());
-                        cache.content_hashes.insert(path.clone(), hash);
-                    } else {
-                        cache.entries.remove(path);
-                        cache.content_hashes.remove(path);
-                    }
-                    cache.processed_entries.remove(path);
-                    changed_inputs = true;
-                }
-                GlyphChange::Changed { name } => {
-                    let contents = std::fs::read_to_string(path)?;
-                    let hash = source_content_hash(&contents);
-                    let content_changed = cache.content_hashes.get(path) != Some(&hash);
-                    let name_changed = name.as_ref().is_some_and(|name| {
-                        source_files
-                            .iter()
-                            .find(|file| &file.id == path)
-                            .is_none_or(|file| file.glyph_name != *name)
-                    });
-
-                    if !content_changed && !name_changed {
-                        continue;
-                    }
-
-                    upsert_source_file(&mut source_files, path, contents, name.clone());
-                    if content_changed {
-                        state.caches_dirty = true;
-                        if let Some(cached) = cache.by_content_hash.get(&hash) {
-                            cache.entries.insert(path.clone(), cached.clone());
-                            cache.content_hashes.insert(path.clone(), hash);
-                        } else {
-                            cache.entries.remove(path);
-                            cache.content_hashes.remove(path);
-                        }
-                        cache.processed_entries.remove(path);
-                    }
-                    changed_inputs = true;
-                }
-            }
-        }
-
-        if !changed_inputs {
+        let (updates, changed_inputs) = load_source_updates(&self.source_files, changes, state)?;
+        if !order_changed && !changed_inputs {
             return Ok(());
         }
 
         // Reorder to the caller's order so additions land in their fresh-build position rather than
         // at the tail. `ordered_paths` is authoritative for membership: any file not listed is
         // dropped here (handling removals), and every listed path must resolve to a known file.
-        let mut by_path: std::collections::HashMap<String, LoadedSvgSource> = source_files
-            .into_iter()
-            .map(|file| (file.id.clone(), file))
-            .collect();
-        let mut reordered = Vec::with_capacity(ordered_paths.len());
-        for path in ordered_paths {
-            let file = by_path.remove(path).ok_or_else(|| {
+        let definitions = updated_sources(&self.source_files, &updates);
+        let source_files = ordered_sources(&definitions, ordered_paths).map_err(|path| {
                 std::io::Error::new(
                     ErrorKind::InvalidInput,
                     format!("regenerate: `{path}` is in the ordered set but was not loaded; declare it as an added change."),
                 )
             })?;
-            reordered.push(file);
-        }
-        source_files = reordered;
         validate_glyph_names(&source_files)?;
         options.files = ordered_paths.to_vec();
 
@@ -296,7 +228,8 @@ impl GenerateWebfontsResult {
 
         let svg_options = svg_options_from_options(&options);
         state.caches_dirty = true;
-        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, cache)?;
+        let prepared =
+            prepare_svg_font_incremental(&svg_options, &source_files, &mut state.glyph_cache)?;
         let fonts =
             build_font_outputs(&options, &svg_options, &prepared, state.ttf_cache.as_mut())?;
 
@@ -456,34 +389,5 @@ impl GenerateWebfontsResult {
                 std::io::Error::other(format!("asynchronous regeneration task failed: {error}")),
             )),
         }
-    }
-}
-
-/// Insert or update a source file by path: update an existing entry's contents (and name, if
-/// given), or append a new entry (deriving the glyph name from the file stem when none is given).
-fn upsert_source_file(
-    source_files: &mut Vec<LoadedSvgSource>,
-    path: &str,
-    contents: String,
-    name: Option<String>,
-) {
-    if let Some(file) = source_files.iter_mut().find(|file| file.id == path) {
-        file.contents = contents.into();
-        if let Some(name) = name {
-            file.glyph_name = name;
-        }
-    } else {
-        let glyph_name = name.unwrap_or_else(|| {
-            Path::new(path)
-                .file_stem()
-                .and_then(|stem| stem.to_str())
-                .unwrap_or_default()
-                .to_owned()
-        });
-        source_files.push(LoadedSvgSource {
-            contents: contents.into(),
-            glyph_name,
-            id: path.to_owned(),
-        });
     }
 }

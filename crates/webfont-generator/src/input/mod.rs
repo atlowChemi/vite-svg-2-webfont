@@ -2,8 +2,10 @@ mod files;
 mod options;
 mod sources;
 
-#[cfg(test)]
-pub(crate) use options::GenerationOptions;
+pub(crate) use options::{
+    GenerationOptions, VariantMetadata, resolve_variant_metadata, validate_format_options,
+    validate_variants,
+};
 
 #[cfg(test)]
 pub(crate) use files::load_variant_svg_files;

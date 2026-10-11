@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::{Error, ErrorKind};
 use std::sync::Arc;
 
+use super::sources::{SourceUpdate, ordered_sources, same_sources, updated_sources};
 use crate::input::LoadedSvgSource;
 use crate::{GenerateWebfontsResult, GlyphChange, VariantFileSet};
 
@@ -62,7 +63,7 @@ impl GenerateWebfontsResult {
             .variants
             .iter()
             .map(|variant| {
-                let end = offset + variant.files.len();
+                let end = offset + variant.source_ids.len();
                 let files = &self.source_files[offset..end];
                 offset = end;
                 files
@@ -101,7 +102,7 @@ impl GenerateWebfontsResult {
                 .iter()
                 .map(|source| (source.id.as_str(), source))
                 .collect();
-            let next = set
+            let updates = set
                 .files
                 .iter()
                 .map(|path| {
@@ -131,20 +132,22 @@ impl GenerateWebfontsResult {
                                 .to_string_lossy()
                                 .into_owned()
                         });
-                    Ok(LoadedSvgSource {
+                    Ok(SourceUpdate::Set(LoadedSvgSource {
                         id: path.clone(),
                         contents,
                         glyph_name,
-                    })
+                    }))
                 })
                 .collect::<std::io::Result<Vec<_>>>()?;
+            // Acquisition above supplies every final member, including its per-design name.
+            // Do not overlay this complete snapshot on duplicate occurrences from old file hooks.
+            let definitions = updated_sources(&[], &updates);
+            let next = ordered_sources(&definitions, &set.files)
+                .map_err(|id| invalid(format!("Unknown variant source: {id}")))?;
             crate::input::validate_glyph_names(&next)?;
-            effective |= next.len() != sources[index].len()
-                || next.iter().zip(sources[index]).any(|(a, b)| {
-                    a.id != b.id || a.glyph_name != b.glyph_name || a.contents != b.contents
-                });
+            effective |= !same_sources(sources[index], &next);
             next_sources.push(next);
-            options.variants.as_mut().unwrap().variants[index].files = set.files.clone();
+            options.variants.as_mut().unwrap().variants[index].source_ids = set.files.clone();
         }
         if effective {
             state.caches_dirty = true;

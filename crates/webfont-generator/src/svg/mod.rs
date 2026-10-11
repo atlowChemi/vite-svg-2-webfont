@@ -22,6 +22,7 @@ use types::{
     ProcessedVariantGlyph, SvgOptions,
 };
 
+use crate::incremental::sources::{refresh_source_cache, replace_source_cache};
 use crate::input::{
     LoadedSvgSource, ResolvedGenerationOptions, VariantFamilySources, VariantGlyphSource,
 };
@@ -57,6 +58,7 @@ pub(crate) fn svg_options_from_options(options: &ResolvedGenerationOptions) -> S
     let structure_path = wants_binary;
 
     SvgOptions {
+        filesystem_free: options.filesystem_free,
         color_selection: options.color_selection.as_ref(),
         ascent: options.ascent,
         center_horizontally: options.center_horizontally,
@@ -126,14 +128,18 @@ pub(crate) fn prepare_variant_svg_family_cached<Files: AsRef<[LoadedSvgSource]>>
             if let Some(cache) = cache.as_mut() {
                 let parsed_cache = &mut cache.parsed[variant_index];
                 for file in files {
-                    if parsed_cache.content_hashes.get(&file.id)
-                        != Some(&source_content_hash(&file.contents))
-                        || parsed_cache.entries.get(&file.id).is_some_and(|cached| {
-                            cached.color_layers.is_some() != options.selects_color(&file.glyph_name)
-                        })
-                    {
-                        parsed_cache.entries.remove(&file.id);
-                        parsed_cache.content_hashes.remove(&file.id);
+                    let color_changed = parsed_cache.entries.get(&file.id).is_some_and(|cached| {
+                        cached.color_layers.is_some() != options.selects_color(&file.glyph_name)
+                    });
+                    let content_changed = refresh_source_cache(
+                        parsed_cache,
+                        &file.id,
+                        source_content_hash(&file.contents),
+                    );
+                    if color_changed {
+                        replace_source_cache(parsed_cache, &file.id, None);
+                    }
+                    if content_changed || color_changed {
                         cache
                             .processed
                             .retain(|(index, id, _), _| *index != variant_index || id != &file.id);
@@ -309,7 +315,7 @@ pub(crate) fn parse_glyphs(
     }
 
     let preserve_aspect_ratio = options.preserve_aspect_ratio.unwrap_or(false);
-    let parser_options = usvg::Options::default();
+    let parser_options = options.parser_options();
 
     let mut work_items = Vec::with_capacity(source_files.len());
     for (index, source_file) in source_files.iter().enumerate() {
@@ -342,6 +348,7 @@ pub(crate) fn parse_glyphs(
                 &parser_options,
                 options.selects_color(item.name),
             )
+            .map_err(|error| options.source_error(&item.source_file.id, error))
         })
         .collect::<Result<Vec<_>, Error>>()
         .map_err(|error| Error::new(ErrorKind::InvalidData, error.to_string()))?;

@@ -120,6 +120,124 @@ if let Some(svg) = result.svg_string() {
 }
 ```
 
+## SVG text API
+
+`generate_from_sources_sync(options)` returns `std::io::Result<GenerateWebfontsFromSourcesResult>`
+without constructing a runtime, reading sources/templates, or writing output files.
+`generate_from_sources(options).await` runs the same work on Tokio's blocking pool;
+both entry points retain Rayon CPU parallelism. The async API requires an active Tokio runtime.
+
+```rust
+use webfont_generator::{generate_from_sources_sync, GenerateWebfontsFromSourcesOptions, SvgSource};
+
+let mut result = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+    sources: vec![SvgSource {
+        id: "icon-42".into(),
+        name: "square".into(),
+        svg: r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>"#.into(),
+    }],
+    incremental: Some(true),
+    ..Default::default()
+})?;
+let css = result.generate_css()?;
+let outputs = result.collect_outputs()?;
+# Ok::<(), std::io::Error>(())
+```
+
+### Text options and identity
+
+`GenerateWebfontsFromSourcesOptions` uses the same applicable settings and defaults as
+`GenerateWebfontsOptions`, with these differences:
+
+| Field                                      | Meaning                                                                                                  |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| `sources: Vec<SvgSource>`                  | Ordered `{ id, name, svg }` records; empty when using variants.                                          |
+| `variants: Option<Vec<SourceFontVariant>>` | Ordered `{ name, sources, weight, default }` designs, using the existing weight and missing-glyph rules. |
+| `css_template`, `html_template`            | Optional Handlebars **text**. `None` uses the built-in renderer; `Some("")` renders empty text.          |
+| `css_fonts_url`                            | Optional URL prefix. Both CSS and HTML default to relative font filenames with a generation fingerprint. |
+| `incremental`                              | Retain caches for source updates; default false.                                                         |
+
+There are no destination, writing, or path-based rename controls. Font formats, metrics,
+codepoints, normalization, alignment, ligatures, color selection, template data and format
+options follow the file API. Variant output supports TTF, WOFF and WOFF2.
+
+IDs are opaque, nonempty strings, even if they look like paths. Names are supplied explicitly
+and must contain only Unicode letters/numbers, hyphens or underscores (at least one character).
+The same restriction applies to explicit codepoint-map names and rename updates, keeping names
+safe in built-in SVG/CSS/HTML output. Quotes, markup, whitespace and selector punctuation are rejected.
+Each design requires unique IDs and glyph names. Repeated IDs across
+variants must have identical names and SVG text; use different IDs for different drawings
+of the same glyph name. Input order controls automatic codepoint assignment.
+
+External SVG image paths are ignored by the parser's text-mode resolver, including when
+parsing embedded SVG data. No filesystem-resource scan or custom rejection diagnostic is
+performed. This native API does not establish browser/WASM compatibility.
+
+### Result methods
+
+| Method                                                        | Result                                                                                       |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `svg_string()`                                                | `Option<&str>`                                                                               |
+| `ttf_bytes()`, `eot_bytes()`, `woff_bytes()`, `woff2_bytes()` | `Option<&[u8]>`                                                                              |
+| `generate_css()`, `generate_html()`                           | `std::io::Result<Arc<String>>`; renders once and shares the cached text.                     |
+| `collect_outputs()`                                           | `std::io::Result<Vec<CollectedOutput>>`; shares font payloads and enabled companion renders. |
+
+`CollectedOutput` contains `kind: OutputKind` (`Font(FontType)`, `Css`, or `Html`) and
+`contents: OutputContents` (`Bytes(Arc<Vec<u8>>)` or `Text(Arc<String>)`). Use `as_bytes()`
+to consume either representation. The caller chooses download names or other destinations.
+
+Font getters never initialize templates. CSS requests never compile HTML. HTML embeds the
+cached CSS. Collection respects `css`/`html`; explicit render methods work even when disabled.
+Template compile/render errors are deferred until that companion is requested.
+
+Memory fingerprints include ordered IDs, names, content, variant membership, resolved settings,
+and supplied template text. They need not match legacy file-mode URL hashes.
+
+### Incremental text updates
+
+```rust
+# use webfont_generator::{GenerateWebfontsFromSourcesResult, SourceChange, SourceMembership};
+# fn update(result: &mut GenerateWebfontsFromSourcesResult) -> std::io::Result<()> {
+result.regenerate_sync(
+    SourceMembership::Sources(vec!["icon-42".into()]),
+    vec![SourceChange::Changed {
+        id: "icon-42".into(),
+        name: None, // Keep the name; Some(...) renames without changing identity.
+        svg: r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0L24 24H0Z"/></svg>"#.into(),
+    }],
+)?;
+# Ok(())
+# }
+```
+
+- `SourceChange::Added(SvgSource)` introduces an unknown ID.
+- `Changed { id, svg, name }` replaces a known source.
+- `Removed { id }` removes a known source from all designs.
+- `SourceMembership::Sources(ids)` supplies complete ordinary membership and order.
+- `SourceMembership::Variants(Vec<VariantSourceSet { name, ids }>)` supplies every configured
+  variant in its original order. A shared-ID update affects every membership.
+
+Unchanged source text stays in Rust; submit only changed payloads. Complete membership also
+permits reorder or removal without resending retained text. Added/changed IDs must appear in
+final membership, removed IDs cannot remain, and each design must remain nonempty.
+Duplicate changes, conflicting modes and unknown IDs return errors.
+
+Generation settings, named color selection, variant configuration and templates remain fixed.
+Invalidating a named color selection by removal or rename returns an error. No-op updates keep
+font/render caches. Changed builds reuse geometry/encoder caches and invalidate companion renders.
+Companions independent of changed fields retain their cached strings using the shared template
+dependency rules. Failed builds retain old outputs and sources but discard partially mutated build caches before retry.
+
+The consuming async method is `result.regenerate(membership, changes).await`. It returns
+`Result<GenerateWebfontsFromSourcesResult, SourceRegenerateError>`. Recover ordinary failures
+with `into_result()` or `into_parts()`; worker panic/cancellation returns no recoverable result.
+For synchronous failures, the borrowed receiver remains usable.
+
+Dropping an async future does not cancel already-started blocking work and does not return
+the consumed result. CPU work may continue, with no memory-mode filesystem side effects.
+
+These functions are Rust-only; the npm/NAPI exports and CLI still accept files.
+
 ## `RenameFn`
 
 ```rust
