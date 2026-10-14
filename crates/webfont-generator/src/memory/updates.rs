@@ -11,6 +11,9 @@ use crate::input::{LoadedSvgSource, validate_glyph_names};
 use crate::rendering::css::{TemplateDependencies, template_dependencies};
 
 /// A changed source only; unchanged SVG text stays retained by the result.
+/// Deserializes objects tagged with `type`: `added`, `changed`, or `removed`.
+#[derive(serde::Deserialize)]
+#[serde(tag = "type", rename_all = "camelCase", deny_unknown_fields)]
 pub enum SourceChange {
     /// Introduce a previously unknown ID with its name and SVG text.
     Added(SvgSource),
@@ -31,6 +34,8 @@ pub enum SourceChange {
 }
 
 /// Complete ordered ID membership for a named variant.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct VariantSourceSet {
     /// Existing variant name; variant configuration cannot change during updates.
     pub name: String,
@@ -39,6 +44,9 @@ pub struct VariantSourceSet {
 }
 
 /// Complete membership after applying a source change batch.
+/// Deserializes either `{ "sources": [...] }` or `{ "variants": [...] }`.
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum SourceMembership {
     /// Ordinary generation: ordered source IDs.
     Sources(Vec<String>),

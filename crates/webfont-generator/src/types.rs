@@ -60,7 +60,7 @@ pub struct VariantFileSet {
 #[cfg_attr(feature = "cli", derive(clap::ValueEnum))]
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 #[cfg_attr(
-    feature = "cli",
+    any(feature = "cli", feature = "in_memory"),
     derive(serde::Deserialize),
     serde(rename_all = "lowercase")
 )]
@@ -102,7 +102,7 @@ pub struct FontVariant {
 /// Family-wide behavior when a logical glyph is absent from a variant.
 #[derive(Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(
-    feature = "cli",
+    any(feature = "cli", feature = "in_memory"),
     derive(serde::Deserialize),
     serde(rename_all = "lowercase")
 )]
@@ -118,7 +118,7 @@ pub enum MissingGlyphBehavior {
 /// Family-wide missing-glyph policy for multi-variant generation.
 #[derive(Clone)]
 #[cfg_attr(
-    feature = "cli",
+    any(feature = "cli", feature = "in_memory"),
     derive(serde::Deserialize),
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]
@@ -161,7 +161,7 @@ impl FontType {
 /// path processing that feeds every other format.
 #[derive(Clone, Default)]
 #[cfg_attr(
-    feature = "cli",
+    any(feature = "cli", feature = "in_memory"),
     derive(serde::Deserialize),
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]
@@ -190,7 +190,7 @@ pub struct SvgFormatOptions {
 /// and `head` tables.
 #[derive(Clone)]
 #[cfg_attr(
-    feature = "cli",
+    any(feature = "cli", feature = "in_memory"),
     derive(serde::Deserialize),
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]
@@ -212,7 +212,7 @@ pub struct TtfFormatOptions {
 /// WOFF-format–specific options. Affects only WOFF1 output; WOFF2 ignores these.
 #[derive(Clone)]
 #[cfg_attr(
-    feature = "cli",
+    any(feature = "cli", feature = "in_memory"),
     derive(serde::Deserialize),
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]
@@ -224,7 +224,7 @@ pub struct WoffFormatOptions {
 /// WOFF2-format–specific options. Affects only WOFF2 output.
 #[derive(Clone)]
 #[cfg_attr(
-    feature = "cli",
+    any(feature = "cli", feature = "in_memory"),
     derive(serde::Deserialize),
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]
@@ -242,7 +242,7 @@ pub struct Woff2FormatOptions {
 /// to the corresponding output format.
 #[derive(Clone, Default)]
 #[cfg_attr(
-    feature = "cli",
+    any(feature = "cli", feature = "in_memory"),
     derive(serde::Deserialize),
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]

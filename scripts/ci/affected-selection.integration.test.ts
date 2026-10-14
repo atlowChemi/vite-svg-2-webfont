@@ -72,7 +72,7 @@ describe('real Git/pnpm affected selection', () => {
                     .map(([job]) => job),
             ).toEqual(
                 fallback
-                    ? ['ci', 'test-scripts', 'rust-coverage', 'native-coverage', 'build', 'docs', 'test-browser', 'test-host', 'test-docker', 'test-vite-compat']
+                    ? ['ci', 'test-scripts', 'rust-coverage', 'native-coverage', 'build', 'docs', 'test-browser', 'test-wasm', 'test-host', 'test-docker', 'test-vite-compat']
                     : ['ci', 'docs'],
             );
         } finally {
@@ -115,7 +115,12 @@ describe('real Git/pnpm affected selection', () => {
     });
 
     it.each([
-        ['crates/webfont-generator/src/lib.rs', [packageNames.engine, packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
+        [
+            'crates/webfont-generator/src/lib.rs',
+            [packageNames.engine, packageNames.adapter, packageNames.browser, packageNames.plugin, packageNames.example, packageNames.root],
+            true,
+        ],
+        ['packages/webfont-browser/src/index.ts', [packageNames.browser], false],
         ['packages/webfont-generator/native/lib.rs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
         ['packages/webfont-generator/index.js', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root], true],
         ['packages/vite-svg-2-webfont/src/index.ts', [packageNames.plugin, packageNames.example], false],

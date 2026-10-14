@@ -17,14 +17,14 @@ pub enum ColorGlyphSelection {
 }
 
 // Omission uses the field default; an explicitly supplied null must not disable color.
-#[cfg(feature = "cli")]
-pub(super) fn deserialize_selection<'de, D: serde::Deserializer<'de>>(
+#[cfg(any(feature = "cli", feature = "in_memory"))]
+pub(crate) fn deserialize_selection<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<ColorGlyphSelection>, D::Error> {
     <ColorGlyphSelection as serde::Deserialize>::deserialize(deserializer).map(Some)
 }
 
-#[cfg(feature = "cli")]
+#[cfg(any(feature = "cli", feature = "in_memory"))]
 impl<'de> serde::Deserialize<'de> for ColorGlyphSelection {
     fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         #[derive(serde::Deserialize)]

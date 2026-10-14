@@ -67,7 +67,16 @@ describe('affected CI', () => {
         );
         expect(selection.rustSuites).toEqual(['engine', 'cli', 'adapter']);
         expect(selection.nativeBuildScope).toBe('full');
+        expect(selection.jobs['test-wasm']).toBe(true);
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
+    });
+    it('runs WASM tests without native builds for private browser changes', () => {
+        const selection = scenario(['packages/webfont-browser/src/index.ts'], [packageNames.browser]);
+        expect(selection.full).toBe(false);
+        expect(selection.jobs['test-wasm']).toBe(true);
+        expect(selection.jobs.build).toBe(false);
+        expect(selection.jobs['rust-coverage']).toBe(false);
+        expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: false });
     });
     it('rejects narrowed platform prerequisites or missing selected Rust suites', () => {
         const selection = scenario(['Cargo.lock'], [packageNames.root]);

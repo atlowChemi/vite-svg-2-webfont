@@ -1,0 +1,76 @@
+# @atlowchemi/webfont-browser
+
+Private workspace package for generating webfonts from SVG text in browsers. It is not published to npm.
+
+## Build and test
+
+From the repository root:
+
+```sh
+vp install
+vp run @atlowchemi/webfont-browser#build
+vp run @atlowchemi/webfont-browser#test
+```
+
+The build installs the `wasm32-unknown-unknown` Rust target when needed and a version-matched
+wasm-bindgen CLI in `target/wasm-bindgen-tools`. `WASM_BINDGEN` can point to an existing CLI
+of that exact version. Rust and rustup must be installed. Tests use Playwright Chromium,
+Firefox and WebKit (`vp exec playwright install chromium firefox webkit`).
+
+The workspace export is TypeScript source. Build the WASM before consuming it with Vite;
+Vite bundles the module worker, generated loader and WASM asset. Generated JavaScript/WASM
+are build outputs; generated declarations are checked in for type checking before a build.
+
+## Use
+
+```ts
+import { generateWebfonts } from '@atlowchemi/webfont-browser';
+
+const result = await generateWebfonts({
+    sources: [{ id: 'square-id', name: 'square', svg: '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>' }],
+    types: ['woff2'],
+    incremental: true,
+    formatOptions: { ttf: { ts: 0 } },
+});
+try {
+    const font = await result.font('woff2');
+    const css = await result.generateCss();
+    await result.regenerate({ sources: ['square-id'] }, [{ type: 'changed', id: 'square-id', svg: '<svg viewBox="0 0 24 24"><path d="M1 1H23V23H1Z"/></svg>' }]);
+    const outputs = await result.collectOutputs();
+} finally {
+    result.dispose();
+}
+```
+
+## Contract
+
+- Each result owns one dedicated worker and WASM instance. Calls run in submission order.
+  Different results are independent. No SharedArrayBuffer or cross-origin isolation is needed.
+- All generation settings are the engine's in-memory settings in camelCase; see
+  [`GenerateWebfontsOptions`](./src/types.ts). Files, paths, output destinations and callbacks
+  are not accepted. SVG image files are not loaded. Templates are inline Handlebars text.
+- Ordinary generation supports SVG, TTF, EOT, WOFF and WOFF2; variants support TTF, WOFF and
+  WOFF2. Use `variants` with named sources, weights and exactly one default design.
+  `colorGlyphs: true` or a glyph-name list enables solid-color fonts in modern formats.
+- `font(format)` returns copied bytes, or `undefined` for a format not requested. It does not
+  render CSS or HTML. `generateCss()` and `generateHtml()` render independently on demand.
+  `collectOutputs()` returns `{ kind, bytes }[]` for requested fonts and enabled companions.
+- The worker copies Rust buffers into JS-owned arrays and transfers those arrays to the caller.
+  Returned bytes remain usable after updates or disposal; changing them cannot affect the result.
+- Updates require `incremental: true`, complete final membership, and only changed sources.
+  Ordinary membership is `{ sources: string[] }`; variant membership is
+  `{ variants: [{ name, ids }] }` in original design order. Changes are `added` (id/name/svg),
+  `changed` (id/svg, optional name), or `removed` (id), tagged by `type`.
+- Invalid input/update/rendering errors reject the operation; an existing result remains usable
+  after ordinary engine errors. Worker failures and WASM traps reject pending calls and close
+  that result. Create a new result after a fatal failure.
+- `dispose()` terminates the worker, releases the instance, and rejects pending/future calls.
+  It is idempotent. Always dispose results you no longer need.
+- Omitted `formatOptions.ttf.ts` captures the browser's Unix time once per result, retaining it
+  through updates. Supply a fixed timestamp for reproducible fonts.
+- WOFF uses pure-Rust compression in this package. Its bytes need not match native zlib output.
+  WOFF2 supports quality 0–11 using single-threaded Brotli.
+
+Serve WASM with `application/wasm`. Content Security Policy must allow the worker and WASM
+compilation for the deployment (for example, `worker-src 'self'` and the relevant
+`script-src` sources plus `'wasm-unsafe-eval'`).

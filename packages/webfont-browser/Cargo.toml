@@ -1,0 +1,17 @@
+[package]
+name = "webfont-browser"
+version = "0.0.0"
+edition = "2024"
+publish = false
+license = "MIT"
+description = "Private browser bindings for the webfont engine"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+path = "native/lib.rs"
+
+[dependencies]
+webfont-generator = { path = "../../crates/webfont-generator", default-features = false, features = ["in_memory"] }
+wasm-bindgen = "=0.2.125"
+js-sys = "=0.3.102"
+serde_json = "1"

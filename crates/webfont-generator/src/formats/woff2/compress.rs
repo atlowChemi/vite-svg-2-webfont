@@ -36,7 +36,8 @@ fn dropbox_brotli_compress(input: Vec<u8>, quality: u8) -> Result<Vec<u8>, Error
         ..Default::default()
     };
 
-    if quality < 10 {
+    // Browser/WASI builds cannot spawn Brotli's native worker threads.
+    if quality < 10 || cfg!(target_arch = "wasm32") {
         let mut output = Vec::new();
         BrotliCompress(&mut Cursor::new(&input), &mut output, &params)?;
         return Ok(output);
