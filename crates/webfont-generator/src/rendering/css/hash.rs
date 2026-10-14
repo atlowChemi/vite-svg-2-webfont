@@ -61,11 +61,6 @@ pub(in crate::rendering) fn calc_hash(
                     selector: &variant.selector,
                 })
                 .collect(),
-            woff2_compression_quality: options
-                .format_options
-                .as_ref()
-                .and_then(|formats| formats.woff2.as_ref())
-                .and_then(|woff2| woff2.compression_quality),
         };
         serde_json::to_writer(Md5Writer(&mut hash), &variant_hashable)
             .expect("variant hash options should serialize");
@@ -83,8 +78,6 @@ struct HashableVariantOptions<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     missing_glyph_variant: Option<&'a str>,
     variants: Vec<HashableVariant<'a>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    woff2_compression_quality: Option<u8>,
 }
 
 /// Text-mode fingerprint: framed JSON values, ordered memberships, and no file provenance.
@@ -132,15 +125,7 @@ pub(crate) fn calc_content_hash(
     };
     serde_json::to_writer(
         Md5Writer(&mut hash),
-        &(
-            missing,
-            &options.missing_glyphs.variant,
-            options
-                .format_options
-                .as_ref()
-                .and_then(|options| options.woff2.as_ref())
-                .and_then(|options| options.compression_quality),
-        ),
+        &(missing, &options.missing_glyphs.variant),
     )
     .expect("settings serialize");
     format!("{:x}", hash.finalize())
@@ -232,6 +217,15 @@ struct HashableFormatOptions<'a> {
     ttf: Option<HashableTtfFormatOptions<'a>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     woff: Option<HashableWoffFormatOptions<'a>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    woff2: Option<HashableWoff2FormatOptions>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HashableWoff2FormatOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    compression_quality: Option<u8>,
 }
 
 #[derive(Serialize)]
@@ -349,6 +343,14 @@ impl<'a> From<&'a crate::types::FormatOptions> for HashableFormatOptions<'a> {
             svg: options.svg.as_ref().map(HashableSvgFormatOptions::from),
             ttf: options.ttf.as_ref().map(HashableTtfFormatOptions::from),
             woff: options.woff.as_ref().map(HashableWoffFormatOptions::from),
+            // Unlike other formats, an empty woff2 entry is omitted to keep pre-existing hashes stable.
+            woff2: options
+                .woff2
+                .as_ref()
+                .and_then(|woff2| woff2.compression_quality)
+                .map(|quality| HashableWoff2FormatOptions {
+                    compression_quality: Some(quality),
+                }),
         }
     }
 }
