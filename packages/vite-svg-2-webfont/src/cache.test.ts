@@ -156,9 +156,9 @@ describe('computeCacheKey', () => {
         await using b = await project();
         const key = (p: typeof a) => computeCacheKey({ files: [join(p.icons, 'add.svg')], dest: join(p.root, 'out') }, [join(p.icons, 'add.svg')], p.root, []);
 
-        expect(key(a)).toBe(key(b));
+        expect(await key(a)).toBe(await key(b));
         await writeFile(join(b.icons, 'add.svg'), svg(20));
-        expect(key(a)).not.toBe(key(b));
+        expect(await key(a)).not.toBe(await key(b));
     });
 
     it('keeps cssFontsUrl root-specific because it is rendered into the CSS', async () => {
@@ -166,6 +166,6 @@ describe('computeCacheKey', () => {
         await using b = await project();
         const key = (p: typeof a) => computeCacheKey({ cssFontsUrl: join(p.root, 'fonts') }, [], p.root, []);
 
-        expect(key(a)).not.toBe(key(b));
+        expect(await key(a)).not.toBe(await key(b));
     });
 });

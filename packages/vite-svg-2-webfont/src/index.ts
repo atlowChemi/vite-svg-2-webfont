@@ -156,12 +156,12 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
     };
 
-    const getCacheKey = (input: ParsedOptions) => {
+    const getCacheKey = async (input: ParsedOptions) => {
         // cssContext is a JS callback that can change the output in ways a key can't capture.
         if (processedOptions.cssContext) return null;
         const files = [...(input.files ?? input.variants.flatMap(variant => variant.files)), ...[input.cssTemplate, input.htmlTemplate].filter(file => file !== undefined)];
         try {
-            return computeCacheKey(input, files, root, [isBuild, Boolean(options.inline)]);
+            return await computeCacheKey(input, files, root, [isBuild, Boolean(options.inline)], ac.signal);
         } catch {
             return null;
         }
@@ -218,7 +218,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             processedOptions.writeFiles = false;
         }
         const input = { ...processedOptions, ...sources } as ParsedOptions;
-        const key = getCacheKey(input);
+        const key = await getCacheKey(input);
         // Watch-triggered rebuilds follow input changes, so only the initial run looks up the cache.
         const hit = key && !updateFiles ? await readCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', key, processedOptions.types as T[]) : undefined;
         if (ac.signal.aborted) {

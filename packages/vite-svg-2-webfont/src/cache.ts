@@ -2,6 +2,7 @@ import { hash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { access, readFile, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
+import { Readable } from 'node:stream';
 import { css as defaultCssTemplate } from '@atlowchemi/webfont-generator/templates';
 import { ensureDirExistsAndWriteFile } from './utils';
 
@@ -32,15 +33,17 @@ function getEngineVersion(): string {
  * except `cssFontsUrl`, which is rendered into the CSS as-is.
  * Throws when an input file can't be read; callers treat that as uncacheable.
  */
-export function computeCacheKey(settings: object, files: string[], root: string, extra: unknown[]): string {
+export async function computeCacheKey(settings: object, files: string[], root: string, extra: unknown[], signal?: AbortSignal): Promise<string> {
     const prefix = `${root.replaceAll('\\', '/')}/`;
     const relativeSettings = JSON.stringify(settings, (key, value) => {
         if (typeof value !== 'string' || key === 'cssFontsUrl') return value;
         const normalized = value.replaceAll('\\', '/');
         return normalized.startsWith(prefix) ? normalized.slice(prefix.length) : value;
     });
-    // ponytail: sequential sync reads avoid EMFILE on large icon sets; batch async reads if hashing shows up in profiles.
-    const contents = files.map(file => hash('sha1', readFileSync(file)));
+    // Bounded concurrency: ties sync reads on Node 22/24 and halves the time on Node 26, without risking EMFILE.
+    const contents = await Readable.from(files)
+        .map(async (file: string, options) => hash('sha1', await readFile(file, options)), { concurrency: 100, signal })
+        .toArray();
     return hash('sha1', JSON.stringify([FORMAT_VERSION, getEngineVersion(), relativeSettings, contents, extra]));
 }
 
