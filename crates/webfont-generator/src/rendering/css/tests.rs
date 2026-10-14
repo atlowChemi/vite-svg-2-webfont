@@ -1,4 +1,6 @@
 use super::SharedTemplateData;
+#[cfg(feature = "in_memory")]
+use super::calc_content_hash;
 use super::{
     build_css_context, calc_hash, make_ctx, make_src, make_urls, render_css_with_context,
     template_dependencies,
@@ -812,16 +814,14 @@ fn variant_hash_includes_resolved_variants_missing_policy_and_explicit_woff2_qua
 }
 
 #[test]
-fn ordinary_hash_serialization_still_ignores_the_woff2_quality_value() {
+fn ordinary_hash_includes_woff2_quality_only_when_set() {
     let fixture = crate::test_helpers::webfont_fixture("add.svg");
-    let ordinary = |quality| {
+    let ordinary = |woff2| {
         resolve_options(GenerateWebfontsOptions {
             dest: "artifacts".to_owned(),
             files: vec![fixture.clone()],
             format_options: Some(FormatOptions {
-                woff2: Some(Woff2FormatOptions {
-                    compression_quality: Some(quality),
-                }),
+                woff2,
                 ..Default::default()
             }),
             types: Some(vec![FontType::Woff2]),
@@ -829,17 +829,48 @@ fn ordinary_hash_serialization_still_ignores_the_woff2_quality_value() {
             ..Default::default()
         })
     };
-    let files = fixture_source_files(&ordinary(8));
+    let quality = |compression_quality| {
+        ordinary(Some(Woff2FormatOptions {
+            compression_quality,
+        }))
+    };
+    let files = fixture_source_files(&ordinary(None));
 
+    assert_ne!(
+        calc_hash(&quality(Some(8)), &files),
+        calc_hash(&quality(Some(9)), &files)
+    );
     assert_eq!(
-        calc_hash(&ordinary(8), &files),
-        calc_hash(&ordinary(9), &files)
+        calc_hash(&quality(None), &files),
+        calc_hash(&ordinary(None), &files)
     );
 }
 
+#[cfg(feature = "in_memory")]
 #[test]
-fn variant_hash_matches_before_common_options_extraction() {
-    // Captured from the pre-refactor native binding with these relative source paths.
+fn content_hash_includes_woff2_quality() {
+    let files = vec![LoadedSvgSource {
+        contents: "same source".into(),
+        glyph_name: "add".to_owned(),
+        id: "add.svg".to_owned(),
+    }];
+    let content_hash = |quality, with_variants: bool| {
+        let options = variant_hash_options(quality);
+        let variants = options.variants.as_ref().filter(|_| with_variants);
+        calc_content_hash(&options.common, variants, &files, None, None)
+    };
+
+    for with_variants in [false, true] {
+        assert_ne!(
+            content_hash(Some(8), with_variants),
+            content_hash(Some(9), with_variants)
+        );
+    }
+}
+
+#[test]
+fn variant_hash_is_pinned() {
+    // Pinned with these relative source paths; WOFF2 quality is hashed via the shared format options.
     let path = "crates/webfont-generator/src/svg/fixtures/unit/add.svg";
     let mut options = variant_hash_options(Some(9));
     for variant in &mut options.variants.as_mut().unwrap().variants {
@@ -856,18 +887,18 @@ fn variant_hash_matches_before_common_options_extraction() {
     ];
     assert_eq!(
         calc_hash(&options, &sources),
-        "2ac1d7b83068419fb7eda0cb8960be40"
+        "4f3327ae14b6f0694df125c89f1ef052"
     );
     // File hashes use the adapter's recorded membership paths, not opaque cache IDs.
     sources[0].id = "opaque-id".to_owned();
     assert_eq!(
         calc_hash(&options, &sources),
-        "2ac1d7b83068419fb7eda0cb8960be40"
+        "4f3327ae14b6f0694df125c89f1ef052"
     );
     options.variants.as_mut().unwrap().variants[0].source_ids[0] = "other/add.svg".to_owned();
     assert_ne!(
         calc_hash(&options, &sources),
-        "2ac1d7b83068419fb7eda0cb8960be40"
+        "4f3327ae14b6f0694df125c89f1ef052"
     );
 }
 
