@@ -2,7 +2,10 @@ import { join as pathJoin } from 'node:path';
 import type { ModuleGraph, ModuleNode, Plugin } from 'vite-plus';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, resolveSources, parsePreloadFormatsOption } from './optionParser';
+import type { ParsedOptions } from './optionParser';
 import { createGenerationQueue, regenerationFiles, reconcileChanges, watchRoots } from './regeneration';
+import { CACHE_PLACEHOLDER, computeCacheKey, fontFileName, readCacheEntry, writeCacheEntry } from './cache';
+import type { CacheEntry } from './cache';
 import * as templatesImport from '@atlowchemi/webfont-generator/templates';
 import type { WatchedChangeBatch } from './utils';
 import type { FontType, GenerateWebfontsResult, MultiVariantFontType } from '@atlowchemi/webfont-generator';
@@ -45,7 +48,10 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const processedOptions = parseOptions(options);
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type as any));
     let isBuild: boolean;
-    let fileRefs: { [Ref in T]: string } | undefined;
+    let root: string;
+    let cacheFolder: string;
+    /** Rendered outputs for the current fonts; `generatedFonts` is unset after a cache hit. */
+    let outputs: CacheEntry | undefined;
     let _moduleGraph: ModuleGraph | undefined;
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
     let generatedFonts: GenerateWebfontsResult<T, never> | undefined;
@@ -106,6 +112,9 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }) as U;
     };
 
+    const getCss = () => outputs?.css ?? generatedFonts!.generateCss();
+    const getHtml = () => outputs?.html ?? generatedFonts!.generateHtml();
+
     let lastCssOutput: string | undefined;
     let lastHtmlOutput: string | undefined;
 
@@ -116,7 +125,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
         const tasks: Array<Promise<void>> = [];
         if (processedOptions.css) {
-            const css = inline(generatedFonts!.generateCss());
+            const css = inline(getCss());
             if (css !== lastCssOutput) {
                 tasks.push(
                     ensureDirExistsAndWriteFile(css, processedOptions.cssDest).then(() => {
@@ -127,7 +136,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
         }
         if (processedOptions.html) {
-            const html = generatedFonts!.generateHtml();
+            const html = getHtml();
             if (html !== lastHtmlOutput) {
                 tasks.push(
                     ensureDirExistsAndWriteFile(html, processedOptions.htmlDest).then(() => {
@@ -147,19 +156,93 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
     };
 
+    const getCacheKey = async (input: ParsedOptions) => {
+        // cssContext is a JS callback that can change the output in ways a key can't capture.
+        if (processedOptions.cssContext) return null;
+        const files = [...(input.files ?? input.variants.flatMap(variant => variant.files)), ...[input.cssTemplate, input.htmlTemplate].filter(file => file !== undefined)];
+        try {
+            return await computeCacheKey(input, files, root, [isBuild, Boolean(options.inline)], ac.signal);
+        } catch {
+            return null;
+        }
+    };
+
+    const renderModuleCss = (fonts: Record<string, string>) =>
+        generatedFonts!.generateCss(Object.fromEntries(Object.entries(fonts).map(([type, name]) => [type, `${CACHE_PLACEHOLDER}/${name}`])));
+
+    /** Render the outputs of a fresh engine result and persist them for the next run. */
+    const storeOutputs = async (key: string | null) => {
+        const buffers = new Map(
+            (processedOptions.types as T[]).map(type => {
+                const font = getGeneratedFont(type);
+                if (!font) {
+                    throw new Error(`Failed to generate font of type ${type}`);
+                }
+                return [type, font];
+            }),
+        );
+        const fonts = Object.fromEntries([...buffers].map(([type, font]) => [type, fontFileName(processedOptions.fontName, type, getBufferHash(font))]));
+        // Rendering can fail on templates the run may never use (e.g. CSS disabled and the module never imported).
+        // Leave such outputs to the lazy getters, which surface the engine error only if they're needed, and never hit.
+        const render = (fn: () => string) => {
+            try {
+                return fn();
+            } catch {
+                key = null;
+                return undefined;
+            }
+        };
+        const css = render(() => generatedFonts!.generateCss());
+        const moduleCss = isBuild && !options.inline ? render(() => renderModuleCss(fonts)) : undefined;
+        const html = processedOptions.html ? render(() => generatedFonts!.generateHtml()) : undefined;
+        const entry: CacheEntry = { key, fonts, css, ...(moduleCss !== undefined && { moduleCss }), ...(html !== undefined && { html }) };
+        // The cache is an optimization; an unwritable cacheDir must not fail generation.
+        await writeCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', entry, buffers).catch(() => undefined);
+        return entry;
+    };
+
+    /** Mirror the files the engine writes itself when `writeFiles` is set. */
+    const writeEngineFiles = async () => {
+        await Promise.all([
+            ...(processedOptions.types as T[]).map(type =>
+                ensureDirExistsAndWriteFile(getGeneratedFont(type)!, pathJoin(processedOptions.dest, `${processedOptions.fontName}.${type}`)),
+            ),
+            processedOptions.css && ensureDirExistsAndWriteFile(outputs!.css!, processedOptions.cssDest),
+            processedOptions.html && ensureDirExistsAndWriteFile(outputs!.html!, processedOptions.htmlDest),
+        ]);
+    };
+
     const generate = async (updateFiles?: boolean) => {
         const sources = updateFiles ? resolveSources(options) : undefined;
         if (isBuild && !options.allowWriteFilesInBuild) {
             processedOptions.writeFiles = false;
         }
-        const generateWebfonts = await getGenerateWebfonts();
-        const replacement = await generateWebfonts({ ...processedOptions, ...sources } as Parameters<typeof generateWebfonts>[0]);
+        const input = { ...processedOptions, ...sources } as ParsedOptions;
+        const key = await getCacheKey(input);
+        // Watch-triggered rebuilds follow input changes, so only the initial run looks up the cache.
+        const hit = key && !updateFiles ? await readCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', key, processedOptions.types as T[]) : undefined;
         if (ac.signal.aborted) {
             return;
         }
-        generatedFonts = replacement as GenerateWebfontsResult<T, never>;
+        if (hit) {
+            generatedFonts = undefined;
+            outputs = hit.entry;
+            generatedFontBuffers.clear();
+            hit.fonts.forEach((font, type) => generatedFontBuffers.set(type, font));
+            if (processedOptions.writeFiles) {
+                await writeEngineFiles();
+            }
+        } else {
+            const generateWebfonts = await getGenerateWebfonts();
+            const replacement = await generateWebfonts(input as Parameters<typeof generateWebfonts>[0]);
+            if (ac.signal.aborted) {
+                return;
+            }
+            generatedFonts = replacement as GenerateWebfontsResult<T, never>;
+            generatedFontBuffers.clear();
+            outputs = await storeOutputs(key);
+        }
         if (sources) publishedSources = regenerationFiles(sources);
-        generatedFontBuffers.clear();
         await writeDevFiles();
         if (updateFiles && !ac.signal.aborted) {
             await reloadVirtualModule();
@@ -187,6 +270,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                 return;
             }
             generatedFonts = replacement;
+            outputs = undefined;
             publishedSources = sources;
             generatedFontBuffers.clear();
         } catch {
@@ -212,6 +296,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         configResolved(_config) {
             isBuild = _config.command === 'build';
+            root = _config.root;
+            cacheFolder = `${_config.cacheDir}/vite-svg-2-webfont`;
             if (!isBuild) {
                 // Retain parsed glyphs so watch rebuilds can reuse them via `result.regenerateAsync(...)`.
                 // cssContext runs in JS during generation, so skip the incremental path when
@@ -270,7 +356,10 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             if (id !== resolvedVirtualModuleId) {
                 return undefined;
             }
-            return inline(generatedFonts!.generateCss(fileRefs));
+            if (isBuild && !options.inline) {
+                return (outputs!.moduleCss ?? renderModuleCss(outputs!.fonts)).replaceAll(`${CACHE_PLACEHOLDER}/`, `${tmpDir.replaceAll('\\', '/')}/`);
+            }
+            return inline(getCss());
         },
         load(id) {
             if (id !== resolvedVirtualModuleId) {
@@ -294,26 +383,11 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
             await initial;
             if (isBuild && !options.inline) {
-                const emitted = await Promise.all(
-                    processedOptions.types.map(async (type): Promise<[T, string]> => {
-                        const fileContents = getGeneratedFont(type as T);
-                        if (!fileContents) {
-                            throw new Error(`Failed to generate font of type ${type}`);
-                        }
-
-                        const hash = getBufferHash(fileContents);
-                        const filePath = pathJoin(tmpDir, `${processedOptions.fontName}-${hash}.${type}`);
-                        // Await the write: Vite reads these temp files when it resolves the
-                        // url() references in the virtual module's CSS. If the write has not
-                        // flushed by then the asset is silently dropped from the bundle.
-                        await ensureDirExistsAndWriteFile(fileContents, filePath);
-
-                        return [type as T, filePath];
-                    }),
-                );
-                fileRefs = Object.fromEntries(emitted) as {
-                    [Ref in T]: string;
-                };
+                // Copy fonts to the per-run temp dir rather than referencing the shared cache folder,
+                // so another process pruning the cache can't remove files this build still resolves.
+                // Await the writes: Vite reads these files when it resolves the url() references in the
+                // virtual module's CSS. If a write has not flushed by then the asset is silently dropped.
+                await Promise.all(Object.entries(outputs?.fonts ?? {}).map(([type, name]) => ensureDirExistsAndWriteFile(getGeneratedFont(type as T)!, pathJoin(tmpDir, name))));
             }
         },
         configureServer(server) {
@@ -327,14 +401,14 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             for (const fontType of processedOptions.types) {
                 const fileName = `${processedOptions.fontName}.${fontType}`;
                 middlewares.use(`/${fileName}`, (_req, res) => {
-                    /* v8 ignore next 4 -- buildStart awaits generate() before the server listens, so generatedFonts is always set by the time middleware fires */
-                    if (!generatedFonts) {
+                    const font = getGeneratedFont(fontType as T);
+                    /* v8 ignore next 4 -- buildStart awaits generate() before the server listens, so fonts are always available by the time middleware fires */
+                    if (!font) {
                         res.statusCode = 404;
                         return res.end();
                     }
-                    const font = getGeneratedFont(fontType as T);
                     res.setHeader('content-type', MIME_TYPES[fontType]);
-                    res.setHeader('content-length', font!.length);
+                    res.setHeader('content-length', font.length);
                     res.statusCode = 200;
                     return res.end(font);
                 });
@@ -348,7 +422,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             rmDir(tmpDir);
             generatedFonts = undefined;
             generatedFontBuffers.clear();
-            fileRefs = undefined;
+            outputs = undefined;
             _moduleGraph = undefined;
             _reloadModule = undefined;
         },
