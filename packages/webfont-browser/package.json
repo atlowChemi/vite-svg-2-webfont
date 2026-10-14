@@ -1,10 +1,32 @@
 {
     "name": "@atlowchemi/webfont-browser-generator",
     "version": "0.0.0",
-    "private": true,
+    "description": "Generate webfonts from SVG text in browser workers with precompiled WebAssembly",
     "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
     "exports": {
-        ".": "./src/index.ts"
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./worker.js": "./dist/worker.js",
+        "./webfont_browser_bg.wasm": "./dist/webfont_browser_bg.wasm"
+    },
+    "files": [
+        "dist/*.js",
+        "dist/*.d.ts",
+        "dist/*.wasm"
+    ],
+    "license": "MIT",
+    "author": "Chemi Atlow",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/atlowChemi/vite-svg-2-webfont",
+        "directory": "packages/webfont-browser"
+    },
+    "publishConfig": {
+        "access": "public"
     },
     "devDependencies": {
         "@atlowchemi/webfont-engine": "workspace:*",

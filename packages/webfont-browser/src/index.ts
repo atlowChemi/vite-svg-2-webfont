@@ -9,10 +9,15 @@ function json(value: unknown): string {
     });
 }
 
-/** Generate from SVG text in a dedicated module worker. Dispose the result when finished. */
-export async function generateWebfonts(options: GenerateWebfontsOptions): Promise<WebfontResult> {
+/**
+ * Generate from SVG text in a dedicated module worker. Dispose the result when finished.
+ * `runtime.workerUrl` selects a separately hosted worker; keep its WASM file beside it.
+ */
+export async function generateWebfonts(options: GenerateWebfontsOptions, runtime: { workerUrl?: string | URL } = {}): Promise<WebfontResult> {
     const encoded = json(options);
-    const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module', name: 'webfont-browser' });
+    const worker = runtime.workerUrl
+        ? new Worker(runtime.workerUrl, { type: 'module', name: 'webfont-browser' })
+        : new Worker(new URL('./worker.js', import.meta.url), { type: 'module', name: 'webfont-browser' });
     const pending = new Map<number, { resolve: (value: Result) => void; reject: (error: Error) => void }>();
     let nextId = 0;
     let failure: Error | undefined;

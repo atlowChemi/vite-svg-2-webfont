@@ -1,24 +1,24 @@
 ---
-description: Reference for the private browser workspace package and its worker-owned in-memory font API.
+description: Browser font generation with precompiled WebAssembly and a worker-owned in-memory API.
 ---
 
-# Browser workspace API
+# Browser API
 
-`@atlowchemi/webfont-browser-generator` is a **private workspace package**, not an npm release.
-It wraps the Rust engine with wasm-bindgen and runs generation inside dedicated module workers.
+`@atlowchemi/webfont-browser-generator` wraps the Rust engine with wasm-bindgen and runs
+generation inside dedicated module workers. The package ships compiled JavaScript, types,
+worker code and WASM; applications need no Rust tools or install-time compilation.
 
-## Workspace setup
+## Installation
 
 ```sh
-vp install
-vp run @atlowchemi/webfont-browser-generator#build
-vp run @atlowchemi/webfont-browser-generator#test
+npm install @atlowchemi/webfont-browser-generator
 ```
 
-The build requires Rust/rustup and installs the WASM target and a matching, repository-local
-wasm-bindgen CLI. Use `WASM_BINDGEN` to select an existing CLI of the required version.
-The package exports TypeScript source for Vite workspace consumers; build its WASM before
-starting Vite. Browser tests execute generation in Chromium, Firefox and WebKit.
+Vite apps, including React, automatically bundle the worker and WASM. Invoke generation in
+the browser rather than during server rendering.
+
+For local package development, `vp run @atlowchemi/webfont-browser-generator#pack` builds
+the complete distribution; `#pack:tgz` creates an installable tarball for demo applications.
 
 ## Generation
 
@@ -84,6 +84,11 @@ Worker failures or WASM traps invalidate the session and reject pending calls. C
 result after a fatal failure. `dispose()` is idempotent; all subsequent calls reject.
 
 ## Worker lifetime and hosting
+
+`generateWebfonts(options, { workerUrl })` accepts an optional string or URL for a separately
+hosted worker. By default, bundlers resolve the worker relative to the package entry.
+
+For separately hosted workers, serve `worker.js` and `webfont_browser_bg.wasm` together from the same origin.
 
 Each result has its own worker and WASM instance. Keep a result for incremental work, and
 dispose it when finished. The package needs neither SharedArrayBuffer nor cross-origin isolation.

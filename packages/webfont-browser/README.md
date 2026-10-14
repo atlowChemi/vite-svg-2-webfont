@@ -1,6 +1,14 @@
 # @atlowchemi/webfont-browser-generator
 
-Private workspace package for generating webfonts from SVG text in browsers. It is not published to npm.
+Generate webfonts from SVG text in browser workers. The npm package includes compiled JavaScript,
+TypeScript declarations and precompiled WASM; consumers need no Rust tools or install-time compilation.
+
+```sh
+npm install @atlowchemi/webfont-browser-generator
+```
+
+Vite apps (including React) bundle the worker and WASM automatically. Call the API in the browser,
+not during server rendering.
 
 ## Build and test
 
@@ -9,6 +17,8 @@ From the repository root:
 ```sh
 vp install
 vp run @atlowchemi/webfont-browser-generator#build
+vp run @atlowchemi/webfont-browser-generator#pack
+vp run @atlowchemi/webfont-browser-generator#pack:tgz
 vp run @atlowchemi/webfont-browser-generator#test
 ```
 
@@ -17,9 +27,9 @@ wasm-bindgen CLI in `target/wasm-bindgen-tools`. `WASM_BINDGEN` can point to an 
 of that exact version. Rust and rustup must be installed. Tests use Playwright Chromium,
 Firefox and WebKit (`vp exec playwright install chromium firefox webkit`).
 
-The workspace export is TypeScript source. Build the WASM before consuming it with Vite;
-Vite bundles the module worker, generated loader and WASM asset. Generated JavaScript/WASM
-are build outputs; generated declarations are checked in for type checking before a build.
+`build` compiles the WASM binding; `pack` builds `dist/` with JS, types, worker and WASM.
+`pack:tgz` also creates an installable npm tarball in this package directory. Install that tarball
+in a demo app to test unpublished changes. Workspace consumers must run `pack` first.
 
 ## Use
 
@@ -44,6 +54,9 @@ try {
 
 ## Contract
 
+`generateWebfonts(options, { workerUrl })` accepts an optional string or URL for a separately
+hosted worker. Serve `worker.js` and `webfont_browser_bg.wasm` together from the same origin.
+
 With Explicit Resource Management support, use `using result = await generateWebfonts(options)`
 inside an async function. Leaving the scope calls `Symbol.dispose`, including on exceptions.
 Cleanup terminates the worker synchronously; `await using` is unnecessary. Keep `dispose()`
@@ -56,7 +69,7 @@ WASM assets together, including the small smoke-app entry point.
 - Each result owns one dedicated worker and WASM instance. Calls run in submission order.
   Different results are independent. No SharedArrayBuffer or cross-origin isolation is needed.
 - All generation settings are the engine's in-memory settings in camelCase; see
-  [`GenerateWebfontsOptions`](./src/types.ts). Files, paths, output destinations and callbacks
+  `GenerateWebfontsOptions` in the shipped declarations. Files, paths, output destinations and callbacks
   are not accepted. SVG image files are not loaded. Templates are inline Handlebars text.
 - Ordinary generation supports SVG, TTF, EOT, WOFF and WOFF2; variants support TTF, WOFF and
   WOFF2. Use `variants` with named sources, weights and exactly one default design.

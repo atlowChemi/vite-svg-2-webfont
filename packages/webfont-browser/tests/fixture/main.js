@@ -1,4 +1,4 @@
-import { generateWebfonts } from '../../src';
+import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';
 
 try {
     const result = await generateWebfonts({

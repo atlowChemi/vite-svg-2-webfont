@@ -40,7 +40,8 @@ vp run vite-svg-2-webfont#pack                   # build the Vite plugin
 vp run @atlowchemi/webfont-generator#build       # build the native addon
 vp run @atlowchemi/webfont-generator#check       # Clippy (default, CLI, NAPI) and rustfmt checks
 vp run @atlowchemi/webfont-generator#test        # Rust checks and tests
-vp run @atlowchemi/webfont-browser-generator#test # private WASM adapter: build, check, browsers and production bundle
+vp run @atlowchemi/webfont-browser-generator#test # WASM adapter: build, check, browsers and production bundle
+vp run @atlowchemi/webfont-browser-generator#pack:tgz # installable JS/types/worker/WASM tarball
 vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
 vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
 vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
@@ -177,7 +178,7 @@ This monorepo has a root Cargo workspace and the following packages:
 - `packages/vite-svg-2-webfont/`: the Vite plugin — source code, tests, and build config
 - `crates/webfont-generator/`: published Rust engine and CLI; its private npm manifest connects the task graph
 - `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — npm API and unpublished `webfont-generator-napi` adapter crate
-- `packages/webfont-browser/`: private browser workspace package and unpublished wasm-bindgen adapter crate; no release/publishing registration
+- `packages/webfont-browser/`: browser npm package with precompiled WASM and an unpublished wasm-bindgen adapter crate
 - `packages/example/`: Vite app used for local development and manual verification
 - `packages/docs/`: VitePress documentation site, published to GitHub Pages
 - `tests/`: cross-package compatibility tests and benchmarks (at root level)

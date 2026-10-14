@@ -95,7 +95,7 @@ const config: UserConfig = defineConfig({
             },
             test: {
                 command: 'vp test',
-                dependsOn: ['@atlowchemi/webfont-generator#build', '@atlowchemi/webfont-browser-generator#build'],
+                dependsOn: ['@atlowchemi/webfont-generator#build', '@atlowchemi/webfont-browser-generator#pack'],
             },
             'test:compat': {
                 command: 'vp test --project=compat',
