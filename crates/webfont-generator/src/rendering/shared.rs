@@ -1,5 +1,6 @@
 use std::io::{Error, ErrorKind};
 
+#[cfg(feature = "fs")]
 use serde_json::Value;
 
 /// Convert any displayable error into an `io::Error` with `InvalidData` kind.
@@ -11,6 +12,7 @@ pub(crate) fn to_io_err(error: impl std::fmt::Display) -> Error {
 /// Temporarily swap a field in a Handlebars Context, run a render closure,
 /// then restore the original value. Avoids cloning the entire Context.
 #[inline]
+#[cfg(feature = "fs")]
 pub(crate) fn render_with_field_swap<F>(
     ctx: &mut handlebars::Context,
     key: &str,

@@ -12,9 +12,10 @@ export function runDoctests(root = resolve(import.meta.dirname, '../..')) {
     mkdirSync(resolve(root, 'test-results'), { recursive: true });
     let failed = 0;
     const cases = [];
-    for (const mode of ['default', 'cli']) {
+    for (const mode of ['default', 'cli', 'fs-only', 'in_memory-only', 'in_memory,async-only', 'cli-only']) {
         const start = performance.now();
-        const result = spawnSync('cargo', ['test', '--locked', '-p', 'webfont-generator', '--doc', ...(mode === 'cli' ? ['--features', 'cli'] : [])], {
+        const features = mode.endsWith('-only') ? ['--no-default-features', '--features', mode.slice(0, -5)] : mode === 'cli' ? ['--features', 'cli'] : [];
+        const result = spawnSync('cargo', ['test', '--locked', '-p', 'webfont-generator', '--doc', ...features], {
             cwd: root,
             encoding: 'utf8',
             maxBuffer: 16 * 1024 * 1024,

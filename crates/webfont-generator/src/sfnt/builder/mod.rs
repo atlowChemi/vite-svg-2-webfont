@@ -4,7 +4,7 @@ mod glyphs;
 mod ligatures;
 mod outlines;
 mod tables;
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;
 mod types;
 mod variants;

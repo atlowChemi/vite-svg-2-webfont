@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use crate::FontType;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 use crate::result::FontOutputs;
 
 /// Shared output payload. Cloning it does not copy font bytes or rendered text.
@@ -49,6 +50,7 @@ pub struct CollectedOutput {
 }
 
 /// Collect already-produced contents without assigning destinations or copying payloads.
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 pub(crate) fn collect_outputs(
     fonts: &FontOutputs,
     css: Option<Arc<String>>,

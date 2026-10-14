@@ -12,11 +12,21 @@ cargo add webfont-generator
 
 ## Feature flags
 
-| Feature | Default | Description                                                                       |
-| ------- | ------- | --------------------------------------------------------------------------------- |
-| (none)  | yes     | Library-only build                                                                |
-| `cli`   | no      | Builds the CLI with JSON manifest support (adds `clap` and `serde_path_to_error`) |
-| `bench` | no      | Exposes internal helpers for the repository's Criterion benchmarks                |
+| Feature     | Default | Description                                                                                                             |
+| ----------- | ------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `fs`        | yes     | File/path generation, hooks, file templates, writes and file regeneration; implies `async` and Tokio filesystem support |
+| `in_memory` | yes     | Synchronous SVG text generation, inline templates, output collection and source regeneration                            |
+| `async`     | yes     | Optional Tokio dependency and asynchronous APIs                                                                         |
+| `cli`       | no      | CLI with JSON manifest support; implies `fs` and adds `clap` and `serde_path_to_error`                                  |
+| `bench`     | no      | Internal Criterion benchmark helpers; implies `fs` and `in_memory`                                                      |
+
+The `async` feature enables `generate_from_sources`, consuming asynchronous `regenerate`, and
+`SourceRegenerateError`. With only `in_memory`, Tokio is absent from the engine's normal
+dependencies. Select `fs` for a file-only integration. `generate_sync` creates a
+Tokio runtime internally, so `fs` implies `async` even for synchronous callers.
+
+Features are additive: another dependency can enable additional capabilities in the same
+Cargo build.
 
 With `cli` enabled, `GenerateWebfontsOptions` and its input types implement `serde::Deserialize` using camelCase field names and rejecting unknown fields. Deserialization alone does not expand directories or rebase paths; those operations belong to the [CLI manifest loader](./cli#json-manifest).
 
@@ -32,6 +42,8 @@ This is a Cargo API breaking change. The published Rust crate and CLI remain nam
 `@atlowchemi/webfont-generator`; they do not install the internal adapter crate.
 
 ## Async API
+
+The file APIs in this section require the [`fs` feature](#feature-flags) (enabled by default).
 
 ### Adapter hooks
 
@@ -92,6 +104,8 @@ async fn main() -> std::io::Result<()> {
 
 ## Sync API
 
+Requires the [`fs` feature](#feature-flags) (enabled by default).
+
 For contexts without a tokio runtime, `generate_sync` spawns one internally:
 
 ```rust
@@ -121,6 +135,8 @@ if let Some(svg) = result.svg_string() {
 ```
 
 ## SVG text API
+
+Requires the [`in_memory` feature](#feature-flags) (enabled by default); asynchronous entry points additionally require the [`async` feature](#feature-flags).
 
 `generate_from_sources_sync(options)` returns `std::io::Result<GenerateWebfontsFromSourcesResult>`
 without constructing a runtime, reading sources/templates, or writing output files.
@@ -171,7 +187,7 @@ of the same glyph name. Input order controls automatic codepoint assignment.
 
 External SVG image paths are ignored by the parser's text-mode resolver, including when
 parsing embedded SVG data. No filesystem-resource scan or custom rejection diagnostic is
-performed. This native API does not establish browser/WASM compatibility.
+performed.
 
 ### Result methods
 

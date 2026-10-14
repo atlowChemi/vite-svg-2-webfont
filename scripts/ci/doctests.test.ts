@@ -21,7 +21,7 @@ afterEach(() => {
 });
 const report = () => readFileSync(join(directory, 'test-results/doctests.xml'), 'utf8');
 
-it('executes both feature modes and retains escaped output in a successful report', () => {
+it('executes the feature matrix and retains escaped output in a successful report', () => {
     vi.mocked(spawnSync).mockReturnValue(result(0, 'ok <doc> & "example"', 'warning <&>'));
     expect(runDoctests(directory)).toBe(0);
     expect(spawnSync).toHaveBeenNthCalledWith(1, 'cargo', ['test', '--locked', '-p', 'webfont-generator', '--doc'], expect.objectContaining({ cwd: directory }));
@@ -31,7 +31,15 @@ it('executes both feature modes and retains escaped output in a successful repor
         ['test', '--locked', '-p', 'webfont-generator', '--doc', '--features', 'cli'],
         expect.objectContaining({ cwd: directory }),
     );
-    expect(report()).toContain('tests="2" failures="0"');
+    for (const [index, features] of ['fs', 'in_memory', 'in_memory,async', 'cli'].entries()) {
+        expect(spawnSync).toHaveBeenNthCalledWith(
+            index + 3,
+            'cargo',
+            ['test', '--locked', '-p', 'webfont-generator', '--doc', '--no-default-features', '--features', features],
+            expect.objectContaining({ cwd: directory }),
+        );
+    }
+    expect(report()).toContain('tests="6" failures="0"');
     expect(report()).toContain('name="default (aggregate)"');
     expect(report()).toContain('name="cli (aggregate)"');
     expect(report()).toContain('ok &lt;doc&gt; &amp; &quot;example&quot;');
@@ -41,6 +49,7 @@ it('executes both feature modes and retains escaped output in a successful repor
 
 it.each([0, 1])('fails the aggregate when invocation %i fails and writes results before the next invocation', failing => {
     vi.mocked(spawnSync)
+        .mockReturnValue(result(0))
         .mockReturnValueOnce(result(failing === 0 ? 1 : 0, 'first output', failing === 0 ? 'bad <&>' : ''))
         .mockImplementationOnce(() => {
             expect(report()).toContain('tests="1"');
@@ -48,7 +57,7 @@ it.each([0, 1])('fails the aggregate when invocation %i fails and writes results
             return result(failing === 1 ? 1 : 0, 'second output', failing === 1 ? 'bad <&>' : '');
         });
     expect(runDoctests(directory)).toBe(1);
-    expect(report()).toContain('tests="2" failures="1"');
+    expect(report()).toContain('tests="6" failures="1"');
     expect(report()).toContain('<failure message="Cargo doctests failed">bad &lt;&amp;&gt;</failure>');
     expect(report()).toContain('first output');
     expect(report()).toContain('second output');
@@ -58,6 +67,6 @@ it('reports spawn errors as failures even when no process output exists', () => 
     // Node returns null streams on spawn failure despite its declared stream types.
     vi.mocked(spawnSync).mockReturnValue({ ...result(null), stdout: null, stderr: null, error: new Error('spawn cargo ENOENT') } as unknown as ReturnType<typeof spawnSync>);
     expect(runDoctests(directory)).toBe(1);
-    expect(report()).toContain('tests="2" failures="2"');
+    expect(report()).toContain('tests="6" failures="6"');
     expect(report()).toContain('<failure message="Cargo doctests failed">spawn cargo ENOENT</failure>');
 });

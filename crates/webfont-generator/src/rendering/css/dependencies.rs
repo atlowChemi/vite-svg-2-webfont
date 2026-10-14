@@ -28,6 +28,7 @@ impl TemplateDependencies {
         }
     }
 
+    #[cfg(feature = "fs")]
     pub(crate) const fn may_depend_on_src(self) -> bool {
         self.src || self.dynamic
     }
@@ -43,6 +44,7 @@ impl TemplateDependencies {
             && (!self.codepoints || codepoints_unchanged)
     }
 
+    #[cfg(feature = "fs")]
     pub(crate) const fn can_reuse_css_with_urls(
         self,
         names_unchanged: bool,

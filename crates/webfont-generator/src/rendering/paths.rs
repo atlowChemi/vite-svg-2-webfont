@@ -1,3 +1,4 @@
+#[cfg(feature = "fs")]
 use std::path::{Component, Path, PathBuf};
 
 /// Join a base URL with a file name, normalizing slashes.
@@ -20,6 +21,7 @@ pub(crate) fn join_url(base_url: &str, file_name: &str) -> String {
 }
 
 /// Compute a relative path from `from` to `to`.
+#[cfg(feature = "fs")]
 pub(crate) fn relative_path(from: &Path, to: &Path) -> PathBuf {
     let from_components = from.components().collect::<Vec<_>>();
     let to_components = to.components().collect::<Vec<_>>();
@@ -46,6 +48,7 @@ pub(crate) fn relative_path(from: &Path, to: &Path) -> PathBuf {
 
 /// Convert a path to use forward slashes (for URLs on Windows).
 #[inline]
+#[cfg(feature = "fs")]
 pub(crate) fn path_to_slashes(path: PathBuf) -> String {
     path.to_string_lossy().replace('\\', "/")
 }

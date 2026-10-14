@@ -26,7 +26,9 @@ use crate::svg::{
 };
 pub use options::{GenerateWebfontsFromSourcesOptions, SourceFontVariant, SvgSource};
 use options::{ResolvedSourceOptions, resolve};
-pub use updates::{SourceChange, SourceMembership, SourceRegenerateError, VariantSourceSet};
+#[cfg(feature = "async")]
+pub use updates::SourceRegenerateError;
+pub use updates::{SourceChange, SourceMembership, VariantSourceSet};
 
 #[derive(Default)]
 struct SourceCaches {
@@ -89,6 +91,7 @@ pub fn generate_from_sources_sync(
 
 /// Run [`generate_from_sources_sync`] on Tokio's blocking pool.
 /// Requires an active Tokio runtime; scheduling/join failures are returned as errors.
+#[cfg(feature = "async")]
 pub async fn generate_from_sources(
     options: GenerateWebfontsFromSourcesOptions,
 ) -> Result<GenerateWebfontsFromSourcesResult> {
@@ -103,6 +106,7 @@ pub async fn generate_from_sources(
         .map_err(generation_join_error)?
 }
 
+#[cfg(feature = "async")]
 fn generation_join_error(error: tokio::task::JoinError) -> Error {
     Error::other(format!("Source generation task failed: {error}"))
 }

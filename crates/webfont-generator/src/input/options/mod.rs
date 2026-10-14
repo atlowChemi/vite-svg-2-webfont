@@ -1,20 +1,22 @@
 mod common;
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;
 
 use std::collections::{BTreeMap, HashSet};
 use std::io::{Error, ErrorKind};
+#[cfg(feature = "fs")]
 use std::path::Path;
 
 use super::LoadedSvgSource;
 use crate::types::color::ResolvedColorSelection;
-use crate::types::{
-    FontType, FontVariant, FormatOptions, GenerateWebfontsOptions, MissingGlyphBehavior,
-};
+use crate::types::{FontType, FormatOptions, MissingGlyphBehavior};
+#[cfg(feature = "fs")]
+use crate::types::{FontVariant, GenerateWebfontsOptions};
 
 pub(crate) use common::VariantMetadata;
 pub(crate) use common::{GenerationOptions, ResolvedGenerationOptions};
 
+#[cfg(feature = "fs")]
 struct FileGenerationOptions {
     common: GenerationOptions,
     css_dest: Option<String>,
@@ -27,6 +29,7 @@ struct FileGenerationOptions {
     write_files: Option<bool>,
 }
 
+#[cfg(feature = "fs")]
 impl From<GenerateWebfontsOptions> for FileGenerationOptions {
     fn from(options: GenerateWebfontsOptions) -> Self {
         let GenerateWebfontsOptions {
@@ -124,6 +127,7 @@ pub(crate) struct ResolvedFontVariant {
 }
 
 #[derive(Clone)]
+#[cfg(feature = "fs")]
 pub(crate) struct ResolvedFileGenerationOptions {
     pub common: ResolvedGenerationOptions,
     pub css_dest: String,
@@ -138,6 +142,7 @@ pub(crate) struct ResolvedFileGenerationOptions {
 
 // The file adapter extends shared settings; existing internal field readers keep borrowing
 // the same settings without cloning them. Content-only consumers accept the common type.
+#[cfg(feature = "fs")]
 impl std::ops::Deref for ResolvedFileGenerationOptions {
     type Target = ResolvedGenerationOptions;
 
@@ -146,6 +151,7 @@ impl std::ops::Deref for ResolvedFileGenerationOptions {
     }
 }
 
+#[cfg(feature = "fs")]
 impl std::ops::DerefMut for ResolvedFileGenerationOptions {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.common
@@ -191,6 +197,7 @@ const DEFAULT_FONT_ORDER: [FontType; 5] = [
     FontType::Svg,
 ];
 
+#[cfg(feature = "fs")]
 fn validate_file_options(options: &FileGenerationOptions) -> std::io::Result<()> {
     if options.dest.is_empty() {
         return Err(std::io::Error::new(
@@ -260,6 +267,7 @@ pub(crate) fn validate_format_options(options: Option<&FormatOptions>) -> std::i
     Ok(())
 }
 
+#[cfg(feature = "fs")]
 fn file_variant_metadata(variants: &[FontVariant]) -> Vec<VariantMetadata<'_>> {
     variants
         .iter()
@@ -532,6 +540,7 @@ fn resolve_variant_weights(
     Ok(weights.into_iter().map(Option::unwrap).collect())
 }
 
+#[cfg(feature = "fs")]
 fn resolve_variants(
     variants: &[FontVariant],
     class_prefix: &str,
@@ -581,6 +590,7 @@ pub(crate) fn resolve_variant_metadata(
     })
 }
 
+#[cfg(feature = "fs")]
 pub(crate) fn resolve_validated_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedFileGenerationOptions> {
@@ -590,12 +600,14 @@ pub(crate) fn resolve_validated_generate_webfonts_options(
 }
 
 #[cfg(any(test, feature = "bench"))]
+#[cfg(feature = "fs")]
 pub(crate) fn resolve_generate_webfonts_options(
     options: GenerateWebfontsOptions,
 ) -> std::io::Result<ResolvedFileGenerationOptions> {
     resolve_file_options(options.into())
 }
 
+#[cfg(feature = "fs")]
 fn resolve_file_options(
     options: FileGenerationOptions,
 ) -> std::io::Result<ResolvedFileGenerationOptions> {
@@ -706,6 +718,7 @@ fn resolve_font_type_order(order: Option<&[FontType]>, types: &[FontType]) -> Ve
     }
 }
 
+#[cfg(feature = "fs")]
 pub(crate) fn default_output_dest(dest: &str, font_name: &str, extension: &str) -> String {
     Path::new(dest)
         .join(format!("{font_name}.{extension}"))

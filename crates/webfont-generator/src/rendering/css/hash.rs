@@ -3,10 +3,12 @@ use serde::Serialize;
 use serde_json::{Map, Value};
 
 use super::context::resolved_template_options;
+#[cfg(feature = "fs")]
+use crate::input::ResolvedFileGenerationOptions;
+#[cfg(feature = "in_memory")]
+use crate::input::ResolvedVariants;
 use crate::{
-    input::{
-        LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants,
-    },
+    input::{LoadedSvgSource, ResolvedGenerationOptions},
     types::{FontType, color::ResolvedColorSelection},
 };
 
@@ -24,6 +26,7 @@ impl std::io::Write for Md5Writer<'_> {
     }
 }
 
+#[cfg(feature = "fs")]
 pub(in crate::rendering) fn calc_hash(
     options: &ResolvedFileGenerationOptions,
     source_files: &[LoadedSvgSource],
@@ -73,6 +76,7 @@ pub(in crate::rendering) fn calc_hash(
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg(feature = "fs")]
 struct HashableVariantOptions<'a> {
     default_index: usize,
     missing_glyph_behavior: &'static str,
@@ -84,6 +88,7 @@ struct HashableVariantOptions<'a> {
 }
 
 /// Text-mode fingerprint: framed JSON values, ordered memberships, and no file provenance.
+#[cfg(feature = "in_memory")]
 pub(crate) fn calc_content_hash(
     options: &ResolvedGenerationOptions,
     variants: Option<&ResolvedVariants>,
@@ -143,6 +148,7 @@ pub(crate) fn calc_content_hash(
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg(feature = "fs")]
 struct HashableVariant<'a> {
     name: &'a str,
     files: &'a [String],
@@ -259,6 +265,7 @@ struct HashableWoffFormatOptions<'a> {
     metadata: Option<&'a str>,
 }
 
+#[cfg(feature = "fs")]
 impl<'a> From<&'a ResolvedFileGenerationOptions> for HashableGenerateWebfontsOptions<'a> {
     fn from(options: &'a ResolvedFileGenerationOptions) -> Self {
         Self {

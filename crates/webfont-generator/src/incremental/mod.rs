@@ -1,24 +1,39 @@
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;
 
+#[cfg(feature = "fs")]
 mod files;
 pub(crate) mod sources;
+#[cfg(feature = "fs")]
 mod variants;
 
+#[cfg(feature = "fs")]
 use std::collections::{HashMap, HashSet};
+#[cfg(feature = "fs")]
 use std::io::ErrorKind;
+#[cfg(feature = "fs")]
 use std::sync::{Arc, Mutex};
 
+#[cfg(feature = "fs")]
 use crate::input::{finalize_generate_webfonts_options, validate_glyph_names};
+#[cfg(feature = "fs")]
 use crate::output::write_generate_webfonts_result_sync;
+#[cfg(feature = "fs")]
 use crate::pipeline::{TtfGlyphCache, build_font_outputs};
+#[cfg(feature = "fs")]
 use crate::result::{GenerateWebfontsResult, RegenerateError};
+#[cfg(feature = "fs")]
 use crate::svg::types::GlyphCache;
+#[cfg(feature = "fs")]
 use crate::svg::{prepare_svg_font_incremental, source_content_hash, svg_options_from_options};
+#[cfg(feature = "fs")]
 use crate::types::{GlyphChange, RegenerationFiles};
+#[cfg(feature = "fs")]
 use files::load_source_updates;
+#[cfg(feature = "fs")]
 use sources::{ordered_sources, updated_sources};
 
+#[cfg(feature = "fs")]
 pub(crate) struct RegenerationState {
     pub(crate) variant_cache: Option<crate::svg::VariantGlyphCache>,
     pub(crate) variant_write_pending: bool,
@@ -28,12 +43,14 @@ pub(crate) struct RegenerationState {
     pub(crate) written_outputs: HashMap<String, [u8; 16]>,
 }
 
+#[cfg(feature = "fs")]
 struct RegenerationStateLease {
     slot: Arc<Mutex<Option<RegenerationState>>>,
     state: Option<RegenerationState>,
     keep_caches: bool,
 }
 
+#[cfg(feature = "fs")]
 impl RegenerationStateLease {
     fn state_mut(&mut self) -> &mut RegenerationState {
         self.state.as_mut().unwrap()
@@ -44,6 +61,7 @@ impl RegenerationStateLease {
     }
 }
 
+#[cfg(feature = "fs")]
 impl Drop for RegenerationStateLease {
     fn drop(&mut self) {
         let mut state = self.state.take().unwrap();
@@ -59,6 +77,7 @@ impl Drop for RegenerationStateLease {
     }
 }
 
+#[cfg(feature = "fs")]
 impl GenerateWebfontsResult {
     fn take_regeneration_state_lease(&self) -> std::io::Result<RegenerationStateLease> {
         Ok(RegenerationStateLease {

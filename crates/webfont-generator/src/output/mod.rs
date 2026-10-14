@@ -1,20 +1,27 @@
 pub(crate) mod collect;
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;
+#[cfg(feature = "fs")]
 mod write;
 
+#[cfg(feature = "fs")]
 use std::collections::HashMap;
 
+#[cfg(feature = "fs")]
 use tokio::task::JoinSet;
 
+#[cfg(feature = "fs")]
 use crate::result::GenerateWebfontsResult;
 
+#[cfg(feature = "fs")]
 use collect::{CollectedOutput, OutputContents, OutputKind, collect_outputs};
+#[cfg(feature = "fs")]
 use write::{
     native_write_task_error, record_written_output, write_output_file,
     write_output_file_if_changed, write_output_file_sync,
 };
 
+#[cfg(feature = "fs")]
 impl GenerateWebfontsResult {
     pub(crate) fn collect_outputs(&self) -> std::io::Result<Vec<CollectedOutput>> {
         let css = self
@@ -31,12 +38,14 @@ impl GenerateWebfontsResult {
     }
 }
 
+#[cfg(feature = "fs")]
 struct OutputFile {
     path: String,
     contents: OutputContents,
     skip_unchanged: bool,
 }
 
+#[cfg(feature = "fs")]
 fn collect_write_outputs(result: &GenerateWebfontsResult) -> std::io::Result<Vec<OutputFile>> {
     Ok(result
         .collect_outputs()?
@@ -66,6 +75,7 @@ fn collect_write_outputs(result: &GenerateWebfontsResult) -> std::io::Result<Vec
 /// Write every output to disk concurrently. For incremental results, also return hashes for
 /// CSS/HTML outputs so a later `regenerate` can skip companion files unchanged from this initial
 /// write.
+#[cfg(feature = "fs")]
 pub(crate) async fn write_generate_webfonts_result(
     result: &GenerateWebfontsResult,
 ) -> std::io::Result<Option<HashMap<String, [u8; 16]>>> {
@@ -93,6 +103,7 @@ pub(crate) async fn write_generate_webfonts_result(
 /// so a handful of blocking `std::fs` writes here is simpler than introducing an async write path.
 /// Font outputs are written directly after a real rebuild; only CSS/HTML are hash-checked because
 /// they often remain byte-identical after a geometry-only edit.
+#[cfg(feature = "fs")]
 pub(crate) fn write_generate_webfonts_result_sync(
     result: &GenerateWebfontsResult,
     written: &mut HashMap<String, [u8; 16]>,

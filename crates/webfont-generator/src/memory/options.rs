@@ -34,7 +34,7 @@ pub struct SourceFontVariant {
     pub default: Option<bool>,
 }
 
-/// Filesystem-free generation settings. Defaults match [`crate::GenerateWebfontsOptions`].
+/// Filesystem-free generation settings. Defaults match the file API's `GenerateWebfontsOptions`.
 /// Templates are text (`Some("")` renders empty), not paths. No output is written.
 #[derive(Clone, Default)]
 pub struct GenerateWebfontsFromSourcesOptions {

@@ -8,6 +8,7 @@ use crate::rendering::shared::to_io_err;
 
 /// Render CSS using a pre-built Handlebars Context (no serialization).
 /// Falls back to the hot-path renderer when no custom template is configured.
+#[cfg(feature = "fs")]
 pub(crate) fn render_css_with_hbs_context(
     shared: &SharedTemplateData,
     hbs_ctx: &handlebars::Context,
@@ -43,6 +44,7 @@ pub(crate) fn render_css_with_context(
 /// Render CSS with a different `src` value by mutating the Context in place,
 /// rendering, then restoring the original value. Zero allocation.
 /// Falls back to the hot-path renderer when no custom template is configured.
+#[cfg(feature = "fs")]
 pub(crate) fn render_css_with_src_mutate(
     shared: &SharedTemplateData,
     hbs_ctx: &mut handlebars::Context,

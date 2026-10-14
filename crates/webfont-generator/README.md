@@ -52,7 +52,7 @@ let outputs = result.collect_outputs()?; // Reuses CSS and font payloads.
 support ordinary and variant designs, color glyphs, and inline CSS/HTML templates.
 IDs are opaque and must be nonempty; shared IDs across designs must agree on name and text.
 Glyph names accept Unicode letters/numbers, hyphens and underscores; empty or unsafe names are rejected.
-External SVG image paths are not loaded. This is a native Rust API, not a WASM guarantee.
+External SVG image paths are not loaded.
 
 Set `incremental: Some(true)` to use `regenerate_sync` or consuming async `regenerate`.
 Supply `SourceChange` entries only for changed sources and complete `SourceMembership`
@@ -67,8 +67,21 @@ cargo install webfont-generator --features cli
 webfont-generator --dest ./dist/fonts ./icons/
 ```
 
-Default features are empty. `cli` enables the command-line binary and JSON configuration;
-`bench` exposes benchmark helpers. The previous `napi` Cargo feature and Node-specific
+## Cargo features
+
+| Feature     | Default | Enables                                                                                                |
+| ----------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `fs`        | yes     | File/path APIs, hooks, file templates and output writers; implies `async` and Tokio filesystem support |
+| `in_memory` | yes     | SVG text APIs, inline templates, output collection and source updates                                  |
+| `async`     | yes     | Tokio-backed asynchronous APIs; synchronous text APIs do not need it                                   |
+| `cli`       | no      | Command-line binary and JSON configuration; implies `fs`                                               |
+| `bench`     | no      | Internal benchmark helpers; implies `fs` and `in_memory`                                               |
+
+The `async` feature enables text generation and regeneration on Tokio's blocking pool. File-only
+consumers can select `fs`. Even synchronous file generation uses Tokio internally,
+so `fs` always enables `async`. Features are additive when Cargo unifies dependencies.
+
+The previous `napi` Cargo feature and Node-specific
 Rust entry point have moved to the unpublished `webfont-generator-napi` workspace crate.
 This is a Cargo API breaking change; existing npm imports remain unchanged.
 

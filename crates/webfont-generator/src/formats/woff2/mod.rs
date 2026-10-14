@@ -28,7 +28,7 @@ pub(super) struct Woff2TransformPayload {
 }
 
 impl Woff2TransformCache {
-    #[cfg(test)]
+    #[cfg(all(test, feature = "fs"))]
     pub(crate) fn len(&self) -> usize {
         self.entries.len()
     }

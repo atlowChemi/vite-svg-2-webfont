@@ -1176,7 +1176,7 @@ fn static_variant_oracles_share_metrics_codepoints_and_advances() {
                 ts: Some(0),
                 version: None,
             },
-            &oracle_glyphs(&prepared, variant_index),
+            &oracle_glyphs(prepared, variant_index),
             None,
         )
         .unwrap()
