@@ -52,7 +52,7 @@ let outputs = result.collect_outputs()?; // Reuses CSS and font payloads.
 support ordinary and variant designs, color glyphs, and inline CSS/HTML templates.
 IDs are opaque and must be nonempty; shared IDs across designs must agree on name and text.
 Glyph names accept Unicode letters/numbers, hyphens and underscores; empty or unsafe names are rejected.
-External SVG image paths are not loaded. This is a native Rust API, not a WASM guarantee.
+External SVG image paths are not loaded.
 
 Set `incremental: Some(true)` to use `regenerate_sync` or consuming async `regenerate`.
 Supply `SourceChange` entries only for changed sources and complete `SourceMembership`
@@ -80,7 +80,6 @@ webfont-generator --dest ./dist/fonts ./icons/
 The `async` feature enables text generation and regeneration on Tokio's blocking pool. File-only
 consumers can select `fs`. Even synchronous file generation uses Tokio internally,
 so `fs` always enables `async`. Features are additive when Cargo unifies dependencies.
-These flags select native Rust capabilities; they do not yet guarantee WASM support.
 
 The previous `napi` Cargo feature and Node-specific
 Rust entry point have moved to the unpublished `webfont-generator-napi` workspace crate.

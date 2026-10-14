@@ -26,7 +26,7 @@ dependencies. Select `fs` for a file-only integration. `generate_sync` creates a
 Tokio runtime internally, so `fs` implies `async` even for synchronous callers.
 
 Features are additive: another dependency can enable additional capabilities in the same
-Cargo build. Disabling file APIs is groundwork for browser builds, not a WASM compatibility guarantee.
+Cargo build.
 
 With `cli` enabled, `GenerateWebfontsOptions` and its input types implement `serde::Deserialize` using camelCase field names and rejecting unknown fields. Deserialization alone does not expand directories or rebase paths; those operations belong to the [CLI manifest loader](./cli#json-manifest).
 
@@ -187,7 +187,7 @@ of the same glyph name. Input order controls automatic codepoint assignment.
 
 External SVG image paths are ignored by the parser's text-mode resolver, including when
 parsing embedded SVG data. No filesystem-resource scan or custom rejection diagnostic is
-performed. This native API does not establish browser/WASM compatibility.
+performed.
 
 ### Result methods
 
