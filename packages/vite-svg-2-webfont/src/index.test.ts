@@ -38,6 +38,10 @@ vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
     };
 });
 
+// These suites share the fixtures' cacheDir and assert engine calls, so lookups always miss here; cache.test.ts covers hits.
+const { readCacheEntryMock } = vi.hoisted(() => ({ readCacheEntryMock: vi.fn<typeof import('./cache').readCacheEntry>(async () => undefined) }));
+vi.mock('./cache', async importOriginal => ({ ...(await importOriginal<typeof import('./cache')>()), readCacheEntry: readCacheEntryMock }));
+
 vi.mock('./utils', async importOriginal => {
     const actual = await importOriginal<typeof import('./utils')>();
     setupWatcherMock.mockImplementation(actual.setupWatcher);
@@ -1172,6 +1176,43 @@ describe('build - throws when generator omits a requested font type', () => {
                 plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2', 'ttf'] })],
             }),
         ).rejects.toThrow(/Failed to generate font of type woff2/);
+    });
+});
+
+describe('output cache guards', () => {
+    it('leaves unreadable inputs to the engine instead of failing the cache key', async () => {
+        const lookupsBefore = readCacheEntryMock.mock.calls.length;
+        const generateCallsBefore = generateWebfontsMock.mock.calls.length;
+
+        await expect(
+            build({
+                logLevel: 'silent',
+                root: fileURLToNormalizedPath(root),
+                configFile: false,
+                build: { write: false },
+                plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'], cssTemplate: pathJoin(tmpdir(), 'vsw-missing-template.hbs') })],
+            }),
+        ).rejects.toThrow(/No such file or directory/);
+
+        expect(readCacheEntryMock).toHaveBeenCalledTimes(lookupsBefore);
+        expect(generateWebfontsMock).toHaveBeenCalledTimes(generateCallsBefore + 1);
+    });
+
+    it('skips generation when buildEnd interrupts the cache lookup', async () => {
+        const lookup = Promise.withResolvers<undefined>();
+        readCacheEntryMock.mockImplementationOnce(() => lookup.promise);
+        const generateCallsBefore = generateWebfontsMock.mock.calls.length;
+        const plugin = viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] });
+        const hook = (name: 'configResolved' | 'buildStart' | 'buildEnd') => (plugin[name] as (this: unknown, ...args: unknown[]) => unknown).bind({});
+
+        hook('configResolved')({ command: 'build', root: fileURLToNormalizedPath(root), cacheDir: pathJoin(tmpdir(), 'vsw-abort-cache') });
+        const started = hook('buildStart')();
+        await vi.waitFor(() => expect(readCacheEntryMock).toHaveBeenLastCalledWith(expect.any(String), 'iconfont', 'build', expect.any(String), ['woff2']));
+        const ended = hook('buildEnd')();
+        lookup.resolve(undefined);
+        await Promise.all([started, ended]);
+
+        expect(generateWebfontsMock).toHaveBeenCalledTimes(generateCallsBefore);
     });
 });
 
