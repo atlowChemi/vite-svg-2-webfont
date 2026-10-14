@@ -8,6 +8,9 @@ use webfont_generator::{
     SourceChange, SourceMembership, TtfFormatOptions, generate_from_sources_sync,
 };
 
+#[cfg(all(test, target_arch = "wasm32"))]
+mod tests;
+
 fn error(error: impl std::fmt::Display) -> JsValue {
     js_sys::Error::new(&error.to_string()).into()
 }

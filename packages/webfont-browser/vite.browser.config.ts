@@ -11,7 +11,7 @@ export default defineProject({
             enabled: true,
             headless: true,
             provider: playwright(),
-            instances: [{ browser: 'chromium' }, { browser: 'firefox' }, { browser: 'webkit' }],
+            instances: process.env.WEBFONT_COVERAGE ? [{ browser: 'chromium' }] : [{ browser: 'chromium' }, { browser: 'firefox' }, { browser: 'webkit' }],
             screenshotFailures: false,
         },
     },

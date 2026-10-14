@@ -307,6 +307,45 @@ jobs:
                   name: wasm-browser-linux-x64
                   files: test-results/wasm-browser.xml
                   token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Install WASM coverage toolchain
+              run: |
+                  rustup toolchain install nightly-2026-09-14 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
+                  sudo apt-get update
+                  sudo apt-get install -y clang
+            - uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2.87.27
+              with:
+                  tool: cargo-llvm-cov@0.9.0
+            - run: vp run @atlowchemi/webfont-browser-generator#test:coverage
+            - name: Verify browser coverage reports
+              run: |
+                  test -s coverage/browser-js/lcov.info
+                  test -s coverage/browser-js/junit.xml
+                  test -s coverage/browser-rust/lcov.info
+            - name: Upload browser JavaScript coverage
+              if: ${{ !cancelled() && hashFiles('coverage/browser-js/lcov.info') != '' }}
+              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+              with:
+                  disable_search: true
+                  files: coverage/browser-js/lcov.info
+                  flags: browser-js
+                  fail_ci_if_error: true
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload browser Rust coverage
+              if: ${{ !cancelled() && hashFiles('coverage/browser-rust/lcov.info') != '' }}
+              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+              with:
+                  disable_search: true
+                  files: coverage/browser-rust/lcov.info
+                  flags: browser-rust
+                  fail_ci_if_error: true
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload browser coverage test results
+              if: ${{ !cancelled() && hashFiles('coverage/browser-js/junit.xml') != '' }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: browser-coverage-linux-x64
+                  files: coverage/browser-js/junit.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
 
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})

@@ -76,7 +76,7 @@ describe('affected CI', () => {
         expect(selection.jobs['test-wasm']).toBe(true);
         expect(selection.jobs.build).toBe(false);
         expect(selection.jobs['rust-coverage']).toBe(false);
-        expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: false });
+        expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
     });
     it('rejects narrowed platform prerequisites or missing selected Rust suites', () => {
         const selection = scenario(['Cargo.lock'], [packageNames.root]);

@@ -20,6 +20,7 @@ vp run @atlowchemi/webfont-browser-generator#build
 vp run @atlowchemi/webfont-browser-generator#pack
 vp run @atlowchemi/webfont-browser-generator#pack:tgz
 vp run @atlowchemi/webfont-browser-generator#test
+vp run @atlowchemi/webfont-browser-generator#test:coverage
 ```
 
 The build installs the `wasm32-unknown-unknown` Rust target when needed and a version-matched
@@ -30,6 +31,19 @@ Firefox and WebKit (`vp exec playwright install chromium firefox webkit`).
 `build` compiles the WASM binding; `pack` builds `dist/` with JS, types, worker and WASM.
 `pack:tgz` also creates an installable npm tarball in this package directory. Install that tarball
 in a demo app to test unpublished changes. Workspace consumers must run `pack` first.
+
+Coverage writes `coverage/browser-js/lcov.info` and `coverage/browser-rust/lcov.info`.
+JavaScript coverage combines Chromium client tests with worker protocol tests running the real
+WASM in Node (only the message transport and asset fetch are replaced). Rust coverage executes
+the adapter's WASM tests in Node through wasm-bindgen-test, not a native substitute.
+It requires `cargo-llvm-cov` 0.9.0+, a WASM-capable `clang` on PATH, and:
+
+```sh
+rustup toolchain install nightly-2026-09-14 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
+```
+
+On macOS use Homebrew LLVM's `bin` directory on PATH; Apple clang lacks the WASM target.
+`WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage-only toolchain. Normal builds use stable Rust.
 
 ## Use
 

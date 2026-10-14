@@ -42,6 +42,7 @@ vp run @atlowchemi/webfont-generator#check       # Clippy (default, CLI, NAPI) a
 vp run @atlowchemi/webfont-generator#test        # Rust checks and tests
 vp run @atlowchemi/webfont-browser-generator#test # WASM adapter: build, check, browsers and production bundle
 vp run @atlowchemi/webfont-browser-generator#pack:tgz # installable JS/types/worker/WASM tarball
+vp run @atlowchemi/webfont-browser-generator#test:coverage # JS/worker and actual WASM Rust coverage
 vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
 vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
 vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs

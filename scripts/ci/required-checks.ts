@@ -36,7 +36,7 @@ export function verifyRequiredChecks(needs: Record<string, { result?: string }>,
         failures.push('Rust coverage suites do not match affected packages');
     }
     if (failures.length) throw new Error(failures.join('\n'));
-    return { coverage: ['test-scripts', 'rust-coverage', 'native-coverage', 'test-vite-compat'].some(name => decisions[name]) };
+    return { coverage: ['test-scripts', 'rust-coverage', 'native-coverage', 'test-vite-compat', 'test-wasm'].some(name => decisions[name]) };
 }
 
 const { argv, env } = process;
