@@ -15,7 +15,8 @@ export type CacheEntry = {
     /** `null` when the inputs can't be fingerprinted; the entry then only tracks files for pruning. */
     key: string | null;
     fonts: Record<string, string>;
-    css: string;
+    /** Missing only when rendering failed; such entries are stored with a `null` key. */
+    css?: string;
     moduleCss?: string;
     html?: string;
 };
@@ -27,13 +28,14 @@ function getEngineVersion(): string {
 }
 
 /**
- * Fingerprint generation inputs. Paths under `root` are made relative so moved checkouts still hit.
+ * Fingerprint generation inputs. Paths under `root` are made relative so moved checkouts still hit,
+ * except `cssFontsUrl`, which is rendered into the CSS as-is.
  * Throws when an input file can't be read; callers treat that as uncacheable.
  */
 export function computeCacheKey(settings: object, files: string[], root: string, extra: unknown[]): string {
     const prefix = `${root.replaceAll('\\', '/')}/`;
-    const relativeSettings = JSON.stringify(settings, (_key, value) => {
-        if (typeof value !== 'string') return value;
+    const relativeSettings = JSON.stringify(settings, (key, value) => {
+        if (typeof value !== 'string' || key === 'cssFontsUrl') return value;
         const normalized = value.replaceAll('\\', '/');
         return normalized.startsWith(prefix) ? normalized.slice(prefix.length) : value;
     });

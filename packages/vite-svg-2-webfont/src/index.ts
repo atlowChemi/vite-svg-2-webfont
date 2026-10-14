@@ -167,6 +167,9 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
     };
 
+    const renderModuleCss = (fonts: Record<string, string>) =>
+        generatedFonts!.generateCss(Object.fromEntries(Object.entries(fonts).map(([type, name]) => [type, `${CACHE_PLACEHOLDER}/${name}`])));
+
     /** Render the outputs of a fresh engine result and persist them for the next run. */
     const storeOutputs = async (key: string | null) => {
         const buffers = new Map(
@@ -179,16 +182,20 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }),
         );
         const fonts = Object.fromEntries([...buffers].map(([type, font]) => [type, fontFileName(processedOptions.fontName, type, getBufferHash(font))]));
-        const entry: CacheEntry = {
-            key,
-            fonts,
-            css: generatedFonts!.generateCss(),
-            ...(isBuild &&
-                !options.inline && {
-                    moduleCss: generatedFonts!.generateCss(Object.fromEntries(Object.entries(fonts).map(([type, name]) => [type, `${CACHE_PLACEHOLDER}/${name}`]))),
-                }),
-            ...(processedOptions.html && { html: generatedFonts!.generateHtml() }),
+        // Rendering can fail on templates the run may never use (e.g. CSS disabled and the module never imported).
+        // Leave such outputs to the lazy getters, which surface the engine error only if they're needed, and never hit.
+        const render = (fn: () => string) => {
+            try {
+                return fn();
+            } catch {
+                key = null;
+                return undefined;
+            }
         };
+        const css = render(() => generatedFonts!.generateCss());
+        const moduleCss = isBuild && !options.inline ? render(() => renderModuleCss(fonts)) : undefined;
+        const html = processedOptions.html ? render(() => generatedFonts!.generateHtml()) : undefined;
+        const entry: CacheEntry = { key, fonts, css, ...(moduleCss !== undefined && { moduleCss }), ...(html !== undefined && { html }) };
         // The cache is an optimization; an unwritable cacheDir must not fail generation.
         await writeCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', entry, buffers).catch(() => undefined);
         return entry;
@@ -200,7 +207,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             ...(processedOptions.types as T[]).map(type =>
                 ensureDirExistsAndWriteFile(getGeneratedFont(type)!, pathJoin(processedOptions.dest, `${processedOptions.fontName}.${type}`)),
             ),
-            processedOptions.css && ensureDirExistsAndWriteFile(outputs!.css, processedOptions.cssDest),
+            processedOptions.css && ensureDirExistsAndWriteFile(outputs!.css!, processedOptions.cssDest),
             processedOptions.html && ensureDirExistsAndWriteFile(outputs!.html!, processedOptions.htmlDest),
         ]);
     };
@@ -349,8 +356,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             if (id !== resolvedVirtualModuleId) {
                 return undefined;
             }
-            if (isBuild && outputs?.moduleCss) {
-                return outputs.moduleCss.replaceAll(`${CACHE_PLACEHOLDER}/`, `${tmpDir.replaceAll('\\', '/')}/`);
+            if (isBuild && !options.inline) {
+                return (outputs!.moduleCss ?? renderModuleCss(outputs!.fonts)).replaceAll(`${CACHE_PLACEHOLDER}/`, `${tmpDir.replaceAll('\\', '/')}/`);
             }
             return inline(getCss());
         },

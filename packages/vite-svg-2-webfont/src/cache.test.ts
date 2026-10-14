@@ -19,12 +19,12 @@ afterEach(() => {
 
 const svg = (width: number) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0H${width}V24H0Z"/></svg>`;
 
-async function project() {
+async function project({ importCss = true } = {}) {
     const root = await mkdtemp(join(tmpdir(), 'plugin-cache-'));
     const icons = join(root, 'icons');
     await Promise.all([
         writeFile(join(root, 'index.html'), '<html><head><script type="module" src="/entry.js"></script></head></html>'),
-        writeFile(join(root, 'entry.js'), "import 'virtual:vite-svg-2-webfont.css';"),
+        writeFile(join(root, 'entry.js'), importCss ? "import 'virtual:vite-svg-2-webfont.css';" : ''),
     ]);
     await mkdir(icons);
     await Promise.all([writeFile(join(icons, 'add.svg'), svg(10)), writeFile(join(icons, 'remove.svg'), svg(16))]);
@@ -125,6 +125,15 @@ describe('output cache', () => {
         expect(generate).toHaveBeenCalledTimes(3);
     });
 
+    it('neither fails nor caches when an unused CSS template is broken', async () => {
+        await using p = await project({ importCss: false });
+        const overrides = { generateFiles: 'fonts', dest: join(p.root, 'out'), allowWriteFilesInBuild: true, cssTemplate: join(p.root, 'missing.hbs') } as const;
+
+        await p.run(overrides);
+        await p.run(overrides);
+        expect(generate).toHaveBeenCalledTimes(2);
+    });
+
     it('writes the engine output files on a hit', async () => {
         await using p = await project();
         const dest = join(p.root, 'out');
@@ -149,6 +158,14 @@ describe('computeCacheKey', () => {
 
         expect(key(a)).toBe(key(b));
         await writeFile(join(b.icons, 'add.svg'), svg(20));
+        expect(key(a)).not.toBe(key(b));
+    });
+
+    it('keeps cssFontsUrl root-specific because it is rendered into the CSS', async () => {
+        await using a = await project();
+        await using b = await project();
+        const key = (p: typeof a) => computeCacheKey({ cssFontsUrl: join(p.root, 'fonts') }, [], p.root, []);
+
         expect(key(a)).not.toBe(key(b));
     });
 });
