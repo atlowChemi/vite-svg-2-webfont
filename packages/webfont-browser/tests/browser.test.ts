@@ -154,3 +154,31 @@ it.each([10, 11])('generates WOFF2 quality %s without native threads', async qua
     await face.load();
     expect(face.status).toBe('loaded');
 });
+
+it('allows repeated manual and explicit resource disposal of an already disposed result', async () => {
+    const result = await generate();
+    expect(() => {
+        result.dispose();
+        result.dispose();
+        result[Symbol.dispose]();
+        result[Symbol.dispose]();
+    }).not.toThrow();
+    expect(() => {
+        using scoped = result;
+        scoped.dispose();
+    }).not.toThrow();
+    await expect(result.font('ttf')).rejects.toThrow('disposed');
+});
+
+it('disposes at scope exit with explicit resource management, including exceptional exits', async () => {
+    const result = await generate();
+    await expect(
+        (async () => {
+            using scoped = result;
+            expect((await scoped.font('ttf'))!.byteLength).toBeGreaterThan(0);
+            throw new Error('scope failed');
+        })(),
+    ).rejects.toThrow('scope failed');
+    await expect(result.font('ttf')).rejects.toThrow('disposed');
+    expect(() => result.dispose()).not.toThrow();
+});

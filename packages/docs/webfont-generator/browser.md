@@ -4,15 +4,15 @@ description: Reference for the private browser workspace package and its worker-
 
 # Browser workspace API
 
-`@atlowchemi/webfont-browser` is a **private workspace package**, not an npm release.
+`@atlowchemi/webfont-browser-generator` is a **private workspace package**, not an npm release.
 It wraps the Rust engine with wasm-bindgen and runs generation inside dedicated module workers.
 
 ## Workspace setup
 
 ```sh
 vp install
-vp run @atlowchemi/webfont-browser#build
-vp run @atlowchemi/webfont-browser#test
+vp run @atlowchemi/webfont-browser-generator#build
+vp run @atlowchemi/webfont-browser-generator#test
 ```
 
 The build requires Rust/rustup and installs the WASM target and a matching, repository-local
@@ -23,7 +23,7 @@ starting Vite. Browser tests execute generation in Chromium, Firefox and WebKit.
 ## Generation
 
 ```ts
-import { generateWebfonts } from '@atlowchemi/webfont-browser';
+import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';
 
 const result = await generateWebfonts({
     sources: [{ id: 'square', name: 'square', svg: '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>' }],
@@ -50,6 +50,10 @@ WOFF uses pure-Rust compression; native zlib output may differ at the byte level
 WOFF2 uses single-threaded Brotli at every supported compression quality (0–11).
 
 ## Result methods
+
+With Explicit Resource Management, `using result = await generateWebfonts(options)` automatically
+cleans up at scope exit, including exceptions. `Symbol.dispose` terminates the worker synchronously,
+so `await using` is unnecessary. Use `dispose()` for framework-managed lifetimes that span scopes.
 
 | Method                            | Result                             | Behavior                                                                 |
 | --------------------------------- | ---------------------------------- | ------------------------------------------------------------------------ |

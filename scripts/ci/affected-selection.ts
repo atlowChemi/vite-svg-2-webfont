@@ -6,7 +6,7 @@ import { pathToFileURL } from 'node:url';
 export const packageNames = {
     engine: '@atlowchemi/webfont-engine',
     adapter: '@atlowchemi/webfont-generator',
-    browser: '@atlowchemi/webfont-browser',
+    browser: '@atlowchemi/webfont-browser-generator',
     plugin: 'vite-svg-2-webfont',
     docs: '@atlowchemi/vite-svg-webfont-docs',
     example: '@atlowchemi/vite-svg-webfont-example',

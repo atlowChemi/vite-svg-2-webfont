@@ -61,4 +61,6 @@ export type WebfontResult = {
     regenerate: (membership: SourceMembership, changes: SourceChange[]) => Promise<void>;
     /** Terminate the worker and reject outstanding calls. Safe to call repeatedly. */
     dispose: () => void;
+    /** Synchronous scope cleanup for `using result = await generateWebfonts(...)`. */
+    [Symbol.dispose]: () => void;
 };

@@ -40,7 +40,7 @@ vp run vite-svg-2-webfont#pack                   # build the Vite plugin
 vp run @atlowchemi/webfont-generator#build       # build the native addon
 vp run @atlowchemi/webfont-generator#check       # Clippy (default, CLI, NAPI) and rustfmt checks
 vp run @atlowchemi/webfont-generator#test        # Rust checks and tests
-vp run @atlowchemi/webfont-browser#test          # private WASM adapter: build, check, browsers and production bundle
+vp run @atlowchemi/webfont-browser-generator#test # private WASM adapter: build, check, browsers and production bundle
 vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
 vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
 vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs

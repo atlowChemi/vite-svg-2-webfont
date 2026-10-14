@@ -1,4 +1,4 @@
-# @atlowchemi/webfont-browser
+# @atlowchemi/webfont-browser-generator
 
 Private workspace package for generating webfonts from SVG text in browsers. It is not published to npm.
 
@@ -8,8 +8,8 @@ From the repository root:
 
 ```sh
 vp install
-vp run @atlowchemi/webfont-browser#build
-vp run @atlowchemi/webfont-browser#test
+vp run @atlowchemi/webfont-browser-generator#build
+vp run @atlowchemi/webfont-browser-generator#test
 ```
 
 The build installs the `wasm32-unknown-unknown` Rust target when needed and a version-matched
@@ -24,7 +24,7 @@ are build outputs; generated declarations are checked in for type checking befor
 ## Use
 
 ```ts
-import { generateWebfonts } from '@atlowchemi/webfont-browser';
+import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';
 
 const result = await generateWebfonts({
     sources: [{ id: 'square-id', name: 'square', svg: '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>' }],
@@ -43,6 +43,15 @@ try {
 ```
 
 ## Contract
+
+With Explicit Resource Management support, use `using result = await generateWebfonts(options)`
+inside an async function. Leaving the scope calls `Symbol.dispose`, including on exceptions.
+Cleanup terminates the worker synchronously; `await using` is unnecessary. Keep `dispose()`
+for lifetimes managed by framework hooks or applications without `using` support.
+
+CI reports the production smoke app as Codecov bundle `webfont-browser-generator-bundle`,
+separately from the Vite plugin. This measures the emitted application JavaScript, worker and
+WASM assets together, including the small smoke-app entry point.
 
 - Each result owns one dedicated worker and WASM instance. Calls run in submission order.
   Different results are independent. No SharedArrayBuffer or cross-origin isolation is needed.

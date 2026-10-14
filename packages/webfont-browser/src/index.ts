@@ -58,6 +58,7 @@ export async function generateWebfonts(options: GenerateWebfontsOptions): Promis
         close(error instanceof Error ? error : new Error(String(error)));
         throw error;
     }
+    const dispose = (): void => close(new Error('Webfont result has been disposed'));
     return {
         font: (format: FontType) => request<Uint8Array<ArrayBuffer> | undefined>({ method: 'font', format }),
         generateCss: () => request<string>({ method: 'css' }),
@@ -66,6 +67,7 @@ export async function generateWebfonts(options: GenerateWebfontsOptions): Promis
         regenerate: async (membership: SourceMembership, changes: SourceChange[]): Promise<void> => {
             await request({ method: 'regenerate', membership: json(membership), changes: json(changes) });
         },
-        dispose: () => close(new Error('Webfont result has been disposed')),
+        dispose,
+        [Symbol.dispose]: dispose,
     };
 }

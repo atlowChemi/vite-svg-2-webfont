@@ -294,10 +294,12 @@ jobs:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
             - run: vp exec playwright install --with-deps chromium firefox webkit
-            - run: vp run @atlowchemi/webfont-browser#test
+            - run: vp run @atlowchemi/webfont-browser-generator#test
               env:
                   CI_TEST_REPORT: test-results/wasm-browser.xml
                   CI_TEST_SUITE: wasm-browser-linux-x64
+                  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+                  ALLOW_BUNDLE_ANALYSIS: 'true'
             - name: Upload WASM browser results
               if: ${{ !cancelled() && hashFiles('test-results/wasm-browser.xml') != '' }}
               uses: ./.github/actions/upload-test-results

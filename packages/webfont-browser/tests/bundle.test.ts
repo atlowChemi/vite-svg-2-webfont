@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url';
+import { codecovRollupPlugin } from '@codecov/rollup-plugin';
 import { chromium } from 'playwright';
 import { build, preview } from 'vite-plus';
 import { expect, it } from 'vite-plus/test';
@@ -8,6 +9,13 @@ it('loads the emitted worker and WASM from a production build under a URL prefix
         configFile: false as const,
         root: fileURLToPath(new URL('./fixture', import.meta.url)),
         base: '/nested/',
+        plugins: [
+            codecovRollupPlugin({
+                enableBundleAnalysis: Boolean(process.env.CODECOV_TOKEN) && process.env.ALLOW_BUNDLE_ANALYSIS === 'true',
+                bundleName: 'webfont-browser-generator-bundle',
+                uploadToken: process.env.CODECOV_TOKEN,
+            }),
+        ],
         build: { outDir: fileURLToPath(new URL('../dist/test', import.meta.url)), emptyOutDir: true, target: 'esnext' },
         preview: { host: '127.0.0.1', port: 0 },
     };
