@@ -95,7 +95,6 @@ jobs:
                   cache: true
             - run: vp check
             - run: vp run @atlowchemi/webfont-generator#check
-            - run: vp run @atlowchemi/webfont-engine#test:features
 
     rust-coverage:
         name: Rust coverage (${{ matrix.suite }})
@@ -140,13 +139,13 @@ jobs:
                   name: rust-${{ matrix.suite }}
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Upload Rust test results
-              if: ${{ !cancelled() && hashFiles(format('coverage/rust-{0}/junit.xml', matrix.suite)) != '' }}
+              if: ${{ !cancelled() && hashFiles(format('coverage/rust-{0}/junit*.xml', matrix.suite)) != '' }}
               uses: ./.github/actions/upload-test-results
               with:
                   name: rust-${{ matrix.suite }}-linux-x64
-                  files: coverage/rust-${{ matrix.suite }}/junit.xml
+                  files: coverage/rust-${{ matrix.suite }}/junit*.xml
                   token: ${{ secrets.CODECOV_TOKEN }}
-            # nextest does not execute doctests. Keep both Cargo feature configurations.
+            # nextest does not execute doctests. Keep the Cargo feature matrix here too.
             - name: Rust doctests
               if: ${{ !cancelled() && matrix.suite == 'engine' }}
               run: vp run @atlowchemi/webfont-engine#test:doctests

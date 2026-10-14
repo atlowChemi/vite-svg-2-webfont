@@ -49,7 +49,7 @@ This is a Cargo API breaking change. The published Rust crate and CLI remain nam
 
 ## Async API
 
-The file APIs in this section require `fs` (enabled by default).
+The file APIs in this section require the [`fs` feature](#feature-flags) (enabled by default).
 
 ### Adapter hooks
 
@@ -110,7 +110,7 @@ async fn main() -> std::io::Result<()> {
 
 ## Sync API
 
-Requires `fs` (enabled by default).
+Requires the [`fs` feature](#feature-flags) (enabled by default).
 
 For contexts without a tokio runtime, `generate_sync` spawns one internally:
 
@@ -142,7 +142,7 @@ if let Some(svg) = result.svg_string() {
 
 ## SVG text API
 
-Requires `in_memory` (enabled by default); asynchronous entry points additionally require `async`.
+Requires the [`in_memory` feature](#feature-flags) (enabled by default); asynchronous entry points additionally require the [`async` feature](#feature-flags).
 
 `generate_from_sources_sync(options)` returns `std::io::Result<GenerateWebfontsFromSourcesResult>`
 without constructing a runtime, reading sources/templates, or writing output files.

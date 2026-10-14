@@ -12,7 +12,7 @@ case "$SUITE" in
 esac
 OUT="$ROOT/coverage/rust-$SUITE"
 mkdir -p "$OUT"
-rm -f "$OUT/junit.xml" "$OUT/rust.lcov"
+rm -f "$OUT"/junit*.xml "$OUT/rust.lcov"
 RUN="$(mktemp -d "$OUT/run.XXXXXX")"
 trap 'rm -rf "$RUN"' EXIT
 export CARGO_TARGET_DIR="$RUN/target"
@@ -25,15 +25,29 @@ const run = process.argv[2];
 writeFileSync(`${run}/nextest.toml`, `[store]\ndir = ${JSON.stringify(`${run}/nextest`)}\n${readFileSync('.config/nextest.toml', 'utf8')}`);
 JS
 status=0
-cargo llvm-cov nextest --locked --no-report --profile ci --config-file "$RUN/nextest.toml" "${ARGS[@]}" || status=$?
-# nextest writes no JUnit if compilation prevents execution. Do not synthesize passing tests.
-if [[ -s "$RUN/nextest/ci/junit.xml" ]]; then
-  cp "$RUN/nextest/ci/junit.xml" "$OUT/junit.xml"
-  cargo llvm-cov report -p webfont-generator -p webfont-generator-napi --lcov --output-path "$RUN/rust.lcov"
-  node scripts/ci/validate-native-coverage.mjs "$RUN/rust.lcov" "$SUITE"
-  cp "$RUN/rust.lcov" "$OUT/rust.lcov"
-else
-  echo "Rust tests did not produce JUnit: $SUITE" >&2
-  exit 1
+MODES=(default)
+if [[ "$SUITE" == engine ]]; then
+  MODES+=(fs in_memory in_memory,async cli)
 fi
+for mode in "${MODES[@]}"; do
+  RUN_ARGS=("${ARGS[@]}")
+  REPORT="$OUT/junit.xml"
+  if [[ "$mode" != default ]]; then
+    RUN_ARGS+=(--no-default-features --features "$mode")
+    REPORT="$OUT/junit-${mode//,/-}.xml"
+  fi
+  # --no-report retains earlier coverage profiles; never reuse their test results.
+  rm -f "$RUN/nextest/ci/junit.xml"
+  cargo llvm-cov nextest --locked --no-report --profile ci --config-file "$RUN/nextest.toml" "${RUN_ARGS[@]}" || status=$?
+  # nextest writes no JUnit if compilation prevents execution. Do not synthesize passing tests.
+  if [[ -s "$RUN/nextest/ci/junit.xml" ]]; then
+    cp "$RUN/nextest/ci/junit.xml" "$REPORT"
+  else
+    echo "Rust tests did not produce JUnit: $SUITE ($mode)" >&2
+    status=1
+  fi
+done
+cargo llvm-cov report -p webfont-generator -p webfont-generator-napi --lcov --output-path "$RUN/rust.lcov"
+node scripts/ci/validate-native-coverage.mjs "$RUN/rust.lcov" "$SUITE"
+cp "$RUN/rust.lcov" "$OUT/rust.lcov"
 exit "$status"
