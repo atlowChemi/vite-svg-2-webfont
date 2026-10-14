@@ -42,29 +42,28 @@ fn structural_features(source: &str) -> Vec<String> {
         {
             out.push(format!("fill={value}"));
         }
-        if tag == "use" {
-            if let Some(href) = node
+        if tag == "use"
+            && let Some(href) = node
                 .attribute("href")
                 .or_else(|| node.attribute(("http://www.w3.org/1999/xlink", "href")))
-            {
-                if let Some(id) = href.strip_prefix('#') {
-                    if let Some(target) = node
-                        .document()
-                        .descendants()
-                        .find(|n| n.attribute("id") == Some(id))
-                    {
-                        if references.insert(target.id()) {
-                            walk(target, references, out, true);
-                            references.remove(&target.id());
-                        } else {
-                            out.push("cyclic use".into());
-                        }
+        {
+            if let Some(id) = href.strip_prefix('#') {
+                if let Some(target) = node
+                    .document()
+                    .descendants()
+                    .find(|n| n.attribute("id") == Some(id))
+                {
+                    if references.insert(target.id()) {
+                        walk(target, references, out, true);
+                        references.remove(&target.id());
                     } else {
-                        out.push("unresolved use".into());
+                        out.push("cyclic use".into());
                     }
                 } else {
-                    out.push("external use".into());
+                    out.push("unresolved use".into());
                 }
+            } else {
+                out.push("external use".into());
             }
         }
         for child in node.children().filter(roxmltree::Node::is_element) {

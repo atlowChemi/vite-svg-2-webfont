@@ -1,16 +1,23 @@
 pub(crate) mod css;
+#[cfg(feature = "fs")]
 mod files;
 pub(crate) mod html;
 mod paths;
+#[cfg(feature = "fs")]
 mod result;
 mod shared;
 
 use serde_json::{Map, Value};
 
+#[cfg(feature = "fs")]
 pub(crate) use css::{SharedTemplateData, build_css_context};
+#[cfg(feature = "fs")]
 pub(crate) use files::load_html_template;
+#[cfg(feature = "fs")]
 pub(crate) use html::build_html_context;
+#[cfg(feature = "fs")]
 pub(crate) use html::build_html_context_with_css;
+#[cfg(feature = "fs")]
 pub(crate) use result::{CachedTemplateData, CarriedRenderCache};
 
 /// Extract a string value from a JSON Map context, with a default fallback.

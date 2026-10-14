@@ -1,5 +1,7 @@
 use std::collections::{HashMap, HashSet};
-use std::io::{Error, Result};
+#[cfg(feature = "async")]
+use std::io::Error;
+use std::io::Result;
 use std::sync::OnceLock;
 
 use super::options::{invalid, validate_name};
@@ -45,11 +47,13 @@ pub enum SourceMembership {
 }
 
 /// An async update failure with the previous usable result, except on worker panic/cancellation.
+#[cfg(feature = "async")]
 pub struct SourceRegenerateError {
     error: Error,
     result: Option<Box<GenerateWebfontsFromSourcesResult>>,
 }
 
+#[cfg(feature = "async")]
 impl SourceRegenerateError {
     pub(super) fn worker(error: tokio::task::JoinError) -> Self {
         Self {
@@ -71,6 +75,7 @@ impl SourceRegenerateError {
     }
 }
 
+#[cfg(feature = "async")]
 impl std::fmt::Debug for SourceRegenerateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SourceRegenerateError")
@@ -79,11 +84,13 @@ impl std::fmt::Debug for SourceRegenerateError {
             .finish()
     }
 }
+#[cfg(feature = "async")]
 impl std::fmt::Display for SourceRegenerateError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.error.fmt(f)
     }
 }
+#[cfg(feature = "async")]
 impl std::error::Error for SourceRegenerateError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(&self.error)
@@ -270,6 +277,7 @@ impl GenerateWebfontsFromSourcesResult {
 
     /// Apply [`Self::regenerate_sync`] on Tokio's blocking pool, returning the updated result.
     /// Ordinary failures retain the original usable result in [`SourceRegenerateError`].
+    #[cfg(feature = "async")]
     pub async fn regenerate(
         mut self,
         membership: SourceMembership,

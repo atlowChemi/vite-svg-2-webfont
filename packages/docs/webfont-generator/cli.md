@@ -15,7 +15,7 @@ cargo install webfont-generator --features cli
 ```
 
 ::: tip
-The `cli` feature is opt-in and not included in the default feature set. This avoids pulling in `clap` for library users.
+The `cli` feature is opt-in and not included in the default feature set. It enables `fs` (and therefore `async`) along with the CLI dependencies. Library users do not pull in `clap` unless they enable `cli`; see [Cargo feature flags](./rust#feature-flags).
 :::
 
 ## Usage

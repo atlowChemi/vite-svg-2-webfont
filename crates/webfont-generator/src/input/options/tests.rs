@@ -743,7 +743,7 @@ fn allows_nonexistent_html_template_when_html_is_false() {
 
 #[test]
 fn resolves_missing_codepoints_in_source_file_order() {
-    let source_files = vec![
+    let source_files = [
         loaded_svg_file("/tmp/icons/arrow-left.svg"),
         loaded_svg_file("/tmp/icons/arrow-right.svg"),
     ];
@@ -761,7 +761,7 @@ fn resolves_missing_codepoints_in_source_file_order() {
 
 #[test]
 fn preserves_explicit_codepoints_and_skips_used_values() {
-    let source_files = vec![
+    let source_files = [
         loaded_svg_file("/tmp/icons/arrow-left.svg"),
         loaded_svg_file("/tmp/icons/arrow-right.svg"),
         loaded_svg_file("/tmp/icons/check.svg"),
@@ -785,7 +785,7 @@ fn preserves_explicit_codepoints_and_skips_used_values() {
 
 #[test]
 fn assigns_a_codepoint_to_an_empty_glyph_name() {
-    let source_files = vec![LoadedSvgSource {
+    let source_files = [LoadedSvgSource {
         contents: "<svg />".into(),
         glyph_name: String::new(),
         id: "/tmp/icons/..".to_owned(),
@@ -803,7 +803,7 @@ fn assigns_a_codepoint_to_an_empty_glyph_name() {
 
 #[test]
 fn rejects_exhausted_codepoint_space() {
-    let source_files = vec![loaded_svg_file("first.svg"), loaded_svg_file("second.svg")];
+    let source_files = [loaded_svg_file("first.svg"), loaded_svg_file("second.svg")];
     let error = resolve_codepoints(
         source_files.iter().map(|file| file.glyph_name.as_str()),
         &BTreeMap::new(),

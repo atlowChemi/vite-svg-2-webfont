@@ -1,5 +1,7 @@
+#[cfg(feature = "fs")]
 use std::collections::HashMap;
 
+#[cfg(feature = "fs")]
 use serde_json::{Map, Value};
 
 pub(crate) mod color;
@@ -7,6 +9,7 @@ pub use color::ColorGlyphSelection;
 
 /// What happened to a file, for [`crate::GenerateWebfontsResult::regenerate`]. `name` is the
 /// caller-resolved glyph name (the `rename` callback, if any, is applied by the caller).
+#[cfg(feature = "fs")]
 pub enum GlyphChange {
     /// A new file. `name` overrides the file-stem glyph name when `Some`.
     Added { name: Option<String> },
@@ -19,6 +22,7 @@ pub enum GlyphChange {
 /// One entry in the `changes` array passed to the Node binding's `regenerate`. The complete
 /// ordered file list passed alongside it controls final glyph order; this only describes which
 /// files need re-reading, renaming, or removal.
+#[cfg(feature = "fs")]
 pub struct GlyphChangeEntry {
     /// Path of the changed file.
     pub path: String,
@@ -31,6 +35,7 @@ pub struct GlyphChangeEntry {
 
 /// Complete ordered input membership for a regeneration operation. The case must match the
 /// result's generation mode. Synchronous methods borrow this value; async methods consume it.
+#[cfg(feature = "fs")]
 pub enum RegenerationFiles {
     /// Single-design font inputs, in the order a fresh generation would use.
     Single(Vec<String>),
@@ -41,6 +46,7 @@ pub enum RegenerationFiles {
 }
 
 /// Complete file set for one configured variant during regeneration.
+#[cfg(feature = "fs")]
 pub struct VariantFileSet {
     /// Existing variant name. Full re-diff requires every configured variant exactly once.
     pub variant: String,
@@ -80,6 +86,7 @@ pub enum FontType {
     derive(serde::Deserialize),
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]
+#[cfg(feature = "fs")]
 pub struct FontVariant {
     /// User-facing variant name, used to derive CSS modifier classes.
     pub name: String,
@@ -269,6 +276,7 @@ pub struct TemplateVariant {
 /// user-supplied `templateOptions` are merged into the same object at runtime,
 /// so the JS-side type widens this with an open-ended index signature.
 #[derive(Clone)]
+#[cfg(feature = "fs")]
 pub struct CssContext {
     /// Name of the generated font, mirroring the `fontName` option.
     pub font_name: String,
@@ -295,6 +303,7 @@ pub struct CssContext {
 /// from user-supplied `templateOptions` are merged into the same object at
 /// runtime, so the JS-side type widens this with an open-ended index signature.
 #[derive(Clone)]
+#[cfg(feature = "fs")]
 pub struct HtmlContext {
     /// Name of the generated font, mirroring the `fontName` option.
     pub font_name: String,
@@ -329,6 +338,7 @@ pub struct HtmlContext {
     derive(serde::Deserialize),
     serde(rename_all = "camelCase", deny_unknown_fields)
 )]
+#[cfg(feature = "fs")]
 pub struct GenerateWebfontsOptions {
     /// Preserve solid SVG paint for all or named post-rename logical glyphs, in every variant.
     /// Omission or an empty named list preserves monochrome output. Active color requires

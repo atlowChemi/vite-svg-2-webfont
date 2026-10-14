@@ -5,6 +5,8 @@
 //! ## Library usage
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "fs")]
+//! # {
 //! use webfont_generator::{GenerateWebfontsOptions, FontType};
 //!
 //! // Async API (requires a tokio runtime)
@@ -23,9 +25,12 @@
 //! }
 //! # Ok(())
 //! # }
+//! # }
 //! ```
 //!
 //! ```rust,no_run
+//! # #[cfg(feature = "fs")]
+//! # {
 //! use webfont_generator::{GenerateWebfontsOptions, FontType};
 //!
 //! // Synchronous API
@@ -37,6 +42,7 @@
 //! };
 //!
 //! let result = webfont_generator::generate_sync(options, None).unwrap();
+//! # }
 //! ```
 //!
 //! ## CLI
@@ -55,64 +61,104 @@
 //!
 //! ## Feature flags
 //!
+//! The default features are `fs`, `in_memory`, and `async`.
+//!
+//! - **`fs`**: File-based generation, hooks, templates, and output writing. Enables `async`.
+//! - **`in_memory`**: Synchronous generation and regeneration from named SVG text, without
+//!   filesystem access or a runtime requirement.
+//! - **`async`**: Tokio-backed asynchronous wrappers for enabled input APIs. Combine with
+//!   `in_memory` to run source generation on Tokio's blocking pool.
 //! - **`cli`**: Builds the `webfont-generator` CLI binary (adds `clap` dependency).
-//!   Not enabled by default — use `cargo install webfont-generator --features cli`.
+//!   Enables `fs`; not enabled by default — use `cargo install webfont-generator --features cli`.
+//! - **`bench`**: Internal benchmark helpers; enables `fs` and `in_memory`.
+//!
+//! With no input features enabled, common option and output types remain available.
 //!
 //! Node.js bindings are built by the separate, unpublished `webfont-generator-napi` crate.
 
 #[cfg(feature = "bench")]
 pub mod bench_support;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod byte_helpers;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod formats;
+#[cfg(feature = "fs")]
 mod hooks;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod incremental;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod input;
+#[cfg(feature = "in_memory")]
 mod memory;
 mod output;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod pipeline;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod rendering;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod result;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod sfnt;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod svg;
-#[cfg(test)]
+#[cfg(all(test, any(feature = "fs", feature = "in_memory")))]
 mod test_helpers;
 mod types;
 
+#[cfg(feature = "fs")]
 pub use hooks::GenerationHooks;
+#[cfg(feature = "fs")]
 use std::sync::Mutex;
 
+#[cfg(feature = "fs")]
 use input::{
-    ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants,
-    build_variant_family_sources, finalize_generate_webfonts_options, resolve_missing_glyphs,
+    ResolvedFileGenerationOptions, finalize_generate_webfonts_options,
     resolve_validated_generate_webfonts_options,
 };
+#[cfg(any(feature = "fs", feature = "in_memory"))]
+use input::{
+    ResolvedGenerationOptions, ResolvedVariants, build_variant_family_sources,
+    resolve_missing_glyphs,
+};
+#[cfg(feature = "fs")]
 use input::{load_svg_files_with_hooks, load_variant_svg_files_with_hooks};
+#[cfg(feature = "in_memory")]
 pub use memory::{
     GenerateWebfontsFromSourcesOptions, GenerateWebfontsFromSourcesResult, SourceChange,
-    SourceFontVariant, SourceMembership, SourceRegenerateError, SvgSource, VariantSourceSet,
-    generate_from_sources, generate_from_sources_sync,
+    SourceFontVariant, SourceMembership, SvgSource, VariantSourceSet, generate_from_sources_sync,
 };
+#[cfg(all(feature = "in_memory", feature = "async"))]
+pub use memory::{SourceRegenerateError, generate_from_sources};
 pub use output::collect::{CollectedOutput, OutputContents, OutputKind};
+#[cfg(feature = "fs")]
 use output::write_generate_webfonts_result;
+#[cfg(feature = "fs")]
 use pipeline::{generate_variant_webfonts_sync, generate_webfonts_sync};
+#[cfg(feature = "fs")]
 use rendering::{
     CachedTemplateData, SharedTemplateData, build_css_context, build_html_context,
     load_html_template,
 };
+#[cfg(feature = "fs")]
 pub use result::{GenerateWebfontsResult, RegenerateError};
 pub use types::{
-    ColorGlyphSelection, CssContext, FontType, FontVariant, FormatOptions, GenerateWebfontsOptions,
-    GlyphChange, GlyphChangeEntry, HtmlContext, MissingGlyphBehavior, MissingGlyphOptions,
-    RegenerationFiles, SvgFormatOptions, TemplateVariant, TtfFormatOptions, VariantFileSet,
-    Woff2FormatOptions, WoffFormatOptions,
+    ColorGlyphSelection, FontType, FormatOptions, MissingGlyphBehavior, MissingGlyphOptions,
+    SvgFormatOptions, TemplateVariant, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
+};
+#[cfg(feature = "fs")]
+pub use types::{
+    CssContext, FontVariant, GenerateWebfontsOptions, GlyphChange, GlyphChangeEntry, HtmlContext,
+    RegenerationFiles, VariantFileSet,
 };
 
+#[cfg(feature = "fs")]
 type PreparedVariantInput = (
     svg::types::PreparedVariantFamily,
     Vec<input::LoadedSvgSource>,
     Option<svg::VariantGlyphCache>,
 );
 
+#[cfg(feature = "fs")]
 fn prepare_variant_family(
     options: &mut ResolvedFileGenerationOptions,
     source_files: Vec<Vec<input::LoadedSvgSource>>,
@@ -127,6 +173,7 @@ fn prepare_variant_family(
     Ok((family, sources, cache))
 }
 
+#[cfg(feature = "fs")]
 fn prepare_variant_family_cached(
     options: &mut ResolvedFileGenerationOptions,
     source_files: Vec<&[input::LoadedSvgSource]>,
@@ -139,6 +186,7 @@ fn prepare_variant_family_cached(
     prepare_content_variant_family(&mut options.common, variants, source_files, cache)
 }
 
+#[cfg(feature = "fs")]
 fn prepare_content_variant_family(
     options: &mut ResolvedGenerationOptions,
     variants: &ResolvedVariants,
@@ -153,6 +201,7 @@ fn prepare_content_variant_family(
     }
 }
 
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 fn resolve_content_variant_sources<'a>(
     options: &mut ResolvedGenerationOptions,
     variants: &ResolvedVariants,
@@ -188,12 +237,14 @@ fn resolve_content_variant_sources<'a>(
     Ok(family)
 }
 
+#[cfg(feature = "fs")]
 fn variant_preparation_join_error(error: tokio::task::JoinError) -> std::io::Error {
     std::io::Error::other(format!("Native variant preparation task failed: {error}"))
 }
 
 #[cfg(test)]
 #[tokio::test]
+#[cfg(feature = "fs")]
 async fn variant_preparation_reports_panicking_worker() {
     let join_error = tokio::task::spawn_blocking(|| panic!("variant preparation panic"))
         .await
@@ -209,6 +260,7 @@ async fn variant_preparation_reports_panicking_worker() {
 
 #[cfg(test)]
 #[tokio::test]
+#[cfg(feature = "fs")]
 async fn hooked_variant_generation_succeeds_after_preparing_sources() {
     let path = test_helpers::webfont_fixture("add.svg");
     let variants = vec![
@@ -260,6 +312,7 @@ async fn hooked_variant_generation_succeeds_after_preparing_sources() {
 
 #[cfg(test)]
 #[tokio::test]
+#[cfg(feature = "fs")]
 async fn hooked_generation_keeps_the_ordinary_source_path() {
     let result = generate_with_hooks(
         GenerateWebfontsOptions {
@@ -281,6 +334,7 @@ async fn hooked_generation_keeps_the_ordinary_source_path() {
 
 #[cfg(test)]
 #[tokio::test]
+#[cfg(feature = "fs")]
 async fn shared_variant_path_keeps_per_membership_hook_names() {
     struct Names;
     impl GenerationHooks for Names {
@@ -346,6 +400,7 @@ async fn shared_variant_path_keeps_per_membership_hook_names() {
 
 #[cfg(test)]
 #[tokio::test]
+#[cfg(feature = "fs")]
 async fn variant_update_replaces_a_collapsed_duplicate_hook_occurrence() {
     struct Names;
     impl GenerationHooks for Names {
@@ -423,6 +478,7 @@ async fn variant_update_replaces_a_collapsed_duplicate_hook_occurrence() {
 /// - `css_context(ctx)` — mutate the Handlebars context before CSS rendering;
 ///   return the (possibly mutated) context.
 /// - `html_context(ctx)` — same, but for the HTML preview.
+#[cfg(feature = "fs")]
 pub async fn generate_with_hooks<H: GenerationHooks>(
     options: GenerateWebfontsOptions,
     hooks: &H,
@@ -518,12 +574,14 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
 }
 
 /// A glyph rename function that maps file stems to custom glyph names.
+#[cfg(feature = "fs")]
 pub type RenameFn = Box<dyn Fn(&str) -> String + Send + Sync>;
 
 /// Generate webfonts from SVG files.
 ///
 /// This is the pure Rust async entry point. Requires a tokio runtime. Multi-variant input generates
 /// one shared variable font per requested modern format.
+#[cfg(feature = "fs")]
 pub async fn generate(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,
@@ -533,6 +591,7 @@ pub async fn generate(
 
 /// Synchronous version of [`generate`]. Spawns a tokio runtime internally and has the same source
 /// preparation behavior for multi-variant input.
+#[cfg(feature = "fs")]
 pub fn generate_sync(
     options: GenerateWebfontsOptions,
     rename: Option<RenameFn>,

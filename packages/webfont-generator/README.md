@@ -11,6 +11,10 @@
 
 A native Rust [NAPI](https://napi.rs) addon that generates webfonts (SVG, TTF, EOT, WOFF, WOFF2) and their companion CSS/HTML from a set of SVG icon files.
 
+The addon selects the Rust engine's `fs` capability (including its required `async`
+support) with engine defaults disabled. Cargo feature selection is internal to the
+addon; npm consumers use the file-based JavaScript API documented here.
+
 This is a ground-up rewrite of [`@vusion/webfonts-generator`](https://github.com/vusion/webfonts-generator) in Rust — the original package and its authors deserve credit for the API design and template system that this project builds on. The JS implementation is unmaintained, so this package reimplements the same pipeline natively for better performance and long-term maintainability.
 
 The API is largely compatible with `@vusion/webfonts-generator`, with a few differences:

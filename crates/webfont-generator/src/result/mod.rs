@@ -1,19 +1,27 @@
+#[cfg(feature = "fs")]
 mod regeneration;
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;
 
+#[cfg(feature = "fs")]
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex, OnceLock};
+use std::sync::Arc;
+#[cfg(feature = "fs")]
+use std::sync::{Mutex, OnceLock};
 
+#[cfg(feature = "fs")]
 use serde_json::{Map, Value};
 
+#[cfg(feature = "fs")]
 use crate::incremental::RegenerationState;
+#[cfg(feature = "fs")]
 use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions};
+#[cfg(feature = "fs")]
 use crate::rendering::{CachedTemplateData, CarriedRenderCache};
 #[cfg(feature = "bench")]
 use crate::types::GlyphChange;
 
-/// Rendered bytes for each requested output format. Held by [`GenerateWebfontsResult`] and
+/// Rendered bytes for each requested output format. Held by generation results and
 /// produced by the generator's format pipeline; grouping them lets an incremental regenerate
 /// refresh every format in a single assignment.
 #[derive(Clone, Default)]
@@ -27,11 +35,13 @@ pub(crate) struct FontOutputs {
 
 /// Failure from asynchronous regeneration. Ordinary regeneration errors retain the input result
 /// so callers can recover it with [`RegenerateError::into_result`] and retry.
+#[cfg(feature = "fs")]
 pub struct RegenerateError {
     result: Option<Box<GenerateWebfontsResult>>,
     source: std::io::Error,
 }
 
+#[cfg(feature = "fs")]
 impl RegenerateError {
     pub(crate) fn new(result: Option<GenerateWebfontsResult>, source: std::io::Error) -> Self {
         Self {
@@ -52,6 +62,7 @@ impl RegenerateError {
     }
 }
 
+#[cfg(feature = "fs")]
 impl std::fmt::Debug for RegenerateError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -62,12 +73,14 @@ impl std::fmt::Debug for RegenerateError {
     }
 }
 
+#[cfg(feature = "fs")]
 impl std::fmt::Display for RegenerateError {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         self.source.fmt(formatter)
     }
 }
 
+#[cfg(feature = "fs")]
 impl std::error::Error for RegenerateError {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         Some(&self.source)
@@ -77,6 +90,7 @@ impl std::error::Error for RegenerateError {
 /// Result of a successful `generateWebfonts` call. Exposes the generated
 /// font bytes (or `null` for formats that were not requested) and methods to
 /// render the CSS and HTML preview.
+#[cfg(feature = "fs")]
 pub struct GenerateWebfontsResult {
     pub(crate) cached: OnceLock<Result<CachedTemplateData, String>>,
     /// Render-cache entries carried across an incremental `regenerate` to seed the rebuilt
@@ -91,6 +105,7 @@ pub struct GenerateWebfontsResult {
     pub(crate) source_files: Arc<Vec<LoadedSvgSource>>,
 }
 
+#[cfg(feature = "fs")]
 impl GenerateWebfontsResult {
     pub(crate) fn snapshot_for_regeneration(&self, state: RegenerationState) -> Self {
         Self {

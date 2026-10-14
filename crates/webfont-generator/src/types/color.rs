@@ -1,6 +1,9 @@
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 use std::sync::Arc;
 
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 use indexmap::IndexSet;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 use kurbo::BezPath;
 
 /// Select logical glyphs whose solid SVG fills are preserved as COLR v1 paint.
@@ -40,6 +43,7 @@ impl<'de> serde::Deserialize<'de> for ColorGlyphSelection {
     }
 }
 
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 impl From<ColorGlyphSelection> for ResolvedColorSelection {
     fn from(selection: ColorGlyphSelection) -> Self {
         match selection {
@@ -51,11 +55,13 @@ impl From<ColorGlyphSelection> for ResolvedColorSelection {
 
 /// Compiled membership for final logical names, preserving input order for errors.
 #[derive(Clone)]
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 pub(crate) enum ResolvedColorSelection {
     All,
     Named(IndexSet<String>),
 }
 
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 impl ResolvedColorSelection {
     pub fn contains(&self, name: &str) -> bool {
         match self {
@@ -65,6 +71,7 @@ impl ResolvedColorSelection {
     }
 }
 
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 impl serde::Serialize for ResolvedColorSelection {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         match self {
@@ -79,6 +86,7 @@ impl serde::Serialize for ResolvedColorSelection {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 pub(crate) enum ResolvedLayerPaint {
     Foreground {
         alpha: f32,
@@ -92,6 +100,7 @@ pub(crate) enum ResolvedLayerPaint {
 }
 
 #[derive(Debug, PartialEq)]
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 pub(crate) struct ProcessedColorLayer {
     pub outline: Arc<BezPath>,
     pub outline_hash: u64,

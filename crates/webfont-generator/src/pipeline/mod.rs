@@ -6,20 +6,25 @@ use rayon::join;
 use crate::formats::woff1::Woff1PayloadCache;
 use crate::formats::woff2::Woff2TransformCache;
 use crate::formats::{eot, woff1, woff2};
+#[cfg(feature = "fs")]
 use crate::incremental::RegenerationState;
-use crate::input::{
-    LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants,
-};
-use crate::result::{FontOutputs, GenerateWebfontsResult};
+#[cfg(feature = "fs")]
+use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions};
+use crate::input::{ResolvedGenerationOptions, ResolvedVariants};
+use crate::result::FontOutputs;
+#[cfg(feature = "fs")]
+use crate::result::GenerateWebfontsResult;
 use crate::sfnt;
 use crate::sfnt::CachedCompiledGlyph;
-use crate::svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
-use crate::svg::{
-    build_svg_font, prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options,
-};
+use crate::svg::build_svg_font;
+#[cfg(feature = "fs")]
+use crate::svg::types::GlyphCache;
+use crate::svg::types::{PreparedSvgFont, SvgOptions};
+#[cfg(feature = "fs")]
+use crate::svg::{prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options};
 use crate::types::FontType;
 
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod variant_tests {
     use super::*;
     use crate::input::{load_variant_svg_files, resolve_generate_webfonts_options};
@@ -136,12 +141,13 @@ pub(crate) struct TtfGlyphCache {
 }
 
 impl TtfGlyphCache {
-    #[cfg(test)]
+    #[cfg(all(test, feature = "fs"))]
     pub(crate) fn woff2_transform_compile_count(&self) -> usize {
         self.woff2_transforms.compile_count
     }
 }
 
+#[cfg(feature = "fs")]
 pub(crate) fn generate_webfonts_sync(
     options: ResolvedFileGenerationOptions,
     source_files: Vec<LoadedSvgSource>,
@@ -179,6 +185,7 @@ pub(crate) fn generate_webfonts_sync(
     })
 }
 
+#[cfg(feature = "fs")]
 pub(crate) fn generate_variant_webfonts_sync(
     options: ResolvedFileGenerationOptions,
     source_files: Vec<LoadedSvgSource>,
@@ -324,6 +331,7 @@ pub(crate) fn build_font_outputs(
     })
 }
 
+#[cfg(feature = "fs")]
 pub(crate) fn build_variant_font_outputs(
     options: &ResolvedFileGenerationOptions,
     family: &crate::svg::types::PreparedVariantFamily,

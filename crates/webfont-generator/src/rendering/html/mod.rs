@@ -1,14 +1,21 @@
 use std::fmt::Write as _;
 use std::io::Error;
+#[cfg(feature = "fs")]
 use std::path::Path;
 use std::sync::Arc;
 
-use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions, ResolvedGenerationOptions};
-use crate::rendering::css::{SharedTemplateData, TemplateDependencies};
+#[cfg(feature = "fs")]
+use crate::input::ResolvedFileGenerationOptions;
+use crate::input::{LoadedSvgSource, ResolvedGenerationOptions};
+use crate::rendering::css::SharedTemplateData;
+#[cfg(feature = "fs")]
+use crate::rendering::css::TemplateDependencies;
 
-use crate::rendering::css::build_css_context_with_fonts_url;
-use crate::rendering::css::render_css_with_context;
+#[cfg(feature = "fs")]
 use crate::rendering::css::template_dependencies;
+#[cfg(feature = "fs")]
+use crate::rendering::css::{build_css_context_with_fonts_url, render_css_with_context};
+#[cfg(feature = "fs")]
 use crate::rendering::paths::{path_to_slashes, relative_path};
 use crate::rendering::shared::to_io_err;
 use handlebars::{
@@ -16,6 +23,7 @@ use handlebars::{
 };
 use serde_json::{Map, Value};
 
+#[cfg(feature = "fs")]
 pub(crate) fn build_html_context(
     options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
@@ -35,6 +43,7 @@ pub(crate) fn build_html_context(
 }
 
 /// Reuse callback-mutated CSS while resolving default font URLs for the HTML destination.
+#[cfg(feature = "fs")]
 pub(crate) fn build_html_context_with_css(
     options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
@@ -80,7 +89,7 @@ pub(crate) fn render_html_with_hbs_context(
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 fn render_html_with_context(
     options: &ResolvedFileGenerationOptions,
     cached_registry: Option<&Handlebars<'static>>,
@@ -100,7 +109,7 @@ fn render_html_with_context(
 /// Pre-compile the HTML Handlebars template with the removePeriods helper.
 /// Returns Ok(None) when no custom template is configured.
 /// Returns Err when the template exists but fails to compile.
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 pub(crate) fn build_html_registry(
     options: &ResolvedFileGenerationOptions,
 ) -> Result<Option<Handlebars<'static>>, Error> {
@@ -108,19 +117,24 @@ pub(crate) fn build_html_registry(
 }
 
 pub(crate) struct HtmlTemplate {
+    #[cfg(feature = "fs")]
     pub(crate) source: Option<Arc<str>>,
     pub(crate) registry: Option<Handlebars<'static>>,
+    #[cfg(feature = "fs")]
     pub(crate) dependencies: TemplateDependencies,
 }
 
 pub(crate) fn compile_html_template(source: Option<Arc<str>>) -> Result<HtmlTemplate, Error> {
     let Some(text) = source.as_deref() else {
         return Ok(HtmlTemplate {
+            #[cfg(feature = "fs")]
             source,
             registry: None,
+            #[cfg(feature = "fs")]
             dependencies: TemplateDependencies::html_default(),
         });
     };
+    #[cfg(feature = "fs")]
     let dependencies = template_dependencies(text);
     let mut registry = Handlebars::new();
     registry.register_helper("removePeriods", Box::new(RemovePeriodsHelper));
@@ -128,13 +142,16 @@ pub(crate) fn compile_html_template(source: Option<Arc<str>>) -> Result<HtmlTemp
         .register_template_string("html", text)
         .map_err(|error| to_io_err(format!("Failed to compile HTML template: {error}")))?;
     Ok(HtmlTemplate {
+        #[cfg(feature = "fs")]
         source,
         registry: Some(registry),
+        #[cfg(feature = "fs")]
         dependencies,
     })
 }
 
 #[inline]
+#[cfg(feature = "fs")]
 pub(crate) fn render_default_html_with_styles(ctx: &Map<String, Value>, styles: &str) -> String {
     render_default_html_inner(ctx, styles)
 }
@@ -182,6 +199,7 @@ fn render_default_html_inner(ctx: &Map<String, Value>, styles: &str) -> String {
     result
 }
 
+#[cfg(feature = "fs")]
 fn html_css_fonts_url(options: &ResolvedFileGenerationOptions) -> String {
     let html_dir = Path::new(&options.html_dest)
         .parent()
@@ -189,6 +207,7 @@ fn html_css_fonts_url(options: &ResolvedFileGenerationOptions) -> String {
     path_to_slashes(relative_path(html_dir, Path::new(&options.dest)))
 }
 
+#[cfg(feature = "fs")]
 fn make_ctx(
     options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
@@ -276,5 +295,5 @@ impl HelperDef for RemovePeriodsHelper {
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;

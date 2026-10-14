@@ -1,7 +1,9 @@
 use std::sync::{Arc, atomic::Ordering};
 
 use super::*;
-use crate::{FontType, GenerateWebfontsOptions, SourceChange, SourceMembership, VariantSourceSet};
+#[cfg(feature = "fs")]
+use crate::GenerateWebfontsOptions;
+use crate::{FontType, SourceChange, SourceMembership, VariantSourceSet};
 
 const SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2H20V20H2Z"/></svg>"#;
 const OTHER: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0L24 24H0Z"/></svg>"#;
@@ -55,6 +57,7 @@ fn assert_fonts_equal(
 }
 
 #[test]
+#[cfg(feature = "fs")]
 fn text_generation_matches_files_and_companions_stay_lazy_and_shared() {
     let path = crate::test_helpers::webfont_fixture("add.svg");
     let svg = std::fs::read_to_string(&path).unwrap();
@@ -261,6 +264,7 @@ fn shared_variant_identity_is_validated_and_updates_all_memberships() {
 }
 
 #[tokio::test]
+#[cfg(feature = "async")]
 async fn async_generation_and_failed_updates_are_recoverable() {
     let result = generate_from_sources(options()).await.unwrap();
     let sync = generate_from_sources_sync(options()).unwrap();
@@ -310,6 +314,7 @@ fn invalid_source_batches_are_rejected_and_fingerprints_include_identity_and_tem
 }
 
 #[test]
+#[cfg(feature = "async")]
 fn async_calls_without_a_runtime_return_errors_and_preserve_update_state() {
     use std::future::Future;
     use std::pin::pin;
@@ -660,6 +665,7 @@ fn resolver_policy_and_internal_references_work_in_every_memory_mode() {
 }
 
 #[tokio::test]
+#[cfg(feature = "async")]
 async fn worker_panics_are_contextual_and_not_reported_as_recoverable() {
     let join = tokio::task::spawn_blocking(|| panic!("generation worker"))
         .await
@@ -740,6 +746,7 @@ fn color_selection_is_fixed_and_identical_text_keeps_separate_parse_modes() {
 }
 
 #[test]
+#[cfg(feature = "fs")]
 fn variant_text_generation_matches_files_including_color() {
     let path = crate::test_helpers::webfont_fixture("add.svg");
     let svg = std::fs::read_to_string(&path).unwrap();
@@ -783,6 +790,7 @@ fn variant_text_generation_matches_files_including_color() {
 }
 
 #[tokio::test]
+#[cfg(feature = "async")]
 async fn variant_parse_failure_recovers_and_retry_matches_fresh_generation() {
     let result = generate_from_sources(variant_options()).await.unwrap();
     let sets = || {
@@ -1066,6 +1074,7 @@ fn rejected_batches_preserve_sources_payloads_and_reusable_caches() {
 }
 
 #[test]
+#[cfg(feature = "fs")]
 fn custom_templates_and_nondefault_settings_match_the_file_adapter() {
     let css_text = "{{fontName}}\n{{{src}}}\n{{#each codepoints}}{{@key}}={{this}};{{/each}}";
     let html_text = "{{fontName}}\n{{{styles}}}\n{{#each names}}{{this}};{{/each}}";

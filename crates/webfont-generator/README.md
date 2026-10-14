@@ -67,8 +67,29 @@ cargo install webfont-generator --features cli
 webfont-generator --dest ./dist/fonts ./icons/
 ```
 
-Default features are empty. `cli` enables the command-line binary and JSON configuration;
-`bench` exposes benchmark helpers. The previous `napi` Cargo feature and Node-specific
+## Cargo features
+
+| Feature     | Default | Enables                                                                                                |
+| ----------- | ------- | ------------------------------------------------------------------------------------------------------ |
+| `fs`        | yes     | File/path APIs, hooks, file templates and output writers; implies `async` and Tokio filesystem support |
+| `in_memory` | yes     | SVG text APIs, inline templates, output collection and source updates                                  |
+| `async`     | yes     | Tokio-backed asynchronous APIs; synchronous text APIs do not need it                                   |
+| `cli`       | no      | Command-line binary and JSON configuration; implies `fs`                                               |
+| `bench`     | no      | Internal benchmark helpers; implies `fs` and `in_memory`                                               |
+
+Defaults preserve both existing APIs. For synchronous text-only use without a normal
+Tokio dependency:
+
+```toml
+webfont-generator = { version = "0.9", default-features = false, features = ["in_memory"] }
+```
+
+Add `async` for text generation and regeneration on Tokio's blocking pool. File-only
+consumers can select `fs` instead. Even synchronous file generation uses Tokio internally,
+so `fs` always enables `async`. Features are additive when Cargo unifies dependencies.
+These flags select native Rust capabilities; they do not yet guarantee WASM support.
+
+The previous `napi` Cargo feature and Node-specific
 Rust entry point have moved to the unpublished `webfont-generator-napi` workspace crate.
 This is a Cargo API breaking change; existing npm imports remain unchanged.
 

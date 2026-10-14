@@ -16,12 +16,16 @@ fn color_proof() -> SerializedFontTables {
     let short = font.head().unwrap().index_to_loc_format() == 0;
     let loca = table_bytes(&source, *b"loca");
     let offsets: Vec<usize> = if short {
-        loca.chunks_exact(2)
-            .map(|v| usize::from(u16::from_be_bytes(v.try_into().unwrap())) * 2)
+        loca.as_chunks::<2>()
+            .0
+            .iter()
+            .map(|v| usize::from(u16::from_be_bytes(*v)) * 2)
             .collect()
     } else {
-        loca.chunks_exact(4)
-            .map(|v| u32::from_be_bytes(v.try_into().unwrap()) as usize)
+        loca.as_chunks::<4>()
+            .0
+            .iter()
+            .map(|v| u32::from_be_bytes(*v) as usize)
             .collect()
     };
     let mut glyf = table_bytes(&source, *b"glyf").to_vec();

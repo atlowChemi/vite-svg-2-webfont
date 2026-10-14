@@ -1,21 +1,28 @@
+#[cfg(feature = "fs")]
 mod files;
 mod options;
 mod sources;
 
+#[cfg(any(feature = "in_memory", test))]
+pub(crate) use options::GenerationOptions;
+#[cfg(feature = "in_memory")]
 pub(crate) use options::{
-    GenerationOptions, VariantMetadata, resolve_variant_metadata, validate_format_options,
-    validate_variants,
+    VariantMetadata, resolve_variant_metadata, validate_format_options, validate_variants,
 };
 
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 pub(crate) use files::load_variant_svg_files;
+#[cfg(feature = "fs")]
 pub(crate) use files::{load_svg_files_with_hooks, load_variant_svg_files_with_hooks};
-#[cfg(any(test, feature = "bench"))]
+#[cfg(all(feature = "fs", any(test, feature = "bench")))]
 pub(crate) use options::resolve_generate_webfonts_options;
+#[cfg(feature = "fs")]
 pub(crate) use options::{
-    ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants,
-    default_output_dest, finalize_generate_webfonts_options,
-    resolve_validated_generate_webfonts_options, validate_color_names,
+    ResolvedFileGenerationOptions, default_output_dest, resolve_validated_generate_webfonts_options,
+};
+pub(crate) use options::{
+    ResolvedGenerationOptions, ResolvedVariants, finalize_generate_webfonts_options,
+    validate_color_names,
 };
 pub(crate) use sources::{
     LoadedSvgSource, VariantFamilySources, VariantGlyphSource, build_variant_family_sources,

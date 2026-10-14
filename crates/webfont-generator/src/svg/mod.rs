@@ -5,7 +5,7 @@ mod incremental;
 mod parse;
 mod process;
 mod serialize;
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;
 pub(crate) mod types;
 mod winding;
@@ -90,6 +90,7 @@ pub(crate) fn prepare_svg_font(
     finalize_glyphs(options, glyphs)
 }
 
+#[cfg(feature = "fs")]
 pub(crate) fn prepare_variant_svg_family<Files: AsRef<[LoadedSvgSource]>>(
     options: &SvgOptions,
     family: &VariantFamilySources<Files>,

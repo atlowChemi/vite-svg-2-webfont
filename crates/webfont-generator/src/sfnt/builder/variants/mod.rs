@@ -35,7 +35,7 @@ const FIRST_VARIANT_NAME_ID: u16 = 257;
 
 pub(crate) struct VariantFontBuild {
     pub(crate) tables: SerializedFontTables,
-    #[cfg(test)]
+    #[cfg(all(test, feature = "fs"))]
     pub(crate) presentation_gids: Vec<Box<[GlyphId16]>>,
 }
 
@@ -283,7 +283,7 @@ pub(crate) fn build_variant(
 
     Ok(VariantFontBuild {
         tables: SerializedFontTables::new(tables)?,
-        #[cfg(test)]
+        #[cfg(all(test, feature = "fs"))]
         presentation_gids,
     })
 }
@@ -566,5 +566,5 @@ fn checked_gids(
         .collect())
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;

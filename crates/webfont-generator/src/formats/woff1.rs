@@ -24,7 +24,7 @@ pub(crate) struct Woff1PayloadCache {
 }
 
 impl Woff1PayloadCache {
-    #[cfg(test)]
+    #[cfg(all(test, feature = "fs"))]
     pub(crate) fn len(&self) -> usize {
         self.entries.len()
     }
@@ -42,7 +42,7 @@ impl Woff1PayloadCache {
     pub(crate) fn retain_woff1_payloads(&mut self, used_keys: &HashSet<u64>) {
         self.entries.retain(|key, _| used_keys.contains(key));
     }
-    #[cfg(test)]
+    #[cfg(all(test, feature = "fs"))]
     pub(crate) fn compile_count(&self) -> usize {
         self.compile_count
     }

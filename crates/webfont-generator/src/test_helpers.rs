@@ -1,15 +1,20 @@
 use std::fs;
+#[cfg(feature = "fs")]
 use std::path::{Path, PathBuf};
+#[cfg(feature = "fs")]
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions};
+use crate::input::{GenerationOptions, LoadedSvgSource, finalize_generate_webfonts_options};
+#[cfg(feature = "fs")]
+use crate::input::{ResolvedFileGenerationOptions, resolve_generate_webfonts_options};
 
-use crate::input::{finalize_generate_webfonts_options, resolve_generate_webfonts_options};
+#[cfg(feature = "fs")]
 pub fn resolve_options(options: crate::GenerateWebfontsOptions) -> ResolvedFileGenerationOptions {
     resolve_generate_webfonts_options(options)
         .unwrap_or_else(|error| panic!("native options should resolve: {error}"))
 }
 
+#[cfg(feature = "fs")]
 pub fn write_temp_template(prefix: &str, contents: &str) -> String {
     let unique = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -20,6 +25,7 @@ pub fn write_temp_template(prefix: &str, contents: &str) -> String {
     path.to_string_lossy().into_owned()
 }
 
+#[cfg(feature = "fs")]
 pub fn fixture_source_files(options: &ResolvedFileGenerationOptions) -> Vec<LoadedSvgSource> {
     vec![LoadedSvgSource {
         contents: fs::read_to_string(&options.files[0])
@@ -42,16 +48,22 @@ pub fn webfont_fixture(name: &str) -> String {
 }
 
 pub fn fixture_font_tables() -> crate::sfnt::SerializedFontTables {
-    let mut options = resolve_options(crate::GenerateWebfontsOptions {
+    let mut options = GenerationOptions {
         css: Some(false),
-        dest: "artifacts".to_string(),
-        files: vec![webfont_fixture("add.svg")],
         html: Some(false),
         font_name: Some("iconfont".to_string()),
         ligature: Some(false),
         ..Default::default()
-    });
-    let source_files = fixture_source_files(&options);
+    }
+    .resolve(false)
+    .expect("fixture options should resolve");
+    let source_files = vec![LoadedSvgSource {
+        contents: fs::read_to_string(webfont_fixture("add.svg"))
+            .expect("fixture should load")
+            .into(),
+        glyph_name: "add".into(),
+        id: webfont_fixture("add.svg"),
+    }];
     finalize_generate_webfonts_options(&mut options, &source_files)
         .expect("expected options to finalize");
     let svg_options = crate::svg::svg_options_from_options(&options);
@@ -65,6 +77,7 @@ pub fn fixture_font_tables() -> crate::sfnt::SerializedFontTables {
     .expect("expected ttf generation to succeed")
 }
 
+#[cfg(feature = "fs")]
 pub fn icons_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src/svg/fixtures/icons")
@@ -72,6 +85,7 @@ pub fn icons_root() -> PathBuf {
         .expect("native icon fixture root should exist")
 }
 
+#[cfg(feature = "fs")]
 pub fn update_snapshots_enabled() -> bool {
     std::env::var_os("UPDATE_SVG_FIXTURES").is_some_and(|value| value != "0")
 }

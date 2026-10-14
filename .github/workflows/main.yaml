@@ -95,6 +95,7 @@ jobs:
                   cache: true
             - run: vp check
             - run: vp run @atlowchemi/webfont-generator#check
+            - run: vp run @atlowchemi/webfont-engine#test:features
 
     rust-coverage:
         name: Rust coverage (${{ matrix.suite }})

@@ -6,9 +6,12 @@ use std::sync::Arc;
 use handlebars::Handlebars;
 use serde_json::{Map, Value};
 
+#[cfg(feature = "fs")]
 use super::dependencies::{TemplateDependencies, template_dependencies};
+#[cfg(feature = "fs")]
+use crate::input::ResolvedFileGenerationOptions;
 use crate::{
-    input::{ResolvedFileGenerationOptions, ResolvedGenerationOptions, ResolvedVariants},
+    input::{ResolvedGenerationOptions, ResolvedVariants},
     rendering::{paths::join_url, shared::to_io_err},
     types::FontType,
 };
@@ -80,6 +83,7 @@ pub(crate) fn make_src(
     result
 }
 
+#[cfg(feature = "fs")]
 pub(super) fn make_ctx(
     options: &ResolvedFileGenerationOptions,
     urls: &HashMap<FontType, String>,
@@ -153,6 +157,7 @@ pub(crate) fn make_content_css_context(
     ctx
 }
 
+#[cfg(feature = "fs")]
 pub(crate) fn build_css_context(
     options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
@@ -160,6 +165,7 @@ pub(crate) fn build_css_context(
     build_css_context_with_fonts_url(options, shared, options.css_fonts_url.as_deref())
 }
 
+#[cfg(feature = "fs")]
 pub(crate) fn build_css_context_with_fonts_url(
     options: &ResolvedFileGenerationOptions,
     shared: &SharedTemplateData,
@@ -177,8 +183,10 @@ pub(crate) struct SharedTemplateData {
     pub codepoints_num: Map<String, Value>,
     pub(crate) css_template_source: Option<Arc<str>>,
     css_registry_cache: std::sync::OnceLock<Result<Handlebars<'static>, String>>,
+    #[cfg(feature = "fs")]
     pub css_template_dependencies: TemplateDependencies,
     /// Whether the CSS template references `{src}` — if false, URL overrides are a no-op.
+    #[cfg(feature = "fs")]
     pub css_template_uses_src: bool,
     pub hash: String,
     pub template_options: Map<String, Value>,
@@ -196,10 +204,12 @@ impl SharedTemplateData {
     ) -> Self {
         // Default template always uses src. Dynamic custom templates stay URL-sensitive because
         // helpers, partials, or whole-context reads may observe `src` indirectly.
+        #[cfg(feature = "fs")]
         let css_template_dependencies = match &css_template_source {
             None => TemplateDependencies::css_default(),
             Some(source) => template_dependencies(source),
         };
+        #[cfg(feature = "fs")]
         let css_template_uses_src = css_template_dependencies.may_depend_on_src();
         let (codepoints_hex, codepoints_num) = make_codepoints(options);
         Self {
@@ -207,7 +217,9 @@ impl SharedTemplateData {
             codepoints_num,
             css_template_source,
             css_registry_cache: std::sync::OnceLock::new(),
+            #[cfg(feature = "fs")]
             css_template_dependencies,
+            #[cfg(feature = "fs")]
             css_template_uses_src,
             hash,
             template_options: resolved_template_options(options),
