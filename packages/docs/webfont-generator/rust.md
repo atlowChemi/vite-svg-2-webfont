@@ -20,15 +20,9 @@ cargo add webfont-generator
 | `cli`       | no      | CLI with JSON manifest support; implies `fs` and adds `clap` and `serde_path_to_error`                                  |
 | `bench`     | no      | Internal Criterion benchmark helpers; implies `fs` and `in_memory`                                                      |
 
-Default features preserve the existing file and text APIs. To use only synchronous SVG text APIs:
-
-```toml
-webfont-generator = { version = "0.9", default-features = false, features = ["in_memory"] }
-```
-
-Add `async` to enable `generate_from_sources`, consuming asynchronous `regenerate`, and
+The `async` feature enables `generate_from_sources`, consuming asynchronous `regenerate`, and
 `SourceRegenerateError`. With only `in_memory`, Tokio is absent from the engine's normal
-dependencies. Select `fs` instead for a file-only integration. `generate_sync` creates a
+dependencies. Select `fs` for a file-only integration. `generate_sync` creates a
 Tokio runtime internally, so `fs` implies `async` even for synchronous callers.
 
 Features are additive: another dependency can enable additional capabilities in the same

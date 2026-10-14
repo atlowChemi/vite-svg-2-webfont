@@ -77,15 +77,8 @@ webfont-generator --dest ./dist/fonts ./icons/
 | `cli`       | no      | Command-line binary and JSON configuration; implies `fs`                                               |
 | `bench`     | no      | Internal benchmark helpers; implies `fs` and `in_memory`                                               |
 
-Defaults preserve both existing APIs. For synchronous text-only use without a normal
-Tokio dependency:
-
-```toml
-webfont-generator = { version = "0.9", default-features = false, features = ["in_memory"] }
-```
-
-Add `async` for text generation and regeneration on Tokio's blocking pool. File-only
-consumers can select `fs` instead. Even synchronous file generation uses Tokio internally,
+The `async` feature enables text generation and regeneration on Tokio's blocking pool. File-only
+consumers can select `fs`. Even synchronous file generation uses Tokio internally,
 so `fs` always enables `async`. Features are additive when Cargo unifies dependencies.
 These flags select native Rust capabilities; they do not yet guarantee WASM support.
 
