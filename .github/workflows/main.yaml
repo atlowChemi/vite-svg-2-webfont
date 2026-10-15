@@ -315,7 +315,7 @@ jobs:
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Install WASM coverage toolchain
               run: |
-                  rustup toolchain install nightly-2026-09-14 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
+                  rustup toolchain install nightly-2026-02-18 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
                   sudo apt-get update
                   sudo apt-get install -y clang
             - uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2.87.27

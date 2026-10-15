@@ -23,10 +23,11 @@ run('node', ['scripts/ci/validate-native-coverage.mjs', 'coverage/browser-js/lco
 mkdirSync(`${root}/coverage/browser-rust`, { recursive: true });
 // wasm-bindgen-test supplies minicov's WASM profiling runtime. Coverage alone needs
 // nightly; release builds continue using stable and contain no profiling runtime.
+// Match upstream's LLVM 22 nightly: wasm-bindgen-test pins minicov 0.3.8's profiling runtime.
 run(
     'cargo',
     [
-        `+${process.env.WEBFONT_COVERAGE_TOOLCHAIN ?? 'nightly-2026-09-14'}`,
+        `+${process.env.WEBFONT_COVERAGE_TOOLCHAIN ?? 'nightly-2026-02-18'}`,
         'llvm-cov',
         'test',
         '--locked',
