@@ -18,7 +18,7 @@ fn generates_copied_outputs_and_recovers_from_errors() {
     assert!(session.font("unknown").is_err());
     assert!(session.css().unwrap().contains("@font-face"));
     assert!(session.html().unwrap().contains("square"));
-    assert_eq!(session.outputs().unwrap().length(), 7);
+    assert_eq!(Object::keys(&session.outputs().unwrap()).length(), 7);
     let original = session.font("ttf").unwrap().unwrap();
     let saved = original.to_vec();
     assert!(session.regenerate("invalid", "[]").is_err());

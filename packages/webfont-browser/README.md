@@ -90,7 +90,8 @@ WASM assets together, including the small smoke-app entry point.
   `colorGlyphs: true` or a glyph-name list enables solid-color fonts in modern formats.
 - `font(format)` returns copied bytes, or `undefined` for a format not requested. It does not
   render CSS or HTML. `generateCss()` and `generateHtml()` render independently on demand.
-  `collectOutputs()` returns `{ kind, bytes }[]` for requested fonts and enabled companions.
+  `collectOutputs()` returns `Partial<Record<FontType | 'css' | 'html', Uint8Array<ArrayBuffer>>>`.
+  Access bytes by kind, such as `outputs.woff2` or `outputs.css`; unrequested outputs are omitted.
 - The worker copies Rust buffers into JS-owned arrays and transfers those arrays to the caller.
   Returned bytes remain usable after updates or disposal; changing them cannot affect the result.
 - Updates require `incremental: true`, complete final membership, and only changed sources.

@@ -1,6 +1,5 @@
-import type { RequestPayload, Response, Result } from './protocol';
-import type { CollectedOutput, FontType, GenerateWebfontsOptions, SourceChange, SourceMembership, WebfontResult } from './types';
-export type { CollectedOutput, FontType, GenerateWebfontsOptions, JsonValue, SourceChange, SourceFontVariant, SourceMembership, SvgSource, WebfontResult } from './types';
+import type { CollectedOutputs, FontType, GenerateWebfontsOptions, RequestPayload, Response, Result, SourceChange, SourceMembership, WebfontResult } from './types';
+export type { CollectedOutputs, FontType, GenerateWebfontsOptions, JsonValue, SourceChange, SourceFontVariant, SourceMembership, SvgSource, WebfontResult } from './types';
 
 function json(value: unknown): string {
     return JSON.stringify(value, (_key, item: unknown) => {
@@ -18,7 +17,7 @@ export async function generateWebfonts(options: GenerateWebfontsOptions, runtime
     const worker = runtime.workerUrl
         ? new Worker(runtime.workerUrl, { type: 'module', name: 'webfont-browser' })
         : new Worker(new URL('./worker.js', import.meta.url), { type: 'module', name: 'webfont-browser' });
-    const pending = new Map<number, { resolve: (value: Result) => void; reject: (error: Error) => void }>();
+    const pending = new Map<number, Omit<PromiseWithResolvers<Result>, 'promise'>>();
     let nextId = 0;
     let failure: Error | undefined;
 
@@ -33,28 +32,28 @@ export async function generateWebfonts(options: GenerateWebfontsOptions, runtime
     worker.addEventListener('messageerror', () => close(new Error('Unable to decode webfont worker response')));
     worker.addEventListener('message', ({ data }: MessageEvent<Response>) => {
         if (!data.ok && data.fatal) {
-            close(new Error(data.error));
+            close(data.error);
             return;
         }
         const call = pending.get(data.id);
         if (!call) return;
         pending.delete(data.id);
         if (data.ok) call.resolve(data.value);
-        else call.reject(new Error(data.error));
+        else call.reject(data.error);
     });
 
     function request<T extends Result>(message: RequestPayload): Promise<T> {
         if (failure) return Promise.reject(failure);
         const id = nextId++;
-        return new Promise<T>((resolve, reject) => {
-            pending.set(id, { resolve: value => resolve(value as T), reject });
-            try {
-                worker.postMessage({ ...message, id }, []);
-            } catch (error) {
-                pending.delete(id);
-                reject(error);
-            }
-        });
+        const { promise, resolve, reject } = Promise.withResolvers<Result>();
+        pending.set(id, { resolve, reject });
+        try {
+            worker.postMessage({ ...message, id }, []);
+        } catch (error) {
+            pending.delete(id);
+            reject(error);
+        }
+        return promise as Promise<T>;
     }
 
     try {
@@ -68,7 +67,7 @@ export async function generateWebfonts(options: GenerateWebfontsOptions, runtime
         font: (format: FontType) => request<Uint8Array<ArrayBuffer> | undefined>({ method: 'font', format }),
         generateCss: () => request<string>({ method: 'css' }),
         generateHtml: () => request<string>({ method: 'html' }),
-        collectOutputs: () => request<CollectedOutput[]>({ method: 'outputs' }),
+        collectOutputs: () => request<CollectedOutputs>({ method: 'outputs' }),
         regenerate: async (membership: SourceMembership, changes: SourceChange[]): Promise<void> => {
             await request({ method: 'regenerate', membership: json(membership), changes: json(changes) });
         },

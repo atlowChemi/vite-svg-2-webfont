@@ -25,9 +25,9 @@ export class FontSession {
      */
     constructor(options: string);
     /**
-     * Copy requested fonts and enabled companion outputs into independent byte arrays.
+     * Copy requested fonts and enabled companions into an object keyed by output kind.
      */
-    outputs(): Array<any>;
+    outputs(): object;
     /**
      * Apply a source batch with complete final membership. Ordinary errors retain the result.
      */

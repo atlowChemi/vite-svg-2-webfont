@@ -1,7 +1,7 @@
 //! Browser-only, filesystem-free bindings. The worker owns each session; output arrays
 //! are copied into JavaScript-owned memory before transfer to the caller.
 
-use js_sys::{Array, Object, Reflect, Uint8Array};
+use js_sys::{Object, Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 use webfont_generator::{
     FontType, GenerateWebfontsFromSourcesOptions, GenerateWebfontsFromSourcesResult, OutputKind,
@@ -84,23 +84,20 @@ impl FontSession {
             .map_err(error)
     }
 
-    /// Copy requested fonts and enabled companion outputs into independent byte arrays.
-    pub fn outputs(&self) -> Result<Array, JsValue> {
-        let result = Array::new();
+    /// Copy requested fonts and enabled companions into an object keyed by output kind.
+    pub fn outputs(&self) -> Result<Object, JsValue> {
+        let result = Object::new();
         for output in self.0.collect_outputs().map_err(error)? {
             let kind = match output.kind {
                 OutputKind::Font(font) => font.as_extension(),
                 OutputKind::Css => "css",
                 OutputKind::Html => "html",
             };
-            let item = Object::new();
-            Reflect::set(&item, &"kind".into(), &kind.into())?;
             Reflect::set(
-                &item,
-                &"bytes".into(),
+                &result,
+                &kind.into(),
                 &Uint8Array::from(output.contents.as_bytes()),
             )?;
-            result.push(&item);
         }
         Ok(result)
     }

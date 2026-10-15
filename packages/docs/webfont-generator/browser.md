@@ -10,33 +10,42 @@ worker code and WASM; applications need no Rust tools or install-time compilatio
 
 ## Installation
 
-```sh
+::: code-group
+
+```sh [npm]
 npm install @atlowchemi/webfont-browser-generator
 ```
 
-Vite apps, including React, automatically bundle the worker and WASM. Invoke generation in
-the browser rather than during server rendering.
+```sh [pnpm]
+pnpm add @atlowchemi/webfont-browser-generator
+```
 
-For local package development, `vp run @atlowchemi/webfont-browser-generator#pack` builds
-the complete distribution; `#pack:tgz` creates an installable tarball for demo applications.
+```sh [yarn]
+yarn add @atlowchemi/webfont-browser-generator
+```
 
-## Generation
+```sh [bun]
+bun add @atlowchemi/webfont-browser-generator
+```
 
-```ts
+:::
+
+## How to use
+
+Import `generateWebfonts` in your Vite application's client code. Vite automatically bundles
+the worker and WASM assets; no additional Vite configuration is needed.
+
+```ts [src/main.ts]
 import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';
 
-const result = await generateWebfonts({
+using result = await generateWebfonts({
     sources: [{ id: 'square', name: 'square', svg: '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>' }],
     types: ['woff2'],
     incremental: true,
     formatOptions: { ttf: { ts: 0 } },
 });
-try {
-    const bytes = await result.font('woff2');
-    const css = await result.generateCss();
-} finally {
-    result.dispose();
-}
+const bytes = await result.font('woff2');
+const css = await result.generateCss();
 ```
 
 Options follow the [Rust SVG text API](./rust#svg-text-api) in camelCase, including variants,
@@ -51,20 +60,23 @@ WOFF2 uses single-threaded Brotli at every supported compression quality (0–11
 
 ## Result methods
 
-With Explicit Resource Management, `using result = await generateWebfonts(options)` automatically
-cleans up at scope exit, including exceptions. `Symbol.dispose` terminates the worker synchronously,
-so `await using` is unnecessary. Use `dispose()` for framework-managed lifetimes that span scopes.
+::: tip
+An explicit `dispose()` method is available for manually managed lifetimes instead of using Explicit Resource Management. It is idempotent: calling it more than once has no additional effect and does not throw.
+:::
 
-| Method                            | Result                             | Behavior                                                                 |
-| --------------------------------- | ---------------------------------- | ------------------------------------------------------------------------ |
-| `font(format)`                    | `Promise<Uint8Array \| undefined>` | Copy a requested font; does not render templates                         |
-| `generateCss()`                   | `Promise<string>`                  | Lazy CSS render, even if CSS collection is disabled                      |
-| `generateHtml()`                  | `Promise<string>`                  | Lazy HTML render, reusing CSS                                            |
-| `collectOutputs()`                | `Promise<{ kind, bytes }[]>`       | Requested fonts and enabled CSS/HTML, with independently owned bytes     |
-| `regenerate(membership, changes)` | `Promise<void>`                    | Apply source updates; requires `incremental: true`                       |
-| `dispose()`                       | `void`                             | Terminate the worker, releasing its instance and rejecting pending calls |
+| Method                            | Result                             | Behavior                                                                                                             |
+| --------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `font(format)`                    | `Promise<Uint8Array \| undefined>` | Copy a requested font; does not render templates                                                                     |
+| `generateCss()`                   | `Promise<string>`                  | Lazy CSS render, even if CSS collection is disabled                                                                  |
+| `generateHtml()`                  | `Promise<string>`                  | Lazy HTML render, reusing CSS                                                                                        |
+| `collectOutputs()`                | `Promise<CollectedOutputs>`        | Object keyed by output kind, with independently owned bytes; unrequested outputs are omitted                         |
+| `regenerate(membership, changes)` | `Promise<void>`                    | Apply source updates; requires `incremental: true`                                                                   |
+| `dispose()`                       | `void`                             | Terminate the worker and reject pending calls. Idempotent: repeated calls have no additional effect and do not throw |
 
-Calls on one result execute in submission order. Returned arrays remain valid after updates
+`CollectedOutputs` is `Partial<Record<FontType | 'css' | 'html', Uint8Array<ArrayBuffer>>>`.
+Access outputs directly by kind, for example `(await result.collectOutputs()).woff2`.
+
+Calls on one result execute in submission order. Returned byte arrays remain valid after updates
 and disposal and cannot mutate the engine's retained buffers. CSS and HTML are compiled lazily;
 an invalid HTML template does not prevent accessing a font or rendering CSS.
 

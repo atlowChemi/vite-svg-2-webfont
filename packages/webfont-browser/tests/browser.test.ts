@@ -26,7 +26,9 @@ function table(bytes: Uint8Array<ArrayBuffer>, tag: string): number {
 it('generates copied fonts in a worker and browsers load all modern containers', async () => {
     const result = await generate({ types: ['svg', 'ttf', 'woff', 'woff2', 'eot'], html: true });
     const outputs = await result.collectOutputs();
-    expect(outputs.map(output => output.kind).toSorted()).toEqual(['css', 'eot', 'html', 'svg', 'ttf', 'woff', 'woff2']);
+    expect(Object.keys(outputs).toSorted()).toEqual(['css', 'eot', 'html', 'svg', 'ttf', 'woff', 'woff2']);
+    expect(outputs.woff2).toEqual(await result.font('woff2'));
+    expect(new TextDecoder().decode(outputs.css)).toBe(await result.generateCss());
     await Promise.all(
         (['ttf', 'woff', 'woff2'] as const).map(async format => {
             const bytes = await result.font(format);
@@ -43,7 +45,7 @@ it('generates copied fonts in a worker and browsers load all modern containers',
     expect(await result.generateHtml()).toContain('square');
     expect(Object.keys(result).toSorted()).toEqual(['collectOutputs', 'dispose', 'font', 'generateCss', 'generateHtml', 'regenerate']);
     result.dispose();
-    expect(outputs.every(output => output.bytes.byteLength > 0)).toBe(true);
+    expect(Object.values(outputs).every(bytes => bytes.byteLength > 0)).toBe(true);
     await expect(result.font('ttf')).rejects.toThrow('disposed');
     result.dispose();
 });
@@ -64,7 +66,7 @@ it('captures the browser clock when a timestamp is omitted and retains it across
 it('serializes recoverable updates, supports additions/removals/renames and preserves old copies', async () => {
     const result = await generate({ incremental: true });
     const before = await result.collectOutputs();
-    const saved = before.map(output => output.bytes.slice());
+    const saved = structuredClone(before);
     const invalid = result.regenerate({ sources: [source.id] }, [{ type: 'changed', id: source.id, svg: '<broken' }]);
     const readAfterFailure = result.collectOutputs();
     await expect(invalid).rejects.toThrow('SVG source');
@@ -80,7 +82,7 @@ it('serializes recoverable updates, supports additions/removals/renames and pres
     await result.regenerate({ sources: [source.id] }, [{ type: 'removed', id: second.id }]);
     const single = await generate({ sources: [{ ...source, name: 'renamed', svg: changed }] });
     expect(await result.collectOutputs()).toEqual(await single.collectOutputs());
-    expect(before.map(output => output.bytes)).toEqual(saved);
+    expect(before).toEqual(saved);
 });
 
 it('keeps templates inline and lazy, independently of requested font bytes', async () => {
@@ -92,7 +94,10 @@ it('keeps templates inline and lazy, independently of requested font bytes', asy
     const inline = await generate({ css: false, html: false, cssTemplate: '', htmlTemplate: '<main>{{{styles}}}</main>', types: ['svg'] });
     expect(await inline.generateCss()).toBe('');
     expect(await inline.generateHtml()).toBe('<main></main>');
-    expect((await inline.collectOutputs()).map(output => output.kind)).toEqual(['svg']);
+    const outputs = await inline.collectOutputs();
+    expect(Object.keys(outputs)).toEqual(['svg']);
+    expect(outputs.woff2).toBeUndefined();
+    expect(outputs.css).toBeUndefined();
     expect(await inline.font('woff')).toBeUndefined();
 });
 
