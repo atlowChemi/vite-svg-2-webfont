@@ -300,6 +300,12 @@ jobs:
                   CI_TEST_SUITE: wasm-browser-linux-x64
                   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
                   ALLOW_BUNDLE_ANALYSIS: 'true'
+            - name: Upload WASM binding
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: bindings-wasm32-unknown-unknown
+                  path: packages/webfont-browser/generated/
+                  if-no-files-found: error
             - name: Upload WASM browser results
               if: ${{ !cancelled() && hashFiles('test-results/wasm-browser.xml') != '' }}
               uses: ./.github/actions/upload-test-results

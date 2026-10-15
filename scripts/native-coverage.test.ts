@@ -44,6 +44,16 @@ it('requires executed WASM adapter coverage rather than native engine coverage',
     expect(validate(report, 'browser-rust')).toMatchObject({ status: 0, text: report });
 });
 
+it.each([
+    ['adapter', 'packages/webfont-generator/native/lib.rs', 'crates/webfont-generator/src/lib.rs'],
+    ['engine', 'crates/webfont-generator/src/lib.rs', 'packages/webfont-generator/native/lib.rs'],
+])('requires executed %s coverage independently', (mode, source, unrelated) => {
+    expect(validate(record(unrelated, 1), mode).status).not.toBe(0);
+    expect(validate(record(source, 0), mode).status).not.toBe(0);
+    const report = record(source, 1);
+    expect(validate(report, mode)).toMatchObject({ status: 0, text: report });
+});
+
 it('normalizes native sources and package-local JS sources to repository paths', () => {
     const result = validate(record(`${root}/crates/webfont-generator/src/lib.rs`, 1) + record(`${root}/packages/webfont-generator/native/lib.rs`, 1));
     expect(result.status).toBe(0);
