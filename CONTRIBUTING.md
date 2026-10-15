@@ -210,11 +210,12 @@ WASM tests through wasm-bindgen-test in Node. It requires `cargo-llvm-cov` 0.9.0
 `clang` on PATH, and this coverage-only toolchain:
 
 ```sh
-rustup toolchain install nightly-2026-09-14 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
+rustup toolchain install nightly-2026-02-18 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
 ```
 
 On macOS, put Homebrew LLVM's `bin` directory on PATH; Apple clang lacks the WASM target.
 `WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage toolchain; normal builds use stable Rust.
+The pinned nightly uses LLVM 22 to match wasm-bindgen-test's exact minicov 0.3.8 dependency.
 CI uploads coverage with the `browser-js` and `browser-rust` flags and reports the production
 smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.
 
