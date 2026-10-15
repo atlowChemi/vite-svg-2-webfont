@@ -131,7 +131,9 @@ describe('real Git/pnpm affected selection', () => {
         expect(result.packages).toEqual([...packages].toSorted());
         expect(result.jobs['rust-coverage']).toBe(rust);
         expect(result.rustSuites).toEqual((packages as readonly string[]).includes(packageNames.engine) ? ['engine', 'cli', 'adapter'] : rust ? ['adapter'] : []);
-        expect(result.nativeBuildScope).toBe(rust ? 'full' : 'linux-x64');
+        const hostSensitive = (packages as readonly string[]).includes(packageNames.plugin);
+        expect(result.jobs['test-host']).toBe(hostSensitive);
+        expect(result.nativeBuildScope).toBe(hostSensitive ? 'full' : 'linux-x64');
         expect(result.jobs.docs).toBe(path.startsWith('packages/docs/') || path === 'packages/vite-svg-2-webfont/CHANGELOG.md');
     });
 

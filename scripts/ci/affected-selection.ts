@@ -17,7 +17,9 @@ const changelogFiles = new Set(['crates/webfont-generator/CHANGELOG.md', 'packag
 // Map pnpm's affected packages to the existing CI job groups and prerequisites.
 export function selectJobs(packages: string[], files: string[], unknownChanges = false): Record<string, boolean> {
     const native = packages.includes(packageNames.engine) || packages.includes(packageNames.adapter);
-    const plugin = native || packages.includes(packageNames.plugin) || packages.includes(packageNames.example);
+    // The plugin's file-system and path handling is platform-sensitive on its own, not only through the native binding.
+    const hostSensitive = native || packages.includes(packageNames.plugin);
+    const plugin = hostSensitive || packages.includes(packageNames.example);
     return {
         ci: true,
         'test-scripts': unknownChanges || files.some(file => file.startsWith('scripts/')),
@@ -26,7 +28,7 @@ export function selectJobs(packages: string[], files: string[], unknownChanges =
         build: plugin,
         docs: packages.includes(packageNames.docs),
         'test-browser': plugin,
-        'test-host': native,
+        'test-host': hostSensitive,
         'test-docker': native,
         'test-vite-compat': plugin,
     };

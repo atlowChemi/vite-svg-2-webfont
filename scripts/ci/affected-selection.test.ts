@@ -39,13 +39,20 @@ describe('affected CI', () => {
         ).toEqual(['ci', 'docs']);
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: false });
     });
-    it('provides plugin native artifacts without refreshing Rust coverage', () => {
+    it('runs host platform tests for plugin changes without refreshing Rust coverage', () => {
         const selection = scenario(['packages/vite-svg-2-webfont/src/index.ts'], [packageNames.plugin, packageNames.example]);
         expect(selection.jobs.build).toBe(true);
+        expect(selection.jobs['test-host']).toBe(true);
         expect(selection.jobs['rust-coverage']).toBe(false);
-        expect(selection.nativeBuildScope).toBe('linux-x64');
+        expect(selection.nativeBuildScope).toBe('full');
         expect(selection.rustSuites).toEqual([]);
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
+    });
+    it('keeps example-only changes on the Linux build', () => {
+        const selection = scenario(['packages/example/src/main.ts'], [packageNames.example]);
+        expect(selection.jobs.build).toBe(true);
+        expect(selection.jobs['test-host']).toBe(false);
+        expect(selection.nativeBuildScope).toBe('linux-x64');
     });
     it('runs only adapter Rust tests for adapter-only changes', () => {
         const selection = scenario(['packages/webfont-generator/native/lib.rs'], [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.root]);
