@@ -162,7 +162,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         const files = [...(input.files ?? input.variants.flatMap(variant => variant.files)), ...[input.cssTemplate, input.htmlTemplate].filter(file => file !== undefined)];
         try {
             return await computeCacheKey(input, files, root, [isBuild, Boolean(options.inline)], ac.signal);
-        } catch {
+        } catch (error) {
+            if (process.env.VSW_CACHE_DEBUG) console.warn('[vsw-debug] key failed', error);
             return null;
         }
     };
@@ -197,7 +198,10 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         const html = processedOptions.html ? render(() => generatedFonts!.generateHtml()) : undefined;
         const entry: CacheEntry = { key, fonts, css, ...(moduleCss !== undefined && { moduleCss }), ...(html !== undefined && { html }) };
         // The cache is an optimization; an unwritable cacheDir must not fail generation.
-        await writeCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', entry, buffers).catch(() => undefined);
+        if (process.env.VSW_CACHE_DEBUG) console.warn('[vsw-debug] write', { cacheFolder, key, root });
+        await writeCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', entry, buffers).catch(error => {
+            if (process.env.VSW_CACHE_DEBUG) console.warn('[vsw-debug] write failed', error);
+        });
         return entry;
     };
 

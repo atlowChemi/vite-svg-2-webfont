@@ -58,13 +58,19 @@ async function project({ importCss = true } = {}) {
 
 describe('output cache', () => {
     it('reuses outputs on an unchanged rebuild without calling the engine', async () => {
-        await using p = await project();
-        const first = await p.run();
-        expect(generate).toHaveBeenCalledOnce();
+        process.env.VSW_CACHE_DEBUG = '1';
+        try {
+            await using p = await project();
+            const first = await p.run();
+            console.warn('[vsw-debug] after first', await readdir(p.cacheFolder).catch(error => String(error)));
+            expect(generate).toHaveBeenCalledOnce();
 
-        const second = await p.run();
-        expect(generate).toHaveBeenCalledOnce();
-        expect(second).toEqual(first);
+            const second = await p.run();
+            expect(generate).toHaveBeenCalledOnce();
+            expect(second).toEqual(first);
+        } finally {
+            delete process.env.VSW_CACHE_DEBUG;
+        }
     });
 
     it('regenerates when an icon changes and prunes the stale fonts', async () => {
