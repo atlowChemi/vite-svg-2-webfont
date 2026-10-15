@@ -273,6 +273,86 @@ jobs:
                   files: test-results/plugin-browser.xml
                   token: ${{ secrets.CODECOV_TOKEN }}
 
+    test-wasm:
+        name: test WASM browser generation
+        needs: [affected-selection]
+        if: ${{ needs.affected-selection.result == 'success' && fromJSON(needs.affected-selection.outputs.selection).jobs.test-wasm }}
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+              with:
+                  targets: wasm32-unknown-unknown
+                  components: clippy, rustfmt
+            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: target/wasm-bindgen-tools
+                  key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
+            - run: vp exec playwright install --with-deps chromium firefox webkit
+            - run: vp run @atlowchemi/webfont-browser-generator#test
+              env:
+                  CI_TEST_REPORT: test-results/wasm-browser.xml
+                  CI_TEST_SUITE: wasm-browser-linux-x64
+                  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+                  ALLOW_BUNDLE_ANALYSIS: 'true'
+            - name: Upload WASM binding
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: bindings-wasm32-unknown-unknown
+                  path: packages/webfont-browser/generated/
+                  if-no-files-found: error
+            - name: Upload WASM browser results
+              if: ${{ !cancelled() && hashFiles('test-results/wasm-browser.xml') != '' }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: wasm-browser-linux-x64
+                  files: test-results/wasm-browser.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Install WASM coverage toolchain
+              run: |
+                  rustup toolchain install nightly-2026-09-14 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
+                  sudo apt-get update
+                  sudo apt-get install -y clang
+            - uses: taiki-e/install-action@ab6895351a88b908e96a4697860d4ffea5e57dbe # v2.87.27
+              with:
+                  tool: cargo-llvm-cov@0.9.0
+            - run: vp run @atlowchemi/webfont-browser-generator#test:coverage
+            - name: Verify browser coverage reports
+              run: |
+                  test -s coverage/browser-js/lcov.info
+                  test -s coverage/browser-js/junit.xml
+                  test -s coverage/browser-rust/lcov.info
+            - name: Upload browser JavaScript coverage
+              if: ${{ !cancelled() && hashFiles('coverage/browser-js/lcov.info') != '' }}
+              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+              with:
+                  disable_search: true
+                  files: coverage/browser-js/lcov.info
+                  flags: browser-js
+                  fail_ci_if_error: true
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload browser Rust coverage
+              if: ${{ !cancelled() && hashFiles('coverage/browser-rust/lcov.info') != '' }}
+              uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+              with:
+                  disable_search: true
+                  files: coverage/browser-rust/lcov.info
+                  flags: browser-rust
+                  fail_ci_if_error: true
+                  token: ${{ secrets.CODECOV_TOKEN }}
+            - name: Upload browser coverage test results
+              if: ${{ !cancelled() && hashFiles('coverage/browser-js/junit.xml') != '' }}
+              uses: ./.github/actions/upload-test-results
+              with:
+                  name: browser-coverage-linux-x64
+                  files: coverage/browser-js/junit.xml
+                  token: ${{ secrets.CODECOV_TOKEN }}
+
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
         needs: [build, affected-selection]
@@ -488,7 +568,7 @@ jobs:
     required-checks:
         name: Required checks
         if: always()
-        needs: [affected-selection, ci, test-scripts, rust-coverage, native-coverage, build, docs, test-browser, test-host, test-docker, test-vite-compat]
+        needs: [affected-selection, ci, test-scripts, rust-coverage, native-coverage, build, docs, test-browser, test-wasm, test-host, test-docker, test-vite-compat]
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1

@@ -22,7 +22,18 @@ const config: UserConfig = defineConfig({
         htmlWhitespaceSensitivity: 'css',
         vueIndentScriptAndStyle: false,
         sortPackageJson: false,
-        ignorePatterns: ['dist', 'dist-*', 'webfont', 'node_modules', 'coverage/*', 'tests/fixtures/**', 'packages/webfont-generator/binding{.js,.d.ts}', 'target', '*.hbs'],
+        ignorePatterns: [
+            'dist',
+            'dist-*',
+            'webfont',
+            'node_modules',
+            'coverage/*',
+            'tests/fixtures/**',
+            'packages/webfont-generator/binding{.js,.d.ts}',
+            'packages/webfont-browser/generated/**',
+            'target',
+            '*.hbs',
+        ],
     },
     lint: {
         plugins: ['eslint', 'typescript', 'unicorn', 'vitest', 'oxc', 'promise'],
@@ -68,6 +79,7 @@ const config: UserConfig = defineConfig({
             'packages/example/dist',
             'packages/vite-svg-2-webfont/src/fixtures',
             'packages/webfont-generator/binding{.js,.d.ts}',
+            'packages/webfont-browser/generated/**',
         ],
     },
     staged: {
@@ -83,7 +95,7 @@ const config: UserConfig = defineConfig({
             },
             test: {
                 command: 'vp test',
-                dependsOn: ['@atlowchemi/webfont-generator#build'],
+                dependsOn: ['@atlowchemi/webfont-generator#build', '@atlowchemi/webfont-browser-generator#pack'],
             },
             'test:compat': {
                 command: 'vp test --project=compat',

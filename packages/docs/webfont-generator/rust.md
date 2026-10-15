@@ -138,6 +138,11 @@ if let Some(svg) = result.svg_string() {
 
 Requires the [`in_memory` feature](#feature-flags) (enabled by default); asynchronous entry points additionally require the [`async` feature](#feature-flags).
 
+Text options and source-update types implement `serde::Deserialize`, using camelCase and
+rejecting unknown fields. `SourceChange` uses a `type` tag (`added`, `changed`, `removed`),
+and `SourceMembership` accepts `{ "sources": [...] }` or `{ "variants": [...] }`.
+On wasm32 targets WOFF uses pure-Rust compression; native targets use static zlib.
+
 `generate_from_sources_sync(options)` returns `std::io::Result<GenerateWebfontsFromSourcesResult>`
 without constructing a runtime, reading sources/templates, or writing output files.
 `generate_from_sources(options).await` runs the same work on Tokio's blocking pool;

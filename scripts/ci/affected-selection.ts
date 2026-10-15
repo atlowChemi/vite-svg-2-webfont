@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 export const packageNames = {
     engine: '@atlowchemi/webfont-engine',
     adapter: '@atlowchemi/webfont-generator',
+    browser: '@atlowchemi/webfont-browser-generator',
     plugin: 'vite-svg-2-webfont',
     docs: '@atlowchemi/vite-svg-webfont-docs',
     example: '@atlowchemi/vite-svg-webfont-example',
@@ -28,6 +29,7 @@ export function selectJobs(packages: string[], files: string[], unknownChanges =
         build: plugin,
         docs: packages.includes(packageNames.docs),
         'test-browser': plugin,
+        'test-wasm': packages.includes(packageNames.engine) || packages.includes(packageNames.browser),
         'test-host': hostSensitive,
         'test-docker': native,
         'test-vite-compat': plugin,
@@ -55,7 +57,7 @@ export function determineValidationScope(files: string[], affected: ReadonlySet<
     if (unknown.length) {
         throw new Error(`Unknown affected packages: ${unknown.toSorted().join(', ')}. Update the affected-selection package and job mapping.`);
     }
-    if (files.some(file => !/^(crates\/webfont-generator|packages\/(webfont-generator|vite-svg-2-webfont|docs|example))\//.test(file))) {
+    if (files.some(file => !/^(crates\/webfont-generator|packages\/(webfont-generator|webfont-browser|vite-svg-2-webfont|docs|example))\//.test(file))) {
         return { full: true, reason: 'Shared or unclassified files changed: validate all packages' };
     }
     if (files.length > 0 && (affected.size === 0 || (affected.size === 1 && affected.has(packageNames.root)))) {

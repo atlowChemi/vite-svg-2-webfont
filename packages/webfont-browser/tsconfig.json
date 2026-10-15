@@ -1,0 +1,6 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": { "rootDir": ".", "lib": ["esnext", "dom", "dom.iterable"], "types": ["vite-plus/client"] },
+    "include": ["src", "tests", "vite.config.ts", "vite.browser.config.ts"],
+    "exclude": ["node_modules"]
+}

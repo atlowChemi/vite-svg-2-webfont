@@ -32,7 +32,7 @@ Run these from the repository root:
 
 ```bash
 vp check                                         # format, lint, TypeScript checks
-vp run test                                      # JavaScript, browser, and type tests; builds the debug binding
+vp run test                                      # JavaScript, browser, and type tests; builds native and WASM bindings
 vp run coverage                                  # non-browser JavaScript tests with coverage
 vp run coverage:scripts                          # repository script tests, including subprocess coverage
 vp run bench:vitest                              # Vitest benchmarks with release binding and per-test results
@@ -40,6 +40,9 @@ vp run vite-svg-2-webfont#pack                   # build the Vite plugin
 vp run @atlowchemi/webfont-generator#build       # build the native addon
 vp run @atlowchemi/webfont-generator#check       # Clippy (default, CLI, NAPI) and rustfmt checks
 vp run @atlowchemi/webfont-generator#test        # Rust checks and tests
+vp run @atlowchemi/webfont-browser-generator#test # WASM adapter: build, check, browsers and production bundle
+vp run @atlowchemi/webfont-browser-generator#pack:tgz # installable JS/types/worker/WASM tarball
+vp run @atlowchemi/webfont-browser-generator#test:coverage # JS/worker and actual WASM Rust coverage
 vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
 vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
 vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
@@ -176,6 +179,7 @@ This monorepo has a root Cargo workspace and the following packages:
 - `packages/vite-svg-2-webfont/`: the Vite plugin — source code, tests, and build config
 - `crates/webfont-generator/`: published Rust engine and CLI; its private npm manifest connects the task graph
 - `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — npm API and unpublished `webfont-generator-napi` adapter crate
+- `packages/webfont-browser/`: browser npm package with precompiled WASM and an unpublished wasm-bindgen adapter crate
 - `packages/example/`: Vite app used for local development and manual verification
 - `packages/docs/`: VitePress documentation site, published to GitHub Pages
 - `tests/`: cross-package compatibility tests and benchmarks (at root level)
@@ -191,6 +195,28 @@ its private npm manifest uses the fixed placeholder version `0.0.0-internal-only
 those releases trigger crates.io publication. The npm adapter retains its own changelog
 and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
 engine's private npm task package is never published.
+
+The browser build uses `wasm32-unknown-unknown` and installs a matching wasm-bindgen CLI
+under `target/wasm-bindgen-tools`; Rust/rustup are prerequisites. `WASM_BINDGEN` can select
+an existing CLI of the exact required version. WASM generation uses only the engine's
+`in_memory` feature. `#build` compiles the WASM binding; `#pack` builds the complete `dist/`
+distribution, and `#pack:tgz` creates an installable tarball. Workspace consumers must run
+`#pack` first. See the [browser API documentation](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser) for usage and worker ownership.
+
+Browser coverage writes `coverage/browser-js/lcov.info` and `coverage/browser-rust/lcov.info`.
+JavaScript coverage combines Chromium client tests with worker protocol tests running real WASM
+in Node, replacing only message transport and asset fetching. Rust coverage runs the adapter's
+WASM tests through wasm-bindgen-test in Node. It requires `cargo-llvm-cov` 0.9.0+, a WASM-capable
+`clang` on PATH, and this coverage-only toolchain:
+
+```sh
+rustup toolchain install nightly-2026-09-14 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
+```
+
+On macOS, put Homebrew LLVM's `bin` directory on PATH; Apple clang lacks the WASM target.
+`WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage toolchain; normal builds use stable Rust.
+CI uploads coverage with the `browser-js` and `browser-rust` flags and reports the production
+smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.
 
 Release-PR preparation updates Cargo.lock through the registry before frozen installation, runs
 `vp run @atlowchemi/webfont-generator#binding:regenerate`, and formats changes with `vp fmt`.
@@ -218,12 +244,13 @@ record the comparison base, changed files, packages, decisions, and reason.
   selection also broaden validation. An unknown package name fails selection: update
   the selector's package/job mapping when adding a workspace package.
 
-| Affected package   | Direct Rust suites   | Native build artifacts | Other selected validation                    |
-| ------------------ | -------------------- | ---------------------- | -------------------------------------------- |
-| Engine / CLI       | Engine, CLI, adapter | All nine targets       | Native Vitest, host/musl, Node/Vite, browser |
-| npm / NAPI adapter | Adapter              | All nine targets       | Native Vitest, host/musl, Node/Vite, browser |
-| Plugin / example   | None                 | Linux x64 GNU          | Node/Vite, browser                           |
-| Docs               | None                 | None                   | Docs build                                   |
+| Affected package   | Direct Rust suites   | Native build artifacts | Other selected validation                                                      |
+| ------------------ | -------------------- | ---------------------- | ------------------------------------------------------------------------------ |
+| Engine / CLI       | Engine, CLI, adapter | All nine targets       | Native Vitest, host/musl, Node/Vite, browser, WASM                             |
+| npm / NAPI adapter | Adapter              | All nine targets       | Native Vitest, host/musl, Node/Vite, browser                                   |
+| Plugin / example   | None                 | Linux x64 GNU          | Node/Vite, browser                                                             |
+| Browser workspace  | WASM Clippy          | None                   | Actual WASM generation in Chromium/Firefox/WebKit and production worker bundle |
+| Docs               | None                 | None                   | Docs build                                                                     |
 
 Adapter tests still compile/use the engine as a dependency; skipping its direct test
 suite does not remove that dependency. Native Vitest coverage also measures engine

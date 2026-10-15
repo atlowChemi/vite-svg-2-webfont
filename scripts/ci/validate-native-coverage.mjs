@@ -15,13 +15,17 @@ const text = readFileSync(file, 'utf8')
     .filter(record => !record.includes('SF:') || /^SF:(crates|packages)\//m.test(record))
     .join('');
 const prefixes =
-    mode === 'native'
-        ? ['crates/webfont-generator/src/', 'packages/webfont-generator/native/']
-        : mode === 'adapter'
-          ? ['packages/webfont-generator/native/']
-          : mode === 'js'
-            ? ['packages/webfont-generator/']
-            : ['crates/webfont-generator/src/'];
+    mode === 'browser-js'
+        ? ['packages/webfont-browser/src/index.ts', 'packages/webfont-browser/src/worker.ts']
+        : mode === 'browser-rust'
+          ? ['packages/webfont-browser/native/lib.rs']
+          : mode === 'native'
+            ? ['crates/webfont-generator/src/', 'packages/webfont-generator/native/']
+            : mode === 'adapter'
+              ? ['packages/webfont-generator/native/']
+              : mode === 'js'
+                ? ['packages/webfont-generator/']
+                : ['crates/webfont-generator/src/'];
 for (const prefix of prefixes) {
     const records = text.split('end_of_record').filter(record => record.includes(`SF:${prefix}`));
     const hits = records.reduce((sum, record) => sum + Number(record.match(/^LH:(\d+)$/m)?.[1] ?? 0), 0);

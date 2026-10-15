@@ -67,6 +67,15 @@ describe('affected CI', () => {
         );
         expect(selection.rustSuites).toEqual(['engine', 'cli', 'adapter']);
         expect(selection.nativeBuildScope).toBe('full');
+        expect(selection.jobs['test-wasm']).toBe(true);
+        expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
+    });
+    it('runs WASM tests without native builds for browser changes', () => {
+        const selection = scenario(['packages/webfont-browser/src/index.ts'], [packageNames.browser]);
+        expect(selection.full).toBe(false);
+        expect(selection.jobs['test-wasm']).toBe(true);
+        expect(selection.jobs.build).toBe(false);
+        expect(selection.jobs['rust-coverage']).toBe(false);
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: true });
     });
     it('rejects narrowed platform prerequisites or missing selected Rust suites', () => {
@@ -108,8 +117,10 @@ describe('affected CI', () => {
         expect(release.jobs['build-native'].if).toBe("needs.release-please.outputs.native-released == 'true'");
         expect(release.jobs['publish-native'].needs).toEqual(['release-please', 'build-native']);
         expect(release.jobs['publish-plugin'].needs).toEqual(['release-please']);
+        expect(release.jobs['publish-browser'].needs).toEqual(['release-please']);
         for (const [job, output] of [
             ['publish-plugin', 'plugin-released'],
+            ['publish-browser', 'browser-released'],
             ['publish-native', 'native-released'],
             ['publish-crate', 'engine-released'],
         ] as const) {

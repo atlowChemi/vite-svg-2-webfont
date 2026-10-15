@@ -3,6 +3,11 @@
     "include-commit-authors": true,
     "plugins": [{ "type": "linked-versions", "groupName": "webfont-generator", "components": ["webfont-generator", "webfont-engine"], "merge": false }, "node-workspace"],
     "packages": {
+        "packages/webfont-browser": {
+            "release-type": "node",
+            "component": "webfont-browser-generator",
+            "bump-minor-pre-major": true
+        },
         "crates/webfont-generator": {
             "release-type": "rust",
             "component": "webfont-engine",

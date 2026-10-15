@@ -8,6 +8,41 @@ use crate::{FontType, SourceChange, SourceMembership, VariantSourceSet};
 const SVG: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 2H20V20H2Z"/></svg>"#;
 const OTHER: &str = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0L24 24H0Z"/></svg>"#;
 
+#[test]
+fn serialized_memory_inputs_validate_and_regenerate_without_file_options() {
+    let input = serde_json::json!({
+        "sources": [{ "id": "opaque", "name": "icon", "svg": SVG }],
+        "incremental": true,
+        "types": ["ttf"],
+        "formatOptions": { "ttf": { "ts": 0 } },
+        "cssTemplate": "{{fontName}}",
+        "fontName": "serialized"
+    });
+    let mut result =
+        generate_from_sources_sync(serde_json::from_value(input.clone()).unwrap()).unwrap();
+    assert_eq!(result.generate_css().unwrap().as_str(), "serialized");
+    let before = result.ttf_bytes().unwrap().to_vec();
+    let membership: SourceMembership =
+        serde_json::from_value(serde_json::json!({"sources": ["opaque"]})).unwrap();
+    let changes: Vec<SourceChange> = serde_json::from_value(serde_json::json!([
+        { "type": "changed", "id": "opaque", "svg": OTHER }
+    ]))
+    .unwrap();
+    result.regenerate_sync(membership, changes).unwrap();
+    assert_ne!(result.ttf_bytes().unwrap(), before);
+    for (key, value) in [
+        ("files", serde_json::json!(["icon.svg"])),
+        ("colorGlyphs", serde_json::Value::Null),
+    ] {
+        let mut invalid = input.clone();
+        invalid[key] = value;
+        assert!(serde_json::from_value::<GenerateWebfontsFromSourcesOptions>(invalid).is_err());
+    }
+    let mut invalid = input;
+    invalid["formatOptions"]["ttf"]["unknown"] = true.into();
+    assert!(serde_json::from_value::<GenerateWebfontsFromSourcesOptions>(invalid).is_err());
+}
+
 fn source(id: &str, name: &str, svg: &str) -> SvgSource {
     SvgSource {
         id: id.into(),

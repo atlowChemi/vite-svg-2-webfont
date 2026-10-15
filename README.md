@@ -16,11 +16,12 @@
 
 ## Packages
 
-| Package                                                         | Description                         |
-| --------------------------------------------------------------- | ----------------------------------- |
-| [`vite-svg-2-webfont`](./packages/vite-svg-2-webfont)           | The core Vite plugin                |
-| [`webfont-generator`](./crates/webfont-generator)               | Rust webfont engine and CLI         |
-| [`@atlowchemi/webfont-generator`](./packages/webfont-generator) | Node.js adapter for the Rust engine |
+| Package                                                               | Description                               |
+| --------------------------------------------------------------------- | ----------------------------------------- |
+| [`vite-svg-2-webfont`](./packages/vite-svg-2-webfont)                 | The core Vite plugin                      |
+| [`webfont-generator`](./crates/webfont-generator)                     | Rust webfont engine and CLI               |
+| [`@atlowchemi/webfont-generator`](./packages/webfont-generator)       | Node.js adapter for the Rust engine       |
+| [`@atlowchemi/webfont-browser-generator`](./packages/webfont-browser) | Browser webfont generator powered by WASM |
 
 ## Documentation
 

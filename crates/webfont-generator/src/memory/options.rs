@@ -10,7 +10,8 @@ use crate::input::{
 use crate::{ColorGlyphSelection, FontType, FormatOptions, MissingGlyphOptions};
 
 /// Named SVG text. `id` is an opaque, nonempty cache key, never a file path.
-#[derive(Clone)]
+#[derive(Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SvgSource {
     /// Stable identity. Repeated IDs across variants must have identical names and text.
     pub id: String,
@@ -22,7 +23,8 @@ pub struct SvgSource {
 }
 
 /// One ordered design in a text-input variant family.
-#[derive(Clone)]
+#[derive(Clone, serde::Deserialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct SourceFontVariant {
     /// Unique variant name; follows the file API's variant naming rules.
     pub name: String,
@@ -36,7 +38,9 @@ pub struct SourceFontVariant {
 
 /// Filesystem-free generation settings. Defaults match the file API's `GenerateWebfontsOptions`.
 /// Templates are text (`Some("")` renders empty), not paths. No output is written.
-#[derive(Clone, Default)]
+/// Deserializes camelCase fields, rejecting unknown fields and defaulting omitted settings.
+#[derive(Clone, Default, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct GenerateWebfontsFromSourcesOptions {
     /// Ordered sources for ordinary generation; empty when `variants` is supplied.
     pub sources: Vec<SvgSource>,
@@ -47,6 +51,10 @@ pub struct GenerateWebfontsFromSourcesOptions {
     /// Optional HTML Handlebars source; compiled on first HTML render.
     pub html_template: Option<String>,
     /// Color glyph selection; supports TTF, WOFF and WOFF2.
+    #[serde(
+        default,
+        deserialize_with = "crate::types::color::deserialize_selection"
+    )]
     pub color_glyphs: Option<ColorGlyphSelection>,
     /// Font ascent.
     pub ascent: Option<f64>,

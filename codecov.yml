@@ -41,6 +41,14 @@ component_management:
           name: Vite plugin
           paths:
               - 'packages/vite-svg-2-webfont/src/**'
+        - component_id: browser-js
+          name: Browser client and worker
+          paths:
+              - 'packages/webfont-browser/src/**'
+        - component_id: browser-rust
+          name: Browser WASM adapter
+          paths:
+              - 'packages/webfont-browser/native/**'
         - component_id: scripts
           name: Repository scripts
           paths:
@@ -57,9 +65,15 @@ ignore:
     - '**/benches/**'
     - '**/bench_support.rs'
     - 'packages/webfont-generator/binding.*'
+    - 'packages/webfont-browser/generated/**'
+    - 'packages/webfont-browser/dist/**'
     - 'packages/docs/**'
     - 'packages/example/**'
 flags:
+    browser-js:
+        carryforward: true
+    browser-rust:
+        carryforward: true
     script-tests:
         carryforward: true
     engine-tests:

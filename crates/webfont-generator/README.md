@@ -54,6 +54,11 @@ IDs are opaque and must be nonempty; shared IDs across designs must agree on nam
 Glyph names accept Unicode letters/numbers, hyphens and underscores; empty or unsafe names are rejected.
 External SVG image paths are not loaded.
 
+Text options and source-update types implement `serde::Deserialize` with camelCase fields
+and reject unknown fields. Updates use `type`-tagged `added`, `changed`, and `removed` objects;
+membership uses either `{ "sources": [...] }` or `{ "variants": [...] }`.
+On wasm32 targets WOFF uses the pure-Rust flate2 backend; native builds use static zlib.
+
 Set `incremental: Some(true)` to use `regenerate_sync` or consuming async `regenerate`.
 Supply `SourceChange` entries only for changed sources and complete `SourceMembership`
 for the final order. Settings and templates stay fixed. Failed synchronous updates leave

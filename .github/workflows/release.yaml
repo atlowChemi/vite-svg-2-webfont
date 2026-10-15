@@ -22,6 +22,8 @@ jobs:
             native-released: ${{ steps.release.outputs['packages/webfont-generator--release_created'] }}
             native-tag: ${{ steps.release.outputs['packages/webfont-generator--tag_name'] }}
             engine-released: ${{ steps.release.outputs['crates/webfont-generator--release_created'] }}
+            browser-released: ${{ steps.release.outputs['packages/webfont-browser--release_created'] }}
+            browser-tag: ${{ steps.release.outputs['packages/webfont-browser--tag_name'] }}
             any-released: ${{ steps.release.outputs.releases_created }}
         steps:
             - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
@@ -213,6 +215,35 @@ jobs:
               with:
                   tag_name: ${{ needs.release-please.outputs.plugin-tag }}
                   files: packages/vite-svg-2-webfont/*.tgz
+
+    publish-browser:
+        name: Publish @atlowchemi/webfont-browser-generator
+        needs: [release-please]
+        if: needs.release-please.outputs.browser-released == 'true'
+        runs-on: ubuntu-latest
+        environment:
+            name: npm
+            url: https://www.npmjs.com/package/@atlowchemi/webfont-browser-generator
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+              with:
+                  targets: wasm32-unknown-unknown
+            - uses: voidzero-dev/setup-vp@3754dd7dbdb32bd8f6d28b6043de13ad3a75f21f # v1.21.1
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
+            - name: Stage publish from tarball
+              run: |
+                  echo '## Staged: @atlowchemi/webfont-browser-generator' >> "$GITHUB_STEP_SUMMARY"
+                  echo 'Approve with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
+                  vp run @atlowchemi/webfont-browser-generator#publish | tee -a "$GITHUB_STEP_SUMMARY"
+            - name: Upload release assets
+              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+              with:
+                  tag_name: ${{ needs.release-please.outputs.browser-tag }}
+                  files: packages/webfont-browser/*.tgz
 
     deploy-docs:
         name: Deploy docs
