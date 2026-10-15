@@ -1,4 +1,4 @@
-import type { CollectedOutputs, FontType, GenerateWebfontsOptions, RequestPayload, Response, Result, SourceChange, SourceMembership, WebfontResult } from './types';
+import type { CollectedOutputs, FontType, GenerateWebfontsOptions, RequestPayload, Response, Result, SourceChange, SourceMembership, SvgSource, WebfontResult } from './types';
 export type { CollectedOutputs, FontType, GenerateWebfontsOptions, JsonValue, SourceChange, SourceFontVariant, SourceMembership, SvgSource, WebfontResult } from './types';
 
 function json(value: unknown): string {
@@ -70,6 +70,15 @@ export async function generateWebfonts(options: GenerateWebfontsOptions, runtime
         collectOutputs: () => request<CollectedOutputs>({ method: 'outputs' }),
         regenerate: async (membership: SourceMembership, changes: SourceChange[]): Promise<void> => {
             await request({ method: 'regenerate', membership: json(membership), changes: json(changes) });
+        },
+        add: async (source: SvgSource, variant?: string): Promise<void> => {
+            await request({ method: 'add', source: json(source), variant });
+        },
+        update: async (id: string, svg: string, name?: string): Promise<void> => {
+            await request({ method: 'update', sourceId: id, svg, name });
+        },
+        remove: async (id: string): Promise<void> => {
+            await request({ method: 'remove', sourceId: id });
         },
         dispose,
         [Symbol.dispose]: dispose,

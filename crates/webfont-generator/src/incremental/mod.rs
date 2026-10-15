@@ -3,6 +3,8 @@ mod tests;
 
 #[cfg(feature = "fs")]
 mod files;
+#[cfg(feature = "fs")]
+mod helpers;
 pub(crate) mod sources;
 #[cfg(feature = "fs")]
 mod variants;

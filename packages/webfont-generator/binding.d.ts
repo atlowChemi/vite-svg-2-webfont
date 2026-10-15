@@ -15,6 +15,18 @@ export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-was
  * render the CSS and HTML preview.
  */
 export declare class GenerateWebfontsResult {
+  /** Append a new file and regenerate. Families require a target variant. Requires incremental generation. */
+  add(path: string, name?: string | undefined | null, variant?: string | undefined | null): void
+  /** Re-read an existing file in every consuming design, preserving order and the name unless replaced. */
+  update(path: string, name?: string | undefined | null): void
+  /** Remove a file from every design without deleting it from disk. Rejects empty designs. */
+  remove(path: string): void
+  /** Async addition returning a replacement result, with the same snapshot and concurrency rules as regenerateAsync. */
+  addAsync(path: string, name?: string | undefined | null, variant?: string | undefined | null): Promise<GenerateWebfontsResult>
+  /** Async update returning a replacement result, with the same snapshot and concurrency rules as regenerateAsync. */
+  updateAsync(path: string, name?: string | undefined | null): Promise<GenerateWebfontsResult>
+  /** Async removal returning a replacement result, with the same snapshot and concurrency rules as regenerateAsync. */
+  removeAsync(path: string): Promise<GenerateWebfontsResult>
   /** EOT font bytes, or `null` if EOT was not in `types`. */
   get eot(): Uint8Array | null
   /** SVG font XML string, or `null` if SVG was not in `types`. */

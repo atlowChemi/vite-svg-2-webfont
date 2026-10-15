@@ -59,6 +59,12 @@ export type WebfontResult = {
     generateHtml: () => Promise<string>;
     collectOutputs: () => Promise<CollectedOutputs>;
     regenerate: (membership: SourceMembership, changes: SourceChange[]) => Promise<void>;
+    /** Append a new source. Families require a target variant. Requires incremental generation. */
+    add: (source: SvgSource, variant?: string) => Promise<void>;
+    /** Replace an existing source in every consuming design, preserving its position. */
+    update: (id: string, svg: string, name?: string) => Promise<void>;
+    /** Remove an existing source from every design. Rejects empty designs. */
+    remove: (id: string) => Promise<void>;
     /** Terminate the worker and reject outstanding calls. Safe to call repeatedly. */
     dispose: () => void;
     /** Synchronous scope cleanup for `using result = await generateWebfonts(...)`. */
@@ -69,6 +75,9 @@ export type WebfontResult = {
 export type RequestPayload =
     | { method: 'generate'; options: string }
     | { method: 'regenerate'; membership: string; changes: string }
+    | { method: 'add'; source: string; variant?: string }
+    | { method: 'update'; sourceId: string; svg: string; name?: string }
+    | { method: 'remove'; sourceId: string }
     | { method: 'font'; format: string }
     | { method: 'css' | 'html' | 'outputs' };
 export type Request = { id: number } & RequestPayload;

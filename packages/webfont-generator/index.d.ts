@@ -138,6 +138,18 @@ export type GenerateWebfontsResult<T extends FontType = FontType, Guaranteed ext
 } & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml'> & {
         regenerate(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null): void;
         regenerateAsync(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null): Promise<GenerateWebfontsResult<T, Guaranteed>>;
+        /** Append a new file. Families require a target variant. Requires incremental generation. */
+        add(path: string, name?: string | null, variant?: string | null): void;
+        /** Re-read an existing file, preserving its position and optionally changing its name. */
+        update(path: string, name?: string | null): void;
+        /** Remove a file from every design without deleting it from disk. Rejects empty designs. */
+        remove(path: string): void;
+        /** Async addition; assign the replacement result before the next action. */
+        addAsync(path: string, name?: string | null, variant?: string | null): Promise<GenerateWebfontsResult<T, Guaranteed>>;
+        /** Async update; preserves the receiver as a readable snapshot, like regenerateAsync. */
+        updateAsync(path: string, name?: string | null): Promise<GenerateWebfontsResult<T, Guaranteed>>;
+        /** Async removal; preserves the receiver as a readable snapshot, like regenerateAsync. */
+        removeAsync(path: string): Promise<GenerateWebfontsResult<T, Guaranteed>>;
     };
 
 /** Complete input membership and ordering. Supply every configured variant exactly once. */

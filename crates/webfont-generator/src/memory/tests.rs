@@ -80,6 +80,64 @@ fn membership(ids: &[&str]) -> SourceMembership {
     SourceMembership::Sources(ids.iter().map(|id| (*id).into()).collect())
 }
 
+#[cfg(feature = "async")]
+#[tokio::test]
+async fn single_source_helpers_preserve_order_and_recover_consumed_results() {
+    let mut input = options();
+    input.types = Some(vec![FontType::Ttf]);
+    let original_id = input.sources[0].id.clone();
+    let result = generate_from_sources_sync(input.clone()).unwrap();
+    let result = result
+        .add(source("second", "second", OTHER), None)
+        .await
+        .unwrap();
+    let result = result
+        .add(source("second", "second", SVG), None)
+        .await
+        .err()
+        .unwrap()
+        .into_result()
+        .unwrap();
+    let result = result
+        .update("missing".into(), SVG.into(), None)
+        .await
+        .err()
+        .unwrap()
+        .into_result()
+        .unwrap();
+    let result = result
+        .remove("missing".into())
+        .await
+        .err()
+        .unwrap()
+        .into_result()
+        .unwrap();
+    let result = result
+        .update("second".into(), "<broken".into(), None)
+        .await
+        .err()
+        .unwrap()
+        .into_result()
+        .unwrap();
+    let result = result
+        .update("second".into(), SVG.into(), Some("renamed".into()))
+        .await
+        .unwrap();
+    input.sources.push(source("second", "renamed", SVG));
+    assert_fonts_equal(&result, &generate_from_sources_sync(input.clone()).unwrap());
+    let mut result = result.remove(original_id).await.unwrap();
+    assert!(result.remove_sync("second".into()).is_err());
+    result
+        .add_sync(source("third", "third", OTHER), None)
+        .unwrap();
+    result
+        .update_sync("third".into(), SVG.into(), None)
+        .unwrap();
+    result.remove_sync("third".into()).unwrap();
+    input.sources.remove(0);
+    assert_fonts_equal(&result, &generate_from_sources_sync(input).unwrap());
+}
+
 fn assert_fonts_equal(
     left: &GenerateWebfontsFromSourcesResult,
     right: &GenerateWebfontsFromSourcesResult,
@@ -295,6 +353,48 @@ fn shared_variant_identity_is_validated_and_updates_all_memberships() {
             .unwrap()
             .to_string()
             .contains("Conflicting")
+    );
+}
+
+#[test]
+fn single_variant_actions_validate_targets_and_update_every_consumer() {
+    let mut settings = variant_options();
+    let mut result = generate_from_sources_sync(settings.clone()).unwrap();
+    assert!(
+        result
+            .add_sync(source("", "new", SVG), Some("light"))
+            .is_err()
+    );
+    assert!(
+        result
+            .add_sync(source("extra", "extra", SVG), None)
+            .is_err()
+    );
+    assert!(
+        result
+            .add_sync(source("extra", "extra", SVG), Some("missing"))
+            .is_err()
+    );
+    result
+        .add_sync(source("extra", "extra", SVG), Some("light"))
+        .unwrap();
+    result
+        .update_sync("shared".into(), OTHER.into(), None)
+        .unwrap();
+    settings.variants.as_mut().unwrap()[0]
+        .sources
+        .push(source("extra", "extra", SVG));
+    for variant in settings.variants.as_mut().unwrap() {
+        variant.sources[0].svg = OTHER.into();
+    }
+    assert_fonts_equal(&result, &generate_from_sources_sync(settings).unwrap());
+    assert!(result.remove_sync("shared".into()).is_err());
+    result.remove_sync("extra".into()).unwrap();
+    let mut ordinary = generate_from_sources_sync(options()).unwrap();
+    assert!(
+        ordinary
+            .add_sync(source("extra", "extra", SVG), Some("light"))
+            .is_err()
     );
 }
 

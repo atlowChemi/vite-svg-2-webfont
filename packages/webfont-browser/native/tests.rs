@@ -79,3 +79,29 @@ fn validates_options_and_keeps_templates_lazy() {
     assert!(session.outputs().is_err());
     assert!(session.font("ttf").unwrap().is_some());
 }
+
+#[wasm_bindgen_test]
+fn single_actions_use_retained_sources_and_preserve_state_on_error() {
+    let options = json!({
+        "sources": [{"id": "first", "name": "first", "svg": SVG}],
+        "types": ["ttf"], "incremental": true, "formatOptions": {"ttf": {"ts": 0}}
+    });
+    let mut session = FontSession::new(&options.to_string()).unwrap();
+    assert!(session.add("invalid", None).is_err());
+    let source = json!({"id": "second", "name": "second", "svg": SVG}).to_string();
+    session.add(&source, None).unwrap();
+    assert!(session.add(&source, None).is_err());
+    session
+        .update("second".into(), SVG.into(), Some("renamed".into()))
+        .unwrap();
+    assert!(session.css().unwrap().contains("renamed"));
+    session.remove("first".into()).unwrap();
+    let saved = session.font("ttf").unwrap().unwrap().to_vec();
+    assert!(session.remove("second".into()).is_err());
+    assert!(
+        session
+            .update("second".into(), "<broken".into(), None)
+            .is_err()
+    );
+    assert_eq!(session.font("ttf").unwrap().unwrap().to_vec(), saved);
+}

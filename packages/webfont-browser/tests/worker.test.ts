@@ -45,6 +45,9 @@ it('routes worker requests through real WASM and recovers after invalid updates'
     expect(await request({ method: 'css' })).toMatchObject({ ok: true, value: expect.stringContaining('@font-face') });
     expect(await request({ method: 'html' })).toMatchObject({ ok: true, value: expect.stringContaining('icon') });
     expect(await request({ method: 'outputs' })).toMatchObject({ ok: true, value: { ttf: expect.any(Uint8Array), css: expect.any(Uint8Array) } });
+    expect(await request({ method: 'add', source: JSON.stringify({ ...JSON.parse(options).sources[0], id: 'second', name: 'second' }) })).toMatchObject({ ok: true });
+    expect(await request({ method: 'update', sourceId: 'second', svg: JSON.parse(options).sources[0].svg, name: 'renamed' })).toMatchObject({ ok: true });
+    expect(await request({ method: 'remove', sourceId: 'second' })).toMatchObject({ ok: true });
     expect(await request({ method: 'generate', options })).toMatchObject({ ok: false, fatal: true, error: new Error('Session is already initialized') });
 });
 

@@ -59,6 +59,16 @@ it('exports the public generator API', () => {
     }>();
 });
 
+it('single-action async helpers preserve requested and nullable font types', () => {
+    type Result = GenerateWebfontsResult<'ttf' | 'woff2', 'ttf'>;
+    expectTypeOf<ReturnType<Result['addAsync']>>().toEqualTypeOf<Promise<Result>>();
+    expectTypeOf<ReturnType<Result['updateAsync']>>().toEqualTypeOf<Promise<Result>>();
+    expectTypeOf<ReturnType<Result['removeAsync']>>().toEqualTypeOf<Promise<Result>>();
+    expectTypeOf<Result['add']>().parameters.toEqualTypeOf<[path: string, name?: string | null, variant?: string | null]>();
+    expectTypeOf<Result['update']>().parameters.toEqualTypeOf<[path: string, name?: string | null]>();
+    expectTypeOf<Result['remove']>().parameters.toEqualTypeOf<[path: string]>();
+});
+
 it('accepts the multi-variant contract', () => {
     expectTypeOf(
         generateWebfonts({

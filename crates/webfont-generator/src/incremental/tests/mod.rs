@@ -20,6 +20,44 @@ const D3: &str = "M4 4 L20 4 L20 20 L4 20 Z";
 const D_CHANGED: &str = "M0 0 L24 0 L24 24 Z";
 const TEST_TTF_TIMESTAMP: i64 = 1_700_000_000;
 
+#[tokio::test]
+async fn single_file_helpers_recover_consumed_results_and_match_regeneration() {
+    let dir = temp_dir();
+    let first = write_icon(&dir, "first", D1);
+    let second = write_icon(&dir, "second", D2);
+    let result = generate(vec![first.clone()], true);
+    let result = result.add_async(second.clone(), None, None).await.unwrap();
+    let result = result
+        .add_async(second.clone(), None, None)
+        .await
+        .err()
+        .unwrap()
+        .into_result()
+        .unwrap();
+    let result = result
+        .update_async("missing".into(), None)
+        .await
+        .err()
+        .unwrap()
+        .into_result()
+        .unwrap();
+    let result = result
+        .remove_async("missing".into())
+        .await
+        .err()
+        .unwrap()
+        .into_result()
+        .unwrap();
+    write_icon(&dir, "second", D_CHANGED);
+    let result = result.update_async(second.clone(), None).await.unwrap();
+    let result = result.remove_async(first).await.unwrap();
+    assert_eq!(
+        result.ttf_bytes(),
+        generate(vec![second], false).ttf_bytes()
+    );
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
 fn with_regeneration_state<T>(
     result: &GenerateWebfontsResult,
     read: impl FnOnce(&RegenerationState) -> T,

@@ -26,6 +26,15 @@ async function handleRequest(data: Request): Promise<void> {
             case 'regenerate':
                 currentSession().regenerate(data.membership, data.changes);
                 break;
+            case 'add':
+                currentSession().add(data.source, data.variant);
+                break;
+            case 'update':
+                currentSession().update(data.sourceId, data.svg, data.name);
+                break;
+            case 'remove':
+                currentSession().remove(data.sourceId);
+                break;
             case 'font':
                 value = currentSession().font(data.format) as Uint8Array<ArrayBuffer> | undefined;
                 break;

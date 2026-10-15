@@ -71,6 +71,9 @@ An explicit `dispose()` method is available for manually managed lifetimes inste
 | `generateHtml()`                  | `Promise<string>`                  | Lazy HTML render, reusing CSS                                                                                        |
 | `collectOutputs()`                | `Promise<CollectedOutputs>`        | Object keyed by output kind, with independently owned bytes; unrequested outputs are omitted                         |
 | `regenerate(membership, changes)` | `Promise<void>`                    | Apply source updates; requires `incremental: true`                                                                   |
+| `add(source, variant?)`           | `Promise<void>`                    | Append a new source; families require a target variant. Requires `incremental: true`.                                |
+| `update(id, svg, name?)`          | `Promise<void>`                    | Replace an existing source, preserving its position. Requires `incremental: true`.                                   |
+| `remove(id)`                      | `Promise<void>`                    | Remove an ID from all designs without emptying a design. Requires `incremental: true`.                               |
 | `dispose()`                       | `void`                             | Terminate the worker and reject pending calls. Idempotent: repeated calls have no additional effect and do not throw |
 
 `CollectedOutputs` is `Partial<Record<FontType | 'css' | 'html', Uint8Array<ArrayBuffer>>>`.
@@ -81,6 +84,24 @@ and disposal and cannot mutate the engine's retained buffers. CSS and HTML are c
 an invalid HTML template does not prevent accessing a font or rendering CSS.
 
 ## Incremental updates
+
+With `incremental: true`, single actions derive membership from the worker's current result:
+
+```ts
+await result.add({ id: 'search', name: 'search', svg: searchSvg });
+await result.update('search', replacementSvg, 'renamed');
+await result.remove('search');
+// For a family, additions require a target variant:
+await family.add({ id: 'bold:search', name: 'search', svg: searchSvg }, 'bold');
+```
+
+`add(source, variant?)` appends a new ID. `update(id, svg, name?)` preserves its position and,
+when omitted, its name. `remove(id)` preserves remaining order. Updates and removals apply
+to every design consuming the ID. Duplicate additions, unknown IDs, incorrect target variants,
+and removals that empty a design reject without replacing the result. Calls execute in submission
+order, including after recoverable failures. None of these methods requires resending unchanged SVGs.
+
+For batches, explicit ordering, or membership reassignment, use `regenerate`:
 
 ```ts
 await result.regenerate({ sources: ['square'] }, [{ type: 'changed', id: 'square', svg: replacementSvg }]);

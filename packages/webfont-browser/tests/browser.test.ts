@@ -43,7 +43,7 @@ it('generates copied fonts in a worker and browsers load all modern containers',
     expect(await result.font('ttf')).not.toEqual(original);
     expect(await result.generateCss()).toContain('@font-face');
     expect(await result.generateHtml()).toContain('square');
-    expect(Object.keys(result).toSorted()).toEqual(['collectOutputs', 'dispose', 'font', 'generateCss', 'generateHtml', 'regenerate']);
+    expect(Object.keys(result).toSorted()).toEqual(['add', 'collectOutputs', 'dispose', 'font', 'generateCss', 'generateHtml', 'regenerate', 'remove', 'update']);
     result.dispose();
     expect(Object.values(outputs).every(bytes => bytes.byteLength > 0)).toBe(true);
     await expect(result.font('ttf')).rejects.toThrow('disposed');
@@ -61,6 +61,52 @@ it('captures the browser clock when a timestamp is omitted and retains it across
     await result.regenerate({ sources: [source.id] }, [{ type: 'changed', id: source.id, svg: changed }]);
     const updated = (await result.font('ttf'))!;
     expect(new DataView(updated.buffer).getBigUint64(table(updated, 'head') + 20)).toBe(new DataView(bytes.buffer).getBigUint64(head + 20));
+});
+
+it('serializes single actions using retained membership and rolls back rejected actions', async () => {
+    const result = await generate({ incremental: true });
+    const second = { id: 'second', name: 'second', svg };
+    const third = { id: 'third', name: 'third', svg };
+    await Promise.all([result.add(second), result.add(third), result.update(second.id, changed, 'renamed'), result.remove(source.id)]);
+    const fresh = await generate({ sources: [{ ...second, name: 'renamed', svg: changed }, third] });
+    expect(await result.collectOutputs()).toEqual(await fresh.collectOutputs());
+    const saved = await result.collectOutputs();
+    await expect(result.add(second)).rejects.toThrow('already exists');
+    await expect(result.update('unknown', svg)).rejects.toThrow('Unknown');
+    await expect(result.remove('unknown')).rejects.toThrow('Unknown');
+    await expect(result.add({ id: 'broken', name: 'broken', svg: '<broken' })).rejects.toThrow('SVG');
+    await expect(result.update(second.id, '<broken')).rejects.toThrow('SVG');
+    expect(await result.collectOutputs()).toEqual(saved);
+    await result.add({ id: 'broken', name: 'fixed', svg });
+    await result.regenerate({ sources: ['third', 'second'] }, [{ type: 'removed', id: 'broken' }]);
+    await result.remove('third');
+    await expect(result.remove('second')).rejects.toThrow('at least one');
+    await result.update('second', svg);
+    expect(await result.generateCss()).toContain('renamed');
+});
+
+it('targets variant additions and applies shared source actions to every consumer', async () => {
+    const variants = [
+        { name: 'light', default: true, sources: [source] },
+        { name: 'bold', sources: [source] },
+    ];
+    const result = await generate({ sources: [], variants, incremental: true, missingGlyphs: { behavior: 'blank' } });
+    const extra = { id: 'extra', name: 'extra', svg };
+    await expect(result.add(extra)).rejects.toThrow('target variant');
+    await expect(result.add(extra, 'unknown')).rejects.toThrow('Unknown target');
+    await result.add(extra, 'light');
+    await result.update(source.id, changed);
+    const fresh = await generate({
+        sources: [],
+        variants: [
+            { ...variants[0]!, sources: [{ ...source, svg: changed }, extra] },
+            { ...variants[1]!, sources: [{ ...source, svg: changed }] },
+        ],
+        missingGlyphs: { behavior: 'blank' },
+    });
+    expect(await result.collectOutputs()).toEqual(await fresh.collectOutputs());
+    await expect(result.remove(source.id)).rejects.toThrow('at least one');
+    await result.remove(extra.id);
 });
 
 it('serializes recoverable updates, supports additions/removals/renames and preserves old copies', async () => {

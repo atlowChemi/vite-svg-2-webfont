@@ -60,6 +60,12 @@ membership uses either `{ "sources": [...] }` or `{ "variants": [...] }`.
 On wasm32 targets WOFF uses the pure-Rust flate2 backend; native builds use static zlib.
 
 Set `incremental: Some(true)` to use `regenerate_sync` or consuming async `regenerate`.
+For single text actions, use `add_sync(source, variant)`, `update_sync(id, svg, name)`,
+and `remove_sync(id)`, or consuming async `add`/`update`/`remove`. File results expose
+`add(path, name, variant)`, `update(path, name)`, `remove(path)` and their `_async`
+equivalents. Additions append; families require a target variant. Updates preserve order,
+and removals apply across consuming designs without deleting files. All helpers reuse
+regeneration's validation and failure semantics; full regeneration remains available for batches.
 Supply `SourceChange` entries only for changed sources and complete `SourceMembership`
 for the final order. Settings and templates stay fixed. Failed synchronous updates leave
 the previous result usable; async failures expose it through `SourceRegenerateError::into_result`

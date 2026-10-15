@@ -216,6 +216,25 @@ and supplied template text. They need not match legacy file-mode URL hashes.
 
 ### Incremental text updates
 
+For single actions on `GenerateWebfontsFromSourcesResult`, use
+`add_sync(source, variant)`, `update_sync(id, svg, name)`, or `remove_sync(id)`.
+With the `async` feature, consuming `add(source, variant)`, `update(id, svg, name)`,
+and `remove(id)` return the next result, with `SourceRegenerateError` recovery on failure.
+These methods require `incremental: Some(true)` and derive membership from retained sources.
+
+On file-based `GenerateWebfontsResult`, the equivalents are `add(path, name, variant)`,
+`update(path, name)`, and `remove(path)`, plus consuming `add_async`, `update_async`,
+and `remove_async`. Async adapters can use `add_snapshot_async`, `update_snapshot_async`,
+and `remove_snapshot_async` to retain readable receivers, with the same lineage and cancellation
+rules as `regenerate_snapshot_async`.
+
+Additions append and require a target variant for families (`None` for ordinary fonts).
+Updates preserve position and the existing name when `name` is `None`.
+Updates/removals affect every design consuming the ID/path. Duplicate additions, unknown
+update/remove targets, and empty-design removals reject. File helpers preserve existing
+regeneration's filesystem-write semantics; removing a path never deletes the source file.
+Use the existing regeneration methods for batches, explicit ordering, or membership reassignment.
+
 ```rust
 # use webfont_generator::{GenerateWebfontsFromSourcesResult, SourceChange, SourceMembership};
 # fn update(result: &mut GenerateWebfontsFromSourcesResult) -> std::io::Result<()> {
