@@ -29,22 +29,16 @@ function getEngineVersion(): string {
 }
 
 /**
- * Fingerprint generation inputs. Paths under `root` are made relative so moved checkouts still hit,
- * except `cssFontsUrl`, which is rendered into the CSS as-is.
+ * Fingerprint generation inputs. Paths stay absolute: Vite's `config.root` can differ in form from the
+ * plugin's paths (Windows 8.3 short names, macOS `/tmp` vs `/private/tmp`), so relativizing them is unreliable.
  * Throws when an input file can't be read; callers treat that as uncacheable.
  */
-export async function computeCacheKey(settings: object, files: string[], root: string, extra: unknown[], signal?: AbortSignal): Promise<string> {
-    const prefix = `${root.replaceAll('\\', '/')}/`;
-    const relativeSettings = JSON.stringify(settings, (key, value) => {
-        if (typeof value !== 'string' || key === 'cssFontsUrl') return value;
-        const normalized = value.replaceAll('\\', '/');
-        return normalized.startsWith(prefix) ? normalized.slice(prefix.length) : value;
-    });
+export async function computeCacheKey(settings: object, files: string[], extra: unknown[], signal?: AbortSignal): Promise<string> {
     // Bounded concurrency: ties sync reads on Node 22/24 and halves the time on Node 26, without risking EMFILE.
     const contents = await Readable.from(files)
         .map(async (file: string, options) => hash('sha1', await readFile(file, options)), { concurrency: 100, signal })
         .toArray();
-    return hash('sha1', JSON.stringify([FORMAT_VERSION, getEngineVersion(), relativeSettings, contents, extra]));
+    return hash('sha1', JSON.stringify([FORMAT_VERSION, getEngineVersion(), settings, contents, extra]));
 }
 
 export function fontFileName(fontName: string, type: string, hashHex: string): string {

@@ -151,21 +151,15 @@ describe('output cache', () => {
 });
 
 describe('computeCacheKey', () => {
-    it('ignores the project location but not file contents', async () => {
+    it('is stable for identical inputs and changes with file contents or paths', async () => {
         await using a = await project();
         await using b = await project();
-        const key = (p: typeof a) => computeCacheKey({ files: [join(p.icons, 'add.svg')], dest: join(p.root, 'out') }, [join(p.icons, 'add.svg')], p.root, []);
+        const key = (p: typeof a) => computeCacheKey({ files: [join(p.icons, 'add.svg')], dest: join(p.root, 'out') }, [join(p.icons, 'add.svg')], []);
 
-        expect(await key(a)).toBe(await key(b));
-        await writeFile(join(b.icons, 'add.svg'), svg(20));
+        expect(await key(a)).toBe(await key(a));
         expect(await key(a)).not.toBe(await key(b));
-    });
-
-    it('keeps cssFontsUrl root-specific because it is rendered into the CSS', async () => {
-        await using a = await project();
-        await using b = await project();
-        const key = (p: typeof a) => computeCacheKey({ cssFontsUrl: join(p.root, 'fonts') }, [], p.root, []);
-
-        expect(await key(a)).not.toBe(await key(b));
+        const before = await key(a);
+        await writeFile(join(a.icons, 'add.svg'), svg(20));
+        expect(await key(a)).not.toBe(before);
     });
 });

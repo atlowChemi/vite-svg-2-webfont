@@ -1192,7 +1192,7 @@ describe('output cache guards', () => {
                 build: { write: false },
                 plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'], cssTemplate: pathJoin(tmpdir(), 'vsw-missing-template.hbs') })],
             }),
-        ).rejects.toThrow(/No such file or directory/);
+        ).rejects.toThrow(/os error 2/);
 
         expect(readCacheEntryMock).toHaveBeenCalledTimes(lookupsBefore);
         expect(generateWebfontsMock).toHaveBeenCalledTimes(generateCallsBefore + 1);
