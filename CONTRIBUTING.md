@@ -199,7 +199,24 @@ engine's private npm task package is never published.
 The browser build uses `wasm32-unknown-unknown` and installs a matching wasm-bindgen CLI
 under `target/wasm-bindgen-tools`; Rust/rustup are prerequisites. `WASM_BINDGEN` can select
 an existing CLI of the exact required version. WASM generation uses only the engine's
-`in_memory` feature. See `packages/webfont-browser/README.md` for worker ownership and local use.
+`in_memory` feature. `#build` compiles the WASM binding; `#pack` builds the complete `dist/`
+distribution, and `#pack:tgz` creates an installable tarball. Workspace consumers must run
+`#pack` first. See the [browser API documentation](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser) for usage and worker ownership.
+
+Browser coverage writes `coverage/browser-js/lcov.info` and `coverage/browser-rust/lcov.info`.
+JavaScript coverage combines Chromium client tests with worker protocol tests running real WASM
+in Node, replacing only message transport and asset fetching. Rust coverage runs the adapter's
+WASM tests through wasm-bindgen-test in Node. It requires `cargo-llvm-cov` 0.9.0+, a WASM-capable
+`clang` on PATH, and this coverage-only toolchain:
+
+```sh
+rustup toolchain install nightly-2026-09-14 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
+```
+
+On macOS, put Homebrew LLVM's `bin` directory on PATH; Apple clang lacks the WASM target.
+`WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage toolchain; normal builds use stable Rust.
+CI uploads coverage with the `browser-js` and `browser-rust` flags and reports the production
+smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.
 
 Release-PR preparation updates Cargo.lock through the registry before frozen installation, runs
 `vp run @atlowchemi/webfont-generator#binding:regenerate`, and formats changes with `vp fmt`.
