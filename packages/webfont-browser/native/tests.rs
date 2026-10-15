@@ -5,6 +5,25 @@ use wasm_bindgen_test::wasm_bindgen_test;
 const SVG: &str = r#"<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>"#;
 
 #[wasm_bindgen_test]
+fn rejects_invalid_browser_clock() {
+    let date = js_sys::Reflect::get(&js_sys::global(), &"Date".into()).unwrap();
+    let original = js_sys::Reflect::get(&date, &"now".into()).unwrap();
+    let invalid = js_sys::Function::new_no_args("return NaN");
+    js_sys::Reflect::set(&date, &"now".into(), &invalid).unwrap();
+    let result = FontSession::new(
+        &json!({"sources": [{"id": "icon", "name": "icon", "svg": SVG}], "types": ["ttf"]})
+            .to_string(),
+    );
+    js_sys::Reflect::set(&date, &"now".into(), &original).unwrap();
+    let error = result.err().expect("invalid clock must fail");
+    assert!(
+        js_sys::Error::from(error)
+            .message()
+            .includes("invalid timestamp", 0)
+    );
+}
+
+#[wasm_bindgen_test]
 fn generates_copied_outputs_and_recovers_from_errors() {
     let options = json!({
         "sources": [{"id": "opaque", "name": "square", "svg": SVG}],

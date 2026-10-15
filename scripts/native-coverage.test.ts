@@ -27,6 +27,23 @@ it('requires measured engine and adapter execution, not just an existing LCOV fi
     expect(validate(engine + record('packages/webfont-generator/native/lib.rs', 1)).status).toBe(0);
 });
 
+it('requires executed browser client and worker coverage independently', () => {
+    const client = record('packages/webfont-browser/src/index.ts', 1);
+    const worker = 'packages/webfont-browser/src/worker.ts';
+    expect(validate(client, 'browser-js').status).not.toBe(0);
+    expect(validate(client + record(worker, 0), 'browser-js').status).not.toBe(0);
+    const report = client + record(worker, 1);
+    expect(validate(report, 'browser-js')).toMatchObject({ status: 0, text: report });
+});
+
+it('requires executed WASM adapter coverage rather than native engine coverage', () => {
+    const adapter = 'packages/webfont-browser/native/lib.rs';
+    expect(validate(record('crates/webfont-generator/src/lib.rs', 1), 'browser-rust').status).not.toBe(0);
+    expect(validate(record(adapter, 0), 'browser-rust').status).not.toBe(0);
+    const report = record(adapter, 1);
+    expect(validate(report, 'browser-rust')).toMatchObject({ status: 0, text: report });
+});
+
 it('normalizes native sources and package-local JS sources to repository paths', () => {
     const result = validate(record(`${root}/crates/webfont-generator/src/lib.rs`, 1) + record(`${root}/packages/webfont-generator/native/lib.rs`, 1));
     expect(result.status).toBe(0);

@@ -29,7 +29,7 @@ export default defineProject({
         },
     },
     test: {
-        include: ['tests/bundle.test.ts', 'tests/worker.test.ts'],
+        include: ['tests/bundle.test.ts', 'tests/worker.test.ts', 'tests/client.test.ts'],
         benchmark: { include: [] },
         name: 'webfont-browser-build',
         testTimeout: 30_000,

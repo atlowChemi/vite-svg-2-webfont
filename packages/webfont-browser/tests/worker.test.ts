@@ -56,6 +56,33 @@ it('marks initialization failures as fatal', async () => {
     });
 });
 
+it('normalizes non-Error throws and recovers for subsequent requests', async () => {
+    const { FontSession } = await import('../generated/webfont_browser.js');
+    await request({ method: 'generate', options });
+    vi.spyOn(FontSession.prototype, 'css').mockImplementationOnce(() => {
+        throw 'render failed';
+    });
+    expect(await request({ method: 'css' })).toMatchObject({ ok: false, fatal: false, error: new Error('render failed') });
+    expect(await request({ method: 'css' })).toMatchObject({ ok: true });
+});
+
+it('ignores queued requests after a WASM trap', async () => {
+    const { FontSession } = await import('../generated/webfont_browser.js');
+    await request({ method: 'generate', options });
+    vi.spyOn(FontSession.prototype, 'css').mockImplementationOnce(() => {
+        throw new WebAssembly.RuntimeError('unreachable');
+    });
+    expect(await request({ method: 'css' })).toMatchObject({ ok: false, fatal: true });
+    const font = vi.spyOn(FontSession.prototype, 'font');
+    const reply = vi.fn();
+    respond = reply;
+    scope.dispatchEvent(new MessageEvent('message', { data: { id: id++, method: 'font', format: 'ttf' } }));
+    // Drain the worker's promise queue before asserting that the request was ignored.
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(font).not.toHaveBeenCalled();
+    expect(reply).not.toHaveBeenCalled();
+});
+
 it('preserves standard error details across the message boundary and continues after rejection', async () => {
     const { FontSession } = await import('../generated/webfont_browser.js');
     expect(await request({ method: 'generate', options })).toMatchObject({ ok: true });
