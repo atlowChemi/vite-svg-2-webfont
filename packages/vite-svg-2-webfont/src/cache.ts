@@ -44,7 +44,6 @@ export async function computeCacheKey(settings: object, files: string[], root: s
     const contents = await Readable.from(files)
         .map(async (file: string, options) => hash('sha1', await readFile(file, options)), { concurrency: 100, signal })
         .toArray();
-    if (process.env.VSW_CACHE_DEBUG) console.warn('[vsw-debug] key input', JSON.stringify([FORMAT_VERSION, getEngineVersion(), relativeSettings, contents, extra]));
     return hash('sha1', JSON.stringify([FORMAT_VERSION, getEngineVersion(), relativeSettings, contents, extra]));
 }
 
@@ -92,12 +91,10 @@ export async function readCacheEntry<T extends string>(
 ): Promise<{ entry: CacheEntry; fonts: Map<T, Buffer> } | undefined> {
     try {
         const entry = (await readManifest(folder, fontName))[mode];
-        if (process.env.VSW_CACHE_DEBUG) console.warn('[vsw-debug] lookup', { folder, key, stored: entry?.key ?? null });
         if (entry?.key !== key) return undefined;
         const fonts = await Promise.all(types.map(async type => [type, await readFile(join(folder, entry.fonts[type]!))] as const));
         return { entry, fonts: new Map(fonts) };
-    } catch (error) {
-        if (process.env.VSW_CACHE_DEBUG) console.warn('[vsw-debug] read failed', error);
+    } catch {
         return undefined;
     }
 }
