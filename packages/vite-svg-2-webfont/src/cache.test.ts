@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build, createServer, type InlineConfig } from 'vite-plus';
 import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
-import { computeCacheKey, readCacheEntry, writeCacheEntry, type CacheEntry } from './cache';
+import { computeCacheKey } from './cache';
 import { viteSvgToWebfont, type IconPluginFileOptions } from './index';
 
 const { generate } = vi.hoisted(() => ({ generate: vi.fn<typeof import('@atlowchemi/webfont-generator').generateWebfonts>() }));
@@ -13,18 +13,10 @@ vi.mock('@atlowchemi/webfont-generator', async importOriginal => {
     return { ...actual, generateWebfonts: generate };
 });
 
-const { rename } = vi.hoisted(() => ({ rename: vi.fn<typeof import('node:fs/promises').rename>() }));
-vi.mock('node:fs/promises', async importOriginal => {
-    const actual = await importOriginal<typeof import('node:fs/promises')>();
-    rename.mockImplementation(actual.rename);
-    return { ...actual, rename };
-});
-
 afterEach(() => {
     generate.mockClear();
 });
 
-const fsError = (code: string) => Object.assign(new Error(code), { code });
 const svg = (width: number) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0H${width}V24H0Z"/></svg>`;
 
 async function project({ importCss = true } = {}) {
@@ -158,46 +150,16 @@ describe('output cache', () => {
     });
 });
 
-describe('writeCacheEntry', () => {
-    const entry: CacheEntry = { key: 'k', fonts: { ttf: 'f-1.ttf' }, css: '' };
-    const buffers = new Map([['ttf', Buffer.from('font')]]);
-
-    it('retries renames blocked by transient Windows file locks', async () => {
-        await using p = await project();
-        rename.mockRejectedValueOnce(fsError('EBUSY')).mockRejectedValueOnce(fsError('EPERM')).mockRejectedValueOnce(fsError('EACCES'));
-
-        await writeCacheEntry(p.cacheFolder, 'f', 'build', entry, buffers);
-        expect(await readCacheEntry(p.cacheFolder, 'f', 'build', 'k', ['ttf'])).toBeDefined();
-    });
-
-    it.each([
-        ['a non-retryable error', ['EXDEV']],
-        ['too many retryable errors', Array.from({ length: 10 }, () => 'EBUSY')],
-    ])('gives up on %s and removes the temp file', async (_, codes) => {
-        await using p = await project();
-        for (const code of codes) rename.mockRejectedValueOnce(fsError(code));
-
-        await expect(writeCacheEntry(p.cacheFolder, 'f', 'build', entry, buffers)).rejects.toThrow(codes.at(-1));
-        expect(await readdir(p.cacheFolder)).toEqual([]);
-    });
-});
-
 describe('computeCacheKey', () => {
-    it('ignores the project location but not file contents', async () => {
+    it('is stable for identical inputs and changes with file contents or paths', async () => {
         await using a = await project();
         await using b = await project();
-        const key = (p: typeof a) => computeCacheKey({ files: [join(p.icons, 'add.svg')], dest: join(p.root, 'out') }, [join(p.icons, 'add.svg')], p.root, []);
+        const key = (p: typeof a) => computeCacheKey({ files: [join(p.icons, 'add.svg')], dest: join(p.root, 'out') }, [join(p.icons, 'add.svg')], []);
 
-        expect(await key(a)).toBe(await key(b));
-        await writeFile(join(b.icons, 'add.svg'), svg(20));
+        expect(await key(a)).toBe(await key(a));
         expect(await key(a)).not.toBe(await key(b));
-    });
-
-    it('keeps cssFontsUrl root-specific because it is rendered into the CSS', async () => {
-        await using a = await project();
-        await using b = await project();
-        const key = (p: typeof a) => computeCacheKey({ cssFontsUrl: join(p.root, 'fonts') }, [], p.root, []);
-
-        expect(await key(a)).not.toBe(await key(b));
+        const before = await key(a);
+        await writeFile(join(a.icons, 'add.svg'), svg(20));
+        expect(await key(a)).not.toBe(before);
     });
 });

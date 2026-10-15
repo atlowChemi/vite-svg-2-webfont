@@ -48,7 +48,6 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const processedOptions = parseOptions(options);
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type as any));
     let isBuild: boolean;
-    let root: string;
     let cacheFolder: string;
     /** Rendered outputs for the current fonts; `generatedFonts` is unset after a cache hit. */
     let outputs: CacheEntry | undefined;
@@ -161,7 +160,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         if (processedOptions.cssContext) return null;
         const files = [...(input.files ?? input.variants.flatMap(variant => variant.files)), ...[input.cssTemplate, input.htmlTemplate].filter(file => file !== undefined)];
         try {
-            return await computeCacheKey(input, files, root, [isBuild, Boolean(options.inline)], ac.signal);
+            return await computeCacheKey(input, files, [isBuild, Boolean(options.inline)], ac.signal);
         } catch {
             return null;
         }
@@ -296,7 +295,6 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         configResolved(_config) {
             isBuild = _config.command === 'build';
-            root = _config.root;
             cacheFolder = `${_config.cacheDir}/vite-svg-2-webfont`;
             if (!isBuild) {
                 // Retain parsed glyphs so watch rebuilds can reuse them via `result.regenerateAsync(...)`.

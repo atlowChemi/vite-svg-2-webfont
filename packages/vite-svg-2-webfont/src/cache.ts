@@ -1,10 +1,10 @@
 import { hash, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { access, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
+import { access, readFile, rename, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
-import { setTimeout as sleep } from 'node:timers/promises';
 import { css as defaultCssTemplate } from '@atlowchemi/webfont-generator/templates';
+import { ensureDirExistsAndWriteFile } from './utils';
 
 /** Stands in for the per-run font directory in cached build CSS. */
 export const CACHE_PLACEHOLDER = '__VSW_CACHE__';
@@ -29,22 +29,16 @@ function getEngineVersion(): string {
 }
 
 /**
- * Fingerprint generation inputs. Paths under `root` are made relative so moved checkouts still hit,
- * except `cssFontsUrl`, which is rendered into the CSS as-is.
+ * Fingerprint generation inputs. Paths stay absolute: Vite's `config.root` can differ in form from the
+ * plugin's paths (Windows 8.3 short names, macOS `/tmp` vs `/private/tmp`), so relativizing them is unreliable.
  * Throws when an input file can't be read; callers treat that as uncacheable.
  */
-export async function computeCacheKey(settings: object, files: string[], root: string, extra: unknown[], signal?: AbortSignal): Promise<string> {
-    const prefix = `${root.replaceAll('\\', '/')}/`;
-    const relativeSettings = JSON.stringify(settings, (key, value) => {
-        if (typeof value !== 'string' || key === 'cssFontsUrl') return value;
-        const normalized = value.replaceAll('\\', '/');
-        return normalized.startsWith(prefix) ? normalized.slice(prefix.length) : value;
-    });
+export async function computeCacheKey(settings: object, files: string[], extra: unknown[], signal?: AbortSignal): Promise<string> {
     // Bounded concurrency: ties sync reads on Node 22/24 and halves the time on Node 26, without risking EMFILE.
     const contents = await Readable.from(files)
         .map(async (file: string, options) => hash('sha1', await readFile(file, options)), { concurrency: 100, signal })
         .toArray();
-    return hash('sha1', JSON.stringify([FORMAT_VERSION, getEngineVersion(), relativeSettings, contents, extra]));
+    return hash('sha1', JSON.stringify([FORMAT_VERSION, getEngineVersion(), settings, contents, extra]));
 }
 
 export function fontFileName(fontName: string, type: string, hashHex: string): string {
@@ -58,27 +52,10 @@ async function readManifest(folder: string, fontName: string): Promise<Manifest>
     return manifest?.version === FORMAT_VERSION ? manifest : { version: FORMAT_VERSION };
 }
 
-const RENAME_ATTEMPTS = 10;
-const RETRYABLE_RENAME_CODES = new Set(['EPERM', 'EACCES', 'EBUSY']);
-
-/** Windows antivirus and indexers briefly lock freshly written files; retry like graceful-fs does. */
-async function renameWithRetry(from: string, to: string, attempt = 1): Promise<void> {
-    try {
-        await rename(from, to);
-    } catch (error) {
-        if (attempt >= RENAME_ATTEMPTS || !RETRYABLE_RENAME_CODES.has(error?.code)) throw error;
-        await sleep(attempt * 10);
-        await renameWithRetry(from, to, attempt + 1);
-    }
-}
-
 async function writeAtomic(content: string | Uint8Array, path: string): Promise<void> {
     const tmp = `${path}.${randomUUID()}.tmp`;
-    await writeFile(tmp, content);
-    await renameWithRetry(tmp, path).catch(async error => {
-        await rm(tmp, { force: true });
-        throw error;
-    });
+    await ensureDirExistsAndWriteFile(content, tmp);
+    await rename(tmp, path);
 }
 
 /** Any missing or unreadable piece is a miss. */
@@ -101,8 +78,6 @@ export async function readCacheEntry<T extends string>(
 
 /** Write fonts before the manifest so it never points at missing files, then prune this mode's stale fonts. */
 export async function writeCacheEntry(folder: string, fontName: string, mode: CacheMode, entry: CacheEntry, buffers: Map<string, Uint8Array>): Promise<void> {
-    // Create the folder once: concurrent recursive mkdirs of the same new path can race on Windows.
-    await mkdir(folder, { recursive: true });
     await Promise.all(
         Object.entries(entry.fonts).map(async ([type, name]) => {
             const path = join(folder, name);
