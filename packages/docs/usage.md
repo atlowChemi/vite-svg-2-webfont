@@ -40,7 +40,7 @@ The typical integration has three parts:
 
 - The default base selector is `.icon`, see [`baseSelector`](./configuration#baseselector)
 - The default class prefix is `icon-`, see [`classPrefix`](./configuration#classprefix)
-- SVG file names become icon names (e.g. `add.svg` becomes `{classPrefix}-add`)
+- SVG file names become icon names (e.g. `add.svg` becomes `{classPrefix}add`)
 
 For example, if `context` contains `add.svg`, the generated CSS class is `icon-add`, and you would use it like this:
 
@@ -51,8 +51,6 @@ For example, if `context` contains `add.svg`, the generated CSS class is `icon-a
 If you want different class names, change [`classPrefix`](./configuration#classprefix) and [`baseSelector`](./configuration#baseselector).
 
 ## Development file output
-
-See [multi-weight icon families](#multi-weight-icon-families) to configure multiple designs with the same output controls.
 
 By default, the plugin does not write generated assets to disk during development. If you want preview artifacts while iterating, use [`generateFiles`](./configuration#generatefiles) to enable file output and specify which files to generate:
 
@@ -161,6 +159,8 @@ For nested input folders, set a design's `files` to `['**/*.svg']`. To use spars
 Edits across the design roots are batched and regenerated through one serialized queue. The plugin refreshes every design's membership, updates shared font bytes, and reloads virtual CSS, including in inline mode. Invalid edits leave the last successful in-memory output available; the plugin reports the error and retries on subsequent changes. Optional filesystem output remains non-transactional.
 
 Custom CSS callbacks are invoked again through full generation. Existing CSS/SCSS/HTML templates, selectors, optional disk output, and preload controls also apply to families. Shared assets are emitted and preloaded once per selected format, not once per design.
+
+See [multi-weight icon families](#multi-weight-icon-families) to configure multiple designs; they use the same output controls.
 
 ## Related options
 

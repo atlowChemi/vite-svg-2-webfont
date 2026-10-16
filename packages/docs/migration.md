@@ -59,10 +59,10 @@ The `context` parameter is typed as [`CssContext`](/webfont-generator/node#cssco
 
 ### `formatOptions` is now typed
 
-`formatOptions` was previously `{ [format]?: unknown }` — any key, any shape. v7 narrows it to [`FormatOptions`](/webfont-generator/node#formatoptions), which only accepts `svg`, `ttf`, and `woff` keys, each with its own typed per-format options ([`SvgFormatOptions`](/webfont-generator/node#formatoptions), [`TtfFormatOptions`](/webfont-generator/node#formatoptions), [`WoffFormatOptions`](/webfont-generator/node#formatoptions)). Two practical consequences:
+`formatOptions` was previously `{ [format]?: unknown }` — any key, any shape. v7 narrows it to [`FormatOptions`](/webfont-generator/node#formatoptions), which accepts `svg`, `ttf`, `woff`, and `woff2` keys, each with its own typed per-format options ([`SvgFormatOptions`, `TtfFormatOptions`, `WoffFormatOptions`, and `Woff2FormatOptions`](/webfont-generator/node#formatoptions)). Two practical consequences:
 
-- `formatOptions.woff2` and `formatOptions.eot` are no longer accepted — `woff2` has no format-specific options and `eot` is derived from the TTF output.
-- Free-form keys on `formatOptions.svg` / `.ttf` / `.woff` will fail to typecheck. Replace them with the documented fields, or drop them if they were no-ops in v6.
+- `formatOptions.eot` is no longer accepted — EOT is derived from the TTF output.
+- Free-form keys on `formatOptions.svg` / `.ttf` / `.woff` / `.woff2` will fail to typecheck. Replace them with the documented fields, or drop them if they were no-ops in v6. The only `woff2` field is `compressionQuality`.
 
 ### Generated font binaries differ at byte level
 
@@ -93,6 +93,6 @@ The native engine produces different — but valid — bytes for the same input 
     :::
 
 2. If you pass a `cssContext` callback, drop the second and third parameters.
-3. If you pass `formatOptions`, drop any `woff2` / `eot` keys and confirm the remaining fields match the typed `FormatOptions` shape.
+3. If you pass `formatOptions`, drop any `eot` key and confirm the remaining fields match the typed `FormatOptions` shape.
 4. If your CI compares font binaries to committed fixtures, regenerate them on this commit.
 5. Run your build. The plugin will emit the same virtual CSS module and the same icon classes you had before.

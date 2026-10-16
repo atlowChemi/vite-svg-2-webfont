@@ -396,7 +396,9 @@ interface SvgFormatOptions {
 interface TtfFormatOptions {
     copyright?: string;
     description?: string;
-    ts?: number; // Unix timestamp for reproducible builds
+    // Ignored by the npm package: like upstream @vusion/webfonts-generator, it always writes
+    // a fixed timestamp, so output is reproducible. The Rust crate and browser package honor it.
+    ts?: number;
     url?: string;
     version?: string;
 }

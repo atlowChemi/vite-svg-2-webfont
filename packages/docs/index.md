@@ -35,6 +35,18 @@ features:
       icon:
           src: /configurable.svg
       details: Control file globs, destinations, selectors, class prefixes, codepoints, font formats, template paths, and generator options.
+    - title: Generate in the browser
+      icon:
+          src: /in-browser.svg
+      details: The same Rust engine compiled to WebAssembly. Build icon fonts from SVG text inside a web worker, with no server and no build step.
+      link: /webfont-generator/browser
+      linkText: Browser API
+    - title: Use the engine anywhere
+      icon:
+          src: /engine-anywhere.svg
+      details: Not using Vite? Call the engine from Node.js or Rust, or run the standalone CLI in scripts and CI.
+      link: /which-package
+      linkText: Which package do I need?
 ---
 
 ## Why this plugin

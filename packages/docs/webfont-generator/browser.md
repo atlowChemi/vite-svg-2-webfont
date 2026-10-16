@@ -42,6 +42,8 @@ using result = await generateWebfonts({
     sources: [{ id: 'square', name: 'square', svg: '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>' }],
     types: ['woff2'],
     incremental: true,
+    // Pin the font's creation timestamp so the same input always produces the same bytes.
+    // Without it, the worker records the current browser time.
     formatOptions: { ttf: { ts: 0 } },
 });
 const bytes = await result.font('woff2');
@@ -57,6 +59,49 @@ Without `formatOptions.ttf.ts`, generation captures the browser clock once and r
 timestamp during updates. A fixed Unix timestamp produces reproducible font metadata.
 WOFF uses pure-Rust compression; native zlib output may differ at the byte level.
 WOFF2 uses single-threaded Brotli at every supported compression quality (0–11).
+
+### Using the output
+
+The result holds plain bytes and text, so you can use the font on the current page, offer it as a download, or upload it.
+
+::: code-group
+
+```ts [Use on the page]
+const fontUrl = URL.createObjectURL(new Blob([bytes!], { type: 'font/woff2' }));
+// Point the generated CSS at the in-memory font, then apply it.
+const style = document.createElement('style');
+style.textContent = await result.generateCss();
+style.textContent = style.textContent.replace(/url\("?[^)"]*\.woff2[^)"]*"?\)/g, `url("${fontUrl}")`);
+document.head.append(style);
+
+document.body.insertAdjacentHTML('beforeend', '<i class="icon icon-square"></i>');
+```
+
+```ts [Download]
+function download(name: string, data: BlobPart, type: string) {
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(new Blob([data], { type }));
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(link.href);
+}
+
+download('iconfont.woff2', bytes!, 'font/woff2');
+download('iconfont.css', await result.generateCss(), 'text/css');
+```
+
+```ts [Upload]
+const outputs = await result.collectOutputs();
+const form = new FormData();
+for (const [kind, data] of Object.entries(outputs)) {
+    form.append(kind, new Blob([data]), `iconfont.${kind}`);
+}
+await fetch('/api/icon-fonts', { method: 'POST', body: form });
+```
+
+:::
+
+To pass explicit font URLs instead of rewriting the CSS, set `cssFontsUrl` to the URL prefix where you will serve the files.
 
 ## Result methods
 
