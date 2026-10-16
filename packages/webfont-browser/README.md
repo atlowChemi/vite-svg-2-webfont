@@ -1,5 +1,9 @@
 # @atlowchemi/webfont-browser-generator
 
+<p align="center">
+  <img src="../docs/assets/svg/webfont-browser-logo.svg" alt="webfont-browser-generator logo" width="200" />
+</p>
+
 [![npm](https://img.shields.io/npm/v/@atlowchemi/webfont-browser-generator.svg?style=flat-square)](https://www.npmjs.com/package/@atlowchemi/webfont-browser-generator)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/atlowChemi/vite-svg-2-webfont/main.yaml?branch=main&style=flat-square)
 [![docs](https://img.shields.io/badge/docs-online-646cff?style=flat-square)](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser)
