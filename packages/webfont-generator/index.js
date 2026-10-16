@@ -2,6 +2,8 @@ import { generateWebfonts as generateNativeBinding, MissingGlyphBehavior } from 
 import * as templates from './templates.js';
 import { validateOptions } from './validations.js';
 
+// @vusion/webfonts-generator always overwrites `formatOptions.ttf.ts` with this value (milliseconds passed as
+// svg2ttf's seconds-based `ts`); the compatibility wrapper does the same so TTF output keeps matching upstream.
 const UPSTREAM_TTF_COMPAT_TS = 1_484_141_760_000;
 
 function coerceCodepoints(codepoints) {
