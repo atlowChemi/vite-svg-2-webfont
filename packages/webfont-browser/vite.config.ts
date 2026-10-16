@@ -1,6 +1,6 @@
-import { defineProject } from 'vite-plus';
+import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 
-export default defineProject({
+const config: UserProjectConfigExport = defineProject({
     pack: {
         entry: ['src/index.ts', 'src/worker.ts'],
         format: ['esm'],
@@ -29,10 +29,14 @@ export default defineProject({
         },
     },
     test: {
-        include: ['tests/bundle.test.ts', 'tests/worker.test.ts', 'tests/client.test.ts'],
+        include: ['tests/**/*.test.ts'],
+        exclude: ['tests/browser.test.ts'],
         benchmark: { include: [] },
         name: 'webfont-browser-build',
+        typecheck: { enabled: true },
         testTimeout: 30_000,
         unstubGlobals: true,
     },
 });
+
+export default config;
