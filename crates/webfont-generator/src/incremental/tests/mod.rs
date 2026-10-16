@@ -27,29 +27,47 @@ async fn single_file_helpers_recover_consumed_results_and_match_regeneration() {
     let second = write_icon(&dir, "second", D2);
     let result = generate(vec![first.clone()], true);
     let result = result.add_async(second.clone(), None, None).await.unwrap();
-    let result = result
+    assert_eq!(
+        result.ttf_bytes(),
+        generate(vec![first.clone(), second.clone()], false).ttf_bytes()
+    );
+    let before_rejections = result.ttf_bytes().unwrap().to_vec();
+    let (result, error) = result
         .add_async(second.clone(), None, None)
         .await
         .err()
         .unwrap()
-        .into_result()
-        .unwrap();
-    let result = result
+        .into_parts();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "Source ID/path already exists");
+    let result = result.unwrap();
+    assert_eq!(result.ttf_bytes().unwrap(), before_rejections.as_slice());
+    let (result, error) = result
         .update_async("missing".into(), None)
         .await
         .err()
         .unwrap()
-        .into_result()
-        .unwrap();
-    let result = result
+        .into_parts();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "Unknown source ID/path");
+    let result = result.unwrap();
+    assert_eq!(result.ttf_bytes().unwrap(), before_rejections.as_slice());
+    let (result, error) = result
         .remove_async("missing".into())
         .await
         .err()
         .unwrap()
-        .into_result()
-        .unwrap();
+        .into_parts();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "Unknown source ID/path");
+    let result = result.unwrap();
+    assert_eq!(result.ttf_bytes().unwrap(), before_rejections.as_slice());
     write_icon(&dir, "second", D_CHANGED);
     let result = result.update_async(second.clone(), None).await.unwrap();
+    assert_eq!(
+        result.ttf_bytes(),
+        generate(vec![first.clone(), second.clone()], false).ttf_bytes()
+    );
     let result = result.remove_async(first).await.unwrap();
     assert_eq!(
         result.ttf_bytes(),

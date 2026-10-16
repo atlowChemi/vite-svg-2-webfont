@@ -1,6 +1,6 @@
 import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { expect, it } from 'vite-plus/test';
 import { generateWebfonts } from '../index.js';
 
@@ -21,29 +21,46 @@ it('single file helpers preserve order, recover after errors and interoperate wi
     await using f = await fixture();
     const [first, second, third] = f.paths as [string, string, string];
     const result = await generateWebfonts(f.options);
+    const expectFresh = async (files: string[], renamed = false) => {
+        const fresh = await generateWebfonts({ ...f.options, files, rename: path => (renamed && path === second ? 'renamed' : basename(path, '.svg')) });
+        expect(result.ttf).toEqual(fresh.ttf);
+        expect(result.generateCss()).toBe(fresh.generateCss());
+    };
     result.add(third);
+    await expectFresh([first, third]);
     result.add(second);
-    expect(result.ttf).toEqual((await generateWebfonts({ ...f.options, files: [first, third, second] })).ttf);
+    await expectFresh([first, third, second]);
     const before = result.ttf;
-    expect(() => result.add(first)).toThrow('already exists');
-    expect(() => result.update('unknown')).toThrow('Unknown');
-    expect(() => result.remove('unknown')).toThrow('Unknown');
-    expect(() => result.add('')).toThrow('empty');
+    expect(() => result.add(first)).toThrow('Source ID/path already exists');
+    expect(result.ttf).toEqual(before);
+    expect(() => result.update('unknown')).toThrow('Unknown source ID/path');
+    expect(result.ttf).toEqual(before);
+    expect(() => result.remove('unknown')).toThrow('Unknown source ID/path');
+    expect(result.ttf).toEqual(before);
+    expect(() => result.add('')).toThrow('Source ID/path must not be empty');
+    expect(result.ttf).toEqual(before);
     await writeFile(second, '<broken');
-    expect(() => result.update(second)).toThrow(/SVG|document/);
+    expect(() => result.update(second)).toThrow('Failed to inspect SVG root element: the document does not have a root node');
     expect(result.ttf).toEqual(before);
     await writeFile(second, svg(21));
     result.update(second, 'renamed');
-    expect(result.generateCss()).toContain('renamed');
+    await expectFresh([first, third, second], true);
     result.remove(third);
+    await expectFresh([first, second], true);
     expect(await readFile(third, 'utf8')).toBe(svg(12));
     result.regenerate({ files: [second, first] });
+    await expectFresh([second, first], true);
     result.remove(first);
-    expect(() => result.remove(second)).toThrow('at least one');
-    expect(result.generateCss()).toContain('renamed');
+    await expectFresh([second], true);
+    const remaining = result.ttf;
+    expect(() => result.remove(second)).toThrow('Each design must contain at least one source');
+    expect(result.ttf).toEqual(remaining);
     const ordinary = await generateWebfonts({ ...f.options, incremental: false });
-    expect(() => ordinary.update(first)).toThrow('incremental');
-    expect(() => result.add(third, undefined, 'bold')).toThrow('Ordinary');
+    const ordinaryBefore = ordinary.ttf;
+    expect(() => ordinary.update(first)).toThrow('regenerate requires the font to be generated with `incremental` enabled.');
+    expect(ordinary.ttf).toEqual(ordinaryBefore);
+    expect(() => result.add(third, undefined, 'bold')).toThrow('Ordinary fonts do not accept a target variant');
+    expect(result.ttf).toEqual(remaining);
 });
 
 it('async helpers return snapshots, reject overlaps and retain a usable receiver on failure', async () => {
@@ -52,20 +69,33 @@ it('async helpers return snapshots, reject overlaps and retain a usable receiver
     const original = await generateWebfonts(f.options);
     const saved = original.ttf;
     const added = await original.addAsync(second);
+    expect(added.ttf).toEqual((await generateWebfonts({ ...f.options, files: [first, second] })).ttf);
+    const addedBefore = added.ttf;
     expect(original.ttf).toEqual(saved);
-    await expect(original.updateAsync(first)).rejects.toThrow(/regenerating|replaced/);
+    await expect(original.updateAsync(first)).rejects.toThrow('This result is already regenerating or has been replaced.');
+    expect(original.ttf).toEqual(saved);
     await writeFile(second, '<broken');
-    await expect(added.updateAsync(second)).rejects.toThrow(/SVG|document/);
+    await expect(added.updateAsync(second)).rejects.toThrow('Failed to inspect SVG root element: the document does not have a root node');
+    expect(added.ttf).toEqual(addedBefore);
     await writeFile(second, svg(23));
     const outcomes = await Promise.allSettled([added.updateAsync(second), added.updateAsync(second)]);
     expect(outcomes.filter(outcome => outcome.status === 'rejected')).toHaveLength(1);
+    const rejected = outcomes.find(outcome => outcome.status === 'rejected')!;
+    if (rejected.status !== 'rejected') throw new Error('Expected an overlap rejection');
+    expect(rejected.reason).toHaveProperty('message', 'This result is already regenerating or has been replaced.');
+    expect(added.ttf).toEqual(addedBefore);
     const next = outcomes.find(outcome => outcome.status === 'fulfilled')!;
     if (next.status !== 'fulfilled') throw new Error('Expected a successful update');
+    expect(next.value.ttf).toEqual((await generateWebfonts({ ...f.options, files: [first, second] })).ttf);
     const result = await next.value.removeAsync(first);
     expect(result.ttf).toEqual((await generateWebfonts({ ...f.options, files: [second] })).ttf);
-    await expect(result.removeAsync(second)).rejects.toThrow('at least one');
-    await expect(result.addAsync(second)).rejects.toThrow('already exists');
-    await expect(result.updateAsync('unknown')).rejects.toThrow('Unknown');
+    const remaining = result.ttf;
+    await expect(result.removeAsync(second)).rejects.toThrow('Each design must contain at least one source');
+    expect(result.ttf).toEqual(remaining);
+    await expect(result.addAsync(second)).rejects.toThrow('Source ID/path already exists');
+    expect(result.ttf).toEqual(remaining);
+    await expect(result.updateAsync('unknown')).rejects.toThrow('Unknown source ID/path');
+    expect(result.ttf).toEqual(remaining);
 });
 
 it('variant helpers require a target for additions and update/remove shared paths across designs', async () => {
@@ -78,10 +108,25 @@ it('variant helpers require a target for additions and update/remove shared path
     ];
     const options = { ...base, variants, missingGlyphs: { behavior: 'blank' as const } };
     const result = await generateWebfonts(options);
-    expect(() => result.add(second)).toThrow('target variant');
-    expect(() => result.add(second, undefined, 'unknown')).toThrow('Unknown target');
+    const before = result.ttf;
+    expect(() => result.add(second)).toThrow('Adding to a family requires a target variant');
+    expect(result.ttf).toEqual(before);
+    expect(() => result.add(second, undefined, 'unknown')).toThrow('Unknown target variant');
+    expect(result.ttf).toEqual(before);
     result.add(second, undefined, 'light');
+    expect(result.ttf).toEqual((await generateWebfonts({ ...options, variants: [{ ...variants[0], files: [first, second] }, variants[1]] })).ttf);
     const added = await result.addAsync(third, undefined, 'bold');
+    expect(added.ttf).toEqual(
+        (
+            await generateWebfonts({
+                ...options,
+                variants: [
+                    { ...variants[0], files: [first, second] },
+                    { ...variants[1], files: [first, third] },
+                ],
+            })
+        ).ttf,
+    );
     await writeFile(first, svg(22));
     added.update(first);
     const fresh = await generateWebfonts({
@@ -104,5 +149,7 @@ it('variant helpers require a target for additions and update/remove shared path
             })
         ).ttf,
     );
-    expect(() => removed.remove(second)).toThrow('at least one');
+    const remaining = removed.ttf;
+    expect(() => removed.remove(second)).toThrow('Each design must contain at least one source');
+    expect(removed.ttf).toEqual(remaining);
 });

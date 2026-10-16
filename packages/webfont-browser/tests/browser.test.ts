@@ -67,22 +67,46 @@ it('serializes single actions using retained membership and rolls back rejected 
     const result = await generate({ incremental: true });
     const second = { id: 'second', name: 'second', svg };
     const third = { id: 'third', name: 'third', svg };
-    await Promise.all([result.add(second), result.add(third), result.update(second.id, changed, 'renamed'), result.remove(source.id)]);
+    const renamed = { ...second, name: 'renamed', svg: changed };
+    const [, afterAdd, , afterSecondAdd, , afterUpdate, , afterRemove] = await Promise.all([
+        result.add(second),
+        result.collectOutputs(),
+        result.add(third),
+        result.collectOutputs(),
+        result.update(second.id, changed, 'renamed'),
+        result.collectOutputs(),
+        result.remove(source.id),
+        result.collectOutputs(),
+    ]);
+    expect(afterAdd).toEqual(await (await generate({ sources: [source, second] })).collectOutputs());
+    expect(afterSecondAdd).toEqual(await (await generate({ sources: [source, second, third] })).collectOutputs());
+    expect(afterUpdate).toEqual(await (await generate({ sources: [source, renamed, third] })).collectOutputs());
     const fresh = await generate({ sources: [{ ...second, name: 'renamed', svg: changed }, third] });
-    expect(await result.collectOutputs()).toEqual(await fresh.collectOutputs());
+    expect(afterRemove).toEqual(await fresh.collectOutputs());
     const saved = await result.collectOutputs();
-    await expect(result.add(second)).rejects.toThrow('already exists');
-    await expect(result.update('unknown', svg)).rejects.toThrow('Unknown');
-    await expect(result.remove('unknown')).rejects.toThrow('Unknown');
-    await expect(result.add({ id: 'broken', name: 'broken', svg: '<broken' })).rejects.toThrow('SVG');
-    await expect(result.update(second.id, '<broken')).rejects.toThrow('SVG');
+    await expect(result.add(second)).rejects.toThrow('Source ID/path already exists');
+    expect(await result.collectOutputs()).toEqual(saved);
+    await expect(result.update('unknown', svg)).rejects.toThrow('Unknown source ID/path');
+    expect(await result.collectOutputs()).toEqual(saved);
+    await expect(result.remove('unknown')).rejects.toThrow('Unknown source ID/path');
+    expect(await result.collectOutputs()).toEqual(saved);
+    await expect(result.add({ id: 'broken', name: 'broken', svg: '<broken' })).rejects.toThrow(
+        'SVG source "broken": Failed to inspect SVG root element: the document does not have a root node',
+    );
+    expect(await result.collectOutputs()).toEqual(saved);
+    await expect(result.update(second.id, '<broken')).rejects.toThrow('SVG source "second": Failed to inspect SVG root element: the document does not have a root node');
     expect(await result.collectOutputs()).toEqual(saved);
     await result.add({ id: 'broken', name: 'fixed', svg });
+    expect(await result.collectOutputs()).toEqual(await (await generate({ sources: [renamed, third, { id: 'broken', name: 'fixed', svg }] })).collectOutputs());
     await result.regenerate({ sources: ['third', 'second'] }, [{ type: 'removed', id: 'broken' }]);
+    expect(await result.collectOutputs()).toEqual(await (await generate({ sources: [third, renamed] })).collectOutputs());
     await result.remove('third');
-    await expect(result.remove('second')).rejects.toThrow('at least one');
+    const single = await (await generate({ sources: [renamed] })).collectOutputs();
+    expect(await result.collectOutputs()).toEqual(single);
+    await expect(result.remove('second')).rejects.toThrow('Each design must contain at least one source');
+    expect(await result.collectOutputs()).toEqual(single);
     await result.update('second', svg);
-    expect(await result.generateCss()).toContain('renamed');
+    expect(await result.collectOutputs()).toEqual(await (await generate({ sources: [{ ...renamed, svg }] })).collectOutputs());
 });
 
 it('targets variant additions and applies shared source actions to every consumer', async () => {
@@ -92,9 +116,14 @@ it('targets variant additions and applies shared source actions to every consume
     ];
     const result = await generate({ sources: [], variants, incremental: true, missingGlyphs: { behavior: 'blank' } });
     const extra = { id: 'extra', name: 'extra', svg };
-    await expect(result.add(extra)).rejects.toThrow('target variant');
-    await expect(result.add(extra, 'unknown')).rejects.toThrow('Unknown target');
+    const before = await result.collectOutputs();
+    await expect(result.add(extra)).rejects.toThrow('Adding to a family requires a target variant');
+    expect(await result.collectOutputs()).toEqual(before);
+    await expect(result.add(extra, 'unknown')).rejects.toThrow('Unknown target variant');
+    expect(await result.collectOutputs()).toEqual(before);
     await result.add(extra, 'light');
+    const added = await generate({ sources: [], variants: [{ ...variants[0]!, sources: [source, extra] }, variants[1]!], missingGlyphs: { behavior: 'blank' } });
+    expect(await result.collectOutputs()).toEqual(await added.collectOutputs());
     await result.update(source.id, changed);
     const fresh = await generate({
         sources: [],
@@ -105,8 +134,18 @@ it('targets variant additions and applies shared source actions to every consume
         missingGlyphs: { behavior: 'blank' },
     });
     expect(await result.collectOutputs()).toEqual(await fresh.collectOutputs());
-    await expect(result.remove(source.id)).rejects.toThrow('at least one');
+    await expect(result.remove(source.id)).rejects.toThrow('Each design must contain at least one source');
+    expect(await result.collectOutputs()).toEqual(await fresh.collectOutputs());
     await result.remove(extra.id);
+    const removed = await generate({
+        sources: [],
+        variants: [
+            { ...variants[0]!, sources: [{ ...source, svg: changed }] },
+            { ...variants[1]!, sources: [{ ...source, svg: changed }] },
+        ],
+        missingGlyphs: { behavior: 'blank' },
+    });
+    expect(await result.collectOutputs()).toEqual(await removed.collectOutputs());
 });
 
 it('serializes recoverable updates, supports additions/removals/renames and preserves old copies', async () => {

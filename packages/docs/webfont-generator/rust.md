@@ -233,7 +233,7 @@ Updates preserve position and the existing name when `name` is `None`.
 Updates/removals affect every design consuming the ID/path. Duplicate additions, unknown
 update/remove targets, and empty-design removals reject. File helpers preserve existing
 regeneration's filesystem-write semantics; removing a path never deletes the source file.
-Use the existing regeneration methods for batches, explicit ordering, or membership reassignment.
+Use `regenerate`, `regenerate_sync`, or `regenerate_async` for batches, explicit ordering, or membership reassignment.
 
 ```rust
 # use webfont_generator::{GenerateWebfontsFromSourcesResult, SourceChange, SourceMembership};
