@@ -1216,6 +1216,22 @@ describe('output cache guards', () => {
     });
 });
 
+describe('build reusing one plugin instance', () => {
+    it('regenerates fonts for each build, as VitePress client and SSR builds do', async () => {
+        const plugin = viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] });
+        const run = async () => {
+            const result = await build({ logLevel: 'silent', root: fileURLToNormalizedPath(root), configFile: false, build: { write: false }, plugins: [plugin] });
+            const { output } = (Array.isArray(result) ? result[0] : result) as RolldownOutput;
+            return output.find((out): out is OutputAsset => out.type === 'asset' && out.fileName.endsWith('.css'))?.source;
+        };
+
+        await run();
+        const css = await run();
+
+        expect(css).toMatch(/@font-face\{font-family:iconfont;/);
+    });
+});
+
 describe('serve - releases retained watch state on close', () => {
     it('aborts the watcher signal and removes the temp directory', async () => {
         let watchSignal: AbortSignal | undefined;
