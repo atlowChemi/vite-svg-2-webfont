@@ -14,6 +14,66 @@ pub struct GenerateWebfontsResult(pub(crate) webfont_generator::GenerateWebfonts
 
 #[napi]
 impl GenerateWebfontsResult {
+    /// Append a new file and regenerate. Families require a target variant. Requires incremental generation.
+    #[napi]
+    pub fn add(
+        &mut self,
+        path: String,
+        name: Option<String>,
+        variant: Option<String>,
+    ) -> napi::Result<()> {
+        self.0
+            .add(path, name, variant.as_deref())
+            .map_err(to_napi_err)
+    }
+
+    /// Re-read an existing file in every consuming design, preserving order and the name unless replaced.
+    #[napi]
+    pub fn update(&mut self, path: String, name: Option<String>) -> napi::Result<()> {
+        self.0.update(path, name).map_err(to_napi_err)
+    }
+
+    /// Remove a file from every design without deleting it from disk. Rejects empty designs.
+    #[napi]
+    pub fn remove(&mut self, path: String) -> napi::Result<()> {
+        self.0.remove(path).map_err(to_napi_err)
+    }
+
+    /// Async addition returning a replacement result, with the same snapshot and concurrency rules as regenerateAsync.
+    #[napi]
+    pub async fn add_async(
+        &self,
+        path: String,
+        name: Option<String>,
+        variant: Option<String>,
+    ) -> napi::Result<Self> {
+        self.0
+            .add_snapshot_async(path, name, variant)
+            .await
+            .map(Self)
+            .map_err(to_napi_err)
+    }
+
+    /// Async update returning a replacement result, with the same snapshot and concurrency rules as regenerateAsync.
+    #[napi]
+    pub async fn update_async(&self, path: String, name: Option<String>) -> napi::Result<Self> {
+        self.0
+            .update_snapshot_async(path, name)
+            .await
+            .map(Self)
+            .map_err(to_napi_err)
+    }
+
+    /// Async removal returning a replacement result, with the same snapshot and concurrency rules as regenerateAsync.
+    #[napi]
+    pub async fn remove_async(&self, path: String) -> napi::Result<Self> {
+        self.0
+            .remove_snapshot_async(path)
+            .await
+            .map(Self)
+            .map_err(to_napi_err)
+    }
+
     /// EOT font bytes, or `null` if EOT was not in `types`.
     #[napi(getter)]
     pub fn eot(&self) -> Option<Uint8Array> {

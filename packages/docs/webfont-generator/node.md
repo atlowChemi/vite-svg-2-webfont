@@ -580,6 +580,30 @@ let result = await generateWebfonts({ files, dest, incremental: true });
 result = await result.regenerateAsync({ files }, [{ path: '/icons/add.svg', changeType: 'changed' }]);
 ```
 
+### Single-file actions
+
+Results generated with `incremental: true` support single actions without supplying the full file list:
+
+| Synchronous                  | Async (returns replacement result) | Effect                                                                                                     |
+| ---------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `add(path, name?, variant?)` | `addAsync(path, name?, variant?)`  | Read a new file and append it; optional `name` overrides the file stem. Families require a target variant. |
+| `update(path, name?)`        | `updateAsync(path, name?)`         | Re-read an existing file in every consuming design, preserving its position and its name unless replaced.  |
+| `remove(path)`               | `removeAsync(path)`                | Remove an existing path from every design, preserving remaining order. Does not delete the file on disk.   |
+
+```ts
+result = await result.addAsync('icons/search.svg');
+result = await result.updateAsync('icons/search.svg', 'search');
+result = await result.removeAsync('icons/old.svg');
+// For a family, append to one configured design:
+family = await family.addAsync('bold/search.svg', undefined, 'bold');
+```
+
+Duplicate additions, unknown update/remove paths, and removals that empty a design reject.
+The helpers use the current retained membership, including changes made through `regenerate`.
+They inherit regeneration's callback restrictions, output writing, failure handling, and async
+snapshot/overlap rules. Assign async replacements before the next action.
+Use `regenerate` for batches, explicit ordering, or assigning existing paths to other variants.
+
 ### Variant regeneration
 
 Generate with `incremental: true` to retain per-design geometry caches. Regeneration keeps the

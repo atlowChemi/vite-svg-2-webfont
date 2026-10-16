@@ -6,7 +6,10 @@ use std::sync::OnceLock;
 
 use super::options::{invalid, validate_name};
 use super::{GenerateWebfontsFromSourcesResult, SvgSource, build};
-use crate::incremental::sources::{SourceUpdate, ordered_sources, same_sources, updated_sources};
+use crate::incremental::sources::{
+    MembershipChange, SourceUpdate, change_membership, ordered_sources, same_sources,
+    updated_sources,
+};
 use crate::input::{LoadedSvgSource, validate_glyph_names};
 use crate::rendering::css::{TemplateDependencies, template_dependencies};
 
@@ -106,6 +109,117 @@ impl std::error::Error for SourceRegenerateError {
 }
 
 impl GenerateWebfontsFromSourcesResult {
+    fn membership_for_change(
+        &self,
+        id: &str,
+        change: MembershipChange<'_>,
+    ) -> Result<SourceMembership> {
+        let names = self.options.variants.as_ref().map(|family| {
+            family
+                .variants
+                .iter()
+                .map(|variant| variant.name.clone())
+                .collect::<Vec<_>>()
+        });
+        let mut sets = self
+            .options
+            .sources
+            .iter()
+            .map(|sources| sources.iter().map(|source| source.id.clone()).collect())
+            .collect::<Vec<_>>();
+        change_membership(&mut sets, names.as_deref(), id, change)?;
+        Ok(match names {
+            Some(names) => SourceMembership::Variants(
+                names
+                    .into_iter()
+                    .zip(sets)
+                    .map(|(name, ids)| VariantSourceSet { name, ids })
+                    .collect(),
+            ),
+            None => SourceMembership::Sources(sets.remove(0)),
+        })
+    }
+
+    /// Append a new source and regenerate. Families require an existing target variant.
+    /// Requires incremental generation. Inherits [`Self::regenerate_sync`]'s rollback semantics.
+    pub fn add_sync(&mut self, source: SvgSource, variant: Option<&str>) -> Result<()> {
+        let membership = self.membership_for_change(&source.id, MembershipChange::Add(variant))?;
+        self.regenerate_sync(membership, vec![SourceChange::Added(source)])
+    }
+
+    /// Replace an existing source in every consuming design, preserving its position.
+    /// An absent name preserves the old name. Inherits [`Self::regenerate_sync`]'s rollback semantics.
+    pub fn update_sync(&mut self, id: String, svg: String, name: Option<String>) -> Result<()> {
+        let membership = self.membership_for_change(&id, MembershipChange::Update)?;
+        self.regenerate_sync(membership, vec![SourceChange::Changed { id, svg, name }])
+    }
+
+    /// Remove an existing ID from every design. Rejects empty designs.
+    /// Inherits [`Self::regenerate_sync`]'s rollback semantics.
+    pub fn remove_sync(&mut self, id: String) -> Result<()> {
+        let membership = self.membership_for_change(&id, MembershipChange::Remove)?;
+        self.regenerate_sync(membership, vec![SourceChange::Removed { id }])
+    }
+
+    /// Consuming async equivalent of [`Self::add_sync`], with [`Self::regenerate`]'s recovery semantics.
+    #[cfg(feature = "async")]
+    pub async fn add(
+        self,
+        source: SvgSource,
+        variant: Option<String>,
+    ) -> std::result::Result<Self, SourceRegenerateError> {
+        let membership = match self
+            .membership_for_change(&source.id, MembershipChange::Add(variant.as_deref()))
+        {
+            Ok(membership) => membership,
+            Err(error) => {
+                return Err(SourceRegenerateError {
+                    error,
+                    result: Some(Box::new(self)),
+                });
+            }
+        };
+        self.regenerate(membership, vec![SourceChange::Added(source)])
+            .await
+    }
+
+    /// Consuming async equivalent of [`Self::update_sync`], with [`Self::regenerate`]'s recovery semantics.
+    #[cfg(feature = "async")]
+    pub async fn update(
+        self,
+        id: String,
+        svg: String,
+        name: Option<String>,
+    ) -> std::result::Result<Self, SourceRegenerateError> {
+        let membership = match self.membership_for_change(&id, MembershipChange::Update) {
+            Ok(membership) => membership,
+            Err(error) => {
+                return Err(SourceRegenerateError {
+                    error,
+                    result: Some(Box::new(self)),
+                });
+            }
+        };
+        self.regenerate(membership, vec![SourceChange::Changed { id, svg, name }])
+            .await
+    }
+
+    /// Consuming async equivalent of [`Self::remove_sync`], with [`Self::regenerate`]'s recovery semantics.
+    #[cfg(feature = "async")]
+    pub async fn remove(self, id: String) -> std::result::Result<Self, SourceRegenerateError> {
+        let membership = match self.membership_for_change(&id, MembershipChange::Remove) {
+            Ok(membership) => membership,
+            Err(error) => {
+                return Err(SourceRegenerateError {
+                    error,
+                    result: Some(Box::new(self)),
+                });
+            }
+        };
+        self.regenerate(membership, vec![SourceChange::Removed { id }])
+            .await
+    }
+
     /// Apply a changed-source batch and complete ordered membership synchronously.
     /// Requires `incremental: Some(true)`. On error, buffers, sources and renders remain usable;
     /// a failed build discards partially mutated geometry caches so a retry starts safely.

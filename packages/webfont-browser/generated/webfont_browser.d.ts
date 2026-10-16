@@ -8,6 +8,10 @@ export class FontSession {
     free(): void;
     [Symbol.dispose](): void;
     /**
+     * Append a source, requiring a target variant for families. Uses retained membership.
+     */
+    add(source: string, variant?: string | null): void;
+    /**
      * Render CSS lazily, even when CSS collection is disabled.
      */
     css(): string;
@@ -32,6 +36,14 @@ export class FontSession {
      * Apply a source batch with complete final membership. Ordinary errors retain the result.
      */
     regenerate(membership: string, changes: string): void;
+    /**
+     * Remove an existing source from every design, preserving the remaining order.
+     */
+    remove(id: string): void;
+    /**
+     * Replace SVG text and optionally the name of an existing source in every design.
+     */
+    update(id: string, svg: string, name?: string | null): void;
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
@@ -39,19 +51,22 @@ export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembl
 export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_fontsession_free: (a: number, b: number) => void;
+    readonly fontsession_add: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly fontsession_css: (a: number) => [number, number, number, number];
     readonly fontsession_font: (a: number, b: number, c: number) => [number, number, number];
     readonly fontsession_html: (a: number) => [number, number, number, number];
     readonly fontsession_new: (a: number, b: number) => [number, number, number];
     readonly fontsession_outputs: (a: number) => [number, number, number];
     readonly fontsession_regenerate: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly fontsession_remove: (a: number, b: number, c: number) => [number, number];
+    readonly fontsession_update: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly __wbindgen_exn_store: (a: number) => void;
     readonly __externref_table_alloc: () => number;
     readonly __wbindgen_externrefs: WebAssembly.Table;
-    readonly __externref_table_dealloc: (a: number) => void;
-    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
+    readonly __externref_table_dealloc: (a: number) => void;
+    readonly __wbindgen_free: (a: number, b: number, c: number) => void;
     readonly __wbindgen_start: () => void;
 }
 

@@ -80,6 +80,95 @@ fn membership(ids: &[&str]) -> SourceMembership {
     SourceMembership::Sources(ids.iter().map(|id| (*id).into()).collect())
 }
 
+#[cfg(feature = "async")]
+#[tokio::test]
+async fn single_source_helpers_preserve_order_and_recover_consumed_results() {
+    let mut input = options();
+    input.types = Some(vec![FontType::Ttf]);
+    let original_id = input.sources[0].id.clone();
+    let result = generate_from_sources_sync(input.clone()).unwrap();
+    let result = result
+        .add(source("second", "second", OTHER), None)
+        .await
+        .unwrap();
+    input.sources.push(source("second", "second", OTHER));
+    let expected = generate_from_sources_sync(input.clone()).unwrap();
+    assert_fonts_equal(&result, &expected);
+    let (error, result) = result
+        .add(source("second", "second", SVG), None)
+        .await
+        .err()
+        .unwrap()
+        .into_parts();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "Source ID/path already exists");
+    let result = result.unwrap();
+    assert_fonts_equal(&result, &expected);
+    let (error, result) = result
+        .update("missing".into(), SVG.into(), None)
+        .await
+        .err()
+        .unwrap()
+        .into_parts();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "Unknown source ID/path");
+    let result = result.unwrap();
+    assert_fonts_equal(&result, &expected);
+    let (error, result) = result
+        .remove("missing".into())
+        .await
+        .err()
+        .unwrap()
+        .into_parts();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "Unknown source ID/path");
+    let result = result.unwrap();
+    assert_fonts_equal(&result, &expected);
+    let (error, result) = result
+        .update("second".into(), "<broken".into(), None)
+        .await
+        .err()
+        .unwrap()
+        .into_parts();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+    assert_eq!(
+        error.to_string(),
+        "SVG source \"second\": Failed to inspect SVG root element: the document does not have a root node"
+    );
+    let result = result.unwrap();
+    assert_fonts_equal(&result, &expected);
+    let result = result
+        .update("second".into(), SVG.into(), Some("renamed".into()))
+        .await
+        .unwrap();
+    input.sources[1] = source("second", "renamed", SVG);
+    assert_fonts_equal(&result, &generate_from_sources_sync(input.clone()).unwrap());
+    let mut result = result.remove(original_id).await.unwrap();
+    input.sources.remove(0);
+    let expected = generate_from_sources_sync(input.clone()).unwrap();
+    assert_fonts_equal(&result, &expected);
+    let error = result.remove_sync("second".into()).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Each design must contain at least one source"
+    );
+    assert_fonts_equal(&result, &expected);
+    result
+        .add_sync(source("third", "third", OTHER), None)
+        .unwrap();
+    input.sources.push(source("third", "third", OTHER));
+    assert_fonts_equal(&result, &generate_from_sources_sync(input.clone()).unwrap());
+    result
+        .update_sync("third".into(), SVG.into(), None)
+        .unwrap();
+    input.sources[1].svg = SVG.into();
+    assert_fonts_equal(&result, &generate_from_sources_sync(input.clone()).unwrap());
+    result.remove_sync("third".into()).unwrap();
+    input.sources.pop();
+    assert_fonts_equal(&result, &generate_from_sources_sync(input).unwrap());
+}
+
 fn assert_fonts_equal(
     left: &GenerateWebfontsFromSourcesResult,
     right: &GenerateWebfontsFromSourcesResult,
@@ -296,6 +385,73 @@ fn shared_variant_identity_is_validated_and_updates_all_memberships() {
             .to_string()
             .contains("Conflicting")
     );
+}
+
+#[test]
+fn single_variant_actions_validate_targets_and_update_every_consumer() {
+    let mut settings = variant_options();
+    let mut result = generate_from_sources_sync(settings.clone()).unwrap();
+    let expected = generate_from_sources_sync(settings.clone()).unwrap();
+    let error = result
+        .add_sync(source("", "new", SVG), Some("light"))
+        .unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "Source ID/path must not be empty");
+    assert_fonts_equal(&result, &expected);
+    let error = result
+        .add_sync(source("extra", "extra", SVG), None)
+        .unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Adding to a family requires a target variant"
+    );
+    assert_fonts_equal(&result, &expected);
+    let error = result
+        .add_sync(source("extra", "extra", SVG), Some("missing"))
+        .unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "Unknown target variant");
+    assert_fonts_equal(&result, &expected);
+    result
+        .add_sync(source("extra", "extra", SVG), Some("light"))
+        .unwrap();
+    settings.variants.as_mut().unwrap()[0]
+        .sources
+        .push(source("extra", "extra", SVG));
+    assert_fonts_equal(
+        &result,
+        &generate_from_sources_sync(settings.clone()).unwrap(),
+    );
+    result
+        .update_sync("shared".into(), OTHER.into(), None)
+        .unwrap();
+    for variant in settings.variants.as_mut().unwrap() {
+        variant.sources[0].svg = OTHER.into();
+    }
+    let expected = generate_from_sources_sync(settings.clone()).unwrap();
+    assert_fonts_equal(&result, &expected);
+    let error = result.remove_sync("shared".into()).unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Each design must contain at least one source"
+    );
+    assert_fonts_equal(&result, &expected);
+    result.remove_sync("extra".into()).unwrap();
+    settings.variants.as_mut().unwrap()[0].sources.pop();
+    assert_fonts_equal(&result, &generate_from_sources_sync(settings).unwrap());
+    let mut ordinary = generate_from_sources_sync(options()).unwrap();
+    let expected = generate_from_sources_sync(options()).unwrap();
+    let error = ordinary
+        .add_sync(source("extra", "extra", SVG), Some("light"))
+        .unwrap_err();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "Ordinary fonts do not accept a target variant"
+    );
+    assert_fonts_equal(&ordinary, &expected);
 }
 
 #[tokio::test]

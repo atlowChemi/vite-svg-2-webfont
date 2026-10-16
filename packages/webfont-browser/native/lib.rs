@@ -55,6 +55,26 @@ impl FontSession {
         self.0.regenerate_sync(membership, changes).map_err(error)
     }
 
+    /// Append a source, requiring a target variant for families. Uses retained membership.
+    pub fn add(&mut self, source: &str, variant: Option<String>) -> Result<(), JsValue> {
+        self.0
+            .add_sync(
+                serde_json::from_str(source).map_err(error)?,
+                variant.as_deref(),
+            )
+            .map_err(error)
+    }
+
+    /// Replace SVG text and optionally the name of an existing source in every design.
+    pub fn update(&mut self, id: String, svg: String, name: Option<String>) -> Result<(), JsValue> {
+        self.0.update_sync(id, svg, name).map_err(error)
+    }
+
+    /// Remove an existing source from every design, preserving the remaining order.
+    pub fn remove(&mut self, id: String) -> Result<(), JsValue> {
+        self.0.remove_sync(id).map_err(error)
+    }
+
     /// Copy a requested font without rendering companion templates.
     pub fn font(&self, format: &str) -> Result<Option<Uint8Array>, JsValue> {
         let format: FontType = serde_json::from_value(format.into()).map_err(error)?;

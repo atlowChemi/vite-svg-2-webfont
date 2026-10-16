@@ -10,6 +10,61 @@ pub(crate) enum SourceUpdate {
     Remove(String),
 }
 
+pub(crate) enum MembershipChange<'a> {
+    Add(Option<&'a str>),
+    Update,
+    Remove,
+}
+
+/// Derive one action's membership without mutating the retained result.
+pub(crate) fn change_membership(
+    sets: &mut [Vec<String>],
+    variants: Option<&[String]>,
+    id: &str,
+    change: MembershipChange<'_>,
+) -> std::io::Result<()> {
+    let invalid = |message| std::io::Error::new(std::io::ErrorKind::InvalidInput, message);
+    if id.is_empty() {
+        return Err(invalid("Source ID/path must not be empty"));
+    }
+    let exists = sets.iter().any(|set| set.iter().any(|value| value == id));
+    match change {
+        MembershipChange::Add(variant) => {
+            if exists {
+                return Err(invalid("Source ID/path already exists"));
+            }
+            let index = match (variants, variant) {
+                (None, None) => 0,
+                (Some(names), Some(name)) => names
+                    .iter()
+                    .position(|value| value == name)
+                    .ok_or_else(|| invalid("Unknown target variant"))?,
+                (Some(_), None) => {
+                    return Err(invalid("Adding to a family requires a target variant"));
+                }
+                (None, Some(_)) => {
+                    return Err(invalid("Ordinary fonts do not accept a target variant"));
+                }
+            };
+            sets[index].push(id.to_owned());
+        }
+        MembershipChange::Update | MembershipChange::Remove => {
+            if !exists {
+                return Err(invalid("Unknown source ID/path"));
+            }
+            if matches!(change, MembershipChange::Remove) {
+                for set in sets {
+                    set.retain(|value| value != id);
+                    if set.is_empty() {
+                        return Err(invalid("Each design must contain at least one source"));
+                    }
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
 /// Apply changes without touching caches. Memory callers validate the resulting memberships
 /// before committing cache changes. File callers retain their legacy failure/dirty-cache policy.
 pub(crate) fn updated_sources(
