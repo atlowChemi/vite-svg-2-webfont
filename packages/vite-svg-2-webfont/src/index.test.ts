@@ -987,6 +987,44 @@ describe('serve - incrementally regenerates on a content edit', () => {
     });
 });
 
+describe('serve - watches nested ordinary globs recursively', () => {
+    let watchedPath: Parameters<typeof setupWatcherMock>[0] | undefined;
+    let watcherHandler: Parameters<typeof setupWatcherMock>[2];
+    let server: ViteDevServer;
+
+    beforeAll(async () => {
+        setupWatcherMock.mockImplementationOnce(async (path, _signal, handler) => {
+            watchedPath = path;
+            watcherHandler = handler;
+        });
+        const created = await createServer({
+            logLevel: 'silent',
+            root: fileURLToNormalizedPath(root),
+            configFile: false,
+            plugins: [viteSvgToWebfont({ context: webfontFolder, files: ['**/*.svg'] })],
+        });
+        server = await created.listen();
+    });
+
+    afterAll(async () => {
+        await server.close();
+    });
+
+    it('watches the context and its subdirectories', () => {
+        expect(watchedPath).toEqual([webfontFolder]);
+    });
+
+    it('ignores SVG events outside the glob membership', async () => {
+        const generateCallsBefore = generateWebfontsMock.mock.calls.length;
+        const writesBefore = ensureDirExistsAndWriteFileMock.mock.calls.length;
+
+        await watcherHandler([{ path: pathJoin(webfontFolder, 'unmatched', 'missing.svg'), kind: 'changed' }]);
+
+        expect(generateWebfontsMock).toHaveBeenCalledTimes(generateCallsBefore);
+        expect(ensureDirExistsAndWriteFileMock).toHaveBeenCalledTimes(writesBefore);
+    });
+});
+
 describe('serve - skips unchanged dev css/html writes', () => {
     let watcherHandler: Parameters<typeof setupWatcherMock>[2];
     let server: ViteDevServer;

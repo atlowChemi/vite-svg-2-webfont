@@ -55,9 +55,17 @@ export function reconcileChanges(before: RegenerationFiles, after: RegenerationF
     return changes.values().toArray();
 }
 
-/** Variant contexts are recursive; ancestor coverage subsumes nested/shared roots. */
+/** Whether ordinary globs can match SVGs below the context directory itself. */
+function reachesSubdirectories(files: IconPluginOptions['files']): boolean {
+    return [files ?? '*.svg'].flat().some(pattern => pattern.includes('/') || pattern.includes('**'));
+}
+
+/**
+ * Array results are watched recursively: variant contexts always, and an ordinary context when its globs reach
+ * subdirectories. Ancestor coverage subsumes nested/shared variant roots.
+ */
 export function watchRoots(options: IconPluginOptions): string | string[] {
-    if (!options.variants) return options.context;
+    if (!options.variants) return reachesSubdirectories(options.files) ? [options.context] : options.context;
     const roots = new Set(options.variants.map(variant => resolve(options.context, variant.context ?? '.')));
     return roots
         .values()

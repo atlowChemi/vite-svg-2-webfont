@@ -47,6 +47,13 @@ describe('watchRoots', () => {
         it('returns ordinary context verbatim without normalizing its shape', () => {
             expect(watchRoots({ context: './icons/../icons', files: '*.svg' })).toBe('./icons/../icons');
         });
+        it('watches the ordinary context directly for default and flat globs', () => {
+            expect(watchRoots({ context: root })).toBe(root);
+            expect(watchRoots({ context: root, files: ['*.svg', 'logo-*.svg'] })).toBe(root);
+        });
+        it.each([['**/*.svg'], [['*.svg', 'brand/*.svg']], ['actions/**']])('watches the ordinary context recursively for nested globs %j', files => {
+            expect(watchRoots({ context: root, files })).toEqual([root]);
+        });
         it('inherits top-level context and deduplicates equivalent paths', () => {
             expect(
                 watchRoots({
