@@ -396,6 +396,27 @@ describe('generateWebfonts', () => {
         await expect(readFile(`${dest}/iconfont.ttf`)).resolves.toEqual(expect.any(Buffer));
     });
 
+    it('pins the upstream ttf timestamp, like @vusion/webfonts-generator', async () => {
+        const MAC_EPOCH_OFFSET_SECONDS = 2_082_844_800n;
+        function headCreated(ttf: Uint8Array | null) {
+            if (!ttf) throw new Error('Expected a generated TTF');
+            const view = new DataView(ttf.buffer, ttf.byteOffset, ttf.byteLength);
+            for (let record = 12; record < 12 + view.getUint16(4) * 16; record += 16) {
+                const tag = String.fromCharCode(...ttf.subarray(record, record + 4));
+                if (tag === 'head') return view.getBigInt64(view.getUint32(record + 8) + 20) - MAC_EPOCH_OFFSET_SECONDS;
+            }
+            throw new Error('Expected a head table');
+        }
+        const options = { css: false, dest: tmpdir(), files: [join(webfontFixtures, 'add.svg')], types: ['ttf'], writeFiles: false } satisfies GenerateWebfontsFileOptions;
+
+        // Upstream overwrites any caller-supplied `ts`, so the compatibility wrapper does too.
+        const requested = await generateWebfonts({ ...options, formatOptions: { ttf: { ts: 1_700_000_000 } } });
+        const fallback = await generateWebfonts(options);
+
+        expect(headCreated(requested.ttf)).toBe(1_484_141_760_000n);
+        expect(headCreated(fallback.ttf)).toBe(1_484_141_760_000n);
+    });
+
     it('generates a deterministic svg font and writes requested svg/html/css outputs', async () => {
         const dest = await createTempDir('vite-svg-native-');
         const result = await generateWebfonts({
