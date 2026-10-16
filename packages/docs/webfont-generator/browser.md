@@ -2,6 +2,10 @@
 description: Browser font generation with precompiled WebAssembly and a worker-owned in-memory API.
 ---
 
+<p align="center">
+  <img src="/webfont-browser-logo.svg" alt="webfont-browser-generator logo" width="200" />
+</p>
+
 # Browser API
 
 `@atlowchemi/webfont-browser-generator` wraps the Rust engine with wasm-bindgen and runs
