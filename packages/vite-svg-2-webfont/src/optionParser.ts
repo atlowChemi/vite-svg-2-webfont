@@ -38,7 +38,7 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
     ligature?: boolean;
     /**
      * Normalize icons by scaling them to the height of the highest icon.
-     * @default false
+     * @default true
      */
     normalize?: boolean;
     /**
@@ -160,7 +160,10 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
     shouldProcessHtml?: (context: IndexHtmlTransformContext) => boolean;
     /** Specific codepoints for certain icons. Icons without codepoints will have codepoints incremented from startCodepoint skipping duplicates. */
     codepoints?: { [key: string]: number };
-    /** The outputted font height (defaults to the height of the highest input icon). */
+    /**
+     * The outputted font height.
+     * @default 1000
+     */
     fontHeight?: number;
     /**
      * CSS class prefix for each of the generated icons.

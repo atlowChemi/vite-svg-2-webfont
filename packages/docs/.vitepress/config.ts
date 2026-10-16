@@ -1,12 +1,22 @@
 import { defineConfig } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
+import { svgAuthoringFontPlugins } from './svgAuthoringFonts';
 
 const repoName = 'vite-svg-2-webfont';
 const repo = `https://github.com/atlowChemi/${repoName}`;
 const base = process.env.GITHUB_ACTIONS ? `/${repoName}/` : '/';
 const docsUrl = `https://atlowChemi.github.io/${repoName}/`;
 const socialImage = `${docsUrl}social-card.png`;
+
+const guidesSidebar = {
+    text: 'Guides',
+    items: [
+        { text: 'Which Package Do I Need?', link: '/which-package' },
+        { text: 'SVG Authoring & Troubleshooting', link: '/svg-authoring' },
+        { text: 'Glossary', link: '/glossary' },
+    ],
+};
 
 export default defineConfig({
     title: repoName,
@@ -92,6 +102,7 @@ export default defineConfig({
                 },
             }),
             llmstxt(),
+            ...svgAuthoringFontPlugins(),
         ],
         resolve: {
             preserveSymlinks: true,
@@ -105,6 +116,7 @@ export default defineConfig({
         siteTitle: repoName,
         nav: [
             { text: 'Guide', link: '/getting-started' },
+            { text: 'Which Package?', link: '/which-package' },
             {
                 text: 'Webfont Generator',
                 items: [
@@ -113,6 +125,7 @@ export default defineConfig({
                     { text: 'Rust', link: '/webfont-generator/rust' },
                     { text: 'Browser', link: '/webfont-generator/browser' },
                     { text: 'CLI', link: '/webfont-generator/cli' },
+                    { text: 'Under the Hood', link: '/webfont-generator/under-the-hood' },
                     { text: 'npm Adapter Changelog', link: '/webfont-generator/changelog' },
                     { text: 'Rust Engine Changelog', link: '/webfont-generator/engine-changelog' },
                 ],
@@ -122,14 +135,17 @@ export default defineConfig({
         sidebar: {
             '/': [
                 {
+                    text: 'Vite Plugin',
                     items: [
                         { text: 'Getting Started', link: '/getting-started' },
                         { text: 'Usage', link: '/usage' },
+                        { text: 'How It Works', link: '/how-it-works' },
                         { text: 'Configuration', link: '/configuration' },
                         { text: 'Public API', link: '/public-api' },
                         { text: 'Migration', link: '/migration' },
                     ],
                 },
+                guidesSidebar,
             ],
             '/webfont-generator/': [
                 {
@@ -141,10 +157,12 @@ export default defineConfig({
                         { text: 'Browser', link: '/webfont-generator/browser' },
                         { text: 'CLI', link: '/webfont-generator/cli' },
                         { text: 'Templates', link: '/webfont-generator/templates' },
+                        { text: 'Under the Hood', link: '/webfont-generator/under-the-hood' },
                         { text: 'npm Adapter Changelog', link: '/webfont-generator/changelog' },
                         { text: 'Rust Engine Changelog', link: '/webfont-generator/engine-changelog' },
                     ],
                 },
+                guidesSidebar,
             ],
         },
         search: {

@@ -147,7 +147,7 @@ See the [generator's color guidance](/webfont-generator/#color-glyphs) for suppo
 
 - Type: `boolean`
 - Description: Scale icons to the height of the tallest icon
-- Default: `false`
+- Default: `true` (the generator default; the plugin forwards the option only when you set it)
 - Reference: [`@atlowchemi/webfont-generator#normalize`](/webfont-generator/node#normalize)
 
 ## `round`
@@ -175,6 +175,7 @@ See the [generator's color guidance](/webfont-generator/#color-glyphs) for suppo
 
 - Type: `number`
 - Description: Explicit output font height
+- Default: `1000` (the plugin's default; the generator alone defaults to the tallest icon's height)
 - Reference: [`@atlowchemi/webfont-generator#fontHeight`](/webfont-generator/node#fontheight)
 
 ## `centerHorizontally`
@@ -304,6 +305,7 @@ viteSvgToWebfont({
 - Type: `FormatOptions`
 - Description: Per-format options forwarded to the underlying [`@atlowchemi/webfont-generator`](/webfont-generator/). The shape is `{ svg?: SvgFormatOptions; ttf?: TtfFormatOptions; woff?: WoffFormatOptions; woff2?: Woff2FormatOptions }` — see the engine docs for the fields available on each.
 - Reference: [`@atlowchemi/webfont-generator#formatOptions`](/webfont-generator/node#formatoptions)
+- Note: `formatOptions.ttf.ts` is ignored. Like upstream `@vusion/webfonts-generator`, the generator always writes a fixed TTF timestamp, so builds are reproducible.
 
 ## `moduleId`
 

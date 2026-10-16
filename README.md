@@ -1,7 +1,7 @@
 # vite-svg-2-webfont
 
 <p align="center">
-  <img src="./packages/docs/public/logo.svg" alt="vite-svg-2-webfont logo" width="144" />
+  <img src="./packages/docs/assets/svg/logo.svg" alt="vite-svg-2-webfont logo" width="144" />
 </p>
 
 <p align="center">
