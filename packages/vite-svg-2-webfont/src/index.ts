@@ -42,9 +42,9 @@ export function viteSvgToWebfont<T extends MultiVariantFontType = MultiVariantFo
 export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPluginFileOptions<T>): Plugin<PublicApi>;
 export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPluginOptions<T>): Plugin<PublicApi>;
 export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPluginOptions<T>): Plugin<PublicApi> {
-    const ac = new AbortController();
-    const generationQueue = createGenerationQueue(ac.signal);
-    const tmpDir = getTmpDir();
+    let ac = new AbortController();
+    let generationQueue = createGenerationQueue(ac.signal);
+    let tmpDir = getTmpDir();
     const processedOptions = parseOptions(options);
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type as any));
     let isBuild: boolean;
@@ -366,6 +366,13 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             return resolvedVirtualModuleId;
         },
         async buildStart() {
+            if (ac.signal.aborted) {
+                // Hosts such as VitePress (client + SSR) or Vite's environment builder reuse one plugin
+                // instance across builds; the previous buildEnd aborted its signal and removed its temp dir.
+                ac = new AbortController();
+                generationQueue = createGenerationQueue(ac.signal);
+                tmpDir = getTmpDir();
+            }
             const initial = generationQueue.run(() => generate());
             if (!isBuild) {
                 watcherTask = setupWatcher(watchRoots(options), ac.signal, changes =>
