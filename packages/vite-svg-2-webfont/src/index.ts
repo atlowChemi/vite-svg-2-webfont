@@ -55,6 +55,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     let _reloadModule: undefined | ((module: ModuleNode) => Promise<void>);
     let generatedFonts: GenerateWebfontsResult<T, never> | undefined;
     let publishedSources = regenerationFiles(processedOptions);
+    // Recursive watchers also report SVGs outside the globs, so their events are reconciled against membership.
+    const reconcileWatchEvents = Array.isArray(watchRoots(options));
     let watcherTask: Promise<void> | undefined;
     const generatedFontBuffers = new Map<T, Buffer>();
     const generatedWebfonts: GeneratedWebfont[] = [];
@@ -262,7 +264,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
         try {
             const sources = regenerationFiles(resolveSources(options));
-            const hints = options.variants ? reconcileChanges(publishedSources, sources, changes) : changes.map(change => ({ path: change.path, changeType: change.kind }));
+            const hints = reconcileWatchEvents ? reconcileChanges(publishedSources, sources, changes) : changes.map(change => ({ path: change.path, changeType: change.kind }));
             if (hints?.length === 0 && JSON.stringify(sources) === JSON.stringify(publishedSources)) return;
             const replacement = await generatedFonts.regenerateAsync(sources, hints);
             if (ac.signal.aborted) {
