@@ -1,7 +1,7 @@
-import { defineProject } from 'vite-plus';
+import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 import { playwright } from 'vite-plus/test/browser-playwright';
 
-export default defineProject({
+const config: UserProjectConfigExport = defineProject({
     test: {
         name: 'webfont-wasm-browser',
         include: ['tests/browser.test.ts'],
@@ -16,3 +16,5 @@ export default defineProject({
         },
     },
 });
+
+export default config;
