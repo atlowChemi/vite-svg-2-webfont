@@ -120,6 +120,7 @@ export default defineConfig({
         nav: [
             { text: 'Guide', link: '/getting-started' },
             { text: 'Which Package?', link: '/which-package' },
+            { text: 'Playground', link: '/playground' },
             {
                 text: 'Webfont Generator',
                 items: [

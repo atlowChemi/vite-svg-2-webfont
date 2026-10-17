@@ -120,7 +120,7 @@ describe('real Git/pnpm affected selection', () => {
             [packageNames.engine, packageNames.adapter, packageNames.browser, packageNames.plugin, packageNames.example, packageNames.docs, packageNames.root],
             true,
         ],
-        ['packages/webfont-browser/src/index.ts', [packageNames.browser], false],
+        ['packages/webfont-browser/src/index.ts', [packageNames.browser, packageNames.docs], false],
         ['packages/webfont-generator/native/lib.rs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.docs, packageNames.root], true],
         ['packages/webfont-generator/index.js', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.docs, packageNames.root], true],
         ['packages/vite-svg-2-webfont/src/index.ts', [packageNames.plugin, packageNames.example, packageNames.docs], false],
