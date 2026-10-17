@@ -31,6 +31,8 @@ const config: UserConfig = defineConfig({
             'tests/fixtures/**',
             'packages/webfont-generator/binding{.js,.d.ts}',
             'packages/webfont-browser/generated/**',
+            // Written by the docs type-safe example's HTML template; kept exactly as the plugin writes it.
+            'packages/docs/examples/type-safe-component/icons.ts',
             'target',
             '*.hbs',
         ],
@@ -80,6 +82,9 @@ const config: UserConfig = defineConfig({
             'packages/vite-svg-2-webfont/src/fixtures',
             'packages/webfont-generator/binding{.js,.d.ts}',
             'packages/webfont-browser/generated/**',
+            // Display-only snippets for frameworks the docs do not install.
+            'packages/docs/examples/type-safe-component/Icon.tsx',
+            'packages/docs/examples/type-safe-component/icon.component.ts',
         ],
     },
     staged: {

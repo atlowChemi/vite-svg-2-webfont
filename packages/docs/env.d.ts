@@ -12,3 +12,10 @@ declare module '*.vue' {
 }
 
 declare module 'virtual:svg-authoring-fonts';
+
+declare module 'virtual:docs-examples';
+
+declare module 'virtual:docs-examples-css' {
+    const css: Record<string, string>;
+    export default css;
+}
