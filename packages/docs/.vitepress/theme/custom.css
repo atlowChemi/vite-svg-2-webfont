@@ -128,3 +128,48 @@ a:hover {
     border-color: rgb(100 108 255 / 0.2);
     background: linear-gradient(180deg, rgb(100 108 255 / 0.04), rgb(255 179 57 / 0.05));
 }
+
+/* Live example output; markdown slot content needs these unscoped. */
+.example-output {
+    padding: 24px;
+    color: var(--vp-c-text-1);
+}
+
+.example-output-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(144px, 1fr));
+    gap: 20px;
+}
+
+.example-output figure {
+    margin: 0;
+    font-size: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.example-output figcaption,
+.example-output code {
+    font-family: var(--vp-font-family-mono);
+    font-size: 12px;
+    color: var(--vp-c-text-2);
+}
+
+.example-output-extra {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--vp-c-divider);
+}
+
+.example-output-label {
+    margin: 0 0 12px;
+    font-family: var(--vp-font-family-mono);
+    font-size: 12px;
+    color: var(--vp-c-text-3);
+}
+
+.example-output-grid + .example-output-label {
+    margin-top: 24px;
+}

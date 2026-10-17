@@ -13,11 +13,11 @@ const config: UserProjectConfigExport = defineProject({
             dev: {
                 cache: false,
                 command: 'vitepress dev .',
-                dependsOn: ['social-card', '@atlowchemi/webfont-generator#build'],
+                dependsOn: ['social-card', 'vite-svg-2-webfont#pack'],
             },
             build: {
                 command: 'vitepress build .',
-                dependsOn: ['social-card', '@atlowchemi/webfont-generator#build'],
+                dependsOn: ['social-card', 'vite-svg-2-webfont#pack'],
                 cache: { env: ['GITHUB_ACTIONS'] },
             },
             preview: {
