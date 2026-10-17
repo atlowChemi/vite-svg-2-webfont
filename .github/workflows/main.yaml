@@ -223,11 +223,17 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@686976e191b89faba57d3206551f0f330d8cb249 # stable
+              with:
+                  targets: wasm32-unknown-unknown
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
+            - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: target/wasm-bindgen-tools
+                  key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
             - run: vp run @atlowchemi/vite-svg-webfont-docs#build
 
     test-browser:
