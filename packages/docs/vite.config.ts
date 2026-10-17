@@ -1,6 +1,10 @@
 import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 
 const config: UserProjectConfigExport = defineProject({
+    test: {
+        name: 'docs',
+        include: ['.vitepress/**/*.test.ts'],
+    },
     run: {
         tasks: {
             'optimize-svg': {
@@ -13,11 +17,11 @@ const config: UserProjectConfigExport = defineProject({
             dev: {
                 cache: false,
                 command: 'vitepress dev .',
-                dependsOn: ['social-card', 'vite-svg-2-webfont#pack'],
+                dependsOn: ['social-card', 'vite-svg-2-webfont#pack', '@atlowchemi/webfont-browser-generator#pack'],
             },
             build: {
                 command: 'vitepress build .',
-                dependsOn: ['social-card', 'vite-svg-2-webfont#pack'],
+                dependsOn: ['social-card', 'vite-svg-2-webfont#pack', '@atlowchemi/webfont-browser-generator#pack'],
                 cache: { env: ['GITHUB_ACTIONS'] },
             },
             preview: {

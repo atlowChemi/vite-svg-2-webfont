@@ -1,0 +1,96 @@
+/* Styles shared by the playground's components; each component keeps its own layout styles. */
+.pg {
+    --pg-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.pg h2 {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-size: 18px;
+}
+
+.pg input:not([type='checkbox'], [type='radio'], [type='range']),
+.pg textarea {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--vp-c-divider);
+    border-radius: 6px;
+    background: var(--vp-c-bg);
+    color: var(--vp-c-text-1);
+    font-size: 14px;
+}
+
+.pg input[aria-invalid='true'] {
+    border-color: var(--vp-c-danger-1);
+}
+
+.pg .pg-visually-hidden {
+    position: absolute;
+    width: 1px !important;
+    height: 1px;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+.pg-button {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 16px;
+    border-radius: 20px;
+    background: var(--vp-c-brand-3);
+    color: var(--vp-c-white);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+}
+
+.pg-button:hover {
+    background: var(--vp-c-brand-2);
+}
+
+.pg-button-alt {
+    background: var(--vp-c-default-soft);
+    color: var(--vp-c-text-1);
+}
+
+.pg-button-alt:hover {
+    background: var(--vp-c-default-2);
+}
+
+.pg-link {
+    color: var(--vp-c-brand-1);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.pg-hint {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--vp-c-text-2);
+}
+
+.pg-error {
+    padding: 8px 12px;
+    white-space: pre-wrap;
+    font-family: var(--vp-font-family-mono);
+    font-size: 13px !important;
+    border-radius: 6px;
+    background: var(--vp-c-danger-soft);
+    color: var(--vp-c-danger-1);
+}
+
+.pg-code {
+    margin: 0;
+    max-height: 360px;
+    padding: 16px;
+    overflow: auto;
+    font-family: var(--vp-font-family-mono);
+    font-size: 13px;
+    line-height: 1.6;
+}

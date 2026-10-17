@@ -12,6 +12,10 @@ description: Browser font generation with precompiled WebAssembly and a worker-o
 generation inside dedicated module workers. The package ships compiled JavaScript, types,
 worker code and WASM; applications need no Rust tools or install-time compilation.
 
+::: tip Try it
+The [Playground](/playground) runs this package in your browser: drop in SVGs, adjust the options, and download the fonts.
+:::
+
 ## Installation
 
 ::: code-group
