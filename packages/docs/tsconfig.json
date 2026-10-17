@@ -1,0 +1,14 @@
+{
+    "extends": "../../tsconfig.json",
+    "compilerOptions": {
+        "declaration": false,
+        "isolatedDeclarations": false,
+        "lib": ["esnext", "dom"],
+        "paths": {
+            "vite-svg-2-webfont": ["../vite-svg-2-webfont/src/index.ts"]
+        },
+        "types": ["vite-plus/client"]
+    },
+    "include": [".vitepress/**/*.ts", ".vitepress/**/*.vue", "examples/**/*.ts", "scripts/**/*.ts", "env.d.ts", "vite.config.ts"],
+    "exclude": ["node_modules", ".vitepress/cache", ".vitepress/dist"]
+}

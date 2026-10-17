@@ -1,6 +1,7 @@
 import { defineConfig } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
+import { examplePlugins } from './examples';
 import { svgAuthoringFontPlugins } from './svgAuthoringFonts';
 
 const repoName = 'vite-svg-2-webfont';
@@ -71,6 +72,7 @@ export default defineConfig({
 
             md.renderer.rules.fence = (tokens, index, options, env, slf) => {
                 const token = tokens[index];
+                if (!token) return defaultRenderer(tokens, index, options, env, slf);
                 const language = token.info.trim();
 
                 if (language.startsWith('mermaid')) {
@@ -103,6 +105,7 @@ export default defineConfig({
             }),
             llmstxt(),
             ...svgAuthoringFontPlugins(),
+            ...examplePlugins(),
         ],
         resolve: {
             preserveSymlinks: true,
@@ -139,6 +142,7 @@ export default defineConfig({
                     items: [
                         { text: 'Getting Started', link: '/getting-started' },
                         { text: 'Usage', link: '/usage' },
+                        { text: 'Examples', link: '/examples' },
                         { text: 'How It Works', link: '/how-it-works' },
                         { text: 'Configuration', link: '/configuration' },
                         { text: 'Public API', link: '/public-api' },

@@ -12,3 +12,5 @@ declare module '*.vue' {
 }
 
 declare module 'virtual:svg-authoring-fonts';
+
+declare module 'virtual:docs-examples';
