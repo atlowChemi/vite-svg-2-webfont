@@ -1,5 +1,27 @@
 # Changelog
 
+## [8.5.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.4.0...vite-svg-2-webfont-v8.5.0) (2026-10-17)
+
+
+### Features
+
+* **vite-svg-2-webfont:** reuse cached outputs when inputs are unchanged ([#567](https://github.com/atlowChemi/vite-svg-2-webfont/issues/567)) ([079afc0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/079afc0ab434594040e08a801a3652ad7d360a0c))
+* **vite-svg-2-webfont:** watch nested ordinary globs recursively in dev ([59afc1b](https://github.com/atlowChemi/vite-svg-2-webfont/commit/59afc1b1ea6bcf437bd1715666b7162d57aa60ad))
+
+
+### Bug Fixes
+
+* **vite-svg-2-webfont:** keep output cache keys stable on windows ([#570](https://github.com/atlowChemi/vite-svg-2-webfont/issues/570)) ([87cb101](https://github.com/atlowChemi/vite-svg-2-webfont/commit/87cb10112123f3cd5d6d29c48fef53be26923367))
+* **vite-svg-2-webfont:** regenerate fonts when one plugin instance runs several builds ([91b0490](https://github.com/atlowChemi/vite-svg-2-webfont/commit/91b04901c454a346b53ee72bcb368b3d3d020f25))
+* **vite-svg-2-webfont:** resolve type declarations per export condition ([8ef4a23](https://github.com/atlowChemi/vite-svg-2-webfont/commit/8ef4a23d08a33eea72b6f441c41147185d199c9d))
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @atlowchemi/webfont-generator bumped to 0.10.0
+
 ## [8.4.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.3.1...vite-svg-2-webfont-v8.4.0) (2026-10-09)
 
 ### Features

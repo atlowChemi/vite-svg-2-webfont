@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.9.0...webfont-generator-v0.10.0) (2026-10-17)
+
+
+### Features
+
+* **webfont-generator:** add browser WASM generator ([#568](https://github.com/atlowChemi/vite-svg-2-webfont/issues/568)) ([50450c6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/50450c69d8b2d261ebeaa7e0e3eac59354d59772))
+* **webfont-generator:** add incremental source helpers ([#573](https://github.com/atlowChemi/vite-svg-2-webfont/issues/573)) ([040e808](https://github.com/atlowChemi/vite-svg-2-webfont/commit/040e8084e5cb54d72c1ea02a6699d57991a45ae7))
+* **webfont-generator:** split engine API features ([#565](https://github.com/atlowChemi/vite-svg-2-webfont/issues/565)) ([4a0fc76](https://github.com/atlowChemi/vite-svg-2-webfont/commit/4a0fc765aeeda0752a109e3153150d07c57e8fd6))
+
 ## [0.9.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.8.0...webfont-generator-v0.9.0) (2026-10-09)
 
 ### Features
