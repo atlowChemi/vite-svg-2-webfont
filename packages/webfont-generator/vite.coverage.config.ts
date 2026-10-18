@@ -24,6 +24,8 @@ export default defineConfig({
         ...project.test,
         root: packageRoot,
         pool: 'threads',
+        // Native instrumentation makes repeated generation slower than ordinary test runs.
+        testTimeout: 15_000,
         reporters: [
             'default',
             [
