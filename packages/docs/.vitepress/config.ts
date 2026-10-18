@@ -1,6 +1,7 @@
-import { defineConfig } from 'vitepress';
+import { defineConfig, type MarkdownOptions } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
+import { examplePlugins } from './examples';
 import { svgAuthoringFontPlugins } from './svgAuthoringFonts';
 
 const repoName = 'vite-svg-2-webfont';
@@ -8,6 +9,43 @@ const repo = `https://github.com/atlowChemi/${repoName}`;
 const base = process.env.GITHUB_ACTIONS ? `/${repoName}/` : '/';
 const docsUrl = `https://atlowChemi.github.io/${repoName}/`;
 const socialImage = `${docsUrl}social-card.png`;
+
+const markdown: MarkdownOptions = {
+    theme: {
+        light: 'catppuccin-latte',
+        dark: 'catppuccin-frappe',
+    },
+    config(md) {
+        md.use(groupIconMdPlugin);
+        const defaultRenderer = md.renderer.rules.fence;
+
+        if (!defaultRenderer) {
+            throw new Error('defaultRenderer is undefined');
+        }
+
+        md.renderer.rules.fence = (tokens, index, options, env, slf) => {
+            const token = tokens[index];
+            if (!token) return defaultRenderer(tokens, index, options, env, slf);
+            const language = token.info.trim();
+
+            if (language.startsWith('mermaid')) {
+                const key = index;
+                return `
+                    <Suspense>
+                    <template #default>
+                    <Mermaid id="mermaid-${key}" graph="${encodeURIComponent(token.content)}"></Mermaid>
+                    </template>
+                        <!-- loading state via #fallback slot -->
+                        <template #fallback>
+                        Loading...
+                        </template>
+                    </Suspense>
+                `;
+            }
+            return defaultRenderer(tokens, index, options, env, slf);
+        };
+    },
+};
 
 const guidesSidebar = {
     text: 'Guides',
@@ -56,53 +94,24 @@ export default defineConfig({
         ],
         ['meta', { name: 'twitter:image', content: socialImage }],
     ],
-    markdown: {
-        theme: {
-            light: 'catppuccin-latte',
-            dark: 'catppuccin-frappe',
-        },
-        config(md) {
-            md.use(groupIconMdPlugin);
-            const defaultRenderer = md.renderer.rules.fence;
-
-            if (!defaultRenderer) {
-                throw new Error('defaultRenderer is undefined');
-            }
-
-            md.renderer.rules.fence = (tokens, index, options, env, slf) => {
-                const token = tokens[index];
-                const language = token.info.trim();
-
-                if (language.startsWith('mermaid')) {
-                    const key = index;
-                    return `
-                        <Suspense>
-                        <template #default>
-                        <Mermaid id="mermaid-${key}" graph="${encodeURIComponent(token.content)}"></Mermaid>
-                        </template>
-                            <!-- loading state via #fallback slot -->
-                            <template #fallback>
-                            Loading...
-                            </template>
-                        </Suspense>
-                    `;
-                }
-                return defaultRenderer(tokens, index, options, env, slf);
-            };
-        },
-    },
+    markdown,
     vite: {
         plugins: [
             groupIconVitePlugin({
                 customIcon: {
                     '.tsx': 'vscode-icons:file-type-reactts',
+                    '.component.ts': 'vscode-icons:file-type-angular',
                     '.hbs': 'vscode-icons:file-type-handlebars',
                     '.handlebars': 'vscode-icons:file-type-handlebars',
                     handlebars: 'vscode-icons:file-type-handlebars',
+                    'generated css': 'vscode-icons:file-type-css',
                 },
+                // Tab labels rendered by Vue components, which the Markdown scan does not see.
+                defaultLabels: ['Generated CSS'],
             }),
             llmstxt(),
             ...svgAuthoringFontPlugins(),
+            ...examplePlugins(markdown),
         ],
         resolve: {
             preserveSymlinks: true,
@@ -139,6 +148,7 @@ export default defineConfig({
                     items: [
                         { text: 'Getting Started', link: '/getting-started' },
                         { text: 'Usage', link: '/usage' },
+                        { text: 'Examples', link: '/examples' },
                         { text: 'How It Works', link: '/how-it-works' },
                         { text: 'Configuration', link: '/configuration' },
                         { text: 'Public API', link: '/public-api' },
