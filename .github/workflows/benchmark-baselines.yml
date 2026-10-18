@@ -49,20 +49,24 @@ jobs:
         name: ${{ github.event_name == 'pull_request' && 'Benchmark Advisory' || 'Update Benchmark Baselines' }}
         runs-on: ubuntu-latest
         steps:
-            - name: Checkout
-              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - parallel:
+                  - name: Checkout
+                    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+                  - name: Setup Rust
+                    id: rust
+                    uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
 
             - name: Checkout benchmark baselines
+              id: baselines
+              background: true
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               with:
                   ref: benchmark-baselines
                   path: benchmark-baselines
 
-            - name: Setup Rust
-              id: rust
-              uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-
             - name: Setup Vite+
+              id: dependencies
+              background: true
               uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -76,6 +80,7 @@ jobs:
                   key: rust-v3-bench-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '**/Cargo.toml', '.github/workflows/benchmark-baselines.yml') }}
                   restore-keys: rust-v3-bench-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
 
+            - wait: baselines
             - name: Restore previous Criterion baseline
               run: |
                   set -euo pipefail
@@ -88,6 +93,7 @@ jobs:
                     echo "::warning::No previous Criterion baseline found on benchmark-baselines."
                   fi
 
+            - wait: dependencies
             - name: Build webfont generator release binding
               run: vp run --ignore-depends-on @atlowchemi/webfont-generator#build:release
 
@@ -113,6 +119,8 @@ jobs:
                     2>&1 | tee benchmark-results/vitest/run.log
 
             - name: Upload Vitest benchmark diagnostics
+              id: diagnostics
+              background: true
               if: always()
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
@@ -165,6 +173,7 @@ jobs:
 
                   vp --version > benchmark-baselines/tool-versions.txt
 
+            - wait: diagnostics
             - name: Commit benchmark baselines
               if: github.event_name != 'pull_request'
               working-directory: benchmark-baselines
