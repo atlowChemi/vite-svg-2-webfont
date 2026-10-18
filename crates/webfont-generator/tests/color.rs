@@ -86,6 +86,179 @@ fn svg(color: &str) -> String {
     )
 }
 
+#[test]
+fn equivalent_svg_colors_match_the_same_named_slot() {
+    use write_fonts::read::tables::colr::Paint;
+    use write_fonts::types::F2Dot14;
+
+    for variants in [false, true] {
+        let inputs = Inputs::new();
+        let mut options = inputs.options(variants);
+        options.types = Some(vec![FontType::Ttf]);
+        options.color_slots = Some(std::collections::HashMap::from([
+            ("accent".into(), "#000000".into()),
+            ("secondary".into(), "#ffffff".into()),
+        ]));
+        for (fill, alpha) in [
+            ("#fff", 1.0),
+            ("#ffffff", 1.0),
+            ("rgb(255,255,255)", 1.0),
+            ("white", 1.0),
+            ("#ffffff80", 128.0 / 255.0),
+            // SVG parsing quantizes color alpha to an 8-bit channel.
+            ("rgba(255,255,255,0.5)", 128.0 / 255.0),
+        ] {
+            std::fs::write(&inputs.files[0], svg(fill)).unwrap();
+            let result = generate_sync(options.clone(), None).unwrap();
+            let font = FontRef::new(result.ttf_bytes().unwrap()).unwrap();
+            let cpal = font.cpal().unwrap();
+            let colors = cpal.color_records_array().unwrap().unwrap();
+            assert_eq!(colors.len(), 2, "{fill}, variants={variants}");
+            assert_eq!(
+                (
+                    colors[1].red(),
+                    colors[1].green(),
+                    colors[1].blue(),
+                    colors[1].alpha()
+                ),
+                (255, 255, 255, 255),
+                "{fill}, variants={variants}"
+            );
+            let colr = font.colr().unwrap();
+            let layers = colr.layer_list().unwrap().unwrap();
+            let Paint::Glyph(layer) = layers.paints().get(0).unwrap() else {
+                panic!()
+            };
+            let Paint::Solid(paint) = layer.paint().unwrap() else {
+                panic!()
+            };
+            assert_eq!(paint.palette_index(), 1, "{fill}, variants={variants}");
+            assert_eq!(
+                paint.alpha(),
+                F2Dot14::from_f32(alpha),
+                "{fill}, variants={variants}"
+            );
+        }
+    }
+}
+
+#[test]
+fn named_slots_reserve_palette_entries_across_regeneration_and_variants() {
+    use write_fonts::read::tables::colr::Paint;
+    for variants in [false, true] {
+        let inputs = Inputs::new();
+        let mut options = inputs.options(variants);
+        options.color_slots = Some(std::collections::HashMap::from([
+            ("secondary".into(), "#ff0000".into()),
+            ("accent".into(), "#00FF00".into()),
+        ]));
+        let mut result = generate_sync(options.clone(), None).unwrap();
+        let font = FontRef::new(result.ttf_bytes().unwrap()).unwrap();
+        let cpal = font.cpal().unwrap();
+        let colors = cpal.color_records_array().unwrap().unwrap();
+        assert_eq!(colors.len(), 2);
+        assert_eq!(colors[0].green(), 255); // Unused accent is still reserved.
+        assert_eq!(colors[1].red(), 255);
+        let colr = font.colr().unwrap();
+        let layers = colr.layer_list().unwrap().unwrap();
+        let Paint::Glyph(layer) = layers.paints().get(0).unwrap() else {
+            panic!()
+        };
+        let Paint::Solid(paint) = layer.paint().unwrap() else {
+            panic!()
+        };
+        assert_eq!(paint.palette_index(), 1);
+
+        // A new, unconfigured color must append after both reserved slots.
+        std::fs::write(&inputs.files[0], svg("blue")).unwrap();
+        result.regenerate_all(&membership(&options)).unwrap();
+        assert_eq!(
+            snapshot(&result),
+            snapshot(&generate_sync(options.clone(), None).unwrap())
+        );
+        let font = FontRef::new(result.ttf_bytes().unwrap()).unwrap();
+        let cpal = font.cpal().unwrap();
+        let colors = cpal.color_records_array().unwrap().unwrap();
+        assert_eq!(colors.len(), 3);
+        assert_eq!(colors[0].green(), 255);
+        assert_eq!(colors[1].red(), 255);
+        assert_eq!(colors[2].blue(), 255);
+        let css = result.generate_css_pure(None).unwrap();
+        options
+            .color_slots
+            .as_mut()
+            .unwrap()
+            .insert("secondary".into(), "#0000ff".into());
+        assert_ne!(
+            css,
+            generate_sync(options, None)
+                .unwrap()
+                .generate_css_pure(None)
+                .unwrap()
+        );
+    }
+}
+
+#[test]
+fn configured_slots_reject_more_than_the_palette_capacity() {
+    let inputs = Inputs::new();
+    let mut options = inputs.options(false);
+    options.color_glyphs = Some(ColorGlyphSelection::All);
+    options.color_slots = Some(
+        (0..=u16::MAX)
+            .map(|index| (format!("slot{index}"), format!("#{index:06x}")))
+            .collect(),
+    );
+    let error = generate_sync(options, None).err().unwrap();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "options.colorSlots: exceeds 65,535 palette entries"
+    );
+}
+
+#[test]
+fn color_slot_validation_rejects_ambiguous_or_invalid_mappings() {
+    let inputs = Inputs::new();
+    for slots in [
+        vec![("secondary", "red")],
+        vec![("secondary", "#fff")],
+        vec![("secondary", "#ff000080")],
+        vec![("secondary", "#zz0000")],
+        vec![("", "#ff0000")],
+        vec![("bad.name", "#ff0000")],
+        vec![("accent", "#FF0000"), ("secondary", "#ff0000")],
+    ] {
+        let mut options = inputs.options(false);
+        options.color_slots = Some(
+            slots
+                .into_iter()
+                .map(|(k, v)| (k.into(), v.into()))
+                .collect(),
+        );
+        assert!(
+            generate_sync(options, None)
+                .err()
+                .unwrap()
+                .to_string()
+                .contains("options.colorSlots")
+        );
+    }
+    let mut options = inputs.options(false);
+    options.color_glyphs = None;
+    options.color_slots = Some(std::collections::HashMap::from([(
+        "secondary".into(),
+        "#ff0000".into(),
+    )]));
+    assert!(
+        generate_sync(options, None)
+            .err()
+            .unwrap()
+            .to_string()
+            .contains("requires active colorGlyphs")
+    );
+}
+
 fn membership(options: &GenerateWebfontsOptions) -> RegenerationFiles {
     match &options.variants {
         Some(variants) => RegenerationFiles::Variants(

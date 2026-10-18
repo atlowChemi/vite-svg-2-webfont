@@ -8,6 +8,7 @@ import typeSafeComponent from '../examples/type-safe-component/vite.config';
 import customCssTemplate from '../examples/custom-css-template/vite.config';
 import multiWeight from '../examples/multi-weight/vite.config';
 import colorGlyphs from '../examples/color-glyphs/vite.config';
+import themeColors from '../examples/theme-colors/vite.config';
 import pinnedCodepoints from '../examples/pinned-codepoints/vite.config';
 import inlineFonts from '../examples/inline-fonts/vite.config';
 import preload from '../examples/preload/vite.config';
@@ -22,6 +23,7 @@ const examples: Record<string, UserConfig> = {
     'custom-css-template': customCssTemplate,
     'multi-weight': multiWeight,
     'color-glyphs': colorGlyphs,
+    'theme-colors': themeColors,
     'pinned-codepoints': pinnedCodepoints,
     'inline-fonts': inlineFonts,
     preload: preload,
@@ -41,7 +43,7 @@ function callHook<T>(hook: Hook, context: unknown, ...args: unknown[]): Promise<
 }
 
 /**
- * Keep the generated CSS working inside one container: `@font-face` and `@keyframes` stay global, and every
+ * Keep the generated CSS working inside one container: font definitions and `@keyframes` stay global, and every
  * other rule is nested under the container class, so examples on one page can share class names.
  */
 export function scopeCss(css: string, scope: string): string {
@@ -54,7 +56,7 @@ export function scopeCss(css: string, scope: string): string {
         if (source[index] === '{') depth++;
         else if (source[index] === '}' && --depth === 0) {
             const block = source.slice(start, index + 1).trim();
-            (/^@(?:font-face|keyframes)\b/.test(block) ? hoisted : nested).push(block);
+            (/^@(?:font-face|font-palette-values|keyframes)\b/.test(block) ? hoisted : nested).push(block);
             start = index + 1;
         }
     }

@@ -67,6 +67,8 @@ webfont-generator --dest ./dist/fonts --start-codepoint 0xE000 ./icons/
 
 The manifest accepts `"colorGlyphs": true` or `"colorGlyphs": ["logo"]`. Omit it or use `[]` for monochrome output; explicit `null`, `false`, strings, and mixed-type arrays are invalid. Select compatible formats explicitly in ordinary mode, for example `"types": ["woff2", "woff"]`; the ordinary default includes incompatible EOT. Names are logical glyph names, and selection applies across all variants, including fallbacks. Duplicates are harmless; unknown names are rejected in first-occurrence input order. There is no separate color CLI flag. See [`colorGlyphs`](./node#colorglyphs) for option details and [color glyphs](./#color-glyphs) for the supported SVG subset and browser/platform behavior.
 
+With active `colorGlyphs`, the manifest also accepts `"colorSlots": { "secondary": "#ff9900" }`. Named slots reserve palette indices in ASCII name order, including unused colors, and expose them as `colorSlots` in the CSS template context. Values must be distinct `#RRGGBB` colors; names use ASCII letters, digits, hyphens or underscores. There is no separate slot CLI flag. See [slot semantics](./node#colorslots) and the [live theme example](../examples#theme-colors-in-one-glyph).
+
 ::: code-group
 
 ```json [icons.webfont.json]

@@ -37,6 +37,40 @@ it('selects names after rename through the wrapper and raw binding', async () =>
     );
 });
 
+it('exposes stable named palette indices to CSS hooks and templates', async () => {
+    const input = await fixture();
+    const template = join(input.dest, 'palette.css.hbs');
+    await writeFile(template, '{{colorSlots.accent}}/{{colorSlots.secondary}}');
+    const options = {
+        ...input,
+        colorGlyphs: true as const,
+        colorSlots: { secondary: '#ff0000', accent: '#00ff00' },
+        cssTemplate: template,
+        templateOptions: { colorSlots: { secondary: 99 } },
+    };
+    const result = await generateWebfonts({
+        ...options,
+        types: [...input.types],
+        cssContext(context) {
+            expect(context.colorSlots).toEqual({ accent: 0, secondary: 1 });
+            return context;
+        },
+    });
+    expect(result.generateCss()).toBe('0/1');
+    const raw = await native({ ...options, types: [FontType.Ttf] });
+    expect(raw.generateCss()).toBe('0/1');
+});
+
+it.each<Record<string, string>>([{ secondary: 'red' }, { secondary: '#ff000080' }, { 'bad.name': '#ff0000' }, { accent: '#FF0000', secondary: '#ff0000' }])(
+    'rejects invalid colorSlots %j through both APIs',
+    async colorSlots => {
+        const input = await fixture();
+        await Promise.all(
+            [generateWebfonts, native].map(generate => expect(generate({ ...input, types: [FontType.Ttf], colorGlyphs: true, colorSlots })).rejects.toThrow('colorSlots')),
+        );
+    },
+);
+
 it.each([null, false, 'icon', ['icon', 1], {}, 1].map(colorGlyphs => ({ colorGlyphs })))(
     'rejects invalid color selection $colorGlyphs through both APIs',
     async ({ colorGlyphs }) => {

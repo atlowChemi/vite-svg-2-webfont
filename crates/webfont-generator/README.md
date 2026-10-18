@@ -71,6 +71,8 @@ for the final order. Settings and templates stay fixed. Failed synchronous updat
 the previous result usable; async failures expose it through `SourceRegenerateError::into_result`
 unless the worker itself failed. See the [text-input reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html#svg-text-api).
 
+For color glyphs and named theme palettes, see the [color documentation](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust#color-glyphs).
+
 ## CLI
 
 ```sh

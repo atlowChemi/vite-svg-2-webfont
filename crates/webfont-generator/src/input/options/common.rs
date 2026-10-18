@@ -21,6 +21,7 @@ pub(crate) struct VariantMetadata<'a> {
 #[derive(Default)]
 pub(crate) struct GenerationOptions {
     pub color_glyphs: Option<ColorGlyphSelection>,
+    pub color_slots: Option<HashMap<String, String>>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
     pub center_vertically: Option<bool>,
@@ -55,6 +56,7 @@ pub(crate) struct ResolvedGenerationOptions {
     /// Disable implicit filesystem acquisition by the SVG parser for text inputs.
     pub filesystem_free: bool,
     pub color_selection: Option<ResolvedColorSelection>,
+    pub color_slots: BTreeMap<String, [u8; 3]>,
     pub ascent: Option<f64>,
     pub center_horizontally: Option<bool>,
     pub center_vertically: Option<bool>,
@@ -108,6 +110,8 @@ impl GenerationOptions {
         let order = resolve_font_type_order(self.order.as_deref(), &types);
         let color_selection = self.color_glyphs.map(ResolvedColorSelection::from);
         validate_color_formats(color_selection.as_ref(), &types)?;
+        let color_slots =
+            crate::types::color::resolve_slots(self.color_slots, color_selection.as_ref())?;
         let explicit_codepoints: BTreeMap<_, _> =
             self.codepoints.unwrap_or_default().into_iter().collect();
         let svg_format = self
@@ -127,6 +131,7 @@ impl GenerationOptions {
         Ok(ResolvedGenerationOptions {
             filesystem_free: false,
             color_selection,
+            color_slots,
             ascent: self.ascent,
             center_horizontally: self.center_horizontally,
             center_vertically,

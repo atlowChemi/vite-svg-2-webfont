@@ -350,6 +350,8 @@ By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG 
 
 Named selection uses final post-rename logical names across every variant, including fallback states; blank states have no color record. `None` or an empty named list keeps monochrome output. Duplicates are harmless; unknown names are reported together in first-occurrence input order. Set `types` to TTF, WOFF, and/or WOFF2; ordinary defaults include incompatible EOT. See [color glyphs](./#color-glyphs) for SVG semantics and platform compatibility.
 
+Both file and SVG-text options accept `color_slots: Option<HashMap<String, String>>`, for example `Some(HashMap::from([("secondary".into(), "#ff9900".into())]))`. Nonempty slots require active `color_glyphs`. Colors must be distinct `#RRGGBB` values; names use ASCII letters, digits, hyphens or underscores. Slots reserve palette indices in ASCII name order, including unused colors. The CSS template context exposes `colorSlots` as name-to-index numbers for `@font-palette-values`. Matching uses resolved RGB and preserves layer opacity. See [slot semantics](./node#colorslots) and the [theme example](../examples#theme-colors-in-one-glyph).
+
 ```rust
 use webfont_generator::{generate_sync, ColorGlyphSelection, FontType, GenerateWebfontsOptions};
 

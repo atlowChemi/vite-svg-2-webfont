@@ -278,6 +278,8 @@ pub struct TemplateVariant {
 #[derive(Clone)]
 #[cfg(feature = "fs")]
 pub struct CssContext {
+    /// Named palette slot indices in ASCII name order. Empty when no slots are configured.
+    pub color_slots: HashMap<String, u32>,
     /// Name of the generated font, mirroring the `fontName` option.
     pub font_name: String,
     /// Pre-rendered value for the CSS `@font-face` `src:` descriptor — a
@@ -348,6 +350,10 @@ pub struct GenerateWebfontsOptions {
         serde(default, deserialize_with = "color::deserialize_selection")
     )]
     pub color_glyphs: Option<ColorGlyphSelection>,
+    /// Named palette slots matched against resolved SVG RGB fills. Values must be #RRGGBB.
+    /// Slots reserve indices in ASCII name order, including unused colors. Requires active
+    /// `color_glyphs`; names and RGB values must be unique. CSS context exposes name -> index.
+    pub color_slots: Option<HashMap<String, String>>,
     /// Font ascent in font units. Overrides the value computed from the source
     /// glyphs.
     pub ascent: Option<f64>,

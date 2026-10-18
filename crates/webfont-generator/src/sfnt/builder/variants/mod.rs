@@ -91,12 +91,13 @@ pub(crate) fn build_variant(
         ligatures::build_ligature_placeholders(&physical[..family.glyphs.len()], options.ligature);
     let presentation_gids = checked_gids(physical.len() + ligature_placeholders.len(), matrix)?;
 
-    let color = build_color(&physical, ligature_placeholders.len())?;
+    let color = build_color(&physical, ligature_placeholders.len(), options.color_slots)?;
     let (glyf, loca, loca_format) =
         build_glyf_table(&physical, &ligature_placeholders, &color.layers)?;
     let metrics = compute_glyph_metrics(physical.iter().chain(&color.layers));
     let default_weight = variants.variants[variants.default_index].weight.to_string();
     let base_options = TtfOptions {
+        color_slots: options.color_slots,
         ascent: Some(family.ascent),
         copyright: options.copyright,
         descent: Some(family.descent),

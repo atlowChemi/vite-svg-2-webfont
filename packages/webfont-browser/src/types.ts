@@ -12,6 +12,8 @@ export type GenerateWebfontsOptions = {
     cssTemplate?: string;
     htmlTemplate?: string;
     colorGlyphs?: true | string[];
+    /** Named #RRGGBB palette slots, indexed in ASCII name order; requires active colorGlyphs. */
+    colorSlots?: Record<string, string>;
     ascent?: number;
     centerHorizontally?: boolean;
     centerVertically?: boolean;

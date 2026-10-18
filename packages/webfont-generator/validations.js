@@ -8,6 +8,20 @@ function validateOptions(options) {
         }
     }
     if (options.cssTemplate === '') throw new Error('"options.cssTemplate" must not be empty.');
+    if (options.colorSlots !== undefined) {
+        const slots = options.colorSlots;
+        if (!slots || typeof slots !== 'object' || Array.isArray(slots)) throw new TypeError('options.colorSlots must be a map of names to #RRGGBB colors.');
+        const entries = Object.entries(slots);
+        if (entries.length && !(colorGlyphs === true || colorGlyphs?.length > 0)) throw new Error('options.colorSlots requires active colorGlyphs.');
+        if (entries.length > 65535) throw new Error('options.colorSlots exceeds 65,535 palette entries.');
+        const colors = new Set();
+        for (const [name, color] of entries) {
+            if (!/^[a-zA-Z0-9_-]+$/.test(name)) throw new Error('options.colorSlots names must contain only ASCII letters, digits, hyphens or underscores.');
+            if (typeof color !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(color)) throw new TypeError('options.colorSlots colors must use #RRGGBB.');
+            if (colors.has(color.toLowerCase())) throw new Error('options.colorSlots: each slot must have a distinct RGB color.');
+            colors.add(color.toLowerCase());
+        }
+    }
     if (options.htmlTemplate === '') throw new Error('"options.htmlTemplate" must not be empty.');
     const types = options.types ?? (options.variants == null ? ['eot', 'woff', 'woff2'] : ['woff', 'woff2']);
     const invalidOrder = options.order?.find(type => !types.includes(type));

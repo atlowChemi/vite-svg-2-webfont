@@ -23,6 +23,7 @@ pub(super) struct ColorFont {
 pub(super) fn build_color(
     glyphs: &[CompiledGlyph],
     placeholder_count: usize,
+    slots: Option<&std::collections::BTreeMap<String, [u8; 3]>>,
 ) -> Result<ColorFont, Error> {
     let selectable_count = glyphs
         .len()
@@ -52,6 +53,16 @@ pub(super) fn build_color(
     let mut result = ColorFont::default();
     let mut palette = Vec::new();
     let mut palette_indices = HashMap::new();
+    for [red, green, blue] in slots.into_iter().flat_map(|slots| slots.values()).copied() {
+        let index = u16::try_from(palette.len())
+            .ok()
+            .filter(|index| *index != u16::MAX)
+            .ok_or_else(|| {
+                Error::new(ErrorKind::InvalidInput, "CPAL exceeds 65,535 fixed colors.")
+            })?;
+        palette_indices.insert((red, green, blue), index);
+        palette.push(ColorRecord::new(blue, green, red, 255));
+    }
     let mut paints = Vec::new();
     let mut bases = Vec::new();
     for (index, glyph) in glyphs.iter().enumerate() {
@@ -76,9 +87,15 @@ pub(super) fn build_color(
                     let palette_index = match palette_indices.get(&key) {
                         Some(index) => *index,
                         None => {
-                            // Each new color needs a layer glyph, so the checked
-                            // total glyph count also bounds this palette index.
-                            let index = palette.len() as u16;
+                            let index = u16::try_from(palette.len())
+                                .ok()
+                                .filter(|index| *index != u16::MAX)
+                                .ok_or_else(|| {
+                                    Error::new(
+                                        ErrorKind::InvalidInput,
+                                        "CPAL exceeds 65,535 fixed colors.",
+                                    )
+                                })?;
                             palette.push(ColorRecord::new(blue, green, red, 255));
                             palette_indices.insert(key, index);
                             index

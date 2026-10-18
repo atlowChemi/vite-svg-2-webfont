@@ -34,6 +34,7 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 - CSS, HTML, and template output is identical.
 - A new `variants` option supports multi-weight families with discrete designs.
 - A new [`colorGlyphs`](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#color-selection) option preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
+- [`colorSlots`](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#colorslots), for example `{ secondary: '#ff9900' }`, reserves named palette entries for CSS light/dark themes. Requires active `colorGlyphs`; slots use distinct `#RRGGBB` colors and ASCII alphanumeric/hyphen/underscore names. Indices follow ASCII name order and are exposed in the CSS context's `colorSlots` map. See the [live example](https://atlowChemi.github.io/vite-svg-2-webfont/examples#theme-colors-in-one-glyph).
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
 

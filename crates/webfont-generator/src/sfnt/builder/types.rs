@@ -4,6 +4,7 @@ use crate::types::color::ProcessedColorLayer;
 use write_fonts::tables::glyf::{Bbox, SimpleGlyph};
 
 pub(crate) struct TtfOptions<'a> {
+    pub color_slots: Option<&'a std::collections::BTreeMap<String, [u8; 3]>>,
     pub ascent: Option<f64>,
     pub copyright: Option<&'a str>,
     pub descent: Option<f64>,
