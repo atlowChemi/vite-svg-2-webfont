@@ -134,12 +134,13 @@ it('forwards named slots to the font and CSS template in a real plugin build', a
     expect(await dev.font()).not.toEqual(withoutSlots.woff2);
 });
 
+// Vite startup and repeated native generation can exceed 5s on contended Intel CI runners.
 it.each([
     { variants: false, inline: false },
     { variants: false, inline: true },
     { variants: true, inline: false },
     { variants: true, inline: true },
-])('regenerates selected paint in dev ($variants variants, $inline inline)', async ({ variants, inline }) => {
+])('regenerates selected paint in dev ($variants variants, $inline inline)', { timeout: 15_000 }, async ({ variants, inline }) => {
     await using files = await fixture({ colorGlyphs: ['add'], inline, types: ['woff2'] });
     const { root } = files;
     const options: IconPluginOptions = variants
