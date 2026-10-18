@@ -47,6 +47,8 @@ describe('concurrent workflow steps', () => {
                         ids.add(step.id);
                     }
                     if (step.background) {
+                        // Hosted runner races observed in checkout/Codecov when uses overlap.
+                        assert.equal(step.uses, undefined, `${file}: only run steps may execute in the background`);
                         assert.ok(step.id);
                         active.add(step.id);
                     }

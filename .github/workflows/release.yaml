@@ -32,15 +32,14 @@ jobs:
                   config-file: release-please-config.json
                   manifest-file: .release-please-manifest.json
 
-            - parallel:
-                  - name: Checkout release PR branch
-                    if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-                    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-                    with:
-                        ref: ${{ fromJSON(steps.release.outputs.prs)[0].headBranchName }}
-                  - name: Setup Rust toolchain
-                    if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-                    uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+            - name: Checkout release PR branch
+              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: ${{ fromJSON(steps.release.outputs.prs)[0].headBranchName }}
+            - name: Setup Rust toolchain
+              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
+              uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
             - name: Sync Cargo.lock before frozen installation
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
               # Fresh checkout: no pnpm source replacement exists yet. Synchronize
@@ -84,12 +83,9 @@ jobs:
             name: npm
             url: https://www.npmjs.com/package/@atlowchemi/webfont-generator
         steps:
-            - parallel:
-                  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-                  - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
-              id: dependencies
-              background: true
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -101,7 +97,6 @@ jobs:
                   path: packages/webfont-generator/artifacts
                   pattern: bindings-*
 
-            - wait: dependencies
             - name: Create npm dirs
               run: vp exec napi create-npm-dirs --cwd packages/webfont-generator
             - name: Move artifacts
@@ -115,14 +110,6 @@ jobs:
             # below so this work isn't duplicated.
             - name: Prepare per-platform packages
               run: vp exec napi pre-publish -t npm --no-gh-release --skip-optional-publish --cwd packages/webfont-generator
-
-            - name: Upload to native release
-              id: release-assets
-              background: true
-              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-              with:
-                  tag_name: ${{ needs.release-please.outputs.native-tag }}
-                  files: packages/webfont-generator/**/*.node
 
             - name: List packages
               id: list-packages
@@ -179,7 +166,11 @@ jobs:
                   vp exec -c "pnpm stage publish --filter @atlowchemi/webfont-generator --no-git-checks --ignore-scripts" | tee -a "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-            - wait: release-assets
+            - name: Upload to native release
+              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+              with:
+                  tag_name: ${{ needs.release-please.outputs.native-tag }}
+                  files: packages/webfont-generator/**/*.node
 
     publish-crate:
         name: Publish to crates.io
@@ -190,9 +181,8 @@ jobs:
             name: crates-io
             url: https://crates.io/crates/webfont-generator
         steps:
-            - parallel:
-                  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-                  - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
             - name: Authenticate with crates.io
               uses: rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18 # v1.0.5
               id: crates-auth
@@ -211,9 +201,8 @@ jobs:
             name: npm
             url: https://www.npmjs.com/package/vite-svg-2-webfont
         steps:
-            - parallel:
-                  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-                  - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -253,11 +242,10 @@ jobs:
             name: npm
             url: https://www.npmjs.com/package/@atlowchemi/webfont-browser-generator
         steps:
-            - parallel:
-                  - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-                  - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-                    with:
-                        targets: wasm32-unknown-unknown
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  targets: wasm32-unknown-unknown
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version

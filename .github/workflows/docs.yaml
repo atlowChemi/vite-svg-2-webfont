@@ -18,19 +18,14 @@ jobs:
         name: build docs
         runs-on: ubuntu-latest
         steps:
-            - parallel:
-                  - name: checkout
-                    uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-                  - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-                    with:
-                        targets: wasm32-unknown-unknown
+            - name: checkout
+              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  targets: wasm32-unknown-unknown
             - name: setup pages
-              id: pages
-              background: true
               uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
-              id: dependencies
-              background: true
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -39,10 +34,8 @@ jobs:
               with:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
-            - wait: dependencies
             - name: build docs
               run: vp run @atlowchemi/vite-svg-webfont-docs#build
-            - wait: pages
             - name: upload pages artifact
               uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
               with:
