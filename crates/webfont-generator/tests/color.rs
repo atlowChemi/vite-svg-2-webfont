@@ -104,6 +104,7 @@ fn equivalent_svg_colors_match_the_same_named_slot() {
             ("#ffffff", 1.0),
             ("rgb(255,255,255)", 1.0),
             ("white", 1.0),
+            ("#ffffff80", 128.0 / 255.0),
             // SVG parsing quantizes color alpha to an 8-bit channel.
             ("rgba(255,255,255,0.5)", 128.0 / 255.0),
         ] {
@@ -196,6 +197,24 @@ fn named_slots_reserve_palette_entries_across_regeneration_and_variants() {
                 .unwrap()
         );
     }
+}
+
+#[test]
+fn configured_slots_reject_more_than_the_palette_capacity() {
+    let inputs = Inputs::new();
+    let mut options = inputs.options(false);
+    options.color_glyphs = Some(ColorGlyphSelection::All);
+    options.color_slots = Some(
+        (0..=u16::MAX)
+            .map(|index| (format!("slot{index}"), format!("#{index:06x}")))
+            .collect(),
+    );
+    let error = generate_sync(options, None).err().unwrap();
+    assert_eq!(error.kind(), std::io::ErrorKind::InvalidInput);
+    assert_eq!(
+        error.to_string(),
+        "options.colorSlots: exceeds 65,535 palette entries"
+    );
 }
 
 #[test]

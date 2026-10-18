@@ -90,6 +90,60 @@ fn color_allocation_validates_initial_glyph_count() {
 }
 
 #[test]
+fn palette_capacity_includes_reserved_slots_and_propagates_build_errors() {
+    let (mut options, glyphs) = prepare(&[r##"<path fill="#ffffff" d="M10 10H90V90H10Z"/>"##]);
+    options.color_slots = (0..u16::MAX)
+        .map(|index| {
+            (
+                format!("slot{index:05}"),
+                [0, (index >> 8) as u8, index as u8],
+            )
+        })
+        .collect();
+
+    // A matching paint is valid even with every palette entry reserved.
+    options
+        .color_slots
+        .insert("slot00000".into(), [255, 255, 255]);
+    for cached in [false, true] {
+        let mut cache = TtfGlyphCache::default();
+        let tables = build(
+            ttf_options_from_options(&options),
+            &glyphs,
+            cached.then_some(&mut cache),
+        )
+        .unwrap();
+        let font = FontRef::new(tables.ttf()).unwrap();
+        assert_eq!(font.cpal().unwrap().num_palette_entries(), u16::MAX);
+    }
+
+    // An unconfigured paint would need the reserved foreground index 0xffff.
+    options.color_slots.insert("slot00000".into(), [0, 0, 0]);
+    for cached in [false, true] {
+        let mut cache = TtfGlyphCache::default();
+        let error = build(
+            ttf_options_from_options(&options),
+            &glyphs,
+            cached.then_some(&mut cache),
+        )
+        .err()
+        .unwrap();
+        assert_eq!(error.kind(), ErrorKind::InvalidInput);
+        assert_eq!(error.to_string(), "CPAL exceeds 65,535 fixed colors.");
+    }
+
+    // Exercise the internal boundary independently of public option validation.
+    options
+        .color_slots
+        .insert("overflow".into(), [255, 255, 255]);
+    let error = build_color(&[], 0, Some(&options.color_slots))
+        .err()
+        .unwrap();
+    assert_eq!(error.kind(), ErrorKind::InvalidInput);
+    assert_eq!(error.to_string(), "CPAL exceeds 65,535 fixed colors.");
+}
+
+#[test]
 fn explicit_no_color_selection_matches_omitted_selection() {
     let files = vec![LoadedSvgSource {
         id: "icon.svg".into(), glyph_name: "icon".into(),

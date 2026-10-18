@@ -112,6 +112,28 @@ async function serve(options: IconPluginOptions) {
     }
 }
 
+it('forwards named slots to the font and CSS template in a real plugin build', async () => {
+    await using files = await fixture({
+        colorGlyphs: true,
+        colorSlots: { secondary: '#ffffff', accent: '#000000' },
+        types: ['woff2'],
+    });
+    const template = join(files.root, 'slots.css.hbs');
+    await writeFile(
+        template,
+        '@font-face { font-family: "{{fontName}}"; src: {{{src}}}; } @font-palette-values --theme { font-family: "{{fontName}}"; override-colors: {{colorSlots.secondary}} #34d399; }',
+    );
+    await writeFile(join(files.root, 'light/add.svg'), svg(10).replace('<path ', '<path fill="white" '));
+    files.options.cssTemplate = template;
+    await using dev = await serve(files.options);
+    expect(await dev.css()).toContain('override-colors: 1 #34d399');
+    expect(generate).toHaveBeenCalledWith(expect.objectContaining({ colorSlots: files.options.colorSlots }));
+    const expected = await (await native()).generateWebfonts(parseOptions(files.options));
+    expect(await dev.font()).toEqual(expected.woff2);
+    const withoutSlots = await (await native()).generateWebfonts({ ...parseOptions(files.options), colorSlots: undefined });
+    expect(await dev.font()).not.toEqual(withoutSlots.woff2);
+});
+
 it.each([
     { variants: false, inline: false },
     { variants: false, inline: true },
