@@ -31,10 +31,6 @@ describe('concurrent workflow steps', () => {
                 // Expand groups into their equivalent background steps and implicit join.
                 const steps = (job.steps ?? []).flatMap((step, group) => {
                     if (!step.parallel) return [step];
-                    assert.ok(
-                        step.parallel.every(child => !child.uses),
-                        `${file}: action groups remain disabled during the explicit-background experiment`,
-                    );
                     const children: Step[] = step.parallel.map((child, index) => ({ ...child, id: child.id ?? `parallel-${group}-${index}`, background: true }));
                     children.push({ wait: children.map(child => child.id!) });
                     return children;
@@ -51,8 +47,6 @@ describe('concurrent workflow steps', () => {
                         ids.add(step.id);
                     }
                     if (step.background) {
-                        // Limit the action experiment to checkout/Rust; uploads remain sequential.
-                        assert.ok(!step.uses || /^(actions\/checkout|dtolnay\/rust-toolchain)@/.test(step.uses), `${file}: unexpected background action`);
                         assert.ok(step.id);
                         active.add(step.id);
                     }

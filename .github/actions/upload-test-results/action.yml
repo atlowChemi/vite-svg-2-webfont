@@ -1,5 +1,5 @@
 name: Upload executed test results
-description: Upload JUnit to Codecov; callers archive reports separately.
+description: Upload JUnit to Codecov; callers archive reports concurrently.
 inputs:
     name:
         description: Suite and matrix identity
@@ -15,7 +15,7 @@ runs:
     steps:
         - uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
           with:
-              # Keep CLI downloads isolated and use checkout's existing git configuration.
+              # Concurrent uploads must not share a downloaded CLI or mutate git config.
               cleanup: true
               disable_safe_directory: true
               report_type: test_results

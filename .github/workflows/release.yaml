@@ -96,6 +96,8 @@ jobs:
               background: true
             - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              id: dependencies
+              background: true
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -107,6 +109,7 @@ jobs:
                   path: packages/webfont-generator/artifacts
                   pattern: bindings-*
 
+            - wait: dependencies
             - name: Create npm dirs
               run: vp exec napi create-npm-dirs --cwd packages/webfont-generator
             - name: Move artifacts
@@ -120,6 +123,14 @@ jobs:
             # below so this work isn't duplicated.
             - name: Prepare per-platform packages
               run: vp exec napi pre-publish -t npm --no-gh-release --skip-optional-publish --cwd packages/webfont-generator
+
+            - name: Upload to native release
+              id: release-assets
+              background: true
+              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+              with:
+                  tag_name: ${{ needs.release-please.outputs.native-tag }}
+                  files: packages/webfont-generator/**/*.node
 
             - name: List packages
               id: list-packages
@@ -176,11 +187,7 @@ jobs:
                   vp exec -c "pnpm stage publish --filter @atlowchemi/webfont-generator --no-git-checks --ignore-scripts" | tee -a "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
 
-            - name: Upload to native release
-              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
-              with:
-                  tag_name: ${{ needs.release-please.outputs.native-tag }}
-                  files: packages/webfont-generator/**/*.node
+            - wait: release-assets
 
     publish-crate:
         name: Publish to crates.io

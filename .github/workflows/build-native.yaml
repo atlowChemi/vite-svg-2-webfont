@@ -39,6 +39,8 @@ jobs:
                   targets: ${{ matrix.target }}
             - wait: [checkout, rust]
             - name: Cache build artifacts
+              id: rust-cache
+              background: true
               uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: target
@@ -47,6 +49,7 @@ jobs:
 
             - name: Restore xwin SDK/CRT cache
               id: xwin-cache-restore
+              background: true
               if: contains(matrix.target, 'windows-msvc')
               uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
@@ -57,18 +60,24 @@ jobs:
                       xwin-${{ runner.os }}-
 
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              id: dependencies
+              background: true
               with:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
 
             - name: Install ziglang
+              id: zig
+              background: true
               if: matrix.target != 'x86_64-unknown-linux-gnu' && !contains(matrix.target, 'windows-msvc')
               uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
               with:
                   version: 0.14.1
 
             - name: Install cargo-zigbuild
+              id: zigbuild
+              background: true
               if: matrix.target != 'x86_64-unknown-linux-gnu' && !contains(matrix.target, 'windows-msvc')
               uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
               env:
@@ -91,6 +100,8 @@ jobs:
                   sudo update-alternatives --install /usr/bin/lld-link lld-link /usr/bin/lld-link-20 100
 
             - name: Install cargo-xwin
+              id: xwin
+              background: true
               if: contains(matrix.target, 'windows-msvc')
               uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
               env:
@@ -98,13 +109,14 @@ jobs:
               with:
                   tool: cargo-xwin
 
+            - wait: [xwin-cache-restore, xwin]
             - name: Pre-download xwin artifacts
               if: contains(matrix.target, 'windows-msvc')
               run: cargo xwin cache xwin
               env:
                   XWIN_CACHE_DIR: ${{ github.workspace }}/.xwin
 
-            - wait: llvm
+            - wait: [rust-cache, dependencies, zig, zigbuild, llvm]
             - name: Build native module
               working-directory: packages/webfont-generator
               run: >
@@ -120,6 +132,8 @@ jobs:
 
             # Save only after cargo-xwin has finished touching the SDK cache.
             - name: Save xwin SDK/CRT cache
+              id: save-xwin
+              background: true
               if: contains(matrix.target, 'windows-msvc') && success() && steps.xwin-cache-restore.outputs.cache-hit != 'true'
               uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
@@ -130,3 +144,4 @@ jobs:
                   name: bindings-${{ matrix.target }}
                   path: packages/webfont-generator/*.node
                   if-no-files-found: error
+            - wait: save-xwin

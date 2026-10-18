@@ -16,7 +16,6 @@ jobs:
         outputs:
             selection: ${{ steps.selection.outputs.selection }}
         steps:
-            # Test explicit background/join setup separately from parallel action groups.
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               id: checkout
               background: true
@@ -72,6 +71,8 @@ jobs:
                   CI_TEST_REPORT: test-results/scripts.xml
                   CI_TEST_SUITE: scripts-linux-x64
             - name: Upload script coverage
+              id: coverage-upload
+              background: true
               if: ${{ !cancelled() && hashFiles('coverage/scripts/lcov.info') != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
@@ -84,6 +85,8 @@ jobs:
                   fail_ci_if_error: true
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Upload script test results
+              id: test-upload
+              background: true
               if: ${{ !cancelled() && (steps.tests.outcome == 'success' || hashFiles('test-results/scripts.xml') != '') }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -96,6 +99,7 @@ jobs:
                   name: test-results-scripts-linux-x64-${{ github.run_attempt }}
                   path: test-results/scripts.xml
                   if-no-files-found: error
+            - wait: [coverage-upload, test-upload]
 
     ci:
         name: lint and check
@@ -111,6 +115,8 @@ jobs:
                   components: clippy, rustfmt
             - wait: [checkout, rust]
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              id: rust-cache
+              background: true
               with:
                   path: target
                   key: rust-v3-check-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '**/Cargo.toml') }}
@@ -120,9 +126,12 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
-            - parallel:
-                  - run: vp check
-                  - run: vp run @atlowchemi/webfont-generator#check
+            - run: vp check
+              id: js-check
+              background: true
+            - wait: rust-cache
+            - run: vp run @atlowchemi/webfont-generator#check
+            - wait: js-check
 
     rust-coverage:
         name: Rust coverage (${{ matrix.suite }})
@@ -144,6 +153,8 @@ jobs:
                   components: llvm-tools-preview
             - wait: [checkout, rust]
             - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+              id: coverage-tools
+              background: true
               with:
                   tool: cargo-llvm-cov,cargo-nextest
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
@@ -157,6 +168,7 @@ jobs:
               background: true
               if: ${{ matrix.suite == 'engine' }}
               run: vp run @atlowchemi/webfont-engine#test:doctests
+            - wait: coverage-tools
             - run: vp run @atlowchemi/webfont-engine#test:coverage
               if: ${{ matrix.suite == 'engine' }}
             - run: vp run @atlowchemi/webfont-engine#test:coverage:cli
@@ -168,6 +180,8 @@ jobs:
                   test -s coverage/rust-${{ matrix.suite }}/rust.lcov
                   test -s coverage/rust-${{ matrix.suite }}/junit.xml
             - name: Upload Rust coverage
+              id: coverage-upload
+              background: true
               if: ${{ !cancelled() && hashFiles(format('coverage/rust-{0}/rust.lcov', matrix.suite)) != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
@@ -180,6 +194,8 @@ jobs:
                   name: rust-${{ matrix.suite }}
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Upload Rust test results
+              id: test-upload
+              background: true
               if: ${{ !cancelled() && hashFiles(format('coverage/rust-{0}/junit*.xml', matrix.suite)) != '' }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -194,6 +210,8 @@ jobs:
                   if-no-files-found: error
             - wait: doctests
             - name: Upload doctest invocation results
+              id: doctest-upload
+              background: true
               if: ${{ !cancelled() && matrix.suite == 'engine' && hashFiles('test-results/doctests.xml') != '' }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -206,6 +224,7 @@ jobs:
                   name: test-results-rust-doctest-invocations-linux-x64-${{ github.run_attempt }}
                   path: test-results/doctests.xml
                   if-no-files-found: error
+            - wait: [coverage-upload, test-upload, doctest-upload]
 
     native-coverage:
         name: Native Vitest coverage
@@ -223,6 +242,8 @@ jobs:
                   components: llvm-tools-preview
             - wait: [checkout, rust]
             - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+              id: coverage-tools
+              background: true
               with:
                   tool: cargo-llvm-cov
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
@@ -230,6 +251,7 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
+            - wait: coverage-tools
             - run: vp run @atlowchemi/webfont-generator#test:coverage:native
             - name: Verify required reports
               run: |
@@ -237,6 +259,8 @@ jobs:
                   test -s coverage/napi-vitest/js/lcov.info
                   test -s coverage/napi-vitest/junit.xml
             - name: Upload Vitest-origin Rust coverage
+              id: rust-upload
+              background: true
               if: ${{ !cancelled() && hashFiles('coverage/napi-vitest/rust.lcov') != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
@@ -248,6 +272,8 @@ jobs:
                   fail_ci_if_error: true
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Upload Vitest-origin JS coverage
+              id: js-upload
+              background: true
               if: ${{ !cancelled() && hashFiles('coverage/napi-vitest/js/lcov.info') != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
@@ -259,6 +285,8 @@ jobs:
                   fail_ci_if_error: true
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Upload instrumented test results
+              id: test-upload
+              background: true
               if: ${{ !cancelled() && hashFiles('coverage/napi-vitest/junit.xml') != '' }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -271,6 +299,7 @@ jobs:
                   name: test-results-napi-instrumented-linux-x64-node26-${{ github.run_attempt }}
                   path: coverage/napi-vitest/junit.xml
                   if-no-files-found: error
+            - wait: [rust-upload, js-upload, test-upload]
 
     build:
         name: Build required bindings
@@ -296,6 +325,8 @@ jobs:
                   targets: wasm32-unknown-unknown
             - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              id: dependencies
+              background: true
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -304,6 +335,7 @@ jobs:
               with:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
+            - wait: dependencies
             - run: vp run @atlowchemi/vite-svg-webfont-docs#build
 
     test-browser:
@@ -350,6 +382,8 @@ jobs:
                   CI_TEST_SUITE: plugin-browser-linux-x64
             - wait: engine-browser-tests
             - name: Upload engine browser results
+              id: engine-upload
+              background: true
               if: ${{ !cancelled() && (steps.engine-browser-tests.outcome == 'success' || hashFiles('test-results/engine-browser.xml') != '') }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -364,6 +398,8 @@ jobs:
                   if-no-files-found: error
             - wait: plugin-browser-tests
             - name: Upload plugin browser results
+              id: plugin-upload
+              background: true
               if: ${{ !cancelled() && (steps.plugin-browser-tests.outcome == 'success' || hashFiles('test-results/plugin-browser.xml') != '') }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -376,6 +412,7 @@ jobs:
                   name: test-results-plugin-browser-linux-x64-${{ github.run_attempt }}
                   path: test-results/plugin-browser.xml
                   if-no-files-found: error
+            - wait: [engine-upload, plugin-upload]
 
     test-wasm:
         name: test WASM browser generation
@@ -394,6 +431,8 @@ jobs:
                   components: clippy, rustfmt
             - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              id: dependencies
+              background: true
               with:
                   node-version-file: .node-version
                   run-install: true
@@ -402,6 +441,7 @@ jobs:
               with:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
+            - wait: dependencies
             - run: vp exec playwright install --with-deps chromium firefox webkit
               id: browsers
               background: true
@@ -419,12 +459,16 @@ jobs:
                   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
                   ALLOW_BUNDLE_ANALYSIS: 'true'
             - name: Upload WASM binding
+              id: wasm-upload
+              background: true
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: bindings-wasm32-unknown-unknown
                   path: packages/webfont-browser/generated/
                   if-no-files-found: error
             - name: Upload WASM browser results
+              id: wasm-results
+              background: true
               if: ${{ !cancelled() && hashFiles('test-results/wasm-browser.xml') != '' }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -448,7 +492,7 @@ jobs:
                   path: test-results/wasm-browser.xml
                   if-no-files-found: error
             # Coverage rebuilds generated WASM files: archive the original build first.
-            - wait: coverage-toolchain
+            - wait: [coverage-toolchain, wasm-upload, wasm-results]
             - run: vp run @atlowchemi/webfont-browser-generator#test:coverage
             - name: Verify browser coverage reports
               run: |
@@ -456,6 +500,8 @@ jobs:
                   test -s coverage/browser-js/junit.xml
                   test -s coverage/browser-rust/lcov.info
             - name: Upload browser JavaScript coverage
+              id: js-upload
+              background: true
               if: ${{ !cancelled() && hashFiles('coverage/browser-js/lcov.info') != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
@@ -467,6 +513,8 @@ jobs:
                   fail_ci_if_error: true
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Upload browser Rust coverage
+              id: rust-upload
+              background: true
               if: ${{ !cancelled() && hashFiles('coverage/browser-rust/lcov.info') != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
@@ -478,6 +526,8 @@ jobs:
                   fail_ci_if_error: true
                   token: ${{ secrets.CODECOV_TOKEN }}
             - name: Upload browser coverage test results
+              id: test-upload
+              background: true
               if: ${{ !cancelled() && hashFiles('coverage/browser-js/junit.xml') != '' }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -490,6 +540,7 @@ jobs:
                   name: test-results-browser-coverage-linux-x64-${{ github.run_attempt }}
                   path: coverage/browser-js/junit.xml
                   if-no-files-found: error
+            - wait: [js-upload, rust-upload, test-upload]
 
     test-host:
         name: test ${{ matrix.settings.target }} (node ${{ matrix.node }})
@@ -529,12 +580,15 @@ jobs:
                   runtime: node@${{ matrix.node }}
                   cache: true
             - name: Download binding
+              id: binding
+              background: true
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: bindings-${{ matrix.settings.target }}
                   path: packages/webfont-generator/
             - name: Build plugin
               run: pnpm --filter vite-svg-2-webfont exec vp pack
+            - wait: binding
             - name: Verify binding
               shell: bash
               run: ls packages/webfont-generator/*.node
@@ -545,6 +599,8 @@ jobs:
                   CI_TEST_REPORT: test-results/host.xml
                   CI_TEST_SUITE: host-${{ matrix.settings.target }}-node${{ matrix.node }}
             - name: Upload host test results
+              id: test-upload
+              background: true
               if: ${{ !cancelled() && (steps.host-tests.outcome == 'success' || hashFiles('test-results/host.xml') != '') }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -557,6 +613,7 @@ jobs:
                   name: test-results-host-${{ matrix.settings.target }}-node${{ matrix.node }}-${{ github.run_attempt }}
                   path: test-results/host.xml
                   if-no-files-found: error
+            - wait: test-upload
 
     test-docker:
         name: test ${{ matrix.arch }}-linux-musl
@@ -590,6 +647,8 @@ jobs:
                   runtime: node@${{ steps.node-version.outputs.node_version }}
                   cache: true
             - name: Download binding
+              id: binding
+              background: true
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: bindings-${{ matrix.arch }}-unknown-linux-musl
@@ -599,6 +658,7 @@ jobs:
             - name: Resolve pnpm version
               id: pnpm-version
               run: echo "version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).packageManager.split('@', 2)[1].split('+')[0]")" >> "$GITHUB_OUTPUT"
+            - wait: binding
             - name: Run tests
               id: musl-tests
               uses: tj-actions/docker-run@1d25a677da8f1243a138dc5db21e307e92986ffe # v2.2.1
@@ -614,6 +674,8 @@ jobs:
                         pnpm install --frozen-lockfile --ignore-scripts && \
                         pnpm exec vp test --run --project='!*-browser*' --project='!scripts'"
             - name: Upload musl test results
+              id: test-upload
+              background: true
               if: ${{ !cancelled() && (steps.musl-tests.outcome == 'success' || hashFiles('test-results/musl.xml') != '') }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -626,6 +688,7 @@ jobs:
                   name: test-results-musl-${{ matrix.arch }}-node26-${{ github.run_attempt }}
                   path: test-results/musl.xml
                   if-no-files-found: error
+            - wait: test-upload
 
     test-vite-compat:
         name: test (node ${{ matrix.node_version }}, vite ${{ matrix.vite_major }})
@@ -672,6 +735,8 @@ jobs:
               run: node ./scripts/ci/set-vite-major.ts ${{ matrix.vite_major }}
             - run: vp install --no-frozen-lockfile
             - name: Download binding
+              id: binding
+              background: true
               uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: bindings-x86_64-unknown-linux-gnu
@@ -692,6 +757,7 @@ jobs:
                       exit 1
                       ;;
                   esac
+            - wait: binding
             - name: Verify binding
               run: ls packages/webfont-generator/*.node
             - name: Run coverage
@@ -701,6 +767,8 @@ jobs:
                   vp test --run --project='!*-browser*' --project='!scripts' --coverage --coverage.include='packages/vite-svg-2-webfont/src/**'
                   test -s coverage/lcov.info
             - name: Upload coverage reports to Codecov
+              id: coverage-upload
+              background: true
               if: ${{ !cancelled() && matrix.primary && hashFiles('coverage/lcov.info') != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
               with:
@@ -716,6 +784,8 @@ jobs:
               if: ${{ !matrix.primary }}
               run: vp test --run --project='!*-browser*' --project='!scripts'
             - name: Upload compatibility test results
+              id: test-upload
+              background: true
               if: ${{ !cancelled() && (steps.coverage-tests.outcome == 'success' || steps.compat-tests.outcome == 'success' || hashFiles('test-results/vite-compat.xml') != '') }}
               uses: ./.github/actions/upload-test-results
               with:
@@ -733,6 +803,7 @@ jobs:
                   name: test-results-vite${{ matrix.vite_major }}-node${{ matrix.node_version }}-linux-x64-${{ github.run_attempt }}
                   path: test-results/vite-compat.xml
                   if-no-files-found: error
+            - wait: [coverage-upload, test-upload]
 
     # Single fan-in job for branch protection: matrix job names are dynamic
     # (one per OS × node × vite combination) and would need re-listing in the
