@@ -1,5 +1,5 @@
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test';
@@ -24,6 +24,8 @@ beforeAll(() => {
     // only query packages; application builds/tests never execute in the fixture.
     const archive = execFileSync('git', ['archive', 'HEAD'], { cwd: repo, maxBuffer: 64 * 1024 * 1024 });
     execFileSync('tar', ['-xf', '-'], { cwd: fixture, input: archive });
+    // Installation may update pnpm's own lock entry; package queries must not dirty the fixture baseline.
+    copyFileSync(join(repo, 'pnpm-lock.yaml'), join(fixture, 'pnpm-lock.yaml'));
     symlinkSync(join(repo, 'node_modules'), join(fixture, 'node_modules'), 'dir');
     git('init', '-q');
     git('config', 'user.name', 'Selection fixture');
@@ -34,8 +36,8 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-    git('checkout', '--detach', base);
     git('reset', '--hard', base);
+    git('checkout', '--detach', base);
 });
 afterAll(() => {
     if (fixture) rmSync(fixture, { recursive: true, force: true });
