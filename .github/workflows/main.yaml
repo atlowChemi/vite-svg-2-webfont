@@ -16,13 +16,17 @@ jobs:
         outputs:
             selection: ${{ steps.selection.outputs.selection }}
         steps:
-            # Concurrent actions raced on the runner's event JSON and execution context.
-            # Keep uses steps sequential; overlap independent run steps instead.
+            # Test explicit background/join setup separately from parallel action groups.
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
               with:
                   fetch-depth: 0
                   ref: ${{ github.event.pull_request.head.sha || github.sha }}
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
+            - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -48,7 +52,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
+            - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -93,10 +102,14 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               id: rust
+              background: true
               with:
                   components: clippy, rustfmt
+            - wait: [checkout, rust]
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
                   path: target
@@ -122,9 +135,14 @@ jobs:
                 suite: ${{ fromJSON(needs.affected-selection.outputs.selection).rustSuites }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
               with:
                   components: llvm-tools-preview
+            - wait: [checkout, rust]
             - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
               with:
                   tool: cargo-llvm-cov,cargo-nextest
@@ -196,9 +214,14 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
               with:
                   components: llvm-tools-preview
+            - wait: [checkout, rust]
             - uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
               with:
                   tool: cargo-llvm-cov
@@ -264,9 +287,14 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
               with:
                   targets: wasm32-unknown-unknown
+            - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -285,7 +313,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
+            - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -351,10 +384,15 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
               with:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
+            - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -480,7 +518,12 @@ jobs:
         runs-on: ${{ matrix.settings.host }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
+            - wait: [checkout, rust]
             - uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
               with:
                   runtime: node@${{ matrix.node }}
@@ -533,7 +576,12 @@ jobs:
         runs-on: ${{ matrix.runner }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
+            - wait: [checkout, rust]
             - name: extract node version from .node-version
               id: node-version
               run: echo "node_version=$(cat .node-version)" >> "$GITHUB_OUTPUT"
@@ -609,7 +657,12 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              id: checkout
+              background: true
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
+            - wait: [checkout, rust]
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version: ${{ matrix.node_version }}

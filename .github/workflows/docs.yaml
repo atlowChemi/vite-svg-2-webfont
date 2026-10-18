@@ -19,10 +19,15 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: checkout
+              id: checkout
+              background: true
               uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              id: rust
+              background: true
               with:
                   targets: wasm32-unknown-unknown
+            - wait: [checkout, rust]
             - name: setup pages
               uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
