@@ -88,7 +88,7 @@ export function resolveSelection(baseSha: string | undefined, run: CommandRunner
         // Both sides of renames are needed for ownership; NUL preserves unusual paths.
         files = run('git', ['diff', '--name-only', '--no-renames', '-z', base, 'HEAD', '--']).split('\0').filter(Boolean);
         const filters = [`...[${base}]`];
-        // Docs include engine/adapter release notes and symlink the plugin changelog.
+        // Docs pages include the engine, adapter, and plugin release notes.
         if (files.some(file => changelogFiles.has(file))) {
             filters.push(packageNames.docs);
         }

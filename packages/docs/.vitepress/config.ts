@@ -1,6 +1,7 @@
 import { defineConfig, type MarkdownOptions } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
+import { codeThemes } from './codeThemes';
 import { examplePlugins } from './examples';
 import { svgAuthoringFontPlugins } from './svgAuthoringFonts';
 
@@ -11,10 +12,7 @@ const docsUrl = `https://atlowChemi.github.io/${repoName}/`;
 const socialImage = `${docsUrl}social-card.png`;
 
 const markdown: MarkdownOptions = {
-    theme: {
-        light: 'catppuccin-latte',
-        dark: 'catppuccin-frappe',
-    },
+    theme: codeThemes,
     config(md) {
         md.use(groupIconMdPlugin);
         const defaultRenderer = md.renderer.rules.fence;
@@ -101,20 +99,20 @@ export default defineConfig({
                 customIcon: {
                     '.tsx': 'vscode-icons:file-type-reactts',
                     '.component.ts': 'vscode-icons:file-type-angular',
+                    '.svg': 'vscode-icons:file-type-svg',
                     '.hbs': 'vscode-icons:file-type-handlebars',
                     '.handlebars': 'vscode-icons:file-type-handlebars',
                     handlebars: 'vscode-icons:file-type-handlebars',
                     'generated css': 'vscode-icons:file-type-css',
                 },
                 // Tab labels rendered by Vue components, which the Markdown scan does not see.
-                defaultLabels: ['Generated CSS'],
+                defaultLabels: ['Generated CSS', 'output.css', 'output.html', 'output.svg'],
             }),
             llmstxt(),
             ...svgAuthoringFontPlugins(),
             ...examplePlugins(markdown),
         ],
         resolve: {
-            preserveSymlinks: true,
             alias: {
                 mermaid: 'mermaid/dist/mermaid.esm.mjs',
             },
@@ -126,6 +124,7 @@ export default defineConfig({
         nav: [
             { text: 'Guide', link: '/getting-started' },
             { text: 'Which Package?', link: '/which-package' },
+            { text: 'Playground', link: '/playground' },
             {
                 text: 'Webfont Generator',
                 items: [

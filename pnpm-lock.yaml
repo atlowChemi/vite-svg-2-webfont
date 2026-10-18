@@ -269,12 +269,21 @@ importers:
 
   packages/docs:
     devDependencies:
+      '@atlowchemi/webfont-browser-generator':
+        specifier: workspace:*
+        version: link:../webfont-browser
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       mermaid:
         specifier: ^12.0.0
         version: 12.1.0
+      shiki:
+        specifier: ^4.4.3
+        version: 4.4.3
       svgo:
         specifier: ^4.0.1
         version: 4.1.0
