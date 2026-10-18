@@ -236,6 +236,7 @@ fn glyph(index: usize, name: &str, path_data: &str, width: f64, height: f64) -> 
 fn font_tables(glyphs: Vec<ProcessedGlyph>) -> SerializedFontTables {
     build(
         TtfOptions {
+            color_slots: None,
             ascent: None,
             copyright: None,
             descent: None,

@@ -56,6 +56,8 @@ pub struct GenerateWebfontsFromSourcesOptions {
         deserialize_with = "crate::types::color::deserialize_selection"
     )]
     pub color_glyphs: Option<ColorGlyphSelection>,
+    /// Named #RRGGBB palette slots, indexed in ASCII name order; requires active color glyphs.
+    pub color_slots: Option<HashMap<String, String>>,
     /// Font ascent.
     pub ascent: Option<f64>,
     /// Center glyphs horizontally.
@@ -124,6 +126,7 @@ pub(super) fn resolve(
 ) -> std::io::Result<ResolvedSourceOptions> {
     let settings = GenerationOptions {
         color_glyphs: options.color_glyphs,
+        color_slots: options.color_slots,
         ascent: options.ascent,
         center_horizontally: options.center_horizontally,
         center_vertically: options.center_vertically,

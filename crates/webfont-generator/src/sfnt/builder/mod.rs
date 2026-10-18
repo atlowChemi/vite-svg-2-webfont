@@ -32,6 +32,7 @@ pub(crate) fn ttf_options_from_options(options: &ResolvedGenerationOptions) -> T
         .as_ref()
         .and_then(|value| value.ttf.as_ref());
     TtfOptions {
+        color_slots: Some(&options.color_slots),
         ascent: options.ascent,
         copyright: ttf_format.and_then(|v| v.copyright.as_deref()),
         descent: options.descent,
@@ -73,7 +74,11 @@ fn build_uncached(
 
     let (compiled_glyphs, cmap_aliases) = compile_and_dedup_glyphs(glyphs)?;
     let ligature_placeholders = build_ligature_placeholders(&compiled_glyphs, options.ligature);
-    let color = color::build_color(&compiled_glyphs, ligature_placeholders.len())?;
+    let color = color::build_color(
+        &compiled_glyphs,
+        ligature_placeholders.len(),
+        options.color_slots,
+    )?;
     let (glyf, loca, loca_format) =
         build_glyf_table(&compiled_glyphs, &ligature_placeholders, &color.layers)?;
     let metrics = compute_glyph_metrics(compiled_glyphs.iter().chain(&color.layers));
@@ -111,7 +116,11 @@ fn build_cached(
 
     let (compiled_glyphs, cmap_aliases) = compile_and_dedup_glyphs_cached(glyphs, cache)?;
     let ligature_placeholders = build_ligature_placeholders(&compiled_glyphs, options.ligature);
-    let color = color::build_color(&compiled_glyphs, ligature_placeholders.len())?;
+    let color = color::build_color(
+        &compiled_glyphs,
+        ligature_placeholders.len(),
+        options.color_slots,
+    )?;
     let (glyf, loca, loca_format) =
         build_glyf_table(&compiled_glyphs, &ligature_placeholders, &color.layers)?;
     let metrics = compute_glyph_metrics(compiled_glyphs.iter().chain(&color.layers));

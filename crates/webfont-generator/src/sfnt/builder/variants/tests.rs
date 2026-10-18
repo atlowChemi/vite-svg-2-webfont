@@ -177,6 +177,7 @@ fn family() -> PreparedVariantFamily {
 
 fn options() -> TtfOptions<'static> {
     TtfOptions {
+        color_slots: None,
         ascent: None,
         copyright: None,
         descent: None,

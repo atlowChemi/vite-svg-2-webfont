@@ -178,6 +178,7 @@ fn build_proof_font() -> SerializedFontTables {
     };
     super::super::build_variant(
         TtfOptions {
+            color_slots: None,
             ascent: Some(1000.0),
             copyright: None,
             descent: Some(0.0),

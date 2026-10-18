@@ -81,6 +81,8 @@ export declare class GenerateWebfontsResult {
  * so the JS-side type widens this with an open-ended index signature.
  */
 export interface CssContext {
+  /** Named palette slot indices in ASCII name order. Empty when no slots are configured. */
+  colorSlots: Record<string, number>
   /** Name of the generated font, mirroring the `fontName` option. */
   fontName: string
   /**
@@ -191,6 +193,8 @@ export interface GenerateWebfontsOptions {
    * Omit or use [] for monochrome. Active color requires TTF, WOFF, or WOFF2.
    */
   colorGlyphs?: true | string[]
+  /** Named #RRGGBB palette slots, indexed in ASCII name order; requires active colorGlyphs. */
+  colorSlots?: Record<string, string>
   /**
    * Font ascent in font units. Overrides the value computed from the source
    * glyphs.

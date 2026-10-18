@@ -146,6 +146,8 @@ struct HashableVariant<'a> {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct HashableGenerateWebfontsOptions<'a> {
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    color_slots: &'a std::collections::BTreeMap<String, [u8; 3]>,
     #[serde(skip_serializing_if = "Option::is_none")]
     color_glyphs: Option<&'a ResolvedColorSelection>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -274,6 +276,7 @@ impl<'a> From<&'a ResolvedFileGenerationOptions> for HashableGenerateWebfontsOpt
 impl<'a> From<&'a ResolvedGenerationOptions> for HashableGenerateWebfontsOptions<'a> {
     fn from(options: &'a ResolvedGenerationOptions) -> Self {
         Self {
+            color_slots: &options.color_slots,
             color_glyphs: options
                 .color_selection
                 .as_ref()

@@ -1,0 +1,41 @@
+@font-face {
+    font-family: "{{fontName}}";
+    font-display: block;
+    src: {{{src}}};
+}
+
+@font-palette-values --theme-icons-light {
+    font-family: "{{fontName}}";
+    override-colors: {{colorSlots.secondary}} #059669;
+}
+
+@font-palette-values --theme-icons-dark {
+    font-family: "{{fontName}}";
+    override-colors: {{colorSlots.secondary}} #34d399;
+}
+
+{{baseSelector}} {
+    display: inline-block;
+    font-size: 64px;
+    line-height: 1;
+    color: var(--primary-color, #334155);
+    font-palette: --theme-icons-light;
+}
+
+{{baseSelector}}:before {
+    font-family: "{{fontName}}" !important;
+    font-style: normal;
+    font-weight: normal !important;
+}
+
+/* In an app, use your theme selector, e.g. [data-theme="dark"] .icon. */
+{{baseSelector}}.theme-dark {
+    --primary-color: #94a3b8;
+    font-palette: --theme-icons-dark;
+}
+
+{{#each codepoints}}
+.{{../classPrefix}}{{@key}}:before {
+    content: "\\{{this}}";
+}
+{{/each}}

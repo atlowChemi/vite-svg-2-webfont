@@ -232,6 +232,8 @@ pub struct TemplateVariant {
 #[napi(object)]
 #[derive(Clone)]
 pub struct CssContext {
+    /// Named palette slot indices in ASCII name order. Empty when no slots are configured.
+    pub color_slots: HashMap<String, u32>,
     /// Name of the generated font, mirroring the `fontName` option.
     pub font_name: String,
     /// Pre-rendered value for the CSS `@font-face` `src:` descriptor — a
@@ -301,6 +303,8 @@ pub struct GenerateWebfontsOptions {
     /// Omit or use [] for monochrome. Active color requires TTF, WOFF, or WOFF2.
     #[napi(ts_type = "true | string[]")]
     pub color_glyphs: Option<Either<bool, Vec<String>>>,
+    /// Named #RRGGBB palette slots, indexed in ASCII name order; requires active colorGlyphs.
+    pub color_slots: Option<HashMap<String, String>>,
     /// Font ascent in font units. Overrides the value computed from the source
     /// glyphs.
     pub ascent: Option<f64>,

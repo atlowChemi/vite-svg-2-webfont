@@ -203,6 +203,42 @@ Keep the SVG colors for selected icons. Color glyphs need TTF, WOFF, or WOFF2 ou
 </template>
 </ExampleTabs>
 
+## Theme colors in one glyph
+
+Use one charging `battery` glyph with three paths in both light and dark themes:
+
+- **Primary:** the casing uses `currentColor`, following the element's text color (dark slate → light slate).
+- **Secondary:** the charge area uses `#059669`, mapped to the `secondary` palette slot (emerald → mint).
+- **Static:** the lightning bolt uses `#fbbf24`, staying amber in both themes.
+
+CSS `@font-palette-values` overrides only the secondary slot, and `font-palette` selects the theme without loading a second font or switching glyphs.
+
+The custom template reads `colorSlots.secondary`, the generated palette index. Slot indices follow ASCII name order and stay stable when icons change, including when a slot's source color is temporarily unused. Adding or renaming **slots** can change indices, so use the template mapping instead of hardcoding them.
+
+<ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', template: 'icons.css.hbs', css: 'Generated CSS', output: 'Output' }">
+<template #config>
+
+<<< ./examples/theme-colors/vite.config.ts
+
+</template>
+<template #icons>
+<ExampleIcons example="theme-colors" />
+</template>
+<template #template>
+
+<<< ./examples/theme-colors/icons.css.hbs{handlebars}
+
+</template>
+<template #css>
+<ExampleCss example="theme-colors" :highlight="['@font-palette-values', 'override-colors', 'font-palette']" />
+</template>
+<template #output>
+<ExampleOutput example="theme-colors" :rows="[{ label: 'Light: dark slate casing · emerald charge · amber bolt' }, { label: 'Dark: light slate casing · mint charge · amber bolt', class: 'theme-dark' }]" />
+</template>
+</ExampleTabs>
+
+Palette overrides use explicit colors, not per-element `var(--secondary-color)` or `currentColor`. Select predefined palettes for your themes; only the foreground follows an inherited CSS variable here. Identical resolved RGB fills share a slot across selected icons and variants, with their layer opacity retained. Slots do not affect monochrome icons. Platforms using the monochrome fallback lose the secondary color; see [color compatibility](./webfont-generator/#browser-and-platform-compatibility).
+
 ## Pinned codepoints
 
 Pin the codepoints of icons you publish, so CSS or content that refers to a codepoint keeps working when icons are added. Unpinned icons get the next free codepoint.

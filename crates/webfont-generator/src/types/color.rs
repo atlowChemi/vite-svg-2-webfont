@@ -16,6 +16,59 @@ pub enum ColorGlyphSelection {
     Named(Vec<String>),
 }
 
+#[cfg(any(feature = "fs", feature = "in_memory"))]
+pub(crate) fn resolve_slots(
+    slots: Option<std::collections::HashMap<String, String>>,
+    selection: Option<&ResolvedColorSelection>,
+) -> std::io::Result<std::collections::BTreeMap<String, [u8; 3]>> {
+    use std::io::{Error, ErrorKind};
+    let slots = slots.unwrap_or_default();
+    let invalid = |message: &str| {
+        Error::new(
+            ErrorKind::InvalidInput,
+            format!("options.colorSlots: {message}"),
+        )
+    };
+    if !slots.is_empty()
+        && !selection.is_some_and(|selection| match selection {
+            ResolvedColorSelection::All => true,
+            ResolvedColorSelection::Named(names) => !names.is_empty(),
+        })
+    {
+        return Err(invalid("requires active colorGlyphs"));
+    }
+    if slots.len() > usize::from(u16::MAX) {
+        return Err(invalid("exceeds 65,535 palette entries"));
+    }
+    let mut colors = std::collections::HashSet::new();
+    slots
+        .into_iter()
+        .map(|(name, value)| {
+            if name.is_empty()
+                || !name
+                    .bytes()
+                    .all(|c| c.is_ascii_alphanumeric() || c == b'_' || c == b'-')
+            {
+                return Err(invalid(
+                    "names must contain only ASCII letters, digits, hyphens or underscores",
+                ));
+            }
+            if value.len() != 7
+                || !value.starts_with('#')
+                || !value.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
+            {
+                return Err(invalid("colors must use #RRGGBB"));
+            }
+            let rgb =
+                [1, 3, 5].map(|start| u8::from_str_radix(&value[start..start + 2], 16).unwrap());
+            if !colors.insert(rgb) {
+                return Err(invalid("each slot must have a distinct RGB color"));
+            }
+            Ok((name, rgb))
+        })
+        .collect()
+}
+
 // Omission uses the field default; an explicitly supplied null must not disable color.
 #[cfg(any(feature = "cli", feature = "in_memory"))]
 pub(crate) fn deserialize_selection<'de, D: serde::Deserializer<'de>>(

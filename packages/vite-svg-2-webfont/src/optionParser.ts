@@ -73,6 +73,8 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
      * WOFF, or WOFF2 types in ordinary mode; variant defaults are compatible.
      */
     colorGlyphs?: GenerateWebfontsInputOptions['colorGlyphs'];
+    /** Named #RRGGBB palette slots for CSS font-palette overrides. Requires colorGlyphs. */
+    colorSlots?: GenerateWebfontsInputOptions['colorSlots'];
     /**
      * Brotli compression quality (`0`–`11`) for WOFF2 output. Convenience alias for
      * {@link FormatOptions} `woff2.compressionQuality`; the format-level option takes
@@ -338,6 +340,7 @@ export function parseOptions<T extends FontType = FontType>(options: IconPluginO
         codepoints: options.codepoints || {},
         optimizeOutput: options.optimizeOutput ?? false,
         ...(options.colorGlyphs !== undefined && { colorGlyphs: options.colorGlyphs }),
+        ...(options.colorSlots !== undefined && { colorSlots: options.colorSlots }),
         templateOptions: {
             baseSelector: options.baseSelector || '.icon',
             classPrefix: options.classPrefix ?? 'icon-',

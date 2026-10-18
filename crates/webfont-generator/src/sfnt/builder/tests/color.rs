@@ -73,7 +73,7 @@ fn color_layers_respect_post_custom_name_limit() {
 #[test]
 fn color_allocation_validates_initial_glyph_count() {
     // Include .notdef in the limit even when there are no selectable glyphs.
-    let empty = build_color(&[], usize::from(u16::MAX) - 1).unwrap();
+    let empty = build_color(&[], usize::from(u16::MAX) - 1, None).unwrap();
     assert!(empty.layers.is_empty());
     assert!(empty.tables.is_empty());
     for (placeholders, message) in [
@@ -83,7 +83,7 @@ fn color_allocation_validates_initial_glyph_count() {
         ),
         (usize::MAX, "Font glyph count overflow."),
     ] {
-        let error = build_color(&[], placeholders).err().unwrap();
+        let error = build_color(&[], placeholders, None).err().unwrap();
         assert_eq!(error.kind(), ErrorKind::InvalidInput);
         assert_eq!(error.to_string(), message);
     }
@@ -158,7 +158,7 @@ fn malformed_color_layer_reports_source_glyph() {
 fn rejected_auxiliary_glyph_reports_layer_name() {
     let (_, glyphs) = prepare(&[r#"<path d="M10 10H90V90H10Z"/>"#]);
     let (compiled, _) = compile_and_dedup_glyphs(&glyphs).unwrap();
-    let mut color = build_color(&compiled, 0).unwrap();
+    let mut color = build_color(&compiled, 0, None).unwrap();
     let CompiledGlyphOutline::Inline(outline) = &mut color.layers[0].outline else {
         panic!("expected an inline layer")
     };

@@ -71,6 +71,16 @@ for the final order. Settings and templates stay fixed. Failed synchronous updat
 the previous result usable; async failures expose it through `SourceRegenerateError::into_result`
 unless the worker itself failed. See the [text-input reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html#svg-text-api).
 
+## Named theme colors
+
+With active `color_glyphs`, set `color_slots: Some(HashMap::from([("secondary".into(), "#ff9900".into())]))`
+to reserve a palette entry for matching SVG fills. Slots use distinct `#RRGGBB` colors and ASCII
+alphanumeric/hyphen/underscore names; indices follow ASCII name order, including unused slots.
+The CSS context's `colorSlots` map exposes indices for `@font-palette-values` overrides.
+Foreground `currentColor` paths still follow the host text color. File, text, and variant APIs
+share this behavior; the CLI manifest uses `"colorSlots": {"secondary": "#ff9900"}`.
+See the [live theme example](https://atlowChemi.github.io/vite-svg-2-webfont/examples#theme-colors-in-one-glyph).
+
 ## CLI
 
 ```sh

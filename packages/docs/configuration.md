@@ -52,6 +52,12 @@ See [multi-weight usage](./usage#multi-weight-icon-families) and the [generator'
 - Default: Derived by the generator from `classPrefix` (normally `icon--`).
 - Description: Prefix for design modifier classes, such as `icon--bold`. A modifier accompanies the base and icon classes; it does not emit an icon by itself.
 
+## `colorSlots`
+
+- Type: `Record<string, string>`
+- Default: omitted
+- Description: Reserve named palette entries for CSS theme overrides, for example `{ secondary: '#ff9900' }`. Nonempty slots require active `colorGlyphs`. The CSS context exposes a name-to-index `colorSlots` map. See [validation and ordering rules](/webfont-generator/node#colorslots) and the [live light/dark example](./examples#theme-colors-in-one-glyph).
+
 ## `colorGlyphs`
 
 - Type: `true | string[]`

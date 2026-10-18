@@ -113,6 +113,10 @@ family.regenerate(
 );
 ```
 
+### Named theme colors
+
+Set `colorSlots: { secondary: '#ff9900' }` alongside `colorGlyphs` to reserve a palette entry for a theme color. Use `fill="currentColor"` for foreground paths and `fill="#ff9900"` for secondary paths. A CSS template or `cssContext` callback receives `colorSlots.secondary`, the numeric index to use in `@font-palette-values`'s `override-colors` descriptor. See the [live light/dark example](../examples#theme-colors-in-one-glyph).
+
 ### Color regeneration
 
 The existing result and regeneration methods are used; there are no color-specific getters. Paint-only edits change font bytes and their hashes, including generated CSS font URLs. Changing color selection between builds also changes the URL hash; array order and duplicate names do not. Omission and an empty array retain the same monochrome hash. A fresh build and an incremental build of the same final inputs produce matching output. Variant fallback consumers receive their source's paint changes, while blank/fallback membership transitions update the COLR records.
@@ -158,6 +162,19 @@ Custom templates receive extra family metadata; see the [template context compar
 For stylesheet customization and SCSS, see [Templates](./templates).
 
 ## Options reference
+
+### `colorSlots`
+
+- **Type:** `Record<string, string>`
+- **Default:** omitted (no reserved slots)
+
+Maps semantic names to distinct six-digit `#RRGGBB` source colors (case-insensitive). Names must be nonempty ASCII letters, digits, hyphens or underscores. Nonempty slots require active `colorGlyphs`; they do not enable color themselves. Empty maps are equivalent to omission.
+
+Indices start at zero in ASCII slot-name order. All slots are reserved even when unused; automatically discovered colors follow them. Changing icon membership or paint cannot move the reserved slots, but adding/removing/renaming slots can. Read `colorSlots` from the CSS context rather than hardcoding indices. This engine-owned context field overrides any same-named `templateOptions` value; CSS callbacks can still customize the context.
+
+Matching uses the resolved SVG RGB, across selected glyphs and variants, preserving layer opacity. Two slots cannot use the same RGB value. Unselected glyphs remain monochrome, and foreground paint continues to use the host text color. Slot configuration contributes to CSS font-URL hashes; object insertion order and hex letter case do not. Settings stay fixed during incremental regeneration.
+
+Slots select CSS font-palette entries, not inherited secondary CSS variables. Define explicit colors in named `@font-palette-values` rules and select them using `font-palette`. The font still contains its original default colors; browsers without color-font support use the monochrome fallback.
 
 ### `colorGlyphs`
 

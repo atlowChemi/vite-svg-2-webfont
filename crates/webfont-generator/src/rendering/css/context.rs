@@ -111,6 +111,17 @@ pub(crate) fn make_content_css_context(
     ]);
 
     ctx.extend(shared.template_options.clone());
+    ctx.insert(
+        "colorSlots".to_owned(),
+        Value::Object(
+            options
+                .color_slots
+                .keys()
+                .enumerate()
+                .map(|(index, name)| (name.clone(), Value::from(index as u32)))
+                .collect(),
+        ),
+    );
     // Engine-owned: arbitrary template data must not switch the rendering mode.
     ctx.insert(
         "__webfontVariantMode".to_owned(),

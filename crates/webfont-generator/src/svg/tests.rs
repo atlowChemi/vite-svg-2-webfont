@@ -1163,6 +1163,7 @@ fn static_variant_oracles_share_metrics_codepoints_and_advances() {
     let build = |prepared: &PreparedVariantFamily, variant_index, weight| {
         crate::sfnt::build(
             crate::sfnt::TtfOptions {
+                color_slots: None,
                 ascent: Some(prepared.ascent),
                 copyright: None,
                 descent: Some(prepared.descent),

@@ -79,6 +79,10 @@ Source paint order, curves, nonzero winding, and ordinary nested evenodd holes a
 
 Advanced input is **best-effort**: gradients, strokes as color paint, text, images, clipping, masks, filters, paint-dependent selectors, CSS resets/invalid declarations, and intersecting evenodd contours can produce incomplete or incorrect results. There is no dedicated unsupported-input detection, warning, or rejection. Please report a minimal SVG reproduction when a supported case renders incorrectly.
 
+### Theme colors
+
+Fixed SVG fills can be overridden at runtime with CSS `@font-palette-values` and `font-palette`. Configure [`colorSlots`](./node#colorslots) to reserve named palette indices, while `currentColor` paths keep following the element's text color. One glyph can serve both light and dark themes; see the [live example](../examples#theme-colors-in-one-glyph).
+
 ### Browser and platform compatibility
 
 Chromium and Firefox render fixed colors, host foreground colors, and per-layer opacity. Linux WebKit also renders color; tested macOS WebKit uses the monochrome fallback.

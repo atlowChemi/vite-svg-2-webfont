@@ -34,6 +34,7 @@ impl From<GenerateWebfontsOptions> for FileGenerationOptions {
     fn from(options: GenerateWebfontsOptions) -> Self {
         let GenerateWebfontsOptions {
             color_glyphs,
+            color_slots,
             ascent,
             center_horizontally,
             center_vertically,
@@ -72,6 +73,7 @@ impl From<GenerateWebfontsOptions> for FileGenerationOptions {
         Self {
             common: GenerationOptions {
                 color_glyphs,
+                color_slots,
                 ascent,
                 center_horizontally,
                 center_vertically,
