@@ -272,6 +272,9 @@ importers:
       '@atlowchemi/webfont-browser-generator':
         specifier: workspace:*
         version: link:../webfont-browser
+      '@expo-google-fonts/open-sans':
+        specifier: ^0.4.2
+        version: 0.4.2
       '@resvg/resvg-js':
         specifier: ^2.6.2
         version: 2.6.2
@@ -702,6 +705,9 @@ packages:
     engines: {node: '>=18'}
     cpu: [x64]
     os: [win32]
+
+  '@expo-google-fonts/open-sans@0.4.2':
+    resolution: {integrity: sha512-gvhPqLXYnltWgll3iBwRGUwf5yN2HCh4mgQmFoQ8oU66LTs23oX4N7T3t0BDsKfP/1Z8F8+4c7wSkA11Nnk4kA==}
 
   '@gar/promise-retry@1.0.3':
     resolution: {integrity: sha512-GmzA9ckNokPypTg10pgpeHNQe7ph+iIKKmhKu3Ob9ANkswreCx7R3cKmY781K8QK3AqVL3xVh9A42JvIAbkkSA==}
@@ -4905,6 +4911,8 @@ snapshots:
 
   '@esbuild/win32-x64@0.27.4':
     optional: true
+
+  '@expo-google-fonts/open-sans@0.4.2': {}
 
   '@gar/promise-retry@1.0.3': {}
 
