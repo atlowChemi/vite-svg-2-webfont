@@ -97,7 +97,7 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
-            # Keep actions sequential until https://github.com/actions/runner/issues/4641 is fixed.
+            # These shell checks can overlap; JSON-reading actions cannot (actions/runner#4641).
             - parallel:
                   - run: vp check
                   - run: vp run @atlowchemi/webfont-generator#check

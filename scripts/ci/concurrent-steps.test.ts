@@ -20,7 +20,7 @@ const rootWorkflows = new URL('../../.github/workflows/', import.meta.url);
 const readWorkflow = (name: string): Workflow => parse(readFileSync(new URL(name, rootWorkflows), 'utf8'));
 
 describe('concurrent workflow steps', () => {
-    it('joins shell work before actions or references to background results', () => {
+    it('joins shell work before unaudited actions or references to background results', () => {
         for (const file of readdirSync(rootWorkflows)) {
             for (const job of Object.values(readWorkflow(file).jobs)) {
                 const active = new Set<string>();
@@ -35,8 +35,12 @@ describe('concurrent workflow steps', () => {
                     for (const id of [step.wait ?? []].flat()) {
                         expect(active.delete(id), `${file}: wait for ${id}`).toBe(true);
                     }
-                    // Runner #4641: actions must not overlap step starts or composite substeps.
-                    if (step.uses) assert.equal(active.size, 0, `${file}: action overlaps background work`);
+                    // Runner #4641: only the audited Linux shell installer may overlap LLVM.
+                    const shellInstaller =
+                        file === 'build-native.yaml' && step.name === 'Install cargo-xwin' && step.uses === 'taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283';
+                    if (step.uses) {
+                        assert.deepEqual([...active], shellInstaller ? ['llvm'] : [], `${file}: action overlaps background work`);
+                    }
                     for (const match of JSON.stringify(step).matchAll(/steps\.([\w-]+)\./g)) {
                         expect(active.has(match[1]!), `${file}: unjoined reference to ${match[1]}`).toBe(false);
                     }
@@ -45,7 +49,7 @@ describe('concurrent workflow steps', () => {
                         ids.add(step.id);
                     }
                     if (step.background) {
-                        assert.ok(step.run && !step.uses, `${file}: only shell steps may run in the background`);
+                        assert.ok((step.run && !step.uses) || shellInstaller, `${file}: only shell steps or the audited installer may run in the background`);
                         assert.ok(step.id);
                         active.add(step.id);
                     }
