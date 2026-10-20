@@ -73,7 +73,17 @@ jobs:
               with:
                   tool: cargo-zigbuild
 
+            - name: Install cargo-xwin
+              if: contains(matrix.target, 'windows-msvc')
+              uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
+              env:
+                  GITHUB_TOKEN: ${{ github.token }}
+              with:
+                  tool: cargo-xwin
+
             - name: Install LLVM 20 tools (MSVC targets)
+              id: llvm
+              background: true
               if: contains(matrix.target, 'windows-msvc')
               run: |
                   wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
@@ -85,20 +95,13 @@ jobs:
                   sudo update-alternatives --install /usr/bin/llvm-lib llvm-lib /usr/bin/llvm-lib-20 100
                   sudo update-alternatives --install /usr/bin/lld-link lld-link /usr/bin/lld-link-20 100
 
-            - name: Install cargo-xwin
-              if: contains(matrix.target, 'windows-msvc')
-              uses: taiki-e/install-action@8cca0918f8471c33515202b73f56ab27f2bed283 # v2.87.29
-              env:
-                  GITHUB_TOKEN: ${{ github.token }}
-              with:
-                  tool: cargo-xwin
-
             - name: Pre-download xwin artifacts
               if: contains(matrix.target, 'windows-msvc')
               run: cargo xwin cache xwin
               env:
                   XWIN_CACHE_DIR: ${{ github.workspace }}/.xwin
 
+            - wait: llvm
             - name: Save xwin SDK/CRT cache
               if: contains(matrix.target, 'windows-msvc') && success() && steps.xwin-cache-restore.outputs.cache-hit != 'true'
               uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

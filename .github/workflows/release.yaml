@@ -134,16 +134,28 @@ jobs:
               env:
                   DIRS: ${{ steps.list-packages.outputs.dirs }}
               run: |
+                  logs=$(mktemp -d)
+                  trap 'rm -rf "$logs"' EXIT
+                  pids=()
                   echo '## Staged: per-platform binary packages' >> "$GITHUB_STEP_SUMMARY"
                   echo '' >> "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
                   while IFS= read -r dir; do
                       [ -z "$dir" ] && continue
                       pkg=$(basename "$dir")
-                      echo "--- $pkg ---" | tee -a "$GITHUB_STEP_SUMMARY"
-                      vp exec -c "pnpm stage publish '$dir' --no-git-checks" | tee -a "$GITHUB_STEP_SUMMARY"
+                      (
+                          echo "--- $pkg ---"
+                          vp exec -c "pnpm stage publish '$dir' --no-git-checks"
+                      ) > "$logs/$pkg.log" 2>&1 &
+                      pids+=("$!")
                   done <<< "$DIRS"
+                  status=0
+                  for pid in "${pids[@]}"; do
+                      wait "$pid" || status=1
+                  done
+                  cat "$logs/"*.log | tee -a "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
+                  exit "$status"
 
             - name: Stage publish main package
               run: |
