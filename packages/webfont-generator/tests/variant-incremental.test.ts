@@ -6,7 +6,8 @@ import { generateWebfonts, type GenerateWebfontsVariantOptions } from '../index.
 
 const svg = (width: number) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0H${width}V24H0Z"/></svg>`;
 
-describe.each([undefined, true] as const)('variant lifecycle with colorGlyphs=%s', colorGlyphs => {
+const cases = ([undefined, true] as const).flatMap(colorGlyphs => [false, true].map(optimizeOutput => ({ colorGlyphs, optimizeOutput })));
+describe.each(cases)('variant lifecycle %j', ({ colorGlyphs, optimizeOutput }) => {
     const roots: string[] = [];
     afterEach(async () => {
         await Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true })));
@@ -31,7 +32,7 @@ describe.each([undefined, true] as const)('variant lifecycle with colorGlyphs=%s
             incremental: true,
             writeFiles: false,
             types: ['ttf', 'woff', 'woff2'] as ['ttf', 'woff', 'woff2'],
-            formatOptions: { ttf: { ts: 1_700_000_000 } },
+            formatOptions: { ttf: { ts: 1_700_000_000 }, svg: { optimizeOutput } },
         } satisfies GenerateWebfontsVariantOptions;
         const updates = [{ path: variants[1].files[0], changeType: 'changed' as const }];
         const fileSets = { variants: variants.map(variant => ({ variant: variant.name, files: variant.files })) };

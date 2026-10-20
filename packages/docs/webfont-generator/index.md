@@ -29,7 +29,7 @@ Not sure which one fits? See [Which package do I need?](/which-package). Usage f
 - **Color glyphs:** optionally keep solid SVG colors. See [color glyphs](#color-glyphs).
 - **Fast rebuilds:** [incremental generation](./node#incremental) reuses work from the previous build when only a few icons change.
 - **No filesystem required:** generate from SVG text in memory, which is what the [browser package](./browser) uses.
-- **Fast:** over 6× faster on average than `@vusion/webfonts-generator` in our benchmarks. See [performance](./under-the-hood#performance).
+- **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads. See [performance](./under-the-hood#performance).
 
 ## Why a new engine
 

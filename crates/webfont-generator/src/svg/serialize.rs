@@ -171,13 +171,56 @@ impl std::fmt::Display for RoundedCoordinate {
 }
 
 pub(crate) fn optimize_path(path_data: &str) -> Option<oxvg_path::Path> {
-    use oxvg_path::{Path, geometry::Tolerance, optimize::Options, parser::Parse as _};
+    use oxvg_path::{Path, parser::Parse as _};
 
-    let mut path = Path::parse_string(path_data).ok()?;
+    let path = Path::parse_string(path_data).ok()?;
+    Some(optimize_commands(path))
+}
+
+/// Construct the same rounded command stream as `append_path` followed by oxvg's parser.
+/// Non-finite rounding results must take the existing string/parser fallback.
+pub(crate) fn commands_from_paths(paths: &[TinyPath], round: f64) -> Option<oxvg_path::Path> {
+    use oxvg_path::command::{Data, ID};
+
+    let mut result = Vec::new();
+    let mut next = ID::None;
+    for segment in paths.iter().flat_map(|path| path.segments()) {
+        let coordinate = |value| rounded_coordinate(value, round);
+        let data = match segment {
+            PathSegment::MoveTo(p) => Data::MoveTo([p.x, p.y].map(coordinate)),
+            PathSegment::LineTo(p) => Data::LineTo([p.x, p.y].map(coordinate)),
+            PathSegment::QuadTo(c, p) => {
+                Data::QuadraticBezierTo([c.x, c.y, p.x, p.y].map(coordinate))
+            }
+            PathSegment::CubicTo(a, b, p) => {
+                Data::CubicBezierTo([a.x, a.y, b.x, b.y, p.x, p.y].map(coordinate))
+            }
+            PathSegment::Close => Data::ClosePath,
+        };
+        if data
+            .args()
+            .is_some_and(|args| args.iter().any(|v| !v.is_finite()))
+        {
+            return None;
+        }
+        let id = data.id();
+        let implicit = next == id;
+        next = id.next_implicit();
+        // The parser wraps even explicitly written repeated commands (and L after M).
+        result.push(if implicit {
+            Data::Implicit(Box::new(data))
+        } else {
+            data
+        });
+    }
+    Some(oxvg_path::Path(result))
+}
+
+pub(crate) fn optimize_commands(path: oxvg_path::Path) -> oxvg_path::Path {
+    use oxvg_path::{geometry::Tolerance, optimize::Options};
     let options = Options::all()
         .difference(Options::CloseSegments | Options::RemoveCloseLine | Options::UniteSegments);
-    path = path.optimize(options, &Tolerance::default());
-    Some(path)
+    path.optimize(options, &Tolerance::default())
 }
 
 fn escape_xml(value: &str) -> String {
@@ -204,6 +247,88 @@ fn escape_xml(value: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn direct_input_matches_parser_bits_and_optimized_output() {
+        use oxvg_path::{Path, parser::Parse as _};
+        use usvg::tiny_skia_path::PathBuilder;
+
+        let mut builder = PathBuilder::new();
+        builder.move_to(-0.0, 0.0);
+        builder.line_to(-0.004_999_999_9, 0.005_000_000_4);
+        builder.line_to(16_777_216.0, 100_000_000.0);
+        builder.quad_to(1.234_567_8, -1.5, 2.0, 3.0);
+        builder.quad_to(4.0, 5.0, 6.0, 7.0);
+        builder.cubic_to(8.0, 9.0, 10.0, 11.0, 12.0, 13.0);
+        builder.cubic_to(14.0, 15.0, 16.0, 17.0, 18.0, 19.0);
+        builder.close();
+        builder.move_to(2.0, f32::MIN_POSITIVE);
+        builder.line_to(3.0, 4.0);
+        builder.close();
+        let path = builder.finish().unwrap();
+        let mut large = PathBuilder::new();
+        // Keep TinyPath's bounds representable while exercising rounding overflow.
+        large.move_to(f32::MAX / 4.0, -f32::MAX / 4.0);
+        large.line_to(0.0, -0.0);
+        let large = large.finish().unwrap();
+        // IDs include implicit wrappers; raw bits distinguish negative zero.
+        let signature = |path: &Path| {
+            path.0
+                .iter()
+                .map(|data| {
+                    (
+                        data.id(),
+                        data.args()
+                            .map(|args| args.iter().map(|v| v.to_bits()).collect::<Vec<_>>()),
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        for paths in [
+            vec![],
+            vec![path.clone()],
+            vec![path.clone(), path],
+            vec![large],
+        ] {
+            for round in [
+                1.0,
+                10.0,
+                100.0,
+                1_000.0,
+                1e12,
+                10e12,
+                1e40,
+                f64::MAX,
+                0.0,
+                -1.0,
+                f64::NAN,
+                f64::INFINITY,
+            ] {
+                let direct = commands_from_paths(&paths, round);
+                let mut text = String::new();
+                for path in &paths {
+                    append_path(&mut text, path, round);
+                }
+                let parsed = Path::parse_string(text.trim_end()).ok();
+                match (direct, parsed) {
+                    (Some(a), Some(b)) => {
+                        assert_eq!(
+                            signature(&a),
+                            signature(&b),
+                            "input differs at rounding {round}"
+                        );
+                        assert_eq!(
+                            signature(&optimize_commands(a)),
+                            signature(&optimize_commands(b)),
+                            "optimized output differs at rounding {round}"
+                        );
+                    }
+                    (None, None) => {}
+                    _ => panic!("input acceptance differs at rounding {round}"),
+                }
+            }
+        }
+    }
 
     #[test]
     fn rounded_coordinate_matches_allocating_formatter() {

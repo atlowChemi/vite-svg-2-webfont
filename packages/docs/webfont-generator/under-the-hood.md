@@ -70,34 +70,72 @@ This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for co
 
 ## Performance
 
-The legacy `@vusion/webfonts-generator` engine does not support SVG path optimization. The Rust engine adds it through [`optimizeOutput`](./node#optimizeoutput) and is still faster with optimization enabled. The tables show the Rust engine with path optimization disabled and enabled side by side.
+The legacy `@vusion/webfonts-generator` engine does not support SVG path optimization. The Rust engine adds it through [`optimizeOutput`](./node#optimizeoutput). The tables compare Vusion with the native Node.js adapter's default settings and with path optimization enabled; enabling optimization performs extra work, so it need not be faster than leaving it disabled.
 
-### All formats
+### Wall time on macOS
 
-Generating SVG, TTF, EOT, WOFF, and WOFF2:
+The following simple-icons workloads generate all five formats (SVG, TTF, EOT, WOFF, WOFF2), WOFF2 only, or WOFF + WOFF2. Values are milliseconds:
 
-| Glyphs | `@vusion/webfonts-generator` | Rust engine                                       | Rust engine (Optimized SVG) |
-| ------ | ---------------------------- | ------------------------------------------------- | --------------------------- |
-| 100    | 65.6 ms                      | <strong class="benchmark-winner">11.8 ms</strong> | 12.0 ms                     |
-| 300    | 256.1 ms                     | <strong class="benchmark-winner">39.0 ms</strong> | 41.9 ms                     |
-| 600    | 523.3 ms                     | <strong class="benchmark-winner">72.9 ms</strong> | 79.2 ms                     |
+| Formats      | Glyphs | Vusion |                                 Native default |                  Native with path optimization |
+| ------------ | -----: | -----: | ---------------------------------------------: | ---------------------------------------------: |
+| All five     |    100 |   70.2 | <strong class="benchmark-winner">12.2</strong> |                                           12.7 |
+| All five     |    300 |  259.6 | <strong class="benchmark-winner">40.3</strong> |                                           41.8 |
+| All five     |    600 |  552.2 | <strong class="benchmark-winner">75.6</strong> |                                           80.7 |
+| WOFF2        |    100 |   67.7 |                                           12.4 | <strong class="benchmark-winner">12.2</strong> |
+| WOFF2        |    300 |  256.7 | <strong class="benchmark-winner">40.1</strong> |                                           41.4 |
+| WOFF2        |    600 |  538.8 | <strong class="benchmark-winner">75.3</strong> |                                           78.8 |
+| WOFF + WOFF2 |    100 |   69.9 | <strong class="benchmark-winner">11.8</strong> |                                           12.2 |
+| WOFF + WOFF2 |    300 |  266.5 | <strong class="benchmark-winner">39.8</strong> |                                           42.5 |
+| WOFF + WOFF2 |    600 |  545.2 | <strong class="benchmark-winner">74.3</strong> |                                           77.9 |
 
-### Modern web formats
+Across these nine workloads, the geometric mean speedup over Vusion is **6.5× with default settings** and **6.2× with path optimization enabled**.
 
-If you only need web delivery formats, the same comparison with **WOFF2 only** or **WOFF + WOFF2** gives:
+### Wall time on Linux
 
-| Formats      | Glyphs | `@vusion/webfonts-generator` | Rust engine                                       | Rust engine (Optimized SVG) |
-| ------------ | ------ | ---------------------------- | ------------------------------------------------- | --------------------------- |
-| WOFF2        | 100    | 64.0 ms                      | <strong class="benchmark-winner">11.6 ms</strong> | 12.6 ms                     |
-| WOFF2        | 300    | 254.6 ms                     | <strong class="benchmark-winner">39.1 ms</strong> | 40.9 ms                     |
-| WOFF2        | 600    | 510.1 ms                     | <strong class="benchmark-winner">71.5 ms</strong> | 77.9 ms                     |
-| WOFF + WOFF2 | 100    | 64.1 ms                      | <strong class="benchmark-winner">11.5 ms</strong> | 11.6 ms                     |
-| WOFF + WOFF2 | 300    | 280.2 ms                     | <strong class="benchmark-winner">38.6 ms</strong> | 40.9 ms                     |
-| WOFF + WOFF2 | 600    | 514.3 ms                     | <strong class="benchmark-winner">75.8 ms</strong> | 77.1 ms                     |
+The same workloads and Node.js API, using a Linux release addon in Docker:
 
-With path optimization disabled (the default), the average speedup is **6.4× for WOFF2 only** and **6.5× for WOFF + WOFF2**. Enabling path optimization still delivers average speedups of **5.9×** and **6.3×**, respectively.
+| Formats      | Glyphs | Vusion |                                 Native default | Native with path optimization |
+| ------------ | -----: | -----: | ---------------------------------------------: | ----------------------------: |
+| All five     |    100 |   87.4 | <strong class="benchmark-winner">12.9</strong> |                          13.9 |
+| All five     |    300 |  318.5 | <strong class="benchmark-winner">42.2</strong> |                          46.7 |
+| All five     |    600 |  660.2 | <strong class="benchmark-winner">80.1</strong> |                          83.0 |
+| WOFF2        |    100 |   84.1 | <strong class="benchmark-winner">12.6</strong> |                          13.4 |
+| WOFF2        |    300 |  324.2 | <strong class="benchmark-winner">41.5</strong> |                          45.5 |
+| WOFF2        |    600 |  637.9 | <strong class="benchmark-winner">77.8</strong> |                          82.9 |
+| WOFF + WOFF2 |    100 |   87.8 | <strong class="benchmark-winner">12.8</strong> |                          13.9 |
+| WOFF + WOFF2 |    300 |  331.8 | <strong class="benchmark-winner">42.2</strong> |                          46.2 |
+| WOFF + WOFF2 |    600 |  675.6 | <strong class="benchmark-winner">77.8</strong> |                          87.4 |
 
-These builds skip SVG font serialization and TTF binary assembly in the Rust engine. In this benchmark, their total times remain close to the all-format builds: fewer output formats do not necessarily translate into a large reduction in elapsed time.
+The geometric mean speedup is **7.6× with default settings** and **7.0× with path optimization enabled**.
+
+Modern-format builds skip SVG font serialization and TTF binary assembly in the Rust engine. Their total times remain close to the all-format builds here: fewer output formats do not necessarily translate into a large reduction in elapsed time.
+
+### Peak memory usage
+
+In separate cold, non-incremental runs, the native adapter used **about 90–92% less peak RSS on macOS** and **78–85% less on Linux** across the measured default/optimized settings. RSS includes Node.js, dependency loading, native allocations, and allocator-retained pages—not just the JavaScript heap or generated fonts. Values below are mean process peaks in MiB for 600 glyphs:
+
+| Platform | Corpus       | Formats     |  Vusion |                                  Native default |                  Native with path optimization |
+| -------- | ------------ | ----------- | ------: | ----------------------------------------------: | ---------------------------------------------: |
+| macOS    | simple-icons | TTF         |   902.4 |  <strong class="benchmark-winner">76.1</strong> |                                           76.5 |
+| macOS    | simple-icons | TTF + WOFF2 |   955.7 |                                            86.2 | <strong class="benchmark-winner">85.9</strong> |
+| macOS    | logos        | TTF         | 1,052.7 |  <strong class="benchmark-winner">85.1</strong> |                                           89.5 |
+| macOS    | logos        | TTF + WOFF2 | 1,113.5 | <strong class="benchmark-winner">108.5</strong> |                                          112.9 |
+| Linux    | simple-icons | TTF         |   423.0 |  <strong class="benchmark-winner">69.9</strong> |                                           71.3 |
+| Linux    | simple-icons | TTF + WOFF2 |   525.7 |  <strong class="benchmark-winner">78.3</strong> |                                           79.2 |
+| Linux    | logos        | TTF         |   511.7 |  <strong class="benchmark-winner">80.8</strong> |                                           86.2 |
+| Linux    | logos        | TTF + WOFF2 |   481.0 | <strong class="benchmark-winner">100.4</strong> |                                          106.9 |
+
+Vusion's peaks varied substantially: macOS simple-icons TTF ranged from 590 to 1,034 MiB, and Linux logos TTF + WOFF2 from 349 to 567 MiB. Every measured Vusion peak exceeded the corresponding native workload's peaks, but these percentages are not universal memory guarantees.
+
+### Measurement method
+
+These measurements were refreshed on October 20, 2026, using Node.js 26.11.1, Vusion 0.8.0, native 0.10.0 release builds. Each platform ran 234 fresh Node processes sequentially: six rounds covering every ordering of Vusion, native default, and native with path optimization. All samples were retained. Native generation used 16 Rayon threads, with incremental caching and output-file writes disabled.
+
+- **Wall time:** simple-icons 1.2.100, 100/300/600 glyphs, using the fixture naming and viewbox variation in `tests/webfonts-generator.bench.ts`. Each process warmed up once, then measured three generations; tables report the mean of six process medians. Dependency imports and output checks were outside timing. CSS/HTML options kept their API defaults.
+- **RSS:** six fresh processes per implementation/setting/workload, one cold generation each, no warmup or forced garbage collection. Inputs were the first 600 sorted glyphs from simple-icons 1.2.100 or logos 1.2.16, with corpus glyph names and deterministically varied viewboxes. CSS and HTML were disabled. Peaks came from `process.resourceUsage().maxRSS` and include dependency loading.
+- **Environment:** macOS arm64 and Linux arm64 (Debian bookworm/glibc 2.36 under OrbStack). Linux containers had 8 CPUs, an 8 GiB memory limit, and no additional swap. No builds or test suites ran alongside these measurements.
+
+Both platforms loaded `ttf2woff2` 4.0.5's JavaScript fallback rather than its native addon; installations with a working native addon may behave differently. Vusion loads that dependency even for TTF-only output.
 
 ### Avoiding repeated work
 

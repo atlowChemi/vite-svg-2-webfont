@@ -625,9 +625,16 @@ fn color_pipeline_shares_viewbox_scale_center_and_rounding_with_fallback() {
 
 #[test]
 fn color_pipeline_incremental_selection_rename_and_content_reuse_match_fresh() {
+    for optimize in [false, true] {
+        incremental_selection_with_optimization(optimize);
+    }
+}
+
+fn incremental_selection_with_optimization(optimize: bool) {
     let mut files = vec![source("a", "", RECT), source("b", "", RECT)];
     let resolved = options(&files);
     let mut opts = svg_options_from_options(&resolved);
+    opts.optimize_output = Some(optimize);
     let named = ResolvedColorSelection::Named(["a".into()].into());
     let mut cache = super::super::types::GlyphCache::default();
     for selection in [
@@ -672,12 +679,19 @@ fn color_pipeline_incremental_selection_rename_and_content_reuse_match_fresh() {
 
 #[test]
 fn color_pipeline_variant_fallback_blank_and_paint_edits_match_fresh() {
+    for optimize in [false, true] {
+        variant_fallback_with_optimization(optimize);
+    }
+}
+
+fn variant_fallback_with_optimization(optimize: bool) {
     let mut variants = vec![
         vec![source("a", "", RECT), source("b", r#"fill="red""#, RECT)],
         vec![source("a", r#"fill="blue""#, RECT)],
     ];
     let resolved = options(&variants[0]);
     let mut opts = svg_options_from_options(&resolved);
+    opts.optimize_output = Some(optimize);
     let named = ResolvedColorSelection::Named(["b".into()].into());
     let mut cache = VariantGlyphCache::default();
     for behavior in [MissingGlyphBehavior::Fallback, MissingGlyphBehavior::Blank] {

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use usvg::tiny_skia_path::Rect;
 
 use super::geometry::{bezpath_from_oxvg_path, bezpath_hash, rounded_bezpath_from_tiny_paths};
-use crate::svg::serialize::{append_path, optimize_path};
+use crate::svg::serialize::{append_path, commands_from_paths, optimize_commands, optimize_path};
 use crate::svg::types::{ParsedGlyph, ProcessedGlyph};
 use crate::svg::winding::{normalize_evenodd, normalize_winding};
 use crate::types::color::ProcessedColorLayer;
@@ -88,11 +88,15 @@ pub(crate) fn process_glyph(
                     std::borrow::Cow::Borrowed(std::slice::from_ref(path))
                 };
                 let outline = if optimize_output {
-                    let mut data = String::new();
-                    for path in paths.iter() {
-                        append_path(&mut data, path, round);
-                    }
-                    optimize_path(data.trim_end())
+                    let direct = commands_from_paths(&paths, round).map(optimize_commands);
+                    let optimized = direct.or_else(|| {
+                        let mut data = String::new();
+                        for path in paths.iter() {
+                            append_path(&mut data, path, round);
+                        }
+                        optimize_path(data.trim_end())
+                    });
+                    optimized
                         .map(|path| bezpath_from_oxvg_path(&path))
                         .unwrap_or_else(|| rounded_bezpath_from_tiny_paths(&paths, round))
                 } else {
@@ -109,7 +113,11 @@ pub(crate) fn process_glyph(
     // Apply the monochrome icon-font containment heuristic: nested contours alternate winding so
     // foreground-on-background SVG layers become knockouts. No-op glyphs pass through byte-identical.
     let transformed_paths = normalize_winding(transformed_paths);
-    let mut path_data = if serialize_path || optimize_output {
+    let direct = optimize_output
+        .then(|| commands_from_paths(&transformed_paths, round))
+        .flatten()
+        .map(optimize_commands);
+    let mut path_data = if direct.is_none() && (serialize_path || optimize_output) {
         let mut path_data = String::new();
         for path in &transformed_paths {
             append_path(&mut path_data, path, round);
@@ -120,7 +128,7 @@ pub(crate) fn process_glyph(
         String::new()
     };
     let ttf_path = if optimize_output {
-        match optimize_path(&path_data) {
+        match direct.or_else(|| optimize_path(&path_data)) {
             Some(optimized) => {
                 let ttf_path = structure_path.then(|| Arc::new(bezpath_from_oxvg_path(&optimized)));
                 if serialize_path {
