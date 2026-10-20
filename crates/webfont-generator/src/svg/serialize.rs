@@ -319,21 +319,22 @@ mod tests {
                     append_path(&mut text, path, round);
                 }
                 let parsed = Path::parse_string(text.trim_end()).ok();
-                match (direct, parsed) {
-                    (Some(a), Some(b)) => {
-                        assert_eq!(
-                            signature(&a),
-                            signature(&b),
-                            "input differs at rounding {round}"
-                        );
-                        assert_eq!(
-                            signature(&optimize_commands(a)),
-                            signature(&optimize_commands(b)),
-                            "optimized output differs at rounding {round}"
-                        );
-                    }
-                    (None, None) => {}
-                    _ => panic!("input acceptance differs at rounding {round}"),
+                assert_eq!(
+                    direct.is_some(),
+                    parsed.is_some(),
+                    "input acceptance differs at rounding {round}"
+                );
+                if let (Some(a), Some(b)) = (direct, parsed) {
+                    assert_eq!(
+                        signature(&a),
+                        signature(&b),
+                        "input differs at rounding {round}"
+                    );
+                    assert_eq!(
+                        signature(&optimize_commands(a)),
+                        signature(&optimize_commands(b)),
+                        "optimized output differs at rounding {round}"
+                    );
                 }
             }
         }
