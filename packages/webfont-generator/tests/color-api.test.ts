@@ -83,9 +83,9 @@ it.each([null, false, 'icon', ['icon', 1], {}, 1].map(colorGlyphs => ({ colorGly
     },
 );
 
-it('ordinary paint-only regeneration changes fonts and CSS hashes and preserves rollback', async () => {
+it.each([false, true])('ordinary paint-only regeneration preserves rollback (optimize=%s)', async optimizeOutput => {
     const input = await fixture();
-    const options = { ...input, types: [...input.types], colorGlyphs: true as const, incremental: true };
+    const options = { ...input, types: [...input.types], colorGlyphs: true as const, incremental: true, formatOptions: { svg: { optimizeOutput }, ttf: { ts: 1_700_000_000 } } };
     const result = await generateWebfonts(options);
     const before = result.ttf;
     const css = result.generateCss();
@@ -166,7 +166,7 @@ it('raw NAPI selects a post-rename name found only in a non-default variant', as
     await expect(native({ ...options, colorGlyphs: ['z', 'a', 'z'] }, rename)).rejects.toThrow('unknown glyph names: z, a');
 });
 
-it('Node variant regeneration propagates fixed paint to fallback consumers', async () => {
+it.each([false, true])('Node variant paint propagation and selected-name removal (optimize=%s)', async optimizeOutput => {
     const input = await fixture();
     const other = join(input.dest, 'other.svg');
     await writeFile(other, svg('green'));
@@ -176,6 +176,7 @@ it('Node variant regeneration propagates fixed paint to fallback consumers', asy
         writeFiles: false,
         incremental: true,
         colorGlyphs: ['icon'],
+        formatOptions: { svg: { optimizeOutput }, ttf: { ts: 1_700_000_000 } },
         missingGlyphs: { behavior: 'fallback' as const, variant: 'light' },
         variants: [
             { name: 'light', files: [...input.files, other], weight: 300, default: true },
@@ -201,5 +202,10 @@ it('Node variant regeneration propagates fixed paint to fallback consumers', asy
         variants: options.variants.map(v => ({ name: v.name, weight: v.weight, default: v.default, files: [...input.files, other] })),
     });
     expect(next.ttf).toEqual(explicit.ttf);
-    expect((await next.regenerateAsync(files)).ttf).toEqual(next.ttf);
+    const same = await next.regenerateAsync(files);
+    expect(same.ttf).toEqual(next.ttf);
+    const removed = { variants: files.variants.map(v => ({ ...v, files: v.files.filter(path => path !== input.files[0]) })) };
+    await expect(same.regenerateAsync(removed)).rejects.toThrow('unknown glyph names: icon');
+    expect(same.ttf).toEqual(fresh.ttf);
+    expect((await same.regenerateAsync(files)).ttf).toEqual(fresh.ttf);
 });

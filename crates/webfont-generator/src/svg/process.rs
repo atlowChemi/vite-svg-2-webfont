@@ -3,7 +3,7 @@ use std::sync::Arc;
 use usvg::tiny_skia_path::Rect;
 
 use super::geometry::{bezpath_from_oxvg_path, bezpath_hash, rounded_bezpath_from_tiny_paths};
-use crate::svg::serialize::{append_path, optimize_path};
+use crate::svg::serialize::{append_path, commands_from_paths, optimize_commands};
 use crate::svg::types::{ParsedGlyph, ProcessedGlyph};
 use crate::svg::winding::{normalize_evenodd, normalize_winding};
 use crate::types::color::ProcessedColorLayer;
@@ -88,11 +88,8 @@ pub(crate) fn process_glyph(
                     std::borrow::Cow::Borrowed(std::slice::from_ref(path))
                 };
                 let outline = if optimize_output {
-                    let mut data = String::new();
-                    for path in paths.iter() {
-                        append_path(&mut data, path, round);
-                    }
-                    optimize_path(data.trim_end())
+                    commands_from_paths(&paths, round)
+                        .map(optimize_commands)
                         .map(|path| bezpath_from_oxvg_path(&path))
                         .unwrap_or_else(|| rounded_bezpath_from_tiny_paths(&paths, round))
                 } else {
@@ -109,7 +106,11 @@ pub(crate) fn process_glyph(
     // Apply the monochrome icon-font containment heuristic: nested contours alternate winding so
     // foreground-on-background SVG layers become knockouts. No-op glyphs pass through byte-identical.
     let transformed_paths = normalize_winding(transformed_paths);
-    let mut path_data = if serialize_path || optimize_output {
+    let direct = optimize_output
+        .then(|| commands_from_paths(&transformed_paths, round))
+        .flatten()
+        .map(optimize_commands);
+    let mut path_data = if direct.is_none() && (serialize_path || optimize_output) {
         let mut path_data = String::new();
         for path in &transformed_paths {
             append_path(&mut path_data, path, round);
@@ -120,7 +121,7 @@ pub(crate) fn process_glyph(
         String::new()
     };
     let ttf_path = if optimize_output {
-        match optimize_path(&path_data) {
+        match direct {
             Some(optimized) => {
                 let ttf_path = structure_path.then(|| Arc::new(bezpath_from_oxvg_path(&optimized)));
                 if serialize_path {
@@ -186,4 +187,100 @@ fn calculate_combined_bounds(paths: &[usvg::tiny_skia_path::Path]) -> Rect {
 
     Rect::from_ltrb(left, top, right, bottom)
         .unwrap_or_else(|| Rect::from_xywh(0.0, 0.0, 1.0, 1.0).expect("fallback rect"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::svg::serialize::route_counts;
+    use crate::svg::types::ParsedColorLayer;
+    use crate::types::color::ResolvedLayerPaint;
+    use oxvg_path::{Path, parser::Parse as _};
+    use usvg::tiny_skia_path::PathBuilder;
+
+    #[test]
+    fn optimized_processing_uses_direct_commands_and_preserves_overflow_rejection() {
+        for color in [false, true] {
+            for serialize in [false, true] {
+                for structure in [false, true] {
+                    for round in [1e12, f64::MAX] {
+                        let mut builder = PathBuilder::new();
+                        builder.move_to(2.0, 2.0);
+                        builder.line_to(8.0, 2.0);
+                        builder.line_to(8.0, 8.0);
+                        builder.close();
+                        let glyph = ParsedGlyph {
+                            color_layers: color.then(|| {
+                                Arc::from([ParsedColorLayer {
+                                    path_index: 0,
+                                    paint: ResolvedLayerPaint::Foreground { alpha: 1.0 },
+                                    fill_rule: usvg::FillRule::NonZero,
+                                }])
+                            }),
+                            codepoint: 0xe001,
+                            height: 10.0,
+                            index: 0,
+                            name: "direct-route".into(),
+                            paths: vec![builder.finish().unwrap()],
+                            width: 10.0,
+                        };
+                        let process = |glyph, optimize, serialize, structure| {
+                            process_glyph(
+                                glyph, false, false, false, false, round, 10.0, 10.0, 10.0, 0.0,
+                                optimize, serialize, structure,
+                            )
+                            .unwrap()
+                        };
+                        // Reproduce the old serialized input with the same transforms/rounding.
+                        let legacy = process(glyph.clone(), false, true, true);
+                        let parsed = Path::parse_string(&legacy.path_data).ok();
+                        route_counts::DIRECT.with(|count| count.set(0));
+                        route_counts::SERIALIZED.with(|count| count.set(0));
+                        let result = process(glyph, true, serialize, structure);
+                        assert_eq!(
+                            route_counts::DIRECT.with(|count| count.get()),
+                            1 + usize::from(color)
+                        );
+                        if round == f64::MAX {
+                            assert!(
+                                parsed.is_none(),
+                                "the parser cannot rescue rounding overflow"
+                            );
+                            assert!(result.ttf_path.is_none());
+                            assert!(result.ttf_path_hash.is_none());
+                            assert_eq!(result.path_data, legacy.path_data);
+                            if color {
+                                let outline = &result.color_layers.as_ref().unwrap()[0].outline;
+                                assert!(!outline.is_finite());
+                                assert_eq!(
+                                    result.color_layers.as_ref().unwrap()[0].outline_hash,
+                                    legacy.color_layers.as_ref().unwrap()[0].outline_hash,
+                                );
+                            }
+                        } else {
+                            assert_eq!(route_counts::SERIALIZED.with(|count| count.get()), 0);
+                            let optimized = optimize_commands(parsed.unwrap());
+                            assert_eq!(
+                                result.path_data.as_ref(),
+                                if serialize {
+                                    optimized.to_string()
+                                } else {
+                                    String::new()
+                                }
+                            );
+                            assert_eq!(result.ttf_path.is_some(), structure);
+                            if let Some(path) = result.ttf_path {
+                                assert_eq!(*path, bezpath_from_oxvg_path(&optimized));
+                            }
+                            if color {
+                                assert!(
+                                    result.color_layers.as_ref().unwrap()[0].outline.is_finite()
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
