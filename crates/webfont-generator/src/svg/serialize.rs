@@ -97,6 +97,9 @@ pub(crate) fn build_svg_font(options: &SvgOptions, prepared: &PreparedSvgFont) -
 }
 
 pub(crate) fn append_path(target: &mut String, path: &TinyPath, round: f64) {
+    #[cfg(test)]
+    route_counts::SERIALIZED.with(|count| count.set(count.get() + 1));
+
     for segment in path.segments() {
         match segment {
             PathSegment::MoveTo(point) => {
@@ -170,18 +173,13 @@ impl std::fmt::Display for RoundedCoordinate {
     }
 }
 
-pub(crate) fn optimize_path(path_data: &str) -> Option<oxvg_path::Path> {
-    use oxvg_path::{Path, parser::Parse as _};
-
-    let path = Path::parse_string(path_data).ok()?;
-    Some(optimize_commands(path))
-}
-
 /// Construct the same rounded command stream as `append_path` followed by oxvg's parser.
-/// Non-finite rounding results must take the existing string/parser fallback.
+/// Reject non-finite rounding results, whose serialized numbers the parser also rejects.
 pub(crate) fn commands_from_paths(paths: &[TinyPath], round: f64) -> Option<oxvg_path::Path> {
     use oxvg_path::command::{Data, ID};
 
+    #[cfg(test)]
+    route_counts::DIRECT.with(|count| count.set(count.get() + 1));
     let mut result = Vec::new();
     let mut next = ID::None;
     for segment in paths.iter().flat_map(|path| path.segments()) {
@@ -242,6 +240,17 @@ fn escape_xml(value: &str) -> String {
         }
     }
     result
+}
+
+#[cfg(test)]
+pub(super) mod route_counts {
+    use std::cell::Cell;
+
+    // Processing tests run synchronously; thread-local counts isolate parallel tests.
+    thread_local! {
+        pub static DIRECT: Cell<usize> = const { Cell::new(0) };
+        pub static SERIALIZED: Cell<usize> = const { Cell::new(0) };
+    }
 }
 
 #[cfg(test)]
