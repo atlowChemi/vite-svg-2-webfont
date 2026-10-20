@@ -49,7 +49,7 @@ describe('concurrent workflow steps', () => {
                         ids.add(step.id);
                     }
                     if (step.background) {
-                        assert.ok((step.run && !step.uses) || shellInstaller, `${file}: only shell steps or the audited installer may run in the background`);
+                        assert.ok(step.run && !step.uses, `${file}: only shell steps may run in the background`);
                         assert.ok(step.id);
                         active.add(step.id);
                     }
