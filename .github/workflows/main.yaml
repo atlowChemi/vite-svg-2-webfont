@@ -97,8 +97,10 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
-            - run: vp check
-            - run: vp run @atlowchemi/webfont-generator#check
+            # These shell checks can overlap; JSON-reading actions cannot (actions/runner#4641).
+            - parallel:
+                  - run: vp check
+                  - run: vp run @atlowchemi/webfont-generator#check
 
     rust-coverage:
         name: Rust coverage (${{ matrix.suite }})
@@ -122,6 +124,12 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
+            # nextest omits doctests; their uninstrumented target directory is separate.
+            - name: Rust doctests
+              id: doctests
+              background: true
+              if: ${{ matrix.suite == 'engine' }}
+              run: vp run @atlowchemi/webfont-engine#test:doctests
             - run: vp run @atlowchemi/webfont-engine#test:coverage
               if: ${{ matrix.suite == 'engine' }}
             - run: vp run @atlowchemi/webfont-engine#test:coverage:cli
@@ -132,6 +140,7 @@ jobs:
               run: |
                   test -s coverage/rust-${{ matrix.suite }}/rust.lcov
                   test -s coverage/rust-${{ matrix.suite }}/junit.xml
+            - wait: doctests
             - name: Upload Rust coverage
               if: ${{ !cancelled() && hashFiles(format('coverage/rust-{0}/rust.lcov', matrix.suite)) != '' }}
               uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
@@ -149,10 +158,6 @@ jobs:
                   name: rust-${{ matrix.suite }}-linux-x64
                   files: coverage/rust-${{ matrix.suite }}/junit*.xml
                   token: ${{ secrets.CODECOV_TOKEN }}
-            # nextest does not execute doctests. Keep the Cargo feature matrix here too.
-            - name: Rust doctests
-              if: ${{ !cancelled() && matrix.suite == 'engine' }}
-              run: vp run @atlowchemi/webfont-engine#test:doctests
             - name: Upload doctest invocation results
               if: ${{ !cancelled() && matrix.suite == 'engine' && hashFiles('test-results/doctests.xml') != '' }}
               uses: ./.github/actions/upload-test-results
@@ -254,20 +259,30 @@ jobs:
                   run-install: true
                   cache: true
             - name: Install browsers
+              id: browsers
+              background: true
               run: vp exec playwright install --with-deps chromium firefox webkit
+            - name: Prepare shared browser prerequisites
+              run: |
+                  vp run @atlowchemi/webfont-generator#build
+                  vp run @atlowchemi/webfont-generator#test:color-proof
+            - wait: browsers
             - name: Run browser tests
               id: engine-browser-tests
-              run: vp run @atlowchemi/webfont-generator#test:browser
+              background: true
+              run: vp run --ignore-depends-on @atlowchemi/webfont-generator#test:browser
               env:
                   CI_TEST_REPORT: test-results/engine-browser.xml
                   CI_TEST_SUITE: engine-browser-linux-x64
             - name: Run plugin browser tests
               id: plugin-browser-tests
+              background: true
               if: ${{ !cancelled() }}
-              run: vp run vite-svg-2-webfont#test:browser
+              run: vp run --ignore-depends-on vite-svg-2-webfont#test:browser
               env:
                   CI_TEST_REPORT: test-results/plugin-browser.xml
                   CI_TEST_SUITE: plugin-browser-linux-x64
+            - wait: [engine-browser-tests, plugin-browser-tests]
             - name: Upload engine browser results
               if: ${{ !cancelled() && (steps.engine-browser-tests.outcome == 'success' || hashFiles('test-results/engine-browser.xml') != '') }}
               uses: ./.github/actions/upload-test-results
@@ -304,7 +319,16 @@ jobs:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
             - run: vp exec playwright install --with-deps chromium firefox webkit
-            - run: vp run @atlowchemi/webfont-browser-generator#test
+              id: browsers
+              background: true
+            - run: |
+                  vp run @atlowchemi/webfont-browser-generator#check
+                  vp run --ignore-depends-on @atlowchemi/webfont-browser-generator#pack
+              env:
+                  CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+                  ALLOW_BUNDLE_ANALYSIS: 'true'
+            - wait: browsers
+            - run: vp run --ignore-depends-on @atlowchemi/webfont-browser-generator#test
               env:
                   CI_TEST_REPORT: test-results/wasm-browser.xml
                   CI_TEST_SUITE: wasm-browser-linux-x64
