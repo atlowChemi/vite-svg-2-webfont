@@ -4,7 +4,7 @@ use super::*;
 fn config_is_complete_and_excludes_explicit_generation_arguments() {
     assert!(Cli::try_parse_from(["webfont-generator", "--config", "icons.json"]).is_ok());
     for extra in [
-        vec!["icon.svg"],
+        vec!["./icon.svg"],
         vec!["--dest", "out"],
         vec!["--font-name", "iconfont"],
         vec!["--css"],
@@ -47,15 +47,62 @@ fn config_is_complete_and_excludes_explicit_generation_arguments() {
 }
 
 #[test]
-fn generation_accepts_a_cache_location() {
+fn clear_cache_is_a_subcommand_and_generation_accepts_a_cache_location() {
     let cli = Cli::try_parse_from([
         "webfont-generator",
-        "icons",
+        "clear-cache",
+        "--cache-location",
+        "cache",
+    ])
+    .unwrap();
+    assert!(
+        matches!(cli.command, Some(Command::ClearCache { cache_location }) if cache_location == "cache")
+    );
+    assert_eq!(
+        Cli::try_parse_from(["webfont-generator", "clear-cache"])
+            .err()
+            .unwrap()
+            .kind(),
+        clap::error::ErrorKind::MissingRequiredArgument
+    );
+
+    let cli = Cli::try_parse_from([
+        "webfont-generator",
+        "./icons",
         "-d",
         "out",
         "--cache-location",
         "cache",
     ])
     .unwrap();
+    assert!(cli.command.is_none());
     assert_eq!(cli.cache_location.as_deref(), Some("cache"));
+
+    // A directory named like the subcommand still works as an input when written as a path.
+    let cli = Cli::try_parse_from(["webfont-generator", "./clear-cache", "-d", "out"]).unwrap();
+    assert!(cli.command.is_none());
+    assert_eq!(cli.files, ["./clear-cache"]);
+}
+
+#[test]
+fn inputs_must_be_explicit_paths() {
+    for input in ["./icons", "../icons", "/abs/icons", ".", "./plus.svg"] {
+        let cli = Cli::try_parse_from(["webfont-generator", input, "-d", "out"]).unwrap();
+        assert_eq!(cli.files, [input]);
+    }
+    // Bare names, even later in the list, are rejected rather than read as files.
+    for args in [
+        vec!["icons"],
+        vec!["plus.svg"],
+        vec!["icons/"],
+        vec![".hidden"],
+        vec!["./icons", "help"],
+    ] {
+        let mut argv = vec!["webfont-generator"];
+        argv.extend(args);
+        argv.extend(["-d", "out"]);
+        let error = Cli::try_parse_from(argv).err().unwrap();
+        assert_eq!(error.kind(), clap::error::ErrorKind::ValueValidation);
+        assert!(error.to_string().contains("use `./"));
+    }
 }
