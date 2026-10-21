@@ -1,7 +1,7 @@
-use std::path::Path;
+use std::path::{Component, Path};
 use std::process::ExitCode;
 
-use clap::{ArgAction, Parser, builder::styling};
+use clap::{ArgAction, Parser, Subcommand, builder::styling};
 use webfont_generator::{FontType, GenerateWebfontsOptions};
 mod manifest;
 
@@ -19,14 +19,19 @@ const STYLES: styling::Styles = styling::Styles::styled()
     name = "webfont-generator",
     version,
     styles = STYLES,
-    about = "Generate webfonts from SVG icons"
+    about = "Generate webfonts from SVG icons",
+    args_conflicts_with_subcommands = true,
+    after_help = "Inputs are explicit paths (./icons, ../icons, /abs/icons); bare names are reserved for subcommands."
 )]
 struct Cli {
+    #[command(subcommand)]
+    command: Option<Command>,
+
     /// Complete JSON configuration; paths are relative to this file
     #[arg(long, exclusive = true)]
     config: Option<String>,
-    /// SVG files or directories containing SVG files
-    #[arg(required_unless_present = "config")]
+    /// SVG files or directories containing SVG files, as explicit paths (`./icons`)
+    #[arg(required_unless_present = "config", value_parser = explicit_path)]
     files: Vec<String>,
 
     /// Output directory
@@ -106,6 +111,29 @@ struct Cli {
     cache_location: Option<String>,
 }
 
+#[derive(Subcommand)]
+enum Command {
+    /// Remove the files the generation cache created in a directory
+    ClearCache {
+        /// Cache directory passed to `--cache-location` (or `cacheLocation`) when generating
+        #[arg(long)]
+        cache_location: String,
+    },
+}
+
+/// Accept inputs that start with `.`, `..`, a root, or a Windows prefix. Bare names stay free for
+/// subcommands, so adding one never changes what an existing command line means.
+fn explicit_path(value: &str) -> Result<String, String> {
+    match Path::new(value).components().next() {
+        Some(
+            Component::CurDir | Component::ParentDir | Component::RootDir | Component::Prefix(_),
+        ) => Ok(value.to_owned()),
+        _ => Err(format!(
+            "inputs must be explicit paths so they can't be mistaken for subcommands; use `./{value}`"
+        )),
+    }
+}
+
 fn collect_svg_files(paths: &[String]) -> std::io::Result<Vec<String>> {
     let mut result = Vec::new();
     for path in paths {
@@ -128,6 +156,22 @@ fn collect_svg_files(paths: &[String]) -> std::io::Result<Vec<String>> {
 
 fn main() -> ExitCode {
     let cli = Cli::parse();
+
+    if let Some(Command::ClearCache { cache_location }) = &cli.command {
+        return match webfont_generator::clear_cache(cache_location) {
+            Ok(report) => {
+                println!(
+                    "Removed {} cache file(s), {} bytes.",
+                    report.files_removed, report.bytes_removed
+                );
+                ExitCode::SUCCESS
+            }
+            Err(error) => {
+                eprintln!("Error: {cache_location}: {error}");
+                ExitCode::FAILURE
+            }
+        };
+    }
 
     if let Some(path) = &cli.config {
         return match manifest::load(Path::new(path)) {

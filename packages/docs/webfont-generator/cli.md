@@ -23,9 +23,10 @@ The `cli` feature is opt-in and not included in the default feature set. It enab
 ```sh
 webfont-generator [OPTIONS] --dest <DEST> <FILES>...
 webfont-generator --config <PATH>
+webfont-generator clear-cache --cache-location <DIR>
 ```
 
-`<FILES>` accepts individual SVG file paths or directories. When a directory is given, all `.svg` files inside it are included (non-recursive, sorted alphabetically).
+`<FILES>` accepts individual SVG file paths or directories, written as explicit paths: `./icons/`, `../shared/plus.svg`, or an absolute path. Bare names such as `icons` are rejected, because they are reserved for [subcommands](#subcommands). When a directory is given, all `.svg` files inside it are included (non-recursive, sorted alphabetically).
 
 ## Examples
 
@@ -59,10 +60,11 @@ Custom start codepoint in hex:
 webfont-generator --dest ./dist/fonts --start-codepoint 0xE000 ./icons/
 ```
 
-Reuse work from previous runs:
+Reuse work from previous runs, then clear the cache:
 
 ```sh
 webfont-generator --dest ./dist/fonts --cache-location .webfont-cache ./icons/
+webfont-generator clear-cache --cache-location .webfont-cache
 ```
 
 ## Options reference
@@ -104,9 +106,9 @@ Run it with `webfont-generator --config icons.webfont.json`.
 
 ### Positional arguments
 
-| Argument     | Description                                                                 |
-| ------------ | --------------------------------------------------------------------------- |
-| `<FILES>...` | SVG files or directories containing SVG files (required without `--config`) |
+| Argument     | Description                                                                                                       |
+| ------------ | ----------------------------------------------------------------------------------------------------------------- |
+| `<FILES>...` | SVG files or directories containing SVG files, as explicit paths such as `./icons/` (required without `--config`) |
 
 ### Required options
 
@@ -139,6 +141,12 @@ Run it with `webfont-generator --config icons.webfont.json`.
 | Flag                     | Description                                                                                                                                                                                                                                                                                                                   |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--cache-location <DIR>` | Persistent generation cache; see [`cacheLocation`](./node#cachelocation) for how it behaves (the CLI doesn't set `formatOptions.ttf.ts`, so cached formats keep the TTF timestamp of the run that created them unless your config sets it) and [caching across builds](./node#caching-across-builds) for CI and Docker setups |
+
+### Subcommands
+
+| Command                              | Description                                                                                                                                                        |
+| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `clear-cache --cache-location <DIR>` | Remove the files the generation cache created in `<DIR>`, then print how many files and bytes were removed. Other files stay. A missing directory is not an error. |
 
 ### Template options
 
