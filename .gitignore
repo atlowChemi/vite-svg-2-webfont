@@ -9,6 +9,7 @@ yarn-error.log*
 coverage
 test-results/
 /artifacts/affected-selection/
+/artifacts/cache-audit/
 
 # nyc test coverage
 .nyc_output
@@ -29,6 +30,9 @@ node_modules/
 .idea
 
 dist
+# Public source assets can contain dist segments; Vite probes these paths too.
+!packages/docs/public/**/dist/
+!packages/docs/public/**/dist/**
 target/
 # pnpm Cargo source materialization; Cargo.lock remains tracked.
 /.pnpm/
@@ -38,6 +42,7 @@ packages/webfont-generator/artifacts/
 packages/webfont-generator/npm/
 packages/vite-svg-2-webfont/src/fixtures/webfont-test/artifacts/*
 packages/docs/.vitepress/cache
+packages/docs/.vitepress/.temp/
 packages/docs/.vitepress/dist
 packages/docs/public/*.svg
 .vitest/

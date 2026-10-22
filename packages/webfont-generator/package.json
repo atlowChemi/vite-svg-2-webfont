@@ -26,6 +26,9 @@
         "provenance": true
     },
     "scripts": {
+        "next:build": "napi build --platform --esm --js binding.js --dts binding.d.ts",
+        "next:check": "cargo clippy -p webfont-generator-napi -- -D warnings",
+        "next:test": "cargo test -p webfont-generator-napi --lib",
         "prepublishOnly": "napi pre-publish -t npm --no-gh-release"
     },
     "devDependencies": {
