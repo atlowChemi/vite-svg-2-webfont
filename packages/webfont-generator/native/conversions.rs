@@ -95,6 +95,7 @@ impl TryFrom<GenerateWebfontsOptions> for webfont_generator::GenerateWebfontsOpt
         Ok(Self {
             color_glyphs,
             color_slots: value.color_slots,
+            cache_location: value.cache_location,
             ascent: value.ascent,
             center_horizontally: value.center_horizontally,
             center_vertically: value.center_vertically,

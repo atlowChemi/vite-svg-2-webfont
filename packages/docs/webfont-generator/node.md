@@ -161,6 +161,48 @@ regeneration is available with `incremental: true`; use the [variant methods](#v
 Custom templates receive extra family metadata; see the [template context comparison](./templates#template-context).
 For stylesheet customization and SCSS, see [Templates](./templates).
 
+## Caching across builds
+
+[`cacheLocation`](#cachelocation) is a plain directory, so any cache your build system already provides can carry it between runs. Restoring an older cache is still useful: icons that didn't change hit even when others did, and anything stale is ignored.
+
+::: code-group
+
+```yaml [GitHub Actions]
+- uses: actions/cache@v6
+  with:
+      path: .webfont-cache
+      # A new key per icon change saves an updated cache; restore-keys reuse the latest older one.
+      key: webfont-${{ runner.os }}-${{ hashFiles('icons/**/*.svg', 'pnpm-lock.yaml') }}
+      restore-keys: webfont-${{ runner.os }}-
+- run: node scripts/build-icons.mjs # generateWebfonts({ ..., cacheLocation: '.webfont-cache' })
+```
+
+```yaml [GitLab CI]
+build-icons:
+    script:
+        - node scripts/build-icons.mjs # generateWebfonts({ ..., cacheLocation: '.webfont-cache' })
+    cache:
+        key: webfont-$CI_COMMIT_REF_SLUG
+        fallback_keys: [webfont-$CI_DEFAULT_BRANCH]
+        paths: [.webfont-cache/]
+```
+
+```dockerfile [Dockerfile]
+# syntax=docker/dockerfile:1
+FROM node:24 AS icons
+WORKDIR /app
+COPY . .
+# BuildKit keeps the mount between builds; it never becomes part of the image.
+RUN --mount=type=cache,id=webfont-cache,target=/app/.webfont-cache \
+    node scripts/build-icons.mjs
+```
+
+:::
+
+::: warning Only restore trusted caches
+Cached fonts are reused as-is, so a cache directory is trusted build output. Only restore caches written by trusted builds, and clear the directory if in doubt. GitHub Actions already isolates caches saved by pull requests from the default branch; with other systems, avoid sharing one cache between untrusted branches and release builds.
+:::
+
 ## Options reference
 
 ### `colorSlots`
@@ -339,6 +381,21 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 - Type: `boolean`
 - Default: `false`
 - Description: Retain parsed glyph data on the result so [`regenerateAsync()`](#regenerateasync-files-changes) or [`regenerate()`](#regenerate-files-changes) can rebuild after file changes without re-parsing the glyphs that didn't change. Enable for watch/dev; leave it off for one-shot builds so the parsed geometry isn't held in memory.
+
+### `cacheLocation`
+
+- Type: `string`
+- Description: Directory for a persistent generation cache. A run saves per-icon work (parsed and processed glyph outlines) and finished font bytes there; later runs reuse them for icons and formats that didn't change, so a fresh process starts warm. Output is byte-identical to an uncached run (this wrapper always sets `formatOptions.ttf.ts`; see the timestamp note below for the Rust API and CLI). See [caching across builds](#caching-across-builds) for CI and Docker setups and [performance](./under-the-hood#persistent-cache) for measured speedups.
+    - An edited icon is reprocessed alone; the others reuse their saved work.
+    - When only CSS/HTML options change (templates, `cssFontsUrl`, `templateOptions`, …), every font comes from the cache.
+    - Formats are cached separately, so builds that differ only in a format option (for example WOFF2 compression quality between dev and production) share the rest. Each format keeps its latest entry plus one for the same icons with different format options.
+    - Builds that request different `types` (for example WOFF2 only in dev, all five in production) still share fonts and parsed glyphs, but processed outlines are kept for the latest `types` only, so alternating between them reprocesses paths.
+    - Without a fixed `formatOptions.ttf.ts` (Rust API and CLI only), each cached format keeps the TTF `head` timestamp of the run that created it, so formats in one output can carry different timestamps. Set `ts` for reproducible output.
+    - Entries are keyed by file contents, not paths, so a moved checkout still hits.
+    - Applies to single-design generation; variant families ignore it. Color glyphs aren't saved per icon: when a font has to be rebuilt, its color glyphs are recomputed, while fonts that didn't change are still reused whole.
+    - The engine owns the `*.wfcache` files it creates; remove them with [`clearCache()`](#clearcache-cachelocation). Rebuilding the native engine locally without a version change keeps old entries, so clear the cache after such a build.
+    - Read or write failures (missing permissions, corrupt or truncated files) never fail generation; the run recomputes, replaces corrupt or truncated files, and leaves an unwritable location uncached. Each file carries a checksum, so accidental corruption is detected rather than reused. A directory where the cache file belongs is never removed; generation prints a warning and stays uncached until you remove it.
+    - Cached fonts are reused as-is, so only restore trusted caches; see the [warning under caching across builds](#caching-across-builds).
 
 ### `fixedWidth`
 
@@ -703,6 +760,16 @@ result = await result.regenerateAsync({ files });
 ```
 
 Use `{ variants: [...] }` for families as shown above. A bare array is no longer accepted.
+
+## `clearCache(cacheLocation)`
+
+Remove the files the generation cache created in `cacheLocation`, including leftovers from interrupted writes. Other files in the directory are left untouched, and a missing directory resolves with zero counts.
+
+```ts
+import { clearCache } from '@atlowchemi/webfont-generator';
+
+const { filesRemoved, bytesRemoved } = await clearCache('.webfont-cache');
+```
 
 ## Templates
 

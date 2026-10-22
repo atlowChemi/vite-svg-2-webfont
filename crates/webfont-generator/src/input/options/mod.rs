@@ -19,6 +19,7 @@ pub(crate) use common::{GenerationOptions, ResolvedGenerationOptions};
 #[cfg(feature = "fs")]
 struct FileGenerationOptions {
     common: GenerationOptions,
+    cache_location: Option<String>,
     css_dest: Option<String>,
     css_template: Option<String>,
     dest: String,
@@ -35,6 +36,7 @@ impl From<GenerateWebfontsOptions> for FileGenerationOptions {
         let GenerateWebfontsOptions {
             color_glyphs,
             color_slots,
+            cache_location,
             ascent,
             center_horizontally,
             center_vertically,
@@ -71,6 +73,7 @@ impl From<GenerateWebfontsOptions> for FileGenerationOptions {
             write_files,
         } = options;
         Self {
+            cache_location,
             common: GenerationOptions {
                 color_glyphs,
                 color_slots,
@@ -132,6 +135,7 @@ pub(crate) struct ResolvedFontVariant {
 #[cfg(feature = "fs")]
 pub(crate) struct ResolvedFileGenerationOptions {
     pub common: ResolvedGenerationOptions,
+    pub cache_location: Option<String>,
     pub css_dest: String,
     pub css_template: Option<String>,
     pub dest: String,
@@ -629,8 +633,15 @@ fn resolve_file_options(
         .map(|variants| resolve_variants(variants, class_prefix.as_deref().unwrap_or("icon--")))
         .transpose()?;
 
+    if options.cache_location.as_deref() == Some("") {
+        return Err(std::io::Error::new(
+            ErrorKind::InvalidInput,
+            "\"options.cacheLocation\" must not be empty.".to_owned(),
+        ));
+    }
     Ok(ResolvedFileGenerationOptions {
         common,
+        cache_location: options.cache_location,
         css_dest,
         css_template: match options.css_template {
             Some(ref t) if t.is_empty() => {

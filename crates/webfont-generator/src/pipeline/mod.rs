@@ -153,17 +153,69 @@ pub(crate) fn generate_webfonts_sync(
     source_files: Vec<LoadedSvgSource>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     let svg_options = svg_options_from_options(&options);
+    let disk = options
+        .cache_location
+        .as_deref()
+        .map(|dir| crate::cache::DiskCache::open(dir, &options, &source_files));
+    let hits = disk
+        .as_ref()
+        .map(|disk| disk.font_hits(&options.types))
+        .unwrap_or_default();
+    let missing: Vec<FontType> = options
+        .types
+        .iter()
+        .copied()
+        .filter(|font_type| hits.iter().all(|hit| hit.font_type() != *font_type))
+        .collect();
+    // Only a run whose fonts all came from the cache may skip glyph work: with no formats
+    // requested, the SVGs must still be parsed (and so validated) as without a cache.
+    let full_hit = !hits.is_empty() && missing.is_empty();
+
     // When incremental, retain the parsed-glyph cache so a later `regenerate` can reuse the
     // glyphs whose source didn't change. Otherwise the geometry is dropped as soon as the font
-    // is built, so one-shot builds carry no extra memory.
-    let (prepared, glyph_cache, mut ttf_cache) = if options.incremental {
-        let mut cache = GlyphCache::default();
-        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
-        (prepared, Some(cache), Some(TtfGlyphCache::default()))
-    } else {
-        (prepare_svg_font(&svg_options, &source_files)?, None, None)
+    // is built, so one-shot builds carry no extra memory. A persistent cache seeds it from disk.
+    let seeded_cache = || match &disk {
+        Some(disk) => disk.hydrate(&svg_options, &source_files),
+        None => GlyphCache::default(),
     };
-    let fonts = build_font_outputs(&options, &svg_options, &prepared, ttf_cache.as_mut())?;
+    let (mut fonts, glyph_cache, ttf_cache) = if full_hit {
+        // Every requested format came from the persistent cache: no glyph work at all.
+        let glyph_cache = options.incremental.then(seeded_cache);
+        let ttf_cache = options.incremental.then(TtfGlyphCache::default);
+        (FontOutputs::default(), glyph_cache, ttf_cache)
+    } else if options.incremental || disk.is_some() {
+        let mut cache = seeded_cache();
+        let mut ttf_cache = options.incremental.then(TtfGlyphCache::default);
+        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
+        let fonts = build_missing_outputs(
+            &options,
+            &svg_options,
+            &prepared,
+            &missing,
+            ttf_cache.as_mut(),
+        )?;
+        (fonts, Some(cache), ttf_cache)
+    } else {
+        let prepared = prepare_svg_font(&svg_options, &source_files)?;
+        let fonts = build_font_outputs(&options, &svg_options, &prepared, None)?;
+        (fonts, None, None)
+    };
+    for font in hits {
+        font.place(&mut fonts);
+    }
+    if let Some(disk) = disk
+        && !full_hit
+        && let Some(glyph_cache) = &glyph_cache
+    {
+        disk.store(
+            &svg_options,
+            &source_files,
+            glyph_cache,
+            &fonts,
+            &options.types,
+        );
+    }
+    let glyph_cache = glyph_cache.filter(|_| options.incremental);
     let regeneration_state = glyph_cache.map(|glyph_cache| RegenerationState {
         variant_cache: None,
         variant_write_pending: false,
@@ -183,6 +235,23 @@ pub(crate) fn generate_webfonts_sync(
         regeneration_state: std::sync::Arc::new(std::sync::Mutex::new(regeneration_state)),
         source_files: std::sync::Arc::new(source_files),
     })
+}
+
+/// Build only `missing` formats; the rest come from the persistent cache.
+#[cfg(feature = "fs")]
+fn build_missing_outputs(
+    options: &ResolvedGenerationOptions,
+    svg_options: &SvgOptions<'_>,
+    prepared: &PreparedSvgFont,
+    missing: &[FontType],
+    ttf_cache: Option<&mut TtfGlyphCache>,
+) -> std::io::Result<FontOutputs> {
+    if missing.len() == options.types.len() {
+        return build_font_outputs(options, svg_options, prepared, ttf_cache);
+    }
+    let mut subset = options.clone();
+    subset.types = missing.to_vec();
+    build_font_outputs(&subset, svg_options, prepared, ttf_cache)
 }
 
 #[cfg(feature = "fs")]

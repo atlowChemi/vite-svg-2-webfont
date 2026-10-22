@@ -116,3 +116,39 @@ pub async fn generate_webfonts(
         .await
         .map(GenerateWebfontsResult)
 }
+
+/// Files and bytes removed by `clearCache`.
+#[napi(object)]
+pub struct ClearCacheReport {
+    /// Number of cache files removed.
+    pub files_removed: u32,
+    /// Total size of the removed files in bytes.
+    pub bytes_removed: f64,
+}
+
+pub struct ClearCacheTask(String);
+
+impl napi::Task for ClearCacheTask {
+    type Output = webfont_generator::ClearCacheReport;
+    type JsValue = ClearCacheReport;
+
+    fn compute(&mut self) -> napi::Result<Self::Output> {
+        webfont_generator::clear_cache(&self.0)
+            .map_err(|error| napi::Error::from_reason(error.to_string()))
+    }
+
+    fn resolve(&mut self, _env: napi::Env, output: Self::Output) -> napi::Result<Self::JsValue> {
+        Ok(ClearCacheReport {
+            files_removed: u32::try_from(output.files_removed).unwrap_or(u32::MAX),
+            bytes_removed: output.bytes_removed as f64,
+        })
+    }
+}
+
+/// Remove every file the generation cache created in `cacheLocation` (see the `cacheLocation`
+/// option), including leftovers from interrupted writes. Other files are left untouched, and a
+/// missing directory resolves with zero counts.
+#[napi(ts_return_type = "Promise<ClearCacheReport>")]
+pub fn clear_cache(cache_location: String) -> napi::bindgen_prelude::AsyncTask<ClearCacheTask> {
+    napi::bindgen_prelude::AsyncTask::new(ClearCacheTask(cache_location))
+}
