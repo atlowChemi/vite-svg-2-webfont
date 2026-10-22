@@ -23,6 +23,7 @@ fn config_is_complete_and_excludes_explicit_generation_arguments() {
         vec!["--ascent", "800"],
         vec!["--descent", "200"],
         vec!["--start-codepoint", "0xF101"],
+        vec!["--cache-location", "cache"],
     ] {
         let mut args = vec!["webfont-generator", "--config", "icons.json"];
         args.extend(extra);
@@ -43,4 +44,18 @@ fn config_is_complete_and_excludes_explicit_generation_arguments() {
             kind
         );
     }
+}
+
+#[test]
+fn generation_accepts_a_cache_location() {
+    let cli = Cli::try_parse_from([
+        "webfont-generator",
+        "icons",
+        "-d",
+        "out",
+        "--cache-location",
+        "cache",
+    ])
+    .unwrap();
+    assert_eq!(cli.cache_location.as_deref(), Some("cache"));
 }

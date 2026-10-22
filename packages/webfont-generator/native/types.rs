@@ -305,6 +305,10 @@ pub struct GenerateWebfontsOptions {
     pub color_glyphs: Option<Either<bool, Vec<String>>>,
     /// Named #RRGGBB palette slots, indexed in ASCII name order; requires active colorGlyphs.
     pub color_slots: Option<HashMap<String, String>>,
+    /// Directory for a persistent generation cache. Later runs reuse saved per-glyph work and
+    /// font bytes for unchanged icons and formats; output is unchanged. Single-design only.
+    /// Clear it with `clearCache`. Cache failures never fail generation.
+    pub cache_location: Option<String>,
     /// Font ascent in font units. Overrides the value computed from the source
     /// glyphs.
     pub ascent: Option<f64>,

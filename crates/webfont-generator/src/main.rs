@@ -100,6 +100,10 @@ struct Cli {
     /// Start codepoint (hex, e.g. 0xF101)
     #[arg(long)]
     start_codepoint: Option<String>,
+
+    /// Directory for the persistent generation cache; later runs reuse unchanged work
+    #[arg(long)]
+    cache_location: Option<String>,
 }
 
 fn collect_svg_files(paths: &[String]) -> std::io::Result<Vec<String>> {
@@ -161,6 +165,7 @@ fn main() -> ExitCode {
     // overrides_with ensures only the last one is active.
     let options = GenerateWebfontsOptions {
         ascent: cli.ascent,
+        cache_location: cli.cache_location,
         css: Some(!cli.no_css),
         css_template: cli.css_template,
         css_fonts_url: cli.css_fonts_url,
