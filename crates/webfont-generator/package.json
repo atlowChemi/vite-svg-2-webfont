@@ -2,5 +2,10 @@
     "name": "@atlowchemi/webfont-engine",
     "version": "0.0.0-internal-only",
     "private": true,
-    "type": "module"
+    "type": "module",
+    "scripts": {
+        "next:check": "cargo clippy -p webfont-generator -- -D warnings && cargo clippy -p webfont-generator --features cli -- -D warnings && cargo clippy -p webfont-generator --no-default-features -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features async -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features fs -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features in_memory -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features in_memory,async -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features cli -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features bench -- -D warnings",
+        "next:test": "cargo test -p webfont-generator && cargo test -p webfont-generator --features cli",
+        "next:test:features": "cargo test -p webfont-generator --no-default-features --features fs && cargo test -p webfont-generator --no-default-features --features in_memory && cargo test -p webfont-generator --no-default-features --features in_memory,async && cargo test -p webfont-generator --no-default-features --features cli"
+    }
 }

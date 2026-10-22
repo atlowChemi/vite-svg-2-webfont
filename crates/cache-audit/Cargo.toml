@@ -1,0 +1,21 @@
+[package]
+name = "cache-audit"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+# fspy's artifact dependencies need nightly; keep the product workspace on stable.
+[workspace]
+exclude = ["target"]
+
+[dependencies]
+fspy = { git = "https://github.com/voidzero-dev/vite-task", rev = "8db455ef9c2b1c7b33cf70d8ba370c1f2c49d4c9" }
+serde_json = "1"
+serde = { version = "1", features = ["derive"] }
+serde_yaml_ng = "0.10"
+wax = "=0.7.0"
+tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio-util = "0.7"
+
+[dev-dependencies]
+tempfile = "3"
