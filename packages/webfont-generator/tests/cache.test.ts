@@ -2,12 +2,16 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { afterEach, describe, expect, it } from 'vite-plus/test';
-import { clearCache, generateWebfonts, type FontType } from '../index.js';
+import { clearCache, generateWebfonts, type FontType, type MultiVariantFontType } from '../index.js';
 
-const icons = ['plus.svg', 'minus.svg', 'close.svg'].map(file =>
-    join(import.meta.dirname, '..', '..', '..', 'crates', 'webfont-generator', 'src', 'svg', 'fixtures', 'icons', 'cleanicons', file),
-);
+const fixtures = join(import.meta.dirname, '..', '..', '..', 'crates', 'webfont-generator', 'src', 'svg', 'fixtures', 'icons');
+const icons = ['plus.svg', 'minus.svg', 'close.svg'].map(file => join(fixtures, 'cleanicons', file));
 const types: FontType[] = ['svg', 'ttf', 'eot', 'woff', 'woff2'];
+const variantTypes: MultiVariantFontType[] = ['ttf', 'woff', 'woff2'];
+const variants = [
+    { name: 'light', weight: 300, default: true, files: ['basket.svg', 'plus.svg'].map(file => join(fixtures, 'cleanicons', file)) },
+    { name: 'bold', weight: 700, files: [join(fixtures, 'multipathicons', 'basket.svg'), join(fixtures, 'cleanicons', 'plus.svg')] },
+];
 const cleanupDirs = new Set<string>();
 
 afterEach(async () => {
@@ -24,6 +28,11 @@ async function tempDir() {
 async function fonts(cacheLocation?: string) {
     const result = await generateWebfonts({ dest: tmpdir(), files: icons, types, css: false, writeFiles: false, cacheLocation });
     return types.map(type => Buffer.from(result[type]!));
+}
+
+async function variantFonts(cacheLocation?: string) {
+    const result = await generateWebfonts({ dest: tmpdir(), variants, types: variantTypes, css: false, writeFiles: false, cacheLocation });
+    return variantTypes.map(type => Buffer.from(result[type]!));
 }
 
 describe('cacheLocation', () => {
@@ -81,6 +90,23 @@ describe('cacheLocation', () => {
             await writeFile(join(parent, 'file'), 'not a directory');
             expect(await fonts(join(parent, 'file', 'cache'))).toEqual(await fonts());
         });
+    });
+
+    it('produces the same variant family fonts cold, warm, and from a corrupt file', async () => {
+        const cacheLocation = await tempDir();
+        const uncached = await variantFonts();
+
+        expect(await variantFonts(cacheLocation)).toEqual(uncached);
+        const name = (await readdir(cacheLocation)).find(file => file.endsWith('.wfcache'));
+        const file = join(cacheLocation, name as string);
+        const valid = await readFile(file);
+        expect(await variantFonts(cacheLocation)).toEqual(uncached);
+
+        const corrupt = Buffer.from(valid);
+        corrupt[corrupt.length - 10] ^= 0xff;
+        await writeFile(file, corrupt);
+        expect(await variantFonts(cacheLocation)).toEqual(uncached);
+        expect(await readFile(file)).toEqual(valid);
     });
 
     it('rejects an empty location', async () => {

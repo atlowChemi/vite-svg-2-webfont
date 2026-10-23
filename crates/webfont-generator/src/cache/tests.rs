@@ -8,9 +8,9 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use super::*;
 use crate::test_helpers::resolve_options;
 use crate::{
-    ColorGlyphSelection, FormatOptions, GenerateWebfontsOptions, GenerateWebfontsResult,
-    GlyphChange, RegenerationFiles, TtfFormatOptions, Woff2FormatOptions, WoffFormatOptions,
-    generate_sync,
+    ColorGlyphSelection, FontVariant, FormatOptions, GenerateWebfontsOptions,
+    GenerateWebfontsResult, GlyphChange, RegenerationFiles, TtfFormatOptions, VariantFileSet,
+    Woff2FormatOptions, WoffFormatOptions, generate_sync, resolve_content_variant_sources,
 };
 
 const ALL_TYPES: [FontType; 5] = [
@@ -577,4 +577,295 @@ fn malformed_path_tags_decode_to_none() {
     writer.len(1);
     writer.u8(9);
     assert!(Reader(&writer.0).bez_path().is_none());
+}
+
+const VARIANTS: [&str; 2] = ["light", "bold"];
+const STAR: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#ff9900" d="M2 2H18V20H2Z"/><path fill="#0066ff" d="M6 6H12V12H6Z"/></svg>"##;
+
+impl Project {
+    /// A project whose `light` and `bold` designs hold the same icon names with different shapes.
+    fn family(name: &str) -> Self {
+        let project = Self::new(name);
+        for (design, offset) in VARIANTS.into_iter().zip([0, 4]) {
+            let dir = project.root.join(design);
+            fs::create_dir_all(&dir).unwrap();
+            for (name, width) in [("add", 10), ("remove", 14), ("star", 16)] {
+                fs::write(dir.join(format!("{name}.svg")), svg(width - offset)).unwrap();
+            }
+        }
+        project
+    }
+    fn design(&self, design: &str) -> Vec<String> {
+        ["add", "remove", "star"]
+            .map(|name| {
+                let path = self.root.join(design).join(format!("{name}.svg"));
+                path.to_string_lossy().into_owned()
+            })
+            .into()
+    }
+    fn variant_options(&self, cache: Option<&Path>) -> GenerateWebfontsOptions {
+        GenerateWebfontsOptions {
+            files: Vec::new(),
+            types: Some(vec![FontType::Ttf, FontType::Woff, FontType::Woff2]),
+            variants: Some(
+                VARIANTS
+                    .into_iter()
+                    .zip([300, 700])
+                    .map(|(name, weight)| FontVariant {
+                        name: name.to_owned(),
+                        files: self.design(name),
+                        weight: Some(weight),
+                        default: Some(weight == 300),
+                    })
+                    .collect(),
+            ),
+            ..self.options(cache)
+        }
+    }
+}
+
+fn variant_fonts(result: &GenerateWebfontsResult) -> Vec<Vec<u8>> {
+    let outputs = &result.fonts;
+    vec![
+        outputs.ttf_font.as_deref().unwrap().clone(),
+        outputs.woff_font.as_deref().unwrap().clone(),
+        outputs.woff2_font.as_deref().unwrap().clone(),
+    ]
+}
+
+/// (parsed, processed) counts of the variant glyph work done to produce `result`.
+fn variant_work(result: &GenerateWebfontsResult) -> (usize, usize) {
+    let state = result.regeneration_state.lock().unwrap();
+    let cache = state.as_ref().unwrap().variant_cache.as_ref().unwrap();
+    let parsed = cache.parsed.iter().map(|design| design.parse_count).sum();
+    (parsed, cache.process_count)
+}
+
+/// Stored font entries per format, in `FONT_TYPES` order, for a variant configuration.
+fn variant_entries(options: GenerateWebfontsOptions) -> [usize; 5] {
+    let mut resolved = resolve_options(options);
+    let variants = resolved.variants.clone().unwrap();
+    let files: Vec<Vec<LoadedSvgSource>> = variants
+        .variants
+        .iter()
+        .map(|variant| {
+            variant
+                .source_ids
+                .iter()
+                .map(|path| LoadedSvgSource {
+                    id: path.clone(),
+                    glyph_name: Path::new(path)
+                        .file_stem()
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned(),
+                    contents: fs::read_to_string(path).unwrap().into(),
+                })
+                .collect()
+        })
+        .collect();
+    let family = resolve_content_variant_sources(
+        &mut resolved.common,
+        &variants,
+        files.iter().map(Vec::as_slice).collect(),
+    )
+    .unwrap();
+    let dir = resolved.cache_location.clone().unwrap();
+    let disk = DiskCache::open_variant(&dir, &resolved, &variants, &family);
+    assert!(disk.loaded.is_some());
+    FONT_TYPES.map(|font_type| {
+        disk.fonts
+            .iter()
+            .filter(|entry| entry.font.font_type() == font_type)
+            .count()
+    })
+}
+
+#[test]
+fn variant_families_stay_byte_identical_through_warm_edited_and_regenerated_runs() {
+    let project = Project::family("variant-identity");
+    let cache = project.cache();
+    let uncached = variant_fonts(&run(project.variant_options(None)));
+
+    let cold = run(project.variant_options(Some(&cache)));
+    assert_eq!(variant_fonts(&cold), uncached);
+    assert_eq!(variant_work(&cold), (6, 6));
+    let mut warm = run(project.variant_options(Some(&cache)));
+    assert_eq!(variant_fonts(&warm), uncached);
+    assert_eq!(variant_work(&warm), (0, 0));
+    let mut one_shot = project.variant_options(Some(&cache));
+    one_shot.incremental = Some(false);
+    assert_eq!(variant_fonts(&run(one_shot.clone())), uncached);
+
+    let edited = project.root.join("light/add.svg");
+    fs::write(&edited, svg(13)).unwrap();
+    let expected = variant_fonts(&run(project.variant_options(None)));
+    // An incremental result that took every font from the cache regenerates from hydrated glyphs.
+    let sets = VARIANTS.map(|variant| VariantFileSet {
+        variant: variant.to_owned(),
+        files: project.design(variant),
+    });
+    let change = (
+        edited.to_string_lossy().into_owned(),
+        GlyphChange::Changed { name: None },
+    );
+    warm.regenerate(&RegenerationFiles::Variants(sets.into()), &[change])
+        .unwrap();
+    assert_eq!(variant_fonts(&warm), expected);
+    assert_eq!(variant_work(&warm), (1, 1));
+
+    let after_edit = run(project.variant_options(Some(&cache)));
+    assert_eq!(variant_fonts(&after_edit), expected);
+    assert_eq!(variant_work(&after_edit), (1, 1));
+    assert_eq!(variant_fonts(&run(one_shot)), expected);
+}
+
+#[test]
+fn variant_css_changes_reuse_fonts_and_format_options_rebuild_only_their_format() {
+    let project = Project::family("variant-formats");
+    let cache = project.cache();
+    run(project.variant_options(Some(&cache)));
+    let file = cache.join(cache_files(&cache).pop().unwrap());
+    let before = fs::metadata(&file).unwrap().modified().unwrap();
+    sleep(Duration::from_millis(20));
+
+    let mut css = project.variant_options(Some(&cache));
+    css.css = Some(true);
+    css.css_fonts_url = Some("/fonts/".to_owned());
+    let warm = run(css);
+    assert_eq!(variant_work(&warm), (0, 0));
+    assert_eq!(
+        variant_fonts(&warm),
+        variant_fonts(&run(project.variant_options(None)))
+    );
+    // Every format hit, so nothing was stored.
+    assert_eq!(fs::metadata(&file).unwrap().modified().unwrap(), before);
+
+    let mut woff = project.variant_options(Some(&cache));
+    woff.format_options.as_mut().unwrap().woff = Some(WoffFormatOptions {
+        metadata: Some("<metadata/>".to_owned()),
+    });
+    let result = run(woff.clone());
+    assert_eq!(variant_work(&result), (0, 0));
+    // SVG, TTF, EOT, WOFF, WOFF2.
+    assert_eq!(variant_entries(woff.clone()), [0, 1, 0, 2, 1]);
+    woff.cache_location = None;
+    assert_eq!(variant_fonts(&result), variant_fonts(&run(woff)));
+
+    let mut weight = project.variant_options(Some(&cache));
+    weight.variants.as_mut().unwrap()[1].weight = Some(800);
+    let result = run(weight.clone());
+    assert_eq!(cache_files(&cache).len(), 1);
+    weight.cache_location = None;
+    assert_eq!(variant_fonts(&result), variant_fonts(&run(weight)));
+}
+
+#[test]
+fn invalid_variant_families_fail_before_the_cache_is_opened() {
+    let project = Project::family("variant-invalid");
+    let mut options = project.variant_options(Some(&project.cache()));
+    options.variants.as_mut().unwrap()[1].files.pop();
+    options.missing_glyphs = Some(crate::MissingGlyphOptions {
+        behavior: crate::MissingGlyphBehavior::Error,
+        variant: None,
+    });
+    assert!(generate_sync(options, None).is_err());
+    assert!(cache_files(&project.cache()).is_empty());
+}
+
+#[test]
+fn a_moved_variant_checkout_still_hits() {
+    let first = Project::family("variant-moved-a");
+    let second = Project::family("variant-moved-b");
+    let shared = first.cache();
+    run(first.variant_options(Some(&shared)));
+
+    let warm = run(second.variant_options(Some(&shared)));
+    assert_eq!(variant_work(&warm), (0, 0));
+    assert_eq!(
+        variant_fonts(&warm),
+        variant_fonts(&run(second.variant_options(None)))
+    );
+}
+
+#[test]
+fn unusable_variant_cache_files_fall_back_and_are_replaced() {
+    let project = Project::family("variant-corrupt");
+    let cache = project.cache();
+    let expected = variant_fonts(&run(project.variant_options(None)));
+    run(project.variant_options(Some(&cache)));
+    let file = cache.join(cache_files(&cache).pop().unwrap());
+    let valid = fs::read(&file).unwrap();
+
+    let mut wrong_version = valid.clone();
+    wrong_version[MAGIC.len()] ^= 0xff;
+    let mut flipped_payload = valid.clone();
+    let last = flipped_payload.len() - 10;
+    flipped_payload[last] ^= 0xff;
+    let mut trailing = valid.clone();
+    trailing.extend_from_slice(b"extra");
+    for contents in [
+        b"garbage".to_vec(),
+        valid[..valid.len() / 2].to_vec(),
+        wrong_version,
+        flipped_payload,
+        trailing,
+        Vec::new(),
+    ] {
+        fs::write(&file, contents).unwrap();
+        let result = run(project.variant_options(Some(&cache)));
+        assert_eq!(variant_fonts(&result), expected);
+        assert_eq!(variant_work(&result), (6, 6));
+        assert_eq!(fs::read(&file).unwrap(), valid);
+    }
+}
+
+#[test]
+fn single_design_and_variant_caches_for_one_font_name_never_mix() {
+    let project = Project::family("variant-single");
+    let cache = project.cache();
+    let single = fonts(&run(project.options(None)));
+    let family = variant_fonts(&run(project.variant_options(None)));
+
+    run(project.options(Some(&cache)));
+    let single_file = cache_files(&cache);
+    for _ in 0..2 {
+        // Same font name, different identity: each run replaces the other's file and starts cold.
+        let result = run(project.variant_options(Some(&cache)));
+        assert_eq!(variant_fonts(&result), family);
+        assert_eq!(variant_work(&result), (6, 6));
+        assert_ne!(cache_files(&cache), single_file);
+        let result = run(project.options(Some(&cache)));
+        assert_eq!(fonts(&result), single);
+        assert_eq!(work(&result), (3, 3));
+        assert_eq!(cache_files(&cache), single_file);
+    }
+}
+
+#[test]
+fn color_variants_stay_byte_identical_and_recompute_only_color_glyphs() {
+    let project = Project::family("variant-color");
+    for design in VARIANTS {
+        fs::write(project.root.join(design).join("star.svg"), STAR).unwrap();
+    }
+    let options = |cache: Option<&Path>| GenerateWebfontsOptions {
+        color_glyphs: Some(ColorGlyphSelection::Named(vec!["star".to_owned()])),
+        ..project.variant_options(cache)
+    };
+    let uncached = variant_fonts(&run(options(None)));
+    let cold = run(options(Some(&project.cache())));
+    assert_eq!(variant_fonts(&cold), uncached);
+    let warm = run(options(Some(&project.cache())));
+    assert_eq!(variant_fonts(&warm), uncached);
+    assert_eq!(variant_work(&warm), (0, 0));
+
+    let mut changed = options(Some(&project.cache()));
+    changed.format_options.as_mut().unwrap().woff2 = Some(Woff2FormatOptions {
+        compression_quality: Some(9),
+    });
+    let rebuilt = run(changed.clone());
+    // Only the color glyph repeats its work, once per design.
+    assert_eq!(variant_work(&rebuilt), (2, 2));
+    changed.cache_location = None;
+    assert_eq!(variant_fonts(&rebuilt), variant_fonts(&run(changed)));
 }
