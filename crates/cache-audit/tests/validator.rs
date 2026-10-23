@@ -55,7 +55,7 @@ fn validates_real_accesses_and_rejects_missing_declarations() {
             .status
             .success()
     );
-    let manifest = json!({"packageManager":"pnpm@12.13.0", "scripts":{"build":"fixture", "dependency":"fixture"}});
+    let manifest = json!({"packageManager":"pnpm@12.14.0", "scripts":{"build":"fixture", "dependency":"fixture"}});
     fs::write(root.join("package.json"), manifest.to_string()).unwrap();
     fs::write(root.join(".gitignore"), "output\ndependency.out\nignored\n").unwrap();
     for file in [
@@ -70,6 +70,25 @@ fn validates_real_accesses_and_rejects_missing_declarations() {
     let policy = "version: 1\ntasks:\n  '.#build':\n    missingInputs:\n      - {pattern: missing, reason: 'Optional regular-file fixture'}\n      - {pattern: ignored, reason: 'Ignored paths must still fail'}\n      - {pattern: '**/package.json', reason: 'Node package scope probes'}\n    ignore:\n      - {pattern: '/**', reason: 'System paths outside fixture'}\n      - {pattern: '.', reason: 'Working directory probes', kinds: [read, read_dir]}\n";
     fs::write(root.join("policy.yaml"), policy).unwrap();
     workspace(&root, "[input]", "[output]");
+    for version in ["pnpm@12.13.0", "pnpm@12.14.0", "pnpm@12.99.1"] {
+        let mut candidate = manifest.clone();
+        candidate["packageManager"] = json!(version);
+        fs::write(root.join("package.json"), candidate.to_string()).unwrap();
+        assert!(audit(&root, ".", "cat input > output").0.status.success());
+    }
+    for version in [
+        "pnpm@12.12.0",
+        "pnpm@13.0.0",
+        "pnpm@12.14.0-rc.1",
+        "npm@12.14.0",
+    ] {
+        let mut candidate = manifest.clone();
+        candidate["packageManager"] = json!(version);
+        fs::write(root.join("package.json"), candidate.to_string()).unwrap();
+        assert!(!audit(&root, ".", "touch should-not-run").0.status.success());
+        assert!(!root.join("should-not-run").exists());
+    }
+    fs::write(root.join("package.json"), manifest.to_string()).unwrap();
     let (run, report) = audit(
         &root,
         ".",

@@ -399,8 +399,14 @@ impl Audit {
             .unwrap_or("")
             .split('+')
             .next();
-        if version != Some("pnpm@12.13.0") {
-            return Err("validator semantics are pinned to pnpm 12.13.0".into());
+        let supported = version
+            .and_then(|version| version.strip_prefix("pnpm@12."))
+            .and_then(|version| version.split_once('.'))
+            .is_some_and(|(minor, patch)| {
+                minor.parse::<u32>().is_ok_and(|minor| minor >= 13) && patch.parse::<u32>().is_ok()
+            });
+        if !supported {
+            return Err("validator requires stable pnpm 12.13 or newer within major 12; validate cache semantics before adopting another major".into());
         }
         let text = fs::read_to_string(root.join("pnpm-workspace.yaml"))?;
         if text.contains("${") {
