@@ -42,6 +42,19 @@ pub struct SourceFontVariant {
 #[derive(Clone, Default, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase", deny_unknown_fields)]
 pub struct GenerateWebfontsFromSourcesOptions {
+    /// Enable the persistent cache with bytes from an earlier result's
+    /// [`cache_bytes`](super::GenerateWebfontsFromSourcesResult::cache_bytes), or an empty vector
+    /// to start cold. Unchanged icons skip parsing and processing, and unchanged formats are
+    /// reused. Output is byte-identical to an uncached run. Bytes from another engine version or
+    /// other settings are ignored. Not deserialized: pass binary data directly. Single-design only;
+    /// variant families ignore it.
+    #[serde(skip)]
+    pub cache: Option<Vec<u8>>,
+    /// TTF `head` timestamp used when `formatOptions.ttf.ts` is unset, for environments without a
+    /// system clock (WebAssembly). Unlike `ts` it isn't part of cache keys, so cached fonts keep
+    /// the timestamp of the run that created them. Not deserialized.
+    #[serde(skip)]
+    pub fallback_ts: Option<i64>,
     /// Ordered sources for ordinary generation; empty when `variants` is supplied.
     pub sources: Vec<SvgSource>,
     /// Ordered variant designs, using the same font encoders as file generation.
@@ -202,6 +215,7 @@ pub(super) fn resolve(
     };
     let mut common = settings.resolve(variants.is_some())?;
     common.filesystem_free = true;
+    common.fallback_ts = options.fallback_ts;
     for name in common.explicit_codepoints.keys() {
         validate_name(name)?;
     }

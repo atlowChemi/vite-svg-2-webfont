@@ -43,7 +43,7 @@ pub(crate) fn ttf_options_from_options(options: &ResolvedGenerationOptions) -> T
         font_weight: options.font_weight.as_deref(),
         ligature: options.ligature,
         manufacturer_url: ttf_format.and_then(|v| v.url.as_deref()),
-        ts: ttf_format.and_then(|v| v.ts),
+        ts: ttf_format.and_then(|v| v.ts).or(options.fallback_ts),
         version: ttf_format.and_then(|v| v.version.as_deref()),
     }
 }

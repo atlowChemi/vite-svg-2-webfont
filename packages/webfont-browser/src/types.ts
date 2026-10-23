@@ -7,6 +7,15 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
 
 /** In-memory engine settings. Templates contain text, never filenames. */
 export type GenerateWebfontsOptions = {
+    /**
+     * Enable the persistent cache with bytes from an earlier `exportCache()`, or an empty array to
+     * start cold. Unchanged icons and formats are reused; output is byte-identical. Storing the
+     * bytes is up to your app, for example in IndexedDB (they are several MB for hundreds of
+     * icons). Without a fixed `formatOptions.ttf.ts`, reused fonts keep the timestamp of the
+     * session that created them.
+     * Single-design only; variant families ignore it.
+     */
+    cache?: Uint8Array;
     sources?: SvgSource[];
     variants?: SourceFontVariant[];
     cssTemplate?: string;
@@ -60,6 +69,8 @@ export type WebfontResult = {
     generateCss: () => Promise<string>;
     generateHtml: () => Promise<string>;
     collectOutputs: () => Promise<CollectedOutputs>;
+    /** Persistent cache bytes to store, or `undefined` when caching is off or nothing changed since the bytes were loaded or last exported. */
+    exportCache: () => Promise<Uint8Array<ArrayBuffer> | undefined>;
     regenerate: (membership: SourceMembership, changes: SourceChange[]) => Promise<void>;
     /** Append a new source. Families require a target variant. Requires incremental generation. */
     add: (source: SvgSource, variant?: string) => Promise<void>;
@@ -75,13 +86,13 @@ export type WebfontResult = {
 
 // Worker protocol; not exported from the package entry.
 export type RequestPayload =
-    | { method: 'generate'; options: string }
+    | { method: 'generate'; options: string; cache?: Uint8Array }
     | { method: 'regenerate'; membership: string; changes: string }
     | { method: 'add'; source: string; variant?: string }
     | { method: 'update'; sourceId: string; svg: string; name?: string }
     | { method: 'remove'; sourceId: string }
     | { method: 'font'; format: string }
-    | { method: 'css' | 'html' | 'outputs' };
+    | { method: 'css' | 'html' | 'outputs' | 'cache' };
 export type Request = { id: number } & RequestPayload;
 export type Result = undefined | string | Uint8Array<ArrayBuffer> | CollectedOutputs;
 export type Response = { id: number } & ({ ok: true; value: Result } | { ok: false; error: Error; fatal: boolean });

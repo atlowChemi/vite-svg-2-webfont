@@ -21,7 +21,7 @@ async function handleRequest(data: Request): Promise<void> {
             case 'generate':
                 if (session) throw new Error('Session is already initialized');
                 await init();
-                session = new FontSession(data.options);
+                session = new FontSession(data.options, data.cache);
                 break;
             case 'regenerate':
                 currentSession().regenerate(data.membership, data.changes);
@@ -46,6 +46,9 @@ async function handleRequest(data: Request): Promise<void> {
                 break;
             case 'outputs':
                 value = currentSession().outputs();
+                break;
+            case 'cache':
+                value = currentSession().cacheBytes() as Uint8Array<ArrayBuffer> | undefined;
                 break;
         }
         let transfers: ArrayBuffer[] = [];

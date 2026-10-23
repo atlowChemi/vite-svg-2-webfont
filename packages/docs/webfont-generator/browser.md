@@ -64,7 +64,9 @@ including file input/output options, are rejected. There are no JavaScript callb
 Variant families support TTF, WOFF and WOFF2; ordinary fonts additionally support SVG and EOT.
 
 Without `formatOptions.ttf.ts`, generation captures the browser clock once and retains that
-timestamp during updates. A fixed Unix timestamp produces reproducible font metadata.
+timestamp during updates; fonts reused from a [persistent cache](#persistent-cache) keep the
+timestamp of the session that created them. A fixed Unix timestamp produces reproducible font
+metadata.
 WOFF uses pure-Rust compression; native zlib output may differ at the byte level.
 WOFF2 uses single-threaded Brotli at every supported compression quality (0–11).
 
@@ -117,17 +119,18 @@ To pass explicit font URLs instead of rewriting the CSS, set `cssFontsUrl` to th
 An explicit `dispose()` method is available for manually managed lifetimes instead of using Explicit Resource Management. It is idempotent: calling it more than once has no additional effect and does not throw.
 :::
 
-| Method                            | Result                             | Behavior                                                                                                             |
-| --------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `font(format)`                    | `Promise<Uint8Array \| undefined>` | Copy a requested font; does not render templates                                                                     |
-| `generateCss()`                   | `Promise<string>`                  | Lazy CSS render, even if CSS collection is disabled                                                                  |
-| `generateHtml()`                  | `Promise<string>`                  | Lazy HTML render, reusing CSS                                                                                        |
-| `collectOutputs()`                | `Promise<CollectedOutputs>`        | Object keyed by output kind, with independently owned bytes; unrequested outputs are omitted                         |
-| `regenerate(membership, changes)` | `Promise<void>`                    | Apply source updates; requires `incremental: true`                                                                   |
-| `add(source, variant?)`           | `Promise<void>`                    | Append a new source; families require a target variant. Requires `incremental: true`.                                |
-| `update(id, svg, name?)`          | `Promise<void>`                    | Replace an existing source, preserving its position. Requires `incremental: true`.                                   |
-| `remove(id)`                      | `Promise<void>`                    | Remove an ID from all designs without emptying a design. Requires `incremental: true`.                               |
-| `dispose()`                       | `void`                             | Terminate the worker and reject pending calls. Idempotent: repeated calls have no additional effect and do not throw |
+| Method                            | Result                             | Behavior                                                                                                              |
+| --------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `font(format)`                    | `Promise<Uint8Array \| undefined>` | Copy a requested font; does not render templates                                                                      |
+| `generateCss()`                   | `Promise<string>`                  | Lazy CSS render, even if CSS collection is disabled                                                                   |
+| `generateHtml()`                  | `Promise<string>`                  | Lazy HTML render, reusing CSS                                                                                         |
+| `collectOutputs()`                | `Promise<CollectedOutputs>`        | Object keyed by output kind, with independently owned bytes; unrequested outputs are omitted                          |
+| `regenerate(membership, changes)` | `Promise<void>`                    | Apply source updates; requires `incremental: true`                                                                    |
+| `add(source, variant?)`           | `Promise<void>`                    | Append a new source; families require a target variant. Requires `incremental: true`.                                 |
+| `update(id, svg, name?)`          | `Promise<void>`                    | Replace an existing source, preserving its position. Requires `incremental: true`.                                    |
+| `remove(id)`                      | `Promise<void>`                    | Remove an ID from all designs without emptying a design. Requires `incremental: true`.                                |
+| `exportCache()`                   | `Promise<Uint8Array \| undefined>` | Persistent cache bytes to store; `undefined` when caching is off or nothing changed. See [caching](#persistent-cache) |
+| `dispose()`                       | `void`                             | Terminate the worker and reject pending calls. Idempotent: repeated calls have no additional effect and do not throw  |
 
 `CollectedOutputs` is `Partial<Record<FontType | 'css' | 'html', Uint8Array<ArrayBuffer>>>`.
 Access outputs directly by kind, for example `(await result.collectOutputs()).woff2`.
@@ -135,6 +138,46 @@ Access outputs directly by kind, for example `(await result.collectOutputs()).wo
 Calls on one result execute in submission order. Returned byte arrays remain valid after updates
 and disposal and cannot mutate the engine's retained buffers. CSS and HTML are compiled lazily;
 an invalid HTML template does not prevent accessing a font or rendering CSS.
+
+## Persistent cache
+
+Pass `cache` to reuse work from an earlier session. Start with an empty array, store what
+`exportCache()` returns, and pass it back next time. Unchanged icons skip parsing and path
+processing, and unchanged formats are reused; output is byte-identical.
+
+The package only accepts and returns the bytes (a `Uint8Array`); storing them is up to your app.
+Keep them anywhere that holds binary data: IndexedDB (stores `Uint8Array` natively), the Origin
+Private File System, Cache Storage, or your own server. Expect several MB for hundreds of icons.
+In the example, `loadCache` and `saveCache` stand for your own storage code:
+
+```ts
+import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';
+// Your own module, not part of the package: for example an IndexedDB wrapper.
+import { loadCache, saveCache } from './icon-cache';
+
+const stored = await loadCache('icons'); // Uint8Array | undefined
+using result = await generateWebfonts({
+    sources,
+    types: ['woff2'],
+    cache: stored ?? new Uint8Array(),
+});
+const updated = await result.exportCache();
+if (updated) await saveCache('icons', updated);
+```
+
+- Without a fixed `formatOptions.ttf.ts`, reused fonts keep the timestamp of the session that
+  created them, so output matches that session rather than the current clock. Set `ts` for
+  reproducible output.
+- `exportCache()` reflects incremental updates and resolves `undefined` when nothing changed since
+  the cache was loaded or last exported, so you can skip writes.
+- Bytes from another engine version or other settings are ignored, and corrupted or truncated
+  bytes fall back to a correct uncached run (each cache carries a checksum). Variant families
+  ignore `cache`.
+
+::: warning Only pass trusted cache bytes
+Cached fonts are reused as-is, so only pass bytes your own app stored. Don't accept cache bytes
+from users or other origins, and clear the stored copy if in doubt.
+:::
 
 ## Incremental updates
 
