@@ -70,3 +70,16 @@ it('terminates the worker even when initialization throws a non-Error value', as
     await expect(generateWebfonts({})).rejects.toBe('transport unavailable');
     expect(worker.terminate).toHaveBeenCalledOnce();
 });
+
+it('sends cache bytes beside the JSON settings and requests exports', async () => {
+    const requests: Request[] = [];
+    worker.postMessage.mockImplementation((data: Request) => {
+        requests.push(data);
+        respond({ id: data.id, ok: true, value: data.method === 'cache' ? new Uint8Array([1]) : undefined });
+    });
+    const cache = new Uint8Array([7, 8]);
+    using result = await generateWebfonts({ fontName: 'cached', cache });
+    await expect(result.exportCache()).resolves.toEqual(new Uint8Array([1]));
+    expect(requests[0]).toMatchObject({ method: 'generate', cache, options: '{"fontName":"cached"}' });
+    expect(requests[1]).toMatchObject({ method: 'cache' });
+});

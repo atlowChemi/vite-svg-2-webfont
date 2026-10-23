@@ -13,6 +13,7 @@ fn rejects_invalid_browser_clock() {
     let result = FontSession::new(
         &json!({"sources": [{"id": "icon", "name": "icon", "svg": SVG}], "types": ["ttf"]})
             .to_string(),
+        None,
     );
     js_sys::Reflect::set(&date, &"now".into(), &original).unwrap();
     let error = result.err().expect("invalid clock must fail");
@@ -30,7 +31,7 @@ fn generates_copied_outputs_and_recovers_from_errors() {
         "types": ["svg", "ttf", "eot", "woff", "woff2"],
         "html": true, "incremental": true
     });
-    let mut session = FontSession::new(&options.to_string()).unwrap();
+    let mut session = FontSession::new(&options.to_string(), None).unwrap();
     for format in ["svg", "ttf", "eot", "woff", "woff2"] {
         assert!(session.font(format).unwrap().unwrap().length() > 0);
     }
@@ -61,9 +62,9 @@ fn generates_copied_outputs_and_recovers_from_errors() {
 
 #[wasm_bindgen_test]
 fn validates_options_and_keeps_templates_lazy() {
-    assert!(FontSession::new("invalid").is_err());
-    assert!(FontSession::new(r#"{"files":[]}"#).is_err());
-    assert!(FontSession::new(r#"{"sources":[]}"#).is_err());
+    assert!(FontSession::new("invalid", None).is_err());
+    assert!(FontSession::new(r#"{"files":[]}"#, None).is_err());
+    assert!(FontSession::new(r#"{"sources":[]}"#, None).is_err());
     let session = FontSession::new(
         &json!({
             "sources": [{"id": "opaque", "name": "square", "svg": SVG}],
@@ -71,6 +72,7 @@ fn validates_options_and_keeps_templates_lazy() {
             "cssTemplate": "{{#if", "htmlTemplate": "{{#if", "html": true
         })
         .to_string(),
+        None,
     )
     .unwrap();
     assert!(session.font("woff").unwrap().is_none());
@@ -87,14 +89,14 @@ fn single_actions_use_retained_sources_and_preserve_state_on_error() {
         "types": ["ttf"], "incremental": true, "formatOptions": {"ttf": {"ts": 0}}
     });
     let assert_outputs = |session: &FontSession, options: &serde_json::Value| {
-        let fresh = FontSession::new(&options.to_string()).unwrap();
+        let fresh = FontSession::new(&options.to_string(), None).unwrap();
         assert_eq!(
             session.font("ttf").unwrap().unwrap().to_vec(),
             fresh.font("ttf").unwrap().unwrap().to_vec()
         );
         assert_eq!(session.css().unwrap(), fresh.css().unwrap());
     };
-    let mut session = FontSession::new(&options.to_string()).unwrap();
+    let mut session = FontSession::new(&options.to_string(), None).unwrap();
     let error = session.add("invalid", None).unwrap_err();
     assert_eq!(
         String::from(js_sys::Error::from(error).message()),
@@ -138,4 +140,28 @@ fn single_actions_use_retained_sources_and_preserve_state_on_error() {
         "SVG source \"second\": Failed to inspect SVG root element: the document does not have a root node"
     );
     assert_outputs(&session, &options);
+}
+
+#[wasm_bindgen_test]
+fn cache_bytes_round_trip_through_sessions() {
+    let options = json!({
+        "sources": [{"id": "icon", "name": "icon", "svg": SVG}],
+        "types": ["ttf", "woff2"],
+        "formatOptions": {"ttf": {"ts": 0}}
+    })
+    .to_string();
+    let mut cold = FontSession::new(&options, Some(Vec::new())).unwrap();
+    let bytes = cold
+        .cache_bytes()
+        .expect("a cold cache produces bytes")
+        .to_vec();
+    assert!(cold.cache_bytes().is_none());
+    let mut warm = FontSession::new(&options, Some(bytes)).unwrap();
+    assert!(warm.cache_bytes().is_none());
+    assert_eq!(
+        warm.font("woff2").unwrap().unwrap().to_vec(),
+        cold.font("woff2").unwrap().unwrap().to_vec()
+    );
+    let mut uncached = FontSession::new(&options, None).unwrap();
+    assert!(uncached.cache_bytes().is_none());
 }

@@ -10,19 +10,25 @@
 //! fail it or change its output.
 
 mod codec;
-#[cfg(test)]
+#[cfg(all(test, feature = "fs"))]
 mod tests;
 
 use std::array::from_fn;
 use std::collections::HashMap;
+#[cfg(feature = "fs")]
 use std::fs::{self, File};
+#[cfg(feature = "fs")]
 use std::io::{ErrorKind, Read, Result};
 use std::mem::take;
+#[cfg(feature = "fs")]
 use std::ops::Deref;
+#[cfg(feature = "fs")]
 use std::path::{Path, PathBuf};
+#[cfg(feature = "fs")]
 use std::process;
 use std::str::from_utf8;
 use std::sync::Arc;
+#[cfg(feature = "fs")]
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 
 use flate2::Crc;
@@ -42,6 +48,7 @@ const MAGIC: &[u8; 8] = b"WFGCACHE";
 /// Bump when the file layout or any persisted type's meaning changes.
 const FORMAT_VERSION: u32 = 1;
 const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
+#[cfg(feature = "fs")]
 const EXTENSION: &str = "wfcache";
 /// Entries kept per format: the current one plus the most recent different one, so builds that
 /// differ only in a format option (e.g. dev and production WOFF2 quality) don't evict each other.
@@ -131,6 +138,7 @@ struct FontEntry {
 }
 
 /// Counts reported by [`clear_cache`].
+#[cfg(feature = "fs")]
 #[derive(Default)]
 #[cfg_attr(test, derive(Debug, PartialEq, Eq))]
 pub struct ClearCacheReport {
@@ -143,6 +151,7 @@ pub struct ClearCacheReport {
 /// Remove every file the generation cache created in `cache_location`, including temporary
 /// files left by interrupted writes. Other files in the directory are left untouched, and a
 /// missing directory is not an error.
+#[cfg(feature = "fs")]
 pub fn clear_cache(cache_location: impl AsRef<Path>) -> Result<ClearCacheReport> {
     let entries = match fs::read_dir(cache_location) {
         Ok(entries) => entries,
@@ -173,17 +182,19 @@ pub fn clear_cache(cache_location: impl AsRef<Path>) -> Result<ClearCacheReport>
 /// Cache contents for one generation, independent of where the bytes live: identity, decoded
 /// entries, and everything needed to look up and produce updated bytes.
 pub(crate) struct CacheState {
-    file_name: String,
-    font_prefix: String,
     fingerprint: [u8; 16],
-    /// Body checksum and length of the loaded file, to skip rewriting identical bytes without
-    /// keeping a second copy of them.
+    /// Body checksum and length of the bytes last loaded or returned by `update`, to skip
+    /// rewriting identical bytes without keeping a second copy of them.
     loaded: Option<(u32, usize)>,
     processed_signature: Option<[u8; 16]>,
     parsed: HashMap<[u8; 16], Arc<CachedGlyph>>,
     processed: HashMap<[u8; 16], CachedProcessedGlyph>,
     fonts: Vec<FontEntry>,
     glyph_set: [u8; 16],
+    /// Digest of the settings each format depends on, in `FONT_TYPES` order, kept so keys can be
+    /// recomputed when the glyphs change.
+    #[cfg(feature = "in_memory")]
+    settings_digests: [[u8; 16]; 5],
     /// Level 1 key per format, in `FONT_TYPES` order.
     font_keys: [[u8; 16]; 5],
 }
@@ -195,23 +206,9 @@ impl CacheState {
         // level 1 keys need. Those stay out of the file identity so formats share one file.
         let glyph_settings = with_format_options(&settings, &[]);
         let fingerprint = digest(&(FORMAT_VERSION, ENGINE_VERSION, &glyph_settings));
-        let font_prefix = sanitize(&options.font_name);
-        let file_name = format!("{font_prefix}.{}.{EXTENSION}", &hex(&fingerprint)[..16]);
-        let glyphs: Vec<Value> = sources
-            .iter()
-            .map(|source| {
-                json!([
-                    source.glyph_name,
-                    options.codepoints.get(&source.glyph_name),
-                    hex(&source_content_hash(&source.contents)),
-                ])
-            })
-            .collect();
-        let glyph_set = digest(&glyphs);
+        let glyph_set = glyph_set(options, sources);
         let settings_digests = format_settings_digests(&settings);
         Self {
-            file_name,
-            font_prefix,
             fingerprint,
             loaded: None,
             processed_signature: None,
@@ -219,8 +216,21 @@ impl CacheState {
             processed: HashMap::new(),
             fonts: Vec::new(),
             glyph_set,
+            #[cfg(feature = "in_memory")]
+            settings_digests,
             font_keys: font_keys(&settings_digests, &glyph_set),
         }
+    }
+
+    #[cfg(feature = "in_memory")]
+    /// Re-identify the glyphs after a membership or content change that kept the settings.
+    pub(crate) fn refresh_glyph_set(
+        &mut self,
+        options: &ResolvedGenerationOptions,
+        sources: &[LoadedSvgSource],
+    ) {
+        self.glyph_set = glyph_set(options, sources);
+        self.font_keys = font_keys(&self.settings_digests, &self.glyph_set);
     }
 
     /// Adopt previously saved bytes. Anything that doesn't decode for this identity is ignored.
@@ -233,6 +243,13 @@ impl CacheState {
             self.processed.clear();
             self.fonts.clear();
         }
+    }
+
+    /// Free the decoded glyphs once they seeded a glyph cache: `update` rebuilds them from it.
+    #[cfg(feature = "in_memory")]
+    pub(crate) fn release_glyphs(&mut self) {
+        self.parsed = HashMap::new();
+        self.processed = HashMap::new();
     }
 
     fn font_key(&self, font_type: FontType) -> [u8; 16] {
@@ -279,9 +296,10 @@ impl CacheState {
     }
 
     /// Replace level 2 with `glyph_cache` (current sources only) and add level 1 entries from
-    /// `outputs`. Returns the new bytes, or `None` when they equal the loaded ones.
+    /// `outputs`. Returns the new bytes, or `None` when they equal the last loaded or returned
+    /// ones.
     pub(crate) fn update(
-        mut self,
+        &mut self,
         svg_options: &SvgOptions,
         sources: &[LoadedSvgSource],
         glyph_cache: &GlyphCache,
@@ -297,7 +315,11 @@ impl CacheState {
                 continue;
             }
             let hash = source_content_hash(&source.contents);
-            if let Some(glyph) = glyph_cache.entries.get(&source.id)
+            // Glyphs reused straight from the cache are only indexed by content hash.
+            if let Some(glyph) = glyph_cache
+                .entries
+                .get(&source.id)
+                .or_else(|| glyph_cache.by_content_hash.get(&hash))
                 && glyph.color_layers.is_none()
             {
                 self.parsed.insert(hash, glyph.clone());
@@ -337,9 +359,14 @@ impl CacheState {
         self.fonts = fonts;
 
         let (encoded, body_checksum) = self.encode();
-        // ponytail: a CRC32 collision skips one write; the old file stays valid for its own keys,
-        // so output is unaffected and the next change rewrites it.
-        (self.loaded != Some((body_checksum, encoded.len()))).then_some(encoded)
+        let identity = Some((body_checksum, encoded.len()));
+        // ponytail: a CRC32 collision skips one write; the old bytes stay valid for their own
+        // keys, so output is unaffected and the next change rewrites them.
+        if self.loaded == identity {
+            return None;
+        }
+        self.loaded = identity;
+        Some(encoded)
     }
 
     /// The file bytes and their body checksum.
@@ -473,6 +500,7 @@ impl CacheState {
 
 /// Whether `path` is a cache file (checked by its name and header) or a temporary file left by an
 /// interrupted cache write (checked by its exact generated name).
+#[cfg(feature = "fs")]
 fn created_by_cache(path: &Path) -> bool {
     let name = path.file_name().unwrap_or_default().to_string_lossy();
     if let Some(stem) = name.strip_suffix(&format!(".{EXTENSION}")) {
@@ -482,12 +510,14 @@ fn created_by_cache(path: &Path) -> bool {
     }
 }
 
+#[cfg(feature = "fs")]
 /// The font prefix of a cache file stem shaped `<prefix>.<16 hex digits>`.
 fn cache_stem(stem: &str) -> Option<&str> {
     let (prefix, hash) = stem.rsplit_once('.')?;
     (hash.len() == 16 && hash.bytes().all(|byte| byte.is_ascii_hexdigit())).then_some(prefix)
 }
 
+#[cfg(feature = "fs")]
 /// The cache file stem of a temporary file named `<stem>.wfcache.<pid>-<write>.tmp`, as `write`
 /// creates them.
 fn temp_file_stem(name: &str) -> Option<&str> {
@@ -499,6 +529,7 @@ fn temp_file_stem(name: &str) -> Option<&str> {
     (digits(pid) && digits(write)).then_some(stem)
 }
 
+#[cfg(feature = "fs")]
 /// Whether `path` starts with the cache magic. Only the header is read, however large the file is.
 fn has_cache_header(path: &Path) -> bool {
     let mut header = [0; MAGIC.len()];
@@ -508,11 +539,15 @@ fn has_cache_header(path: &Path) -> bool {
 }
 
 /// The `cacheLocation` file for one generation.
+#[cfg(feature = "fs")]
 pub(crate) struct DiskCache {
     dir: PathBuf,
+    file_name: String,
+    font_prefix: String,
     state: CacheState,
 }
 
+#[cfg(feature = "fs")]
 impl Deref for DiskCache {
     type Target = CacheState;
 
@@ -521,6 +556,7 @@ impl Deref for DiskCache {
     }
 }
 
+#[cfg(feature = "fs")]
 impl DiskCache {
     pub(crate) fn open(
         dir: &str,
@@ -529,10 +565,20 @@ impl DiskCache {
     ) -> Self {
         let dir = PathBuf::from(dir);
         let mut state = CacheState::new(options, sources);
-        if let Ok(bytes) = fs::read(dir.join(&state.file_name)) {
+        let font_prefix = sanitize(&options.font_name);
+        let file_name = format!(
+            "{font_prefix}.{}.{EXTENSION}",
+            &hex(&state.fingerprint)[..16]
+        );
+        if let Ok(bytes) = fs::read(dir.join(&file_name)) {
             state.load(bytes);
         }
-        Self { dir, state }
+        Self {
+            dir,
+            file_name,
+            font_prefix,
+            state,
+        }
     }
 
     /// Persist the updated cache. Best effort: an unwritable location only costs the next run its
@@ -545,8 +591,12 @@ impl DiskCache {
         outputs: &FontOutputs,
         types: &[FontType],
     ) {
-        let Self { dir, state } = self;
-        let (file_name, font_prefix) = (state.file_name.clone(), state.font_prefix.clone());
+        let Self {
+            dir,
+            file_name,
+            font_prefix,
+            mut state,
+        } = self;
         if let Some(bytes) = state.update(svg_options, sources, glyph_cache, outputs, types) {
             let path = dir.join(&file_name);
             match write(&dir, &file_name, &bytes) {
@@ -563,6 +613,7 @@ impl DiskCache {
     }
 }
 
+#[cfg(feature = "fs")]
 fn write(dir: &Path, file_name: &str, bytes: &[u8]) -> Result<()> {
     fs::create_dir_all(dir)?;
     // Unique per write within this process, so concurrent generations never share a file.
@@ -578,6 +629,7 @@ fn write(dir: &Path, file_name: &str, bytes: &[u8]) -> Result<()> {
 /// Drop older files for the same font name: they belong to superseded glyph settings.
 // ponytail: two configs sharing a font name but differing in glyph settings evict each other
 // (each run is then cold). Key the prefix by more than the font name if that shows up.
+#[cfg(feature = "fs")]
 fn prune_siblings(dir: &Path, file_name: &str, font_prefix: &str) {
     for entry in fs::read_dir(dir).into_iter().flatten().flatten() {
         let name = entry.file_name();
@@ -660,6 +712,22 @@ fn digest(value: &impl Serialize) -> [u8; 16] {
     compute(to_vec(value).expect("cache identity serializes")).0
 }
 
+/// Identifies the ordered glyph names, codepoints, and source contents.
+fn glyph_set(options: &ResolvedGenerationOptions, sources: &[LoadedSvgSource]) -> [u8; 16] {
+    let glyphs: Vec<Value> = sources
+        .iter()
+        .map(|source| {
+            json!([
+                source.glyph_name,
+                options.codepoints.get(&source.glyph_name),
+                hex(&source_content_hash(&source.contents)),
+            ])
+        })
+        .collect();
+    digest(&glyphs)
+}
+
+#[cfg(feature = "fs")]
 fn sanitize(font_name: &str) -> String {
     font_name
         .chars()

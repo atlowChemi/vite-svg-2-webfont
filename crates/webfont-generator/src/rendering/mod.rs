@@ -14,7 +14,6 @@ use serde_json::{Map, Value};
 pub(crate) use css::{SharedTemplateData, build_css_context};
 #[cfg(feature = "fs")]
 pub(crate) use files::load_html_template;
-#[cfg(feature = "fs")]
 pub(crate) use fingerprint::font_settings_json;
 #[cfg(feature = "fs")]
 pub(crate) use html::build_html_context;

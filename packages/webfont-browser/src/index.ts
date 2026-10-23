@@ -13,7 +13,9 @@ function json(value: unknown): string {
  * `runtime.workerUrl` selects a separately hosted worker; keep its WASM file beside it.
  */
 export async function generateWebfonts(options: GenerateWebfontsOptions, runtime: { workerUrl?: string | URL } = {}): Promise<WebfontResult> {
-    const encoded = json(options);
+    // Cache bytes travel beside the JSON settings rather than as a number array inside them.
+    const { cache, ...settings } = options;
+    const encoded = json(settings);
     const worker = runtime.workerUrl
         ? new Worker(runtime.workerUrl, { type: 'module', name: 'webfont-browser' })
         : new Worker(new URL('./worker.js', import.meta.url), { type: 'module', name: 'webfont-browser' });
@@ -57,7 +59,7 @@ export async function generateWebfonts(options: GenerateWebfontsOptions, runtime
     }
 
     try {
-        await request({ method: 'generate', options: encoded });
+        await request({ method: 'generate', options: encoded, cache });
     } catch (error) {
         close(error instanceof Error ? error : new Error(String(error)));
         throw error;
@@ -68,6 +70,7 @@ export async function generateWebfonts(options: GenerateWebfontsOptions, runtime
         generateCss: () => request<string>({ method: 'css' }),
         generateHtml: () => request<string>({ method: 'html' }),
         collectOutputs: () => request<CollectedOutputs>({ method: 'outputs' }),
+        exportCache: () => request<Uint8Array<ArrayBuffer> | undefined>({ method: 'cache' }),
         regenerate: async (membership: SourceMembership, changes: SourceChange[]): Promise<void> => {
             await request({ method: 'regenerate', membership: json(membership), changes: json(changes) });
         },

@@ -13,7 +13,6 @@ use crate::types::{FontType, color::ResolvedColorSelection};
 
 /// Font-affecting settings: the URL-hash fingerprint without CSS/HTML-only fields, file paths,
 /// and codepoints (callers that need codepoints hash them per glyph). Object keys are sorted.
-#[cfg(feature = "fs")]
 pub(crate) fn font_settings_json(options: &ResolvedGenerationOptions) -> Value {
     let mut settings = FontFingerprint::from(options);
     settings.css = None;

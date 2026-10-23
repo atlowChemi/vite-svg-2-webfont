@@ -35,6 +35,8 @@ it('accepts SVG text and variants with serializable options and an optional work
         ),
     ).toEqualTypeOf<Promise<WebfontResult>>();
     expectTypeOf<GenerateWebfontsOptions['colorGlyphs']>().toEqualTypeOf<true | string[] | undefined>();
+    expectTypeOf<GenerateWebfontsOptions['cache']>().toEqualTypeOf<Uint8Array | undefined>();
+    expectTypeOf<WebfontResult['exportCache']>().toEqualTypeOf<() => Promise<Uint8Array<ArrayBuffer> | undefined>>();
     // @ts-expect-error Browser inputs are SVG text, not filesystem paths.
     void generateWebfonts({ files: ['square.svg'] });
     // @ts-expect-error Templates are inline strings, not callbacks.

@@ -85,6 +85,8 @@ pub(crate) struct ResolvedGenerationOptions {
     pub start_codepoint: u32,
     pub template_options: Option<serde_json::Map<String, serde_json::Value>>,
     pub types: Vec<FontType>,
+    /// TTF timestamp when `formatOptions.ttf.ts` is unset; deliberately not part of cache keys.
+    pub fallback_ts: Option<i64>,
 }
 
 impl GenerationOptions {
@@ -161,6 +163,7 @@ impl GenerationOptions {
             start_codepoint: self.start_codepoint.unwrap_or(0xF101),
             template_options: self.template_options,
             types,
+            fallback_ts: None,
         })
     }
 }

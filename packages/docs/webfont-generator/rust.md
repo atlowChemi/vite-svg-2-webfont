@@ -170,13 +170,15 @@ let outputs = result.collect_outputs()?;
 `GenerateWebfontsFromSourcesOptions` uses the same applicable settings and defaults as
 `GenerateWebfontsOptions`, with these differences:
 
-| Field                                      | Meaning                                                                                                  |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------- |
-| `sources: Vec<SvgSource>`                  | Ordered `{ id, name, svg }` records; empty when using variants.                                          |
-| `variants: Option<Vec<SourceFontVariant>>` | Ordered `{ name, sources, weight, default }` designs, using the existing weight and missing-glyph rules. |
-| `css_template`, `html_template`            | Optional Handlebars **text**. `None` uses the built-in renderer; `Some("")` renders empty text.          |
-| `css_fonts_url`                            | Optional URL prefix. Both CSS and HTML default to relative font filenames with a generation fingerprint. |
-| `incremental`                              | Retain caches for source updates; default false.                                                         |
+| Field                                      | Meaning                                                                                                                        |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
+| `sources: Vec<SvgSource>`                  | Ordered `{ id, name, svg }` records; empty when using variants.                                                                |
+| `variants: Option<Vec<SourceFontVariant>>` | Ordered `{ name, sources, weight, default }` designs, using the existing weight and missing-glyph rules.                       |
+| `css_template`, `html_template`            | Optional Handlebars **text**. `None` uses the built-in renderer; `Some("")` renders empty text.                                |
+| `css_fonts_url`                            | Optional URL prefix. Both CSS and HTML default to relative font filenames with a generation fingerprint.                       |
+| `incremental`                              | Retain caches for source updates; default false.                                                                               |
+| `cache: Option<Vec<u8>>`                   | Persistent cache bytes from `cache_bytes()`, or empty to start cold; see [below](#persistent-cache-bytes).                     |
+| `fallback_ts: Option<i64>`                 | TTF timestamp when `format_options.ttf.ts` is unset, for targets without a system clock (WebAssembly). Not part of cache keys. |
 
 There are no destination, writing, or path-based rename controls. Font formats, metrics,
 codepoints, normalization, alignment, ligatures, color selection, template data and format
@@ -194,6 +196,21 @@ External SVG image paths are ignored by the parser's text-mode resolver, includi
 parsing embedded SVG data. No filesystem-resource scan or custom rejection diagnostic is
 performed.
 
+### Persistent cache bytes
+
+Set `cache: Some(bytes)` (an empty vector starts cold) to reuse work from an earlier run without
+a filesystem, for example from browser storage. The bytes use the same format as
+[`cache_location`](#persistent-cache) files, and the same rules apply: unchanged icons and formats
+are reused, output is byte-identical, and bytes from another engine version or other settings are
+ignored. `result.cache_bytes()` (`&mut self`) encodes the current state, including incremental
+updates, and returns `None` when caching is off, nothing changed since the bytes were loaded or
+last returned, or a failed update left the result without its glyph data (the next successful
+update restores it). Single-design only; variant families ignore `cache`.
+
+`fallback_ts` supplies the TTF timestamp on targets without a system clock. Unlike
+`format_options.ttf.ts`, it isn't part of cache keys, so later runs with another clock still reuse
+cached fonts, which keep the timestamp of the run that created them.
+
 ### Result methods
 
 | Method                                                        | Result                                                                                       |
@@ -202,6 +219,7 @@ performed.
 | `ttf_bytes()`, `eot_bytes()`, `woff_bytes()`, `woff2_bytes()` | `Option<&[u8]>`                                                                              |
 | `generate_css()`, `generate_html()`                           | `std::io::Result<Arc<String>>`; renders once and shares the cached text.                     |
 | `collect_outputs()`                                           | `std::io::Result<Vec<CollectedOutput>>`; shares font payloads and enabled companion renders. |
+| `cache_bytes()`                                               | `Option<Vec<u8>>`; persistent cache bytes to store, see [above](#persistent-cache-bytes).    |
 
 `CollectedOutput` contains `kind: OutputKind` (`Font(FontType)`, `Css`, or `Html`) and
 `contents: OutputContents` (`Bytes(Arc<Vec<u8>>)` or `Text(Arc<String>)`). Use `as_bytes()`
