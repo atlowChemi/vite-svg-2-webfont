@@ -13,7 +13,6 @@ export type GenerateWebfontsOptions = {
      * bytes is up to your app, for example in IndexedDB (they are several MB for hundreds of
      * icons). Without a fixed `formatOptions.ttf.ts`, reused fonts keep the timestamp of the
      * session that created them.
-     * Single-design only; variant families ignore it.
      */
     cache?: Uint8Array;
     sources?: SvgSource[];

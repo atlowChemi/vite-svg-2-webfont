@@ -46,8 +46,7 @@ pub struct GenerateWebfontsFromSourcesOptions {
     /// [`cache_bytes`](super::GenerateWebfontsFromSourcesResult::cache_bytes), or an empty vector
     /// to start cold. Unchanged icons skip parsing and processing, and unchanged formats are
     /// reused. Output is byte-identical to an uncached run. Bytes from another engine version or
-    /// other settings are ignored. Not deserialized: pass binary data directly. Single-design only;
-    /// variant families ignore it.
+    /// other settings are ignored. Not deserialized: pass binary data directly.
     #[serde(skip)]
     pub cache: Option<Vec<u8>>,
     /// TTF `head` timestamp used when `formatOptions.ttf.ts` is unset, for environments without a
