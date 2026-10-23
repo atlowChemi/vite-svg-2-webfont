@@ -4,6 +4,7 @@
     "private": true,
     "type": "module",
     "scripts": {
+        "test:compat": "node scripts/compat.mjs",
         "audit": "node scripts/audit.mjs",
         "audit:negative": "node scripts/negative.mjs",
         "build": "node scripts/cargo.mjs build --locked",

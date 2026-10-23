@@ -53,6 +53,8 @@ jobs:
               run: git diff --exit-code HEAD -- pnpm-lock.yaml
             - name: Verify dormant command and prerequisite parity
               run: vp run next:verify
+            - name: Verify installed pnpm cache semantics
+              run: vp exec node crates/cache-audit/scripts/compat.mjs
             - name: Record toolchain identity
               run: |
                   mkdir -p artifacts/cache-audit

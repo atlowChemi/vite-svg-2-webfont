@@ -102,7 +102,13 @@ local example configuration without hashing its contents into every task.
 
 ## Supported coverage semantics and boundaries
 
-- Pinned to pnpm **12.13.0** and **wax 0.7.0**; other package-manager pins fail.
+- Supports stable pnpm **12.x starting at 12.13** and uses **wax 0.7.0**.
+  Routine minor/patch upgrades do not require editing a version allowlist. CI runs
+  `scripts/compat.mjs` against the installed pnpm to check replacement/default/
+  additive inputs, ignored and untracked files, dependency/environment invalidation,
+  and output restoration. Explicit unsupported configuration still fails. New
+  majors and prereleases require a semantics review. The cache implementation and
+  pipeline configuration code are unchanged between 12.13.0 and 12.14.0.
 - Git enumerates tracked and untracked nonignored project-local files **before**
   execution. Parent-path input patterns cannot extend that set. Missing files
   are skipped, outputs removed, replacement/additive patterns applied, and the
@@ -156,6 +162,7 @@ on Linux:
 
 ```sh
 vp exec node scripts/verify-pipelines.mjs
+vp exec node crates/cache-audit/scripts/compat.mjs
 vp exec node scripts/verify-pipelines.mjs --run
 vp exec node crates/cache-audit/scripts/audit.mjs --all
 vp exec node crates/cache-audit/scripts/negative.mjs
