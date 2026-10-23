@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.10.0...webfont-engine-v0.10.1) (2026-10-23)
+
+
+### Performance Improvements
+
+* **webfont-generator:** reduce optimized glyph finalization time by 15-21% in CI benchmarks ([edf8a5f](https://github.com/atlowChemi/vite-svg-2-webfont/commit/edf8a5f786b23f8b760690c3594f6b95522c3a46))
+
 ## [0.10.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.9.0...webfont-engine-v0.10.0) (2026-10-18)
 
 ### Features

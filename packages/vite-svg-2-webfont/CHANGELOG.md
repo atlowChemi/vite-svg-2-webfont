@@ -1,5 +1,14 @@
 # Changelog
 
+## [8.5.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.5.0...vite-svg-2-webfont-v8.5.1) (2026-10-23)
+
+
+### Dependencies
+
+* The following workspace dependencies were updated
+  * dependencies
+    * @atlowchemi/webfont-generator bumped to 0.10.1
+
 ## [8.5.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.4.0...vite-svg-2-webfont-v8.5.0) (2026-10-18)
 
 ### Features
