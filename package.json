@@ -8,7 +8,28 @@
         "node": "^22 || ^24 || >=26"
     },
     "scripts": {
-        "prepare": "vp config"
+        "prepare": "vp config",
+        "next:pipeline": "node scripts/next-pipeline.mjs",
+        "next:verify": "node scripts/verify-pipelines.mjs",
+        "next:fmt:rust": "cargo fmt --all -- --check",
+        "next:engine:check": "pnpm --dir crates/webfont-generator run next:check",
+        "next:engine:test": "pnpm --dir crates/webfont-generator run next:test",
+        "next:engine:features": "pnpm --dir crates/webfont-generator run next:test:features",
+        "next:native": "pnpm --dir packages/webfont-generator run next:build",
+        "next:adapter:check": "pnpm --dir packages/webfont-generator run next:check",
+        "next:adapter:test": "pnpm --dir packages/webfont-generator run next:test",
+        "next:wasm": "pnpm --dir packages/webfont-browser run next:build",
+        "next:browser:pack": "pnpm --dir packages/webfont-browser run next:pack",
+        "next:browser:check": "pnpm --dir packages/webfont-browser run next:check",
+        "next:browser:test": "pnpm --dir packages/webfont-browser run next:test",
+        "next:plugin:pack": "pnpm --dir packages/vite-svg-2-webfont run next:pack",
+        "next:plugin:test": "pnpm --dir packages/vite-svg-2-webfont run next:test",
+        "next:docs:svg": "node scripts/next-pipeline.mjs --require-fingerprint && pnpm --dir packages/docs run next:optimize-svg",
+        "next:docs:social": "pnpm --dir packages/docs run next:social-card",
+        "next:docs": "pnpm --dir packages/docs run next:build",
+        "next:example": "pnpm --dir packages/example run next:build",
+        "next:test:js": "vp test --run",
+        "next:coverage": "vp test --run --coverage --project='!*-browser*'"
     },
     "devDependencies": {
         "@atlowchemi/webfont-generator": "workspace:*",

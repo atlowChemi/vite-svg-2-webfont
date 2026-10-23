@@ -1,4 +1,5 @@
 [workspace]
 members = ["crates/webfont-generator", "packages/webfont-generator", "packages/webfont-browser"]
 default-members = ["crates/webfont-generator"]
+exclude = ["crates/cache-audit"]
 resolver = "3"

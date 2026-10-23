@@ -1,0 +1,75 @@
+# Reviewed native-build filesystem policy. Passing it does not fingerprint
+# toolchain/env state or activate task caching; content assertions are preconditions.
+version: 1
+tasks:
+    '.#next:native':
+        missingInputs:
+            - pattern: '**/.gitignore'
+              reason: 'Git discovery probes; existing and future ignore configuration is keyed'
+            - pattern: '{crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**/*.rs'
+              reason: 'Rust module alternatives and Cargo target source-file discovery; these are regular-file inputs if present'
+            - pattern: '**/Cargo.toml'
+              reason: 'Cargo manifest file discovery'
+            - pattern: '**/.cargo/{config,config.toml}'
+              reason: 'Optional Cargo configuration files'
+            - pattern: '**/{rust-toolchain,rust-toolchain.toml}'
+              reason: 'Optional Rust toolchain selector files'
+            - pattern: '**/pnpm-workspace.yaml'
+              reason: 'pnpm workspace configuration file discovery'
+            - pattern: '**/.pnp.cjs'
+              reason: 'Optional package-loader configuration file'
+            - pattern: '{.npmrc,.pnpmfile.cjs,.pnpmfile.mjs,package.json5,package.yaml,libgcc_s.so.1}'
+              reason: 'Optional root configuration and dynamic-loader file probes'
+            - pattern: 'packages/{HEAD,webfont-generator/HEAD}'
+              reason: 'Repository marker file probes'
+            - pattern: 'packages/webfont-generator/*.{js,cjs,mjs,ts,cts,wasm}'
+              reason: 'NAPI probes optional platform loader and WASM files; generated native outputs retain independent write checks'
+            - pattern: 'pnpm11/pnpm/package.json'
+              reason: 'pnpm executable package-manifest lookup'
+        ignore:
+            - pattern: '.cargo/config.toml'
+              kinds: [read]
+              reason: 'pnpm installation shim, not user Cargo configuration; exact contents enforced before and after the build'
+              contents: |
+                  # >>> pnpm-managed cargo sources >>>
+                  [[include]]
+                  path = "../.pnpm/crates/config.toml"
+                  optional = true
+                  # <<< pnpm-managed cargo sources <<<
+            - pattern: '{.,crates,packages,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}'
+              kinds: [read]
+              reason: 'Workspace and package directory metadata; file contents remain independently checked'
+            - pattern: '{.,crates,packages}'
+              kinds: [read_dir]
+              reason: 'Workspace member discovery; root workspace configuration and member manifests are inputs'
+            - pattern: '{crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**'
+              kinds: [read_dir]
+              reason: 'Cargo target and NAPI package discovery; discovered file reads and missing-file probes are checked independently'
+            - pattern: 'packages/{.git,webfont-generator/.git}'
+              kinds: [read]
+              reason: 'Repository discovery probes; repository metadata is excluded like root .git, native versions come from package manifests'
+            - pattern: '/**'
+              reason: 'Paths outside the workspace: installed toolchain, system files, package store, and isolated Cargo target; versions require separate fingerprints'
+            - pattern: 'packages/webfont-generator/binding.{js,d.ts}'
+              kinds: [read]
+              reason: 'NAPI reads preexisting generated bindings for transactional replacement; final writes still require output declarations'
+            - pattern: 'packages/webfont-generator/*.node'
+              kinds: [read]
+              reason: 'NAPI inspects preexisting generated addons during publication; final writes still require output declarations'
+        neverCache:
+            - pattern: 'packages/.napi-rs-filesystem-reconciliation*.swp'
+              reason: 'NAPI publication coordination and stale-lock probes; not build inputs or final artifacts'
+            - pattern: 'target/**'
+              reason: 'Cargo intermediates; final artifacts are published into the adapter package'
+            - pattern: '**/node_modules/**'
+              reason: 'Installed dependencies are represented by the package lockfile, not cached as task artifacts'
+            - pattern: '.pnpm/**'
+              reason: 'pnpm-materialized dependency sources and internal installation state'
+            - pattern: '.git/**'
+              reason: 'Repository metadata is not a restored build artifact'
+            - pattern: 'packages/.webfont-generator.napi-stage-*/**'
+              reason: 'NAPI transaction staging; final artifacts are separately declared outputs'
+            - pattern: 'packages/webfont-generator/.*.tmp'
+              reason: 'NAPI prepared, retired, rollback, and atomic-write temporary files'
+            - pattern: 'packages/webfont-generator/.napi-rs-filesystem-*/**'
+              reason: 'NAPI filesystem transaction locks and temporary state'

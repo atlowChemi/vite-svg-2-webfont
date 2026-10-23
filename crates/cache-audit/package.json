@@ -1,0 +1,14 @@
+{
+    "name": "@atlowchemi/cache-audit",
+    "version": "0.0.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "test:compat": "node scripts/compat.mjs",
+        "audit": "node scripts/audit.mjs",
+        "audit:negative": "node scripts/negative.mjs",
+        "build": "node scripts/cargo.mjs build --locked",
+        "test": "node scripts/cargo.mjs test --locked",
+        "check": "node scripts/cargo.mjs clippy --locked -- -D warnings && node scripts/cargo.mjs fmt -- --check"
+    }
+}
