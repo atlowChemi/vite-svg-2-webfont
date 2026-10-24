@@ -354,6 +354,14 @@ pub struct GenerateWebfontsOptions {
     /// Slots reserve indices in ASCII name order, including unused colors. Requires active
     /// `color_glyphs`; names and RGB values must be unique. CSS context exposes name -> index.
     pub color_slots: Option<HashMap<String, String>>,
+    /// Directory for a persistent generation cache. When set, a run saves per-glyph work and
+    /// finished font bytes there, and later runs reuse them for unchanged icons and formats.
+    /// Output is byte-identical to an uncached run, except that when `formatOptions.ttf.ts` is
+    /// unset, each cached format keeps the TTF `head` timestamp of the run that created it.
+    /// The engine owns the files it creates in this directory; clear them with
+    /// [`clear_cache`](crate::clear_cache). Applies to single-design generation; variant
+    /// families ignore it. Cache read or write failures never fail generation.
+    pub cache_location: Option<String>,
     /// Font ascent in font units. Overrides the value computed from the source
     /// glyphs.
     pub ascent: Option<f64>,

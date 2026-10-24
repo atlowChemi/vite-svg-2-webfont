@@ -329,6 +329,7 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 | `descent`               | `Option<f64>`                  | --                                                                         | Font descent                                                 |
 | `normalize`             | `Option<bool>`                 | `true`                                                                     | Normalize glyph heights                                      |
 | `incremental`           | `Option<bool>`                 | `false`                                                                    | Retain parsed glyphs for `regenerate`                        |
+| `cache_location`        | `Option<String>`               | `None`                                                                     | Persistent cache directory; see [cache](#persistent-cache)   |
 | `fixed_width`           | `Option<bool>`                 | --                                                                         | Monospace font                                               |
 | `center_horizontally`   | `Option<bool>`                 | --                                                                         | Center glyphs horizontally                                   |
 | `center_vertically`     | `Option<bool>`                 | --                                                                         | Center glyphs vertically                                     |
@@ -343,6 +344,42 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 | `template_options`      | `Option<Map<String, Value>>`   | --                                                                         | Extra template context                                       |
 | `variant_class_prefix`  | `Option<String>`               | `"icon--"`                                                                 | CSS variant modifier prefix                                  |
 | `variants`              | `Option<Vec<FontVariant>>`     | --                                                                         | Ordered designs; see [`FontVariant`](#fontvariant)           |
+
+## Persistent cache
+
+Set `cache_location` to reuse work across processes. Unchanged icons skip parsing and path
+processing, and formats whose inputs didn't change come straight from the cache. Output is
+byte-identical to an uncached run, except that when `format_options.ttf.ts` is unset, each
+cached format keeps the TTF `head` timestamp of the run that created it, so formats in one output
+can carry different timestamps; set `ts` for reproducible output. See
+[`cacheLocation`](./node#cachelocation) for the full behavior (it is the same option),
+[caching across builds](./node#caching-across-builds) for CI and Docker setups, and
+[performance](./under-the-hood#persistent-cache) for measured speedups.
+
+::: warning Only restore trusted caches
+Cached fonts are reused as-is, so treat the directory as trusted build output: don't restore it
+from a less-trusted source, and clear it if in doubt.
+:::
+
+```rust
+use webfont_generator::{clear_cache, generate_sync, GenerateWebfontsOptions};
+
+let options = GenerateWebfontsOptions {
+    dest: "dist/fonts".to_owned(),
+    files: vec!["icons/add.svg".to_owned()],
+    cache_location: Some(".webfont-cache".to_owned()),
+    ..Default::default()
+};
+generate_sync(options, None)?;
+
+let report = clear_cache(".webfont-cache")?;
+println!("{} files, {} bytes", report.files_removed, report.bytes_removed);
+# Ok::<(), std::io::Error>(())
+```
+
+`clear_cache(cache_location)` requires the `fs` feature. It removes only files the cache created
+(plus leftovers from interrupted writes), leaves other files alone, and returns
+`ClearCacheReport { files_removed, bytes_removed }`. A missing directory is not an error.
 
 ## Color glyphs
 

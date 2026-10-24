@@ -716,8 +716,9 @@ if (!nativeBinding) {
   throw new Error(`Failed to load native binding`)
 }
 
-const { GenerateWebfontsResult, FontType, generateWebfonts, MissingGlyphBehavior } = nativeBinding
+const { GenerateWebfontsResult, clearCache, FontType, generateWebfonts, MissingGlyphBehavior } = nativeBinding
 export { GenerateWebfontsResult }
+export { clearCache }
 export { FontType }
 export { generateWebfonts }
 export { MissingGlyphBehavior }

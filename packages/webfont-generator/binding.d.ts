@@ -76,6 +76,21 @@ export declare class GenerateWebfontsResult {
 }
 
 /**
+ * Remove every file the generation cache created in `cacheLocation` (see the `cacheLocation`
+ * option), including leftovers from interrupted writes. Other files are left untouched, and a
+ * missing directory resolves with zero counts.
+ */
+export declare function clearCache(cacheLocation: string): Promise<ClearCacheReport>
+
+/** Files and bytes removed by `clearCache`. */
+export interface ClearCacheReport {
+  /** Number of cache files removed. */
+  filesRemoved: number
+  /** Total size of the removed files in bytes. */
+  bytesRemoved: number
+}
+
+/**
  * Fields supplied to a `cssContext` callback. Additional keys from
  * user-supplied `templateOptions` are merged into the same object at runtime,
  * so the JS-side type widens this with an open-ended index signature.
@@ -195,6 +210,12 @@ export interface GenerateWebfontsOptions {
   colorGlyphs?: true | string[]
   /** Named #RRGGBB palette slots, indexed in ASCII name order; requires active colorGlyphs. */
   colorSlots?: Record<string, string>
+  /**
+   * Directory for a persistent generation cache. Later runs reuse saved per-glyph work and
+   * font bytes for unchanged icons and formats; output is unchanged. Single-design only.
+   * Clear it with `clearCache`. Cache failures never fail generation.
+   */
+  cacheLocation?: string
   /**
    * Font ascent in font units. Overrides the value computed from the source
    * glyphs.
