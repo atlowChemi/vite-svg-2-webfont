@@ -701,7 +701,7 @@ mod cli {
     }
 
     #[test]
-    fn manifest_cache_locations_are_config_relative() {
+    fn manifest_cache_locations_are_config_relative_and_clear_cache_removes_them() {
         use serde_json::json;
         let root = std::path::PathBuf::from(super::temp_dest("cli-cache"));
         std::fs::create_dir_all(root.join("icons")).unwrap();
@@ -739,6 +739,21 @@ mod cli {
             first,
             std::fs::read(root.join("out/iconfont.woff2")).unwrap()
         );
+
+        let report = run(cli_bin()
+            .args(["clear-cache", "--cache-location"])
+            .arg(root.join(".cache")));
+        assert!(report.starts_with("Removed 1 cache file(s)"), "{report}");
+        assert_eq!(cache_files(), 0);
+
+        // A regular file is not a cache directory: report the error and fail.
+        let output = cli_bin()
+            .args(["clear-cache", "--cache-location"])
+            .arg(&path)
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).starts_with("Error: "));
         std::fs::remove_dir_all(root).unwrap();
     }
 
