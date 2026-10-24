@@ -1342,3 +1342,270 @@ fn custom_templates_and_nondefault_settings_match_the_file_adapter() {
     std::fs::remove_file(css_path).unwrap();
     std::fs::remove_file(html_path).unwrap();
 }
+
+fn cached(bytes: Vec<u8>, incremental: bool) -> GenerateWebfontsFromSourcesOptions {
+    GenerateWebfontsFromSourcesOptions {
+        sources: vec![source("a", "square", SVG), source("b", "triangle", OTHER)],
+        incremental: Some(incremental),
+        cache: Some(bytes),
+        ..options()
+    }
+}
+
+/// (parsed, processed) glyph work for an incremental result.
+fn glyph_work(result: &GenerateWebfontsFromSourcesResult) -> (usize, usize) {
+    let glyphs = &result.caches.as_ref().unwrap().glyphs;
+    (glyphs.parse_count, glyphs.process_count)
+}
+
+/// Whether an incremental result took every font from the cache (no TTF glyph or table compiled).
+fn fonts_reused(result: &GenerateWebfontsFromSourcesResult) -> bool {
+    let ttf = &result.caches.as_ref().unwrap().ttf;
+    ttf.compile_count == 0 && ttf.table_compile_count == 0
+}
+
+#[test]
+fn cache_bytes_round_trip_into_warm_byte_identical_runs() {
+    let uncached = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+        cache: None,
+        ..cached(Vec::new(), true)
+    })
+    .unwrap();
+    let mut cold = generate_from_sources_sync(cached(Vec::new(), true)).unwrap();
+    assert_fonts_equal(&cold, &uncached);
+    assert_eq!(glyph_work(&cold), (2, 2));
+    let bytes = cold.cache_bytes().unwrap();
+    // Nothing changed since the last export.
+    assert!(cold.cache_bytes().is_none());
+
+    let mut warm = generate_from_sources_sync(cached(bytes.clone(), true)).unwrap();
+    assert_fonts_equal(&warm, &uncached);
+    assert_eq!(glyph_work(&warm), (0, 0));
+    assert!(fonts_reused(&warm));
+    assert!(!fonts_reused(&cold));
+    assert!(warm.cache_bytes().is_none());
+
+    // Without incremental caches, the result keeps the glyph data needed for export.
+    let mut one_shot = generate_from_sources_sync(cached(bytes, false)).unwrap();
+    assert_fonts_equal(&one_shot, &uncached);
+    assert!(one_shot.cache_bytes().is_none());
+}
+
+#[test]
+fn cache_bytes_follow_incremental_updates() {
+    let mut result = generate_from_sources_sync(cached(Vec::new(), true)).unwrap();
+    let initial = result.cache_bytes().unwrap();
+    result
+        .regenerate_sync(
+            membership(&["a", "b"]),
+            vec![SourceChange::Changed {
+                id: "b".into(),
+                svg: SVG.replace("H20", "H16"),
+                name: None,
+            }],
+        )
+        .unwrap();
+    let updated = result.cache_bytes().unwrap();
+    assert_ne!(updated, initial);
+
+    let mut edited = cached(updated, true);
+    edited.sources[1].svg = SVG.replace("H20", "H16");
+    let warm = generate_from_sources_sync(edited.clone()).unwrap();
+    assert_eq!(glyph_work(&warm), (0, 0));
+    // Keys follow the updated glyphs, so the exported fonts are reused too.
+    assert!(fonts_reused(&warm));
+    edited.cache = None;
+    assert_fonts_equal(&warm, &generate_from_sources_sync(edited).unwrap());
+}
+
+#[test]
+fn a_warm_result_follows_edits_renames_and_additions() {
+    let bytes = generate_from_sources_sync(cached(Vec::new(), true))
+        .unwrap()
+        .cache_bytes()
+        .unwrap();
+    let mut warm = generate_from_sources_sync(cached(bytes, true)).unwrap();
+    assert_eq!(glyph_work(&warm), (0, 0));
+    assert!(fonts_reused(&warm));
+    warm.regenerate_sync(
+        membership(&["a", "b", "c"]),
+        vec![
+            SourceChange::Changed {
+                id: "a".into(),
+                svg: SVG.into(),
+                name: Some("box".into()),
+            },
+            SourceChange::Changed {
+                id: "b".into(),
+                svg: SVG.replace("H20", "H16"),
+                name: None,
+            },
+            SourceChange::Added(source("c", "circle", &SVG.replace("H20", "H12"))),
+        ],
+    )
+    .unwrap();
+
+    let mut current = GenerateWebfontsFromSourcesOptions {
+        sources: vec![
+            source("a", "box", SVG),
+            source("b", "triangle", &SVG.replace("H20", "H16")),
+            source("c", "circle", &SVG.replace("H20", "H12")),
+        ],
+        ..cached(Vec::new(), true)
+    };
+    current.cache = None;
+    assert_fonts_equal(&warm, &generate_from_sources_sync(current.clone()).unwrap());
+
+    // The exported bytes warm a fresh run of the edited set completely.
+    current.cache = warm.cache_bytes();
+    assert!(current.cache.is_some());
+    let rewarmed = generate_from_sources_sync(current.clone()).unwrap();
+    assert_eq!(glyph_work(&rewarmed), (0, 0));
+    assert!(fonts_reused(&rewarmed));
+    current.cache = None;
+    assert_fonts_equal(&rewarmed, &generate_from_sources_sync(current).unwrap());
+}
+
+#[test]
+fn a_failed_update_never_exports_a_weaker_cache() {
+    let mut result = generate_from_sources_sync(cached(Vec::new(), true)).unwrap();
+    let initial = result.cache_bytes().unwrap();
+    let broken = |svg: &str| {
+        vec![SourceChange::Changed {
+            id: "b".into(),
+            svg: svg.into(),
+            name: None,
+        }]
+    };
+    assert!(
+        result
+            .regenerate_sync(membership(&["a", "b"]), broken("<svg"))
+            .is_err()
+    );
+    // The failure reset the glyph data; exporting now would drop it from the stored cache.
+    assert_eq!(result.cache_bytes(), None);
+
+    // The next successful update refills it, and the export is complete again.
+    let edited = SVG.replace("H20", "H16");
+    result
+        .regenerate_sync(membership(&["a", "b"]), broken(&edited))
+        .unwrap();
+    let mut next = cached(result.cache_bytes().unwrap(), true);
+    assert_ne!(next.cache.as_deref(), Some(initial.as_slice()));
+    next.sources[1].svg = edited;
+    assert_eq!(
+        glyph_work(&generate_from_sources_sync(next).unwrap()),
+        (0, 0)
+    );
+}
+
+#[test]
+fn a_fallback_timestamp_is_used_but_kept_out_of_cache_keys() {
+    let session = |fallback_ts, cache| GenerateWebfontsFromSourcesOptions {
+        format_options: None,
+        fallback_ts: Some(fallback_ts),
+        cache,
+        ..cached(Vec::new(), true)
+    };
+    // Without a cache it behaves exactly like `ts`.
+    let mut pinned = session(1_700_000_000, None);
+    pinned.fallback_ts = None;
+    pinned.format_options = options().format_options;
+    assert_fonts_equal(
+        &generate_from_sources_sync(session(1_700_000_000, None)).unwrap(),
+        &generate_from_sources_sync(pinned).unwrap(),
+    );
+
+    // A later session with another clock reuses every font, keeping the first session's
+    // timestamp, and leaves the stored bytes unchanged.
+    let mut first = generate_from_sources_sync(session(1_700_000_000, Some(Vec::new()))).unwrap();
+    let bytes = first.cache_bytes().unwrap();
+    let mut later = generate_from_sources_sync(session(1_800_000_000, Some(bytes))).unwrap();
+    assert!(fonts_reused(&later));
+    assert_fonts_equal(&later, &first);
+    assert_eq!(later.cache_bytes(), None);
+}
+
+#[test]
+fn unusable_or_unrequested_cache_bytes_are_ignored() {
+    let expected = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+        cache: None,
+        ..cached(Vec::new(), true)
+    })
+    .unwrap();
+    let valid = generate_from_sources_sync(cached(Vec::new(), true))
+        .unwrap()
+        .cache_bytes()
+        .unwrap();
+
+    let mut wrong_version = valid.clone();
+    wrong_version[8] ^= 0xff;
+    // Valid header, corrupted body: a flipped byte inside the last stored font still parses, so
+    // only the checksum can catch it.
+    let mut flipped_payload = valid.clone();
+    let last = flipped_payload.len() - 10;
+    flipped_payload[last] ^= 0xff;
+    let mut trailing = valid.clone();
+    trailing.extend_from_slice(b"extra");
+    for bytes in [
+        b"not a cache".to_vec(),
+        Vec::new(),
+        wrong_version,
+        valid[..valid.len() / 2].to_vec(),
+        flipped_payload,
+        trailing,
+    ] {
+        let mut result = generate_from_sources_sync(cached(bytes, true)).unwrap();
+        assert_fonts_equal(&result, &expected);
+        assert_eq!(glyph_work(&result), (2, 2));
+        // The run exports a fresh, valid cache in place of the unusable bytes.
+        assert_eq!(result.cache_bytes().unwrap(), valid);
+    }
+
+    let mut uncached = generate_from_sources_sync(options()).unwrap();
+    assert!(uncached.cache_bytes().is_none());
+    let mut family = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+        cache: Some(Vec::new()),
+        ..variant_options()
+    })
+    .unwrap();
+    assert!(family.cache_bytes().is_none());
+}
+
+#[cfg(feature = "fs")]
+#[test]
+fn memory_cache_bytes_are_the_file_cache_format() {
+    let dir = std::env::temp_dir()
+        .join(format!("wfg-memory-file-cache-{}", std::process::id()))
+        .to_string_lossy()
+        .into_owned();
+    std::fs::create_dir_all(&dir).unwrap();
+    let svg_path = std::path::Path::new(&dir).join("square.svg");
+    std::fs::write(&svg_path, SVG).unwrap();
+    let cache_dir = std::path::Path::new(&dir).join("cache");
+    let file_options = GenerateWebfontsOptions {
+        dest: dir.clone(),
+        files: vec![svg_path.to_string_lossy().into_owned()],
+        types: options().types,
+        format_options: options().format_options,
+        write_files: Some(false),
+        cache_location: Some(cache_dir.to_string_lossy().into_owned()),
+        ..Default::default()
+    };
+    crate::generate_sync(file_options, None).unwrap();
+    let file = std::fs::read_dir(&cache_dir)
+        .unwrap()
+        .next()
+        .unwrap()
+        .unwrap()
+        .path();
+
+    let warm = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+        sources: vec![source("x", "square", SVG)],
+        cache: Some(std::fs::read(file).unwrap()),
+        ..options()
+    })
+    .unwrap();
+    assert_eq!(glyph_work(&warm), (0, 0));
+    std::fs::remove_dir_all(dir).unwrap();
+}

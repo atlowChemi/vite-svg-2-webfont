@@ -12,13 +12,18 @@ vi.mock('../generated/webfont_browser.js', async importOriginal => {
 let scope: EventTarget;
 let respond: (response: Response) => void;
 let id = 0;
-beforeEach(async () => {
+/** Load a fresh worker module on its own message target, as a new worker would be. */
+async function startWorker(): Promise<void> {
     vi.resetModules();
     scope = Object.assign(new EventTarget(), { postMessage: (response: Response) => respond(structuredClone(response)) });
     vi.stubGlobal('self', scope);
     await import('../src/worker');
+}
+beforeEach(startWorker);
+afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
 });
-afterEach(() => vi.restoreAllMocks());
 
 function request(payload: RequestPayload): Promise<Response> {
     return new Promise(resolve => {
@@ -105,4 +110,97 @@ it('preserves standard error details across the message boundary and continues a
         },
     });
     expect(await request({ method: 'css' })).toMatchObject({ ok: true, value: expect.stringContaining('@font-face') });
+});
+
+it('passes cache bytes to the session and exports updated bytes', async () => {
+    expect(await request({ method: 'generate', options, cache: new Uint8Array() })).toMatchObject({ ok: true });
+    const exported = await request({ method: 'cache' });
+    expect(exported).toMatchObject({ ok: true, value: expect.any(Uint8Array) });
+    expect(await request({ method: 'cache' })).toEqual({ id: expect.any(Number), ok: true, value: undefined });
+});
+
+const allFormats = JSON.stringify({ ...JSON.parse(options), types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] });
+
+/** Uncached outputs (every format) and a valid exported cache for `allFormats`, from two fresh workers. */
+async function baseline(): Promise<{ outputs: Response; cache: Uint8Array }> {
+    expect(await request({ method: 'generate', options: allFormats })).toMatchObject({ ok: true });
+    const outputs = await request({ method: 'outputs' });
+    await startWorker();
+    expect(await request({ method: 'generate', options: allFormats, cache: new Uint8Array() })).toMatchObject({ ok: true });
+    expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
+    const exported = await request({ method: 'cache' });
+    if (!exported.ok || !(exported.value instanceof Uint8Array)) throw new Error('expected exported cache bytes');
+    await startWorker();
+    return { outputs, cache: exported.value };
+}
+
+it('produces identical outputs from a warm cache', async () => {
+    const { outputs, cache } = await baseline();
+    expect(await request({ method: 'generate', options: allFormats, cache })).toMatchObject({ ok: true });
+    expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
+    expect(await request({ method: 'cache' })).toEqual({ id: expect.any(Number), ok: true, value: undefined });
+});
+
+/** The font outputs of an `outputs` response, without CSS and HTML. */
+function fonts(response: Response): Record<string, Uint8Array> {
+    if (!response.ok) throw new Error('expected outputs');
+    const { css: _, html: __, ...rest } = response.value as Record<string, Uint8Array>;
+    return rest;
+}
+
+it('reuses cached fonts across sessions with the default browser clock', async () => {
+    const clockOptions = JSON.stringify({ ...JSON.parse(allFormats), formatOptions: undefined });
+    vi.useFakeTimers({ now: 1_700_000_000_000, toFake: ['Date'] });
+    expect(await request({ method: 'generate', options: clockOptions, cache: new Uint8Array() })).toMatchObject({ ok: true });
+    const outputs = await request({ method: 'outputs' });
+    const exported = await request({ method: 'cache' });
+    if (!exported.ok || !(exported.value instanceof Uint8Array)) throw new Error('expected exported cache bytes');
+    // The faked clock reached the engine: the fonts match an explicit timestamp of that time (CSS
+    // differs only in its settings hash).
+    await startWorker();
+    const pinned = JSON.stringify({ ...JSON.parse(allFormats), formatOptions: { ttf: { ts: 1_700_000_000 } } });
+    expect(await request({ method: 'generate', options: pinned })).toMatchObject({ ok: true });
+    expect(fonts(await request({ method: 'outputs' }))).toEqual(fonts(outputs));
+
+    // A later session has another clock, yet every font comes back unchanged and the stored bytes stay valid.
+    vi.setSystemTime(1_800_000_000_000);
+    await startWorker();
+    expect(await request({ method: 'generate', options: clockOptions, cache: exported.value })).toMatchObject({ ok: true });
+    expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
+    expect(await request({ method: 'cache' })).toEqual({ id: expect.any(Number), ok: true, value: undefined });
+});
+
+it.each([
+    ['an invalid header', () => new TextEncoder().encode('not a cache')],
+    ['an empty buffer', () => new Uint8Array()],
+    [
+        'an unknown format version',
+        (valid: Uint8Array) => {
+            const copy = valid.slice();
+            copy[8]! ^= 0xff;
+            return copy;
+        },
+    ],
+    ['a truncated body', (valid: Uint8Array) => valid.subarray(0, valid.length >> 1)],
+    [
+        'a flipped byte inside a stored font',
+        (valid: Uint8Array) => {
+            const flipped = valid.slice();
+            flipped[flipped.length - 10]! ^= 0xff;
+            return flipped;
+        },
+    ],
+    [
+        'trailing bytes',
+        (valid: Uint8Array) => {
+            const longer = new Uint8Array(valid.length + 5);
+            longer.set(valid);
+            return longer;
+        },
+    ],
+])('falls back to identical outputs for cache bytes with %s and exports a fresh cache', async (_, corrupt) => {
+    const { outputs, cache } = await baseline();
+    expect(await request({ method: 'generate', options: allFormats, cache: corrupt(cache) })).toMatchObject({ ok: true });
+    expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
+    expect(await request({ method: 'cache' })).toEqual({ id: expect.any(Number), ok: true, value: cache });
 });

@@ -355,7 +355,11 @@ impl GenerateWebfontsFromSourcesResult {
             return Ok(());
         }
 
-        let fonts = build(&mut staged, self.caches.as_mut(), &updates)?;
+        let built = build(&mut staged, self.caches.as_mut(), &updates);
+        if let Some(persistent) = self.persistent.as_mut() {
+            persistent.caches_reset = built.is_err();
+        }
+        let fonts = built?;
         let names_unchanged = self
             .options
             .sources

@@ -80,7 +80,7 @@
 pub mod bench_support;
 #[cfg(any(feature = "fs", feature = "in_memory"))]
 mod byte_helpers;
-#[cfg(feature = "fs")]
+#[cfg(any(feature = "fs", feature = "in_memory"))]
 mod cache;
 #[cfg(any(feature = "fs", feature = "in_memory"))]
 mod formats;
