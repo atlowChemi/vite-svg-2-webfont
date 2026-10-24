@@ -103,7 +103,7 @@ pub(crate) struct VariantGlyphCache {
     pub(crate) parsed: Vec<types::GlyphCache>,
     pub(crate) processed:
         std::collections::HashMap<(usize, String, u64), types::CachedProcessedGlyph>,
-    signature: Option<[u8; 16]>,
+    pub(crate) signature: Option<[u8; 16]>,
     #[cfg(test)]
     pub(crate) process_count: usize,
     #[cfg(test)]

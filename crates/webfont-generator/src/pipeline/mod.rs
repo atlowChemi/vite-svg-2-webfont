@@ -3,6 +3,9 @@ use std::sync::Arc;
 
 use rayon::join;
 
+#[cfg(feature = "fs")]
+use crate::cache::DiskCache;
+use crate::cache::{CacheState, CachedFont};
 use crate::formats::woff1::Woff1PayloadCache;
 use crate::formats::woff2::Woff2TransformCache;
 use crate::formats::{eot, woff1, woff2};
@@ -10,18 +13,24 @@ use crate::formats::{eot, woff1, woff2};
 use crate::incremental::RegenerationState;
 #[cfg(feature = "fs")]
 use crate::input::ResolvedFileGenerationOptions;
-use crate::input::{LoadedSvgSource, ResolvedGenerationOptions, ResolvedVariants};
+use crate::input::{
+    LoadedSvgSource, ResolvedGenerationOptions, ResolvedVariants, VariantFamilySources,
+};
 use crate::result::FontOutputs;
 #[cfg(feature = "fs")]
 use crate::result::GenerateWebfontsResult;
 use crate::sfnt;
 use crate::sfnt::CachedCompiledGlyph;
-use crate::svg::build_svg_font;
-use crate::svg::prepare_svg_font_incremental;
 use crate::svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
+use crate::svg::{
+    VariantGlyphCache, build_svg_font, prepare_svg_font_incremental,
+    prepare_variant_svg_family_cached,
+};
 #[cfg(feature = "fs")]
 use crate::svg::{prepare_svg_font, svg_options_from_options};
 use crate::types::FontType;
+#[cfg(feature = "fs")]
+use crate::{prepare_variant_family, resolve_content_variant_sources};
 
 #[cfg(all(test, feature = "fs"))]
 mod variant_tests {
@@ -155,7 +164,7 @@ pub(crate) fn generate_webfonts_sync(
     let disk = options
         .cache_location
         .as_deref()
-        .map(|dir| crate::cache::DiskCache::open(dir, &options, &source_files));
+        .map(|dir| DiskCache::open(dir, &options, &source_files));
 
     // When incremental, retain the parsed-glyph cache so a later `regenerate` can reuse the
     // glyphs whose source didn't change. Otherwise the geometry is dropped as soon as the font
@@ -221,16 +230,10 @@ pub(crate) fn build_with_cache(
     options: &ResolvedGenerationOptions,
     svg_options: &SvgOptions<'_>,
     sources: &[LoadedSvgSource],
-    state: &crate::cache::CacheState,
+    state: &CacheState,
     ttf_cache: Option<&mut TtfGlyphCache>,
 ) -> std::io::Result<(FontOutputs, Option<GlyphCache>, bool)> {
-    let hits = state.font_hits(&options.types);
-    let missing: Vec<FontType> = options
-        .types
-        .iter()
-        .copied()
-        .filter(|font_type| hits.iter().all(|hit| hit.font_type() != *font_type))
-        .collect();
+    let (hits, missing) = split_hits(state, &options.types);
     // Only a run whose fonts all came from the cache may skip glyph work: with no formats
     // requested, the SVGs must still be parsed (and so validated) as without a cache.
     let full_hit = !hits.is_empty() && missing.is_empty();
@@ -251,14 +254,87 @@ pub(crate) fn build_with_cache(
     Ok((fonts, glyph_cache, !full_hit))
 }
 
+/// Cached output for each requested format with a current entry, and the formats still to build.
+fn split_hits(state: &CacheState, types: &[FontType]) -> (Vec<CachedFont>, Vec<FontType>) {
+    let hits = state.font_hits(types);
+    let missing = types
+        .iter()
+        .copied()
+        .filter(|font_type| hits.iter().all(|hit| hit.font_type() != *font_type))
+        .collect();
+    (hits, missing)
+}
+
+/// Variant counterpart of [`build_with_cache`]. When every format hits, the family is never
+/// prepared.
+pub(crate) fn build_variant_with_cache<Files: AsRef<[LoadedSvgSource]>>(
+    options: &ResolvedGenerationOptions,
+    variants: &ResolvedVariants,
+    svg_options: &SvgOptions<'_>,
+    family: &VariantFamilySources<Files>,
+    state: &CacheState,
+) -> std::io::Result<(FontOutputs, Option<VariantGlyphCache>, bool)> {
+    let (hits, missing) = split_hits(state, &options.types);
+    // As for single designs, an empty format list still prepares (and validates) the family.
+    let full_hit = !hits.is_empty() && missing.is_empty();
+    let mut glyph_cache = (options.incremental || !full_hit)
+        .then(|| state.hydrate_variants(svg_options, &family.variants));
+    let mut fonts = if let Some(glyph_cache) = glyph_cache.as_mut().filter(|_| !full_hit) {
+        let prepared = prepare_variant_svg_family_cached(svg_options, family, Some(glyph_cache))?;
+        let mut subset = options.clone();
+        subset.types.clone_from(&missing);
+        build_content_variant_outputs(&subset, variants, &prepared)?
+    } else {
+        FontOutputs::default()
+    };
+    for font in hits {
+        font.place(&mut fonts);
+    }
+    Ok((fonts, glyph_cache, !full_hit))
+}
+
 #[cfg(feature = "fs")]
 pub(crate) fn generate_variant_webfonts_sync(
-    options: ResolvedFileGenerationOptions,
-    source_files: Vec<LoadedSvgSource>,
-    family: crate::svg::types::PreparedVariantFamily,
-    cache: Option<crate::svg::VariantGlyphCache>,
+    mut options: ResolvedFileGenerationOptions,
+    source_files: Vec<Vec<LoadedSvgSource>>,
 ) -> std::io::Result<GenerateWebfontsResult> {
-    let fonts = build_variant_font_outputs(&options, &family)?;
+    let (fonts, cache, source_files) = if let Some(dir) = options.cache_location.clone() {
+        let variants = options
+            .variants
+            .as_ref()
+            .expect("variant generation requires resolved variants");
+        let family = resolve_content_variant_sources(
+            &mut options.common,
+            variants,
+            source_files.iter().map(Vec::as_slice).collect(),
+        )?;
+        let disk = DiskCache::open_variant(&dir, &options, variants, &family);
+        let svg_options = svg_options_from_options(&options);
+        let outcome = build_variant_with_cache(&options, variants, &svg_options, &family, &disk);
+        let (fonts, glyph_cache, built) = outcome?;
+        if built && let Some(glyph_cache) = &glyph_cache {
+            disk.store_variants(
+                &svg_options,
+                &family.variants,
+                glyph_cache,
+                &fonts,
+                &options.types,
+            );
+        }
+        let glyph_cache = glyph_cache.filter(|_| options.incremental);
+        (
+            fonts,
+            glyph_cache,
+            source_files.into_iter().flatten().collect(),
+        )
+    } else {
+        let (family, source_files, cache) = prepare_variant_family(&mut options, source_files)?;
+        (
+            build_variant_font_outputs(&options, &family)?,
+            cache,
+            source_files,
+        )
+    };
     let regeneration_state = if options.incremental {
         Some(RegenerationState {
             variant_cache: cache,

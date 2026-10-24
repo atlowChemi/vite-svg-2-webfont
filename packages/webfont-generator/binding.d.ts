@@ -212,8 +212,8 @@ export interface GenerateWebfontsOptions {
   colorSlots?: Record<string, string>
   /**
    * Directory for a persistent generation cache. Later runs reuse saved per-glyph work and
-   * font bytes for unchanged icons and formats; output is unchanged. Single-design only.
-   * Clear it with `clearCache`. Cache failures never fail generation.
+   * font bytes for unchanged icons and formats, including variant families; output is
+   * unchanged. Clear it with `clearCache`. Cache failures never fail generation.
    */
   cacheLocation?: string
   /**

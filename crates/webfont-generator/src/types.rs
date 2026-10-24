@@ -359,8 +359,8 @@ pub struct GenerateWebfontsOptions {
     /// Output is byte-identical to an uncached run, except that when `formatOptions.ttf.ts` is
     /// unset, each cached format keeps the TTF `head` timestamp of the run that created it.
     /// The engine owns the files it creates in this directory; clear them with
-    /// [`clear_cache`](crate::clear_cache). Applies to single-design generation; variant
-    /// families ignore it. Cache read or write failures never fail generation.
+    /// [`clear_cache`](crate::clear_cache). Variant families are cached too, in their own file.
+    /// Cache read or write failures never fail generation.
     pub cache_location: Option<String>,
     /// Font ascent in font units. Overrides the value computed from the source
     /// glyphs.

@@ -66,7 +66,7 @@ flowchart TD
     end
 ```
 
-This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs. See [multi-variant fonts](./node#multi-variant-fonts) and [color selection](./node#color-selection) for usage.
+This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs, and the [persistent cache](#persistent-cache), which saves each design's monochrome glyphs by content and advance width. See [multi-variant fonts](./node#multi-variant-fonts) and [color selection](./node#color-selection) for usage.
 
 ## Performance
 
@@ -147,7 +147,7 @@ Multi-weight families use a variant compilation path to produce TTF, WOFF, and W
 
 #### Persistent cache
 
-Incremental generation helps within one process. The opt-in [`cacheLocation`](./node#cachelocation) carries saved work across processes—a new dev server, a CLI run, or a CI job with a restored cache. Values are milliseconds with the native default settings from the tables above; **Warm speedup** is the uncached time divided by the warm time.
+Incremental generation helps within one process. The opt-in [`cacheLocation`](./node#cachelocation) carries saved work across processes—a new dev server, a CLI run, or a CI job with a restored cache—for single designs and variant families alike. Values are milliseconds with the native default settings from the tables above; **Warm speedup** is the uncached time divided by the warm time.
 
 ##### macOS
 

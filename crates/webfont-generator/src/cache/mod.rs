@@ -6,6 +6,9 @@
 //! - level 1: finished font bytes per format, keyed by everything that affects those bytes, so
 //!   unchanged formats skip glyph work and encoding (including WOFF2 compression) entirely.
 //!
+//! Variant families use their own file (the design list is part of its identity), with processed
+//! glyphs keyed by content hash and advance width instead of by source.
+//!
 //! Every read or write failure degrades to a miss: the cache can make generation faster, never
 //! fail it or change its output.
 
@@ -26,7 +29,6 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 #[cfg(feature = "fs")]
 use std::process;
-use std::str::from_utf8;
 use std::sync::Arc;
 #[cfg(feature = "fs")]
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
@@ -37,16 +39,19 @@ use serde::Serialize;
 use serde_json::{Value, json, to_vec};
 
 use self::codec::{Reader, Writer};
-use crate::input::{LoadedSvgSource, ResolvedGenerationOptions};
+use crate::input::{
+    LoadedSvgSource, ResolvedGenerationOptions, ResolvedVariants, VariantFamilySources,
+    VariantGlyphSource,
+};
 use crate::rendering::font_settings_json;
 use crate::result::FontOutputs;
-use crate::svg::source_content_hash;
 use crate::svg::types::{CachedGlyph, CachedProcessedGlyph, GlyphCache, SvgOptions};
+use crate::svg::{VariantGlyphCache, source_content_hash};
 use crate::types::FontType;
 
 const MAGIC: &[u8; 8] = b"WFGCACHE";
 /// Bump when the file layout or any persisted type's meaning changes.
-const FORMAT_VERSION: u32 = 1;
+const FORMAT_VERSION: u32 = 2;
 const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg(feature = "fs")]
 const EXTENSION: &str = "wfcache";
@@ -189,6 +194,8 @@ pub(crate) struct CacheState {
     processed_signature: Option<[u8; 16]>,
     parsed: HashMap<[u8; 16], Arc<CachedGlyph>>,
     processed: HashMap<[u8; 16], CachedProcessedGlyph>,
+    /// Variant families: processed glyphs per content hash and advance width bits.
+    variant_processed: HashMap<[u8; 16], Vec<(u64, CachedProcessedGlyph)>>,
     fonts: Vec<FontEntry>,
     glyph_set: [u8; 16],
     /// Digest of the settings each format depends on, in `FONT_TYPES` order, kept so keys can be
@@ -201,19 +208,45 @@ pub(crate) struct CacheState {
 
 impl CacheState {
     pub(crate) fn new(options: &ResolvedGenerationOptions, sources: &[LoadedSvgSource]) -> Self {
-        let settings = font_settings_json(options);
+        Self::with_identity(&font_settings_json(options), glyph_set(options, sources))
+    }
+
+    /// A variant family's cache: the designs (names, weights, default) join the settings, so its
+    /// file never collides with a single-design cache for the same font name.
+    pub(crate) fn new_variant<Files: AsRef<[LoadedSvgSource]>>(
+        options: &ResolvedGenerationOptions,
+        variants: &ResolvedVariants,
+        family: &VariantFamilySources<Files>,
+    ) -> Self {
+        let mut settings = font_settings_json(options);
+        let designs: Vec<_> = variants
+            .variants
+            .iter()
+            .map(|variant| json!([variant.name, variant.weight]))
+            .collect();
+        settings
+            .as_object_mut()
+            .expect("settings are an object")
+            .insert(
+                "variants".to_owned(),
+                json!({ "default": variants.default_index, "designs": designs }),
+            );
+        Self::with_identity(&settings, variant_glyph_set(family))
+    }
+
+    fn with_identity(settings: &Value, glyph_set: [u8; 16]) -> Self {
         // Level 2 validity depends on everything except per-format encoding options, which only
         // level 1 keys need. Those stay out of the file identity so formats share one file.
-        let glyph_settings = with_format_options(&settings, &[]);
+        let glyph_settings = with_format_options(settings, &[]);
         let fingerprint = digest(&(FORMAT_VERSION, ENGINE_VERSION, &glyph_settings));
-        let glyph_set = glyph_set(options, sources);
-        let settings_digests = format_settings_digests(&settings);
+        let settings_digests = format_settings_digests(settings);
         Self {
             fingerprint,
             loaded: None,
             processed_signature: None,
             parsed: HashMap::new(),
             processed: HashMap::new(),
+            variant_processed: HashMap::new(),
             fonts: Vec::new(),
             glyph_set,
             #[cfg(feature = "in_memory")]
@@ -223,13 +256,10 @@ impl CacheState {
     }
 
     #[cfg(feature = "in_memory")]
-    /// Re-identify the glyphs after a membership or content change that kept the settings.
-    pub(crate) fn refresh_glyph_set(
-        &mut self,
-        options: &ResolvedGenerationOptions,
-        sources: &[LoadedSvgSource],
-    ) {
-        self.glyph_set = glyph_set(options, sources);
+    /// Re-identify the glyphs (from [`glyph_set`] or [`variant_glyph_set`]) after a membership
+    /// or content change that kept the settings.
+    pub(crate) fn refresh_glyph_set(&mut self, glyph_set: [u8; 16]) {
+        self.glyph_set = glyph_set;
         self.font_keys = font_keys(&self.settings_digests, &self.glyph_set);
     }
 
@@ -241,15 +271,18 @@ impl CacheState {
             self.processed_signature = None;
             self.parsed.clear();
             self.processed.clear();
+            self.variant_processed.clear();
             self.fonts.clear();
         }
     }
 
-    /// Free the decoded glyphs once they seeded a glyph cache: `update` rebuilds them from it.
+    /// Free the decoded glyphs once they seeded a glyph cache: `update` and `update_variants`
+    /// rebuild them from it.
     #[cfg(feature = "in_memory")]
     pub(crate) fn release_glyphs(&mut self) {
         self.parsed = HashMap::new();
         self.processed = HashMap::new();
+        self.variant_processed = HashMap::new();
     }
 
     fn font_key(&self, font_type: FontType) -> [u8; 16] {
@@ -295,6 +328,41 @@ impl CacheState {
         cache
     }
 
+    /// Seed a variant glyph cache so unchanged monochrome glyphs skip parse and processing.
+    pub(crate) fn hydrate_variants<Files: AsRef<[LoadedSvgSource]>>(
+        &self,
+        svg_options: &SvgOptions,
+        variants: &[Files],
+    ) -> VariantGlyphCache {
+        let mut cache = VariantGlyphCache {
+            signature: self.processed_signature,
+            ..Default::default()
+        };
+        for (index, files) in variants.iter().enumerate() {
+            let mut parsed = GlyphCache::default();
+            for source in files.as_ref() {
+                if svg_options.selects_color(&source.glyph_name) {
+                    continue;
+                }
+                let hash = source_content_hash(&source.contents);
+                let Some(glyph) = self.parsed.get(&hash) else {
+                    continue;
+                };
+                // A known content hash marks the entry current, so preparation keeps it.
+                parsed.entries.insert(source.id.clone(), glyph.clone());
+                parsed.content_hashes.insert(source.id.clone(), hash);
+                parsed.by_content_hash.insert(hash, glyph.clone());
+                for (advance, glyph) in self.variant_processed.get(&hash).into_iter().flatten() {
+                    cache
+                        .processed
+                        .insert((index, source.id.clone(), *advance), glyph.clone());
+                }
+            }
+            cache.parsed.push(parsed);
+        }
+        cache
+    }
+
     /// Replace level 2 with `glyph_cache` (current sources only) and add level 1 entries from
     /// `outputs`. Returns the new bytes, or `None` when they equal the last loaded or returned
     /// ones.
@@ -331,7 +399,59 @@ impl CacheState {
             }
         }
         self.processed_signature = glyph_cache.processed_signature;
+        self.finish(outputs, types)
+    }
 
+    /// Variant counterpart of [`Self::update`]: level 2 comes from `glyph_cache`, restricted to
+    /// the current `variants` sources.
+    pub(crate) fn update_variants<Files: AsRef<[LoadedSvgSource]>>(
+        &mut self,
+        svg_options: &SvgOptions,
+        variants: &[Files],
+        glyph_cache: &VariantGlyphCache,
+        outputs: &FontOutputs,
+        types: &[FontType],
+    ) -> Option<Vec<u8>> {
+        self.parsed.clear();
+        self.variant_processed.clear();
+        let mut hashes = HashMap::new();
+        for (index, files) in variants.iter().enumerate() {
+            let Some(parsed) = glyph_cache.parsed.get(index) else {
+                continue;
+            };
+            for source in files.as_ref() {
+                let hash = source_content_hash(&source.contents);
+                // ponytail: color glyphs aren't persisted, as for single designs.
+                if svg_options.selects_color(&source.glyph_name)
+                    || parsed.content_hashes.get(&source.id) != Some(&hash)
+                {
+                    continue;
+                }
+                if let Some(glyph) = parsed.entries.get(&source.id)
+                    && glyph.color_layers.is_none()
+                {
+                    self.parsed.insert(hash, glyph.clone());
+                    hashes.insert((index, source.id.as_str()), hash);
+                }
+            }
+        }
+        for ((index, id, advance), glyph) in &glyph_cache.processed {
+            if let Some(hash) = hashes.get(&(*index, id.as_str()))
+                && glyph.color_layers.is_none()
+            {
+                let entries = self.variant_processed.entry(*hash).or_default();
+                if entries.iter().all(|(known, _)| known != advance) {
+                    entries.push((*advance, glyph.clone()));
+                }
+            }
+        }
+        self.processed_signature = glyph_cache.signature;
+        self.finish(outputs, types)
+    }
+
+    /// Add level 1 entries from `outputs` and encode. Returns the new bytes, or `None` when they
+    /// equal the last loaded or returned ones.
+    fn finish(&mut self, outputs: &FontOutputs, types: &[FontType]) -> Option<Vec<u8>> {
         let mut fonts: Vec<FontEntry> = types
             .iter()
             .filter_map(|font_type| {
@@ -405,16 +525,20 @@ impl CacheState {
         out.len(processed.len());
         for (hash, glyph) in processed {
             out.array(hash);
-            out.f64(glyph.height);
-            out.f64(glyph.width);
-            out.bytes(glyph.path_data.as_bytes());
-            match (&glyph.ttf_path, glyph.ttf_path_hash) {
-                (Some(path), Some(path_hash)) => {
-                    out.u8(1);
-                    out.u64(path_hash);
-                    out.bez_path(path);
-                }
-                _ => out.u8(0),
+            out.processed_glyph(glyph);
+        }
+
+        let mut variant_processed: Vec<_> = self.variant_processed.iter().collect();
+        variant_processed.sort_unstable_by_key(|(hash, _)| **hash);
+        out.len(variant_processed.len());
+        for (hash, entries) in variant_processed {
+            out.array(hash);
+            let mut entries: Vec<_> = entries.iter().collect();
+            entries.sort_unstable_by_key(|(advance, _)| *advance);
+            out.len(entries.len());
+            for (advance, glyph) in entries {
+                out.u64(*advance);
+                out.processed_glyph(glyph);
             }
         }
 
@@ -463,24 +587,16 @@ impl CacheState {
 
         for _ in 0..input.len(16)? {
             let hash = input.array()?;
-            let height = input.f64()?;
-            let width = input.f64()?;
-            let path_data = from_utf8(input.bytes()?).ok()?.into();
-            let (ttf_path_hash, ttf_path) = match input.u8()? {
-                0 => (None, None),
-                _ => (Some(input.u64()?), Some(input.bez_path()?)),
-            };
-            self.processed.insert(
-                hash,
-                CachedProcessedGlyph {
-                    color_layers: None,
-                    height,
-                    path_data,
-                    ttf_path,
-                    ttf_path_hash,
-                    width,
-                },
-            );
+            self.processed.insert(hash, input.processed_glyph()?);
+        }
+
+        for _ in 0..input.len(16)? {
+            let hash = input.array()?;
+            let mut entries = Vec::new();
+            for _ in 0..input.len(8)? {
+                entries.push((input.u64()?, input.processed_glyph()?));
+            }
+            self.variant_processed.insert(hash, entries);
         }
 
         for _ in 0..input.len(33)? {
@@ -563,9 +679,22 @@ impl DiskCache {
         options: &ResolvedGenerationOptions,
         sources: &[LoadedSvgSource],
     ) -> Self {
+        Self::load(dir, &options.font_name, CacheState::new(options, sources))
+    }
+
+    pub(crate) fn open_variant<Files: AsRef<[LoadedSvgSource]>>(
+        dir: &str,
+        options: &ResolvedGenerationOptions,
+        variants: &ResolvedVariants,
+        family: &VariantFamilySources<Files>,
+    ) -> Self {
+        let state = CacheState::new_variant(options, variants, family);
+        Self::load(dir, &options.font_name, state)
+    }
+
+    fn load(dir: &str, font_name: &str, mut state: CacheState) -> Self {
         let dir = PathBuf::from(dir);
-        let mut state = CacheState::new(options, sources);
-        let font_prefix = sanitize(&options.font_name);
+        let font_prefix = sanitize(font_name);
         let file_name = format!(
             "{font_prefix}.{}.{EXTENSION}",
             &hex(&state.fingerprint)[..16]
@@ -584,20 +713,42 @@ impl DiskCache {
     /// Persist the updated cache. Best effort: an unwritable location only costs the next run its
     /// warm start.
     pub(crate) fn store(
-        self,
+        mut self,
         svg_options: &SvgOptions,
         sources: &[LoadedSvgSource],
         glyph_cache: &GlyphCache,
         outputs: &FontOutputs,
         types: &[FontType],
     ) {
+        let bytes = self
+            .state
+            .update(svg_options, sources, glyph_cache, outputs, types);
+        self.save(bytes);
+    }
+
+    /// Variant counterpart of [`Self::store`].
+    pub(crate) fn store_variants<Files: AsRef<[LoadedSvgSource]>>(
+        mut self,
+        svg_options: &SvgOptions,
+        variants: &[Files],
+        glyph_cache: &VariantGlyphCache,
+        outputs: &FontOutputs,
+        types: &[FontType],
+    ) {
+        let bytes = self
+            .state
+            .update_variants(svg_options, variants, glyph_cache, outputs, types);
+        self.save(bytes);
+    }
+
+    fn save(self, bytes: Option<Vec<u8>>) {
         let Self {
             dir,
             file_name,
             font_prefix,
-            mut state,
+            ..
         } = self;
-        if let Some(bytes) = state.update(svg_options, sources, glyph_cache, outputs, types) {
+        if let Some(bytes) = bytes {
             let path = dir.join(&file_name);
             match write(&dir, &file_name, &bytes) {
                 Ok(()) => prune_siblings(&dir, &file_name, &font_prefix),
@@ -713,7 +864,10 @@ fn digest(value: &impl Serialize) -> [u8; 16] {
 }
 
 /// Identifies the ordered glyph names, codepoints, and source contents.
-fn glyph_set(options: &ResolvedGenerationOptions, sources: &[LoadedSvgSource]) -> [u8; 16] {
+pub(crate) fn glyph_set(
+    options: &ResolvedGenerationOptions,
+    sources: &[LoadedSvgSource],
+) -> [u8; 16] {
     let glyphs: Vec<Value> = sources
         .iter()
         .map(|source| {
@@ -722,6 +876,34 @@ fn glyph_set(options: &ResolvedGenerationOptions, sources: &[LoadedSvgSource]) -
                 options.codepoints.get(&source.glyph_name),
                 hex(&source_content_hash(&source.contents)),
             ])
+        })
+        .collect();
+    digest(&glyphs)
+}
+
+/// Identifies a variant family's ordered glyph names and codepoints, and the source contents
+/// (or blank) each design uses for them, which also captures missing-glyph resolution.
+pub(crate) fn variant_glyph_set<Files: AsRef<[LoadedSvgSource]>>(
+    family: &VariantFamilySources<Files>,
+) -> [u8; 16] {
+    let glyphs: Vec<Value> = family
+        .glyphs
+        .iter()
+        .map(|glyph| {
+            let designs: Vec<Option<String>> = glyph
+                .sources
+                .iter()
+                .map(|source| match source {
+                    Some(VariantGlyphSource::Source {
+                        variant_index,
+                        source_index,
+                    }) => Some(hex(&source_content_hash(
+                        &family.variants[*variant_index].as_ref()[*source_index].contents,
+                    ))),
+                    _ => None,
+                })
+                .collect();
+            json!([glyph.name, glyph.codepoint, designs])
         })
         .collect();
     digest(&glyphs)

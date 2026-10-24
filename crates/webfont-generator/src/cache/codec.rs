@@ -2,10 +2,13 @@
 //! truncated or malformed input yields `None`, which callers treat as a cache miss.
 
 use std::slice::from_ref;
+use std::str::from_utf8;
 use std::sync::Arc;
 
 use kurbo::{BezPath, PathEl, Point};
 use usvg::tiny_skia_path::{Path as TinyPath, PathBuilder, PathVerb};
+
+use crate::svg::types::CachedProcessedGlyph;
 
 #[derive(Default)]
 pub(super) struct Writer(pub(super) Vec<u8>);
@@ -84,6 +87,21 @@ impl Writer {
                 self.f64(point.x);
                 self.f64(point.y);
             }
+        }
+    }
+
+    /// A monochrome processed glyph (color layers are never persisted).
+    pub(super) fn processed_glyph(&mut self, glyph: &CachedProcessedGlyph) {
+        self.f64(glyph.height);
+        self.f64(glyph.width);
+        self.bytes(glyph.path_data.as_bytes());
+        match (&glyph.ttf_path, glyph.ttf_path_hash) {
+            (Some(path), Some(path_hash)) => {
+                self.u8(1);
+                self.u64(path_hash);
+                self.bez_path(path);
+            }
+            _ => self.u8(0),
         }
     }
 }
@@ -182,6 +200,24 @@ impl<'a> Reader<'a> {
             });
         }
         Some(Arc::new(BezPath::from_vec(elements)))
+    }
+
+    pub(super) fn processed_glyph(&mut self) -> Option<CachedProcessedGlyph> {
+        let height = self.f64()?;
+        let width = self.f64()?;
+        let path_data = from_utf8(self.bytes()?).ok()?.into();
+        let (ttf_path_hash, ttf_path) = match self.u8()? {
+            0 => (None, None),
+            _ => (Some(self.u64()?), Some(self.bez_path()?)),
+        };
+        Some(CachedProcessedGlyph {
+            color_layers: None,
+            height,
+            path_data,
+            ttf_path,
+            ttf_path_hash,
+            width,
+        })
     }
 }
 
