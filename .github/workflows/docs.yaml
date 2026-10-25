@@ -34,6 +34,13 @@ jobs:
               with:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
+            - name: Cache docs fonts
+              uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+              with:
+                  path: packages/docs/.vitepress/cache/vite-svg-2-webfont
+                  # Invalidate for implementation changes, even before package versions are bumped.
+                  key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'pnpm-lock.yaml', 'crates/**', 'packages/webfont-generator/src/**', 'packages/webfont-generator/templates/**', 'packages/webfont-generator/package.json', 'packages/vite-svg-2-webfont/src/**') }}-${{ github.sha }}
+                  restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('Cargo.lock', 'pnpm-lock.yaml', 'crates/**', 'packages/webfont-generator/src/**', 'packages/webfont-generator/templates/**', 'packages/webfont-generator/package.json', 'packages/vite-svg-2-webfont/src/**') }}-
             - name: build docs
               run: vp run @atlowchemi/vite-svg-webfont-docs#build
             - name: upload pages artifact
