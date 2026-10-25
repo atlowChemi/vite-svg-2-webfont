@@ -15,7 +15,7 @@ pub(crate) fn parse_svg_glyph(
 ) -> Result<ParsedGlyph, Error> {
     let svg = item.source_file.contents.as_ref();
     let document = parse_svg_document(svg)?;
-    let svg = root_aspect_ratio(svg, &document, preserve_aspect_ratio)?;
+    let svg = root_aspect_ratio(svg, &document, preserve_aspect_ratio, options)?;
     let document = match &svg {
         Cow::Owned(rewritten) => parse_svg_document(rewritten)?,
         Cow::Borrowed(_) => document,
@@ -160,6 +160,7 @@ fn root_aspect_ratio<'a>(
     svg: &'a str,
     document: &roxmltree::Document<'_>,
     preserve: bool,
+    options: &usvg::Options,
 ) -> Result<Cow<'a, str>, Error> {
     let root = document.root_element();
     if !root.has_tag_name("svg") {
@@ -189,9 +190,14 @@ fn root_aspect_ratio<'a>(
     // With no dimension attributes, usvg takes the viewport size from the
     // viewBox, so meet/slice/none have the same mapping. usvg 0.49 does not
     // resolve width/height from CSS (they are not presentation attributes).
+    // Stylesheets can still select on preserveAspectRatio itself.
     if !root
         .attributes()
         .any(|attr| matches!(attr.name(), "width" | "height"))
+        && options.style_sheet.is_none()
+        && !document
+            .descendants()
+            .any(|node| node.tag_name().name() == "style")
     {
         return Ok(Cow::Borrowed(svg));
     }

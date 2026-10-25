@@ -127,18 +127,15 @@ fn root_aspect_ratio_keeps_authored_alignment_and_nested_transforms() {
 
 #[test]
 fn viewbox_only_icons_skip_rewriting_but_dimension_attributes_do_not() {
+    let options = usvg::Options::default();
     let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 10 100 50" transform="translate(10 20)"><path d="M5 10H35V30H5Z"/></svg>"#;
     for source in [
         svg.to_owned(),
         svg.replace("viewBox=", r#"style="width:200px;height:50px" viewBox="#),
-        svg.replace(
-            "<path",
-            "<style>svg { width:200px; height:50px }</style><path",
-        ),
     ] {
         let document = parse_svg_document(&source).unwrap();
         assert!(matches!(
-            root_aspect_ratio(&source, &document, false).unwrap(),
+            root_aspect_ratio(&source, &document, false, &options).unwrap(),
             Cow::Borrowed(_)
         ));
         let stretched = parse(&source, false).unwrap();
@@ -152,7 +149,7 @@ fn viewbox_only_icons_skip_rewriting_but_dimension_attributes_do_not() {
         let source = svg.replace("viewBox=", &format!("{attributes} viewBox="));
         let document = parse_svg_document(&source).unwrap();
         assert!(matches!(
-            root_aspect_ratio(&source, &document, false).unwrap(),
+            root_aspect_ratio(&source, &document, false, &options).unwrap(),
             Cow::Owned(_)
         ));
         assert_eq!(
@@ -160,6 +157,25 @@ fn viewbox_only_icons_skip_rewriting_but_dimension_attributes_do_not() {
             60.0
         );
     }
+}
+
+#[test]
+fn aspect_ratio_rewrites_still_apply_before_stylesheet_selectors() {
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
+        <style>svg[preserveAspectRatio="none"] path { transform:scale(2) }</style>
+        <path d="M5 10H35V20H5Z"/></svg>"#;
+    assert_eq!(parse(svg, false).unwrap().paths[0].bounds().width(), 60.0);
+
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"/>"#;
+    let document = parse_svg_document(svg).unwrap();
+    let options = usvg::Options {
+        style_sheet: Some(r#"svg[preserveAspectRatio="none"] path { transform:scale(2) }"#.into()),
+        ..Default::default()
+    };
+    assert!(matches!(
+        root_aspect_ratio(svg, &document, false, &options).unwrap(),
+        Cow::Owned(_)
+    ));
 }
 
 #[test]
