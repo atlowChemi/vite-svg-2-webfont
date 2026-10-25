@@ -63,6 +63,38 @@ async fn reports_file_loading_errors_in_source_order() {
 }
 
 #[tokio::test]
+async fn loads_many_files_across_tasks_in_source_order() {
+    // Enough files for several read tasks (at most one task per 16 files).
+    let paths: Vec<String> = (0..100)
+        .map(|index| {
+            let path = std::env::temp_dir()
+                .join(format!("webfont-load-{}-{index}.svg", std::process::id()));
+            std::fs::write(&path, format!("<svg id=\"{index}\" />")).unwrap();
+            path.to_string_lossy().into_owned()
+        })
+        .collect();
+
+    let loaded = load_svg_contents(&paths).await.unwrap();
+    let expected: Vec<_> = paths
+        .iter()
+        .enumerate()
+        .map(|(index, path)| (path.clone(), format!("<svg id=\"{index}\" />")))
+        .collect();
+    assert_eq!(loaded, expected);
+
+    // Missing files in different chunks: the first one in source order is reported.
+    let mut broken = paths.clone();
+    broken[40] = "/missing/forty.svg".to_owned();
+    broken[90] = "/missing/ninety.svg".to_owned();
+    let error = load_svg_contents(&broken).await.unwrap_err();
+    assert!(error.to_string().contains("/missing/forty.svg"));
+
+    for path in paths {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+#[tokio::test]
 async fn hooked_loader_uses_default_glyph_names() {
     let path = std::env::temp_dir().join(format!("webfont-input-{}-icon.svg", std::process::id()));
     std::fs::write(&path, "<svg />").unwrap();
