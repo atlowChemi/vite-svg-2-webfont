@@ -195,6 +195,13 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
      * @default false
      */
     allowWriteFilesInBuild?: boolean;
+    /**
+     * Reuse work across Vite runs: the plugin's output cache and the engine's persistent
+     * generation cache, both inside Vite's `cacheDir`. Set to `false` to generate from scratch
+     * on every run and write nothing to `cacheDir`.
+     * @default true
+     */
+    cache?: boolean;
 }
 
 /** One design's globs, relative to its context (which defaults to the family root). */

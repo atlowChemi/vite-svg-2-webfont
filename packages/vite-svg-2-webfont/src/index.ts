@@ -46,6 +46,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     let generationQueue = createGenerationQueue(ac.signal);
     let tmpDir = getTmpDir();
     const processedOptions = parseOptions(options);
+    const useCache = options.cache !== false;
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type as any));
     let isBuild: boolean;
     let cacheFolder: string;
@@ -158,8 +159,9 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     };
 
     const getCacheKey = async (input: ParsedOptions) => {
-        // cssContext is a JS callback that can change the output in ways a key can't capture.
-        if (processedOptions.cssContext) return null;
+        // Without the cache there's nothing to look up, so skip hashing every input. cssContext is a
+        // JS callback that can change the output in ways a key can't capture.
+        if (!useCache || processedOptions.cssContext) return null;
         const files = [...(input.files ?? input.variants.flatMap(variant => variant.files)), ...[input.cssTemplate, input.htmlTemplate].filter(file => file !== undefined)];
         try {
             return await computeCacheKey(input, files, [isBuild, Boolean(options.inline)], ac.signal);
@@ -198,7 +200,9 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         const html = processedOptions.html ? render(() => generatedFonts!.generateHtml()) : undefined;
         const entry: CacheEntry = { key, fonts, css, ...(moduleCss !== undefined && { moduleCss }), ...(html !== undefined && { html }) };
         // The cache is an optimization; an unwritable cacheDir must not fail generation.
-        await writeCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', entry, buffers).catch(() => undefined);
+        if (useCache) {
+            await writeCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', entry, buffers).catch(() => undefined);
+        }
         return entry;
     };
 
@@ -298,6 +302,10 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         configResolved(_config) {
             isBuild = _config.command === 'build';
             cacheFolder = `${_config.cacheDir}/vite-svg-2-webfont`;
+            if (useCache) {
+                // On a plugin cache miss (an edited icon, cssContext) the engine still starts warm.
+                processedOptions.cacheLocation = pathJoin(cacheFolder, 'engine');
+            }
             if (!isBuild) {
                 // Retain parsed glyphs so watch rebuilds can reuse them via `result.regenerateAsync(...)`.
                 // cssContext runs in JS during generation, so skip the incremental path when
