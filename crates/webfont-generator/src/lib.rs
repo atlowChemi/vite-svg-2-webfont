@@ -80,6 +80,8 @@
 pub mod bench_support;
 #[cfg(any(feature = "fs", feature = "in_memory"))]
 mod byte_helpers;
+#[cfg(feature = "fs")]
+mod cache;
 #[cfg(any(feature = "fs", feature = "in_memory"))]
 mod formats;
 #[cfg(feature = "fs")]
@@ -105,6 +107,8 @@ mod svg;
 mod test_helpers;
 mod types;
 
+#[cfg(feature = "fs")]
+pub use cache::{ClearCacheReport, clear_cache};
 #[cfg(feature = "fs")]
 pub use hooks::GenerationHooks;
 #[cfg(feature = "fs")]

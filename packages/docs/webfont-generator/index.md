@@ -28,8 +28,9 @@ Not sure which one fits? See [Which package do I need?](/which-package). Usage f
 - **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [multi-variant fonts](./node#multi-variant-fonts).
 - **Color glyphs:** optionally keep solid SVG colors. See [color glyphs](#color-glyphs).
 - **Fast rebuilds:** [incremental generation](./node#incremental) reuses work from the previous build when only a few icons change.
+- **Warm starts:** an opt-in [persistent cache](./node#cachelocation) lets a new process reuse work from earlier runs for unchanged icons and formats.
 - **No filesystem required:** generate from SVG text in memory, which is what the [browser package](./browser) uses.
-- **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads. See [performance](./under-the-hood#performance).
+- **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads without caching. With a warm [persistent cache](./under-the-hood#persistent-cache), unchanged rebuilds are 36× (macOS) and 76× (Linux) faster than Vusion. See [performance](./under-the-hood#performance).
 
 ## Why a new engine
 
@@ -48,6 +49,7 @@ The API is largely compatible with upstream `@vusion/webfonts-generator`, with a
 - [`optimizeOutput`](./node#optimizeoutput) adds optional SVG path optimization, disabled by default.
 - [`formatOptions.woff2.compressionQuality`](./node#formatoptions) controls WOFF2 compression quality from 0–11 (default 11), allowing faster encoding at the cost of slightly larger output.
 - [`incremental`](./node#incremental) enables regeneration that reuses work from the previous build, disabled by default.
+- [`cacheLocation`](./node#cachelocation) enables a persistent cache shared across runs, disabled by default.
 - Font binaries differ at the byte level (different TTF compiler, different path normalization) but are valid and render identically
 - CSS, HTML, and template output is identical.
 - [`variants`](./node#multi-variant-fonts) adds multi-weight families with discrete designs.

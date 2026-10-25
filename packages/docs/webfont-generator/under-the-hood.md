@@ -88,7 +88,7 @@ The following simple-icons workloads generate all five formats (SVG, TTF, EOT, W
 | WOFF + WOFF2 |    300 |  266.5 | <strong class="benchmark-winner">39.8</strong> |                                           42.5 |
 | WOFF + WOFF2 |    600 |  545.2 | <strong class="benchmark-winner">74.3</strong> |                                           77.9 |
 
-Across these nine workloads, the geometric mean speedup over Vusion is **6.5× with default settings** and **6.2× with path optimization enabled**.
+Across these nine workloads, the geometric mean speedup over Vusion is **6.5× with default settings** and **6.2× with path optimization enabled**. These are uncached generations. With a warm [persistent cache](#persistent-cache), the same workloads take 2.0–15.3 ms instead of 11.8–75.7 ms: **5.6× faster than uncached** and **36× faster than Vusion** (geometric means).
 
 ### Wall time on Linux
 
@@ -106,7 +106,7 @@ The same workloads and Node.js API, using a Linux release addon in Docker:
 | WOFF + WOFF2 |    300 |  331.8 | <strong class="benchmark-winner">42.2</strong> |                          46.2 |
 | WOFF + WOFF2 |    600 |  675.6 | <strong class="benchmark-winner">77.8</strong> |                          87.4 |
 
-The geometric mean speedup is **7.6× with default settings** and **7.0× with path optimization enabled**.
+The geometric mean speedup is **7.6× with default settings** and **7.0× with path optimization enabled**, again uncached. With a warm [persistent cache](#persistent-cache), these workloads take 1.0–10.6 ms instead of 10.6–73.0 ms: **9.2× faster than uncached** and **76× faster than Vusion**.
 
 Modern-format builds skip SVG font serialization and TTF binary assembly in the Rust engine. Their total times remain close to the all-format builds here: fewer output formats do not necessarily translate into a large reduction in elapsed time.
 
@@ -144,6 +144,61 @@ The shared-geometry pipeline avoids reparsing an SVG font to compile binary form
 For repeated builds—such as a dev server regenerating your icon font whenever you edit an SVG—[incremental generation](./node#incremental) can reuse parsed glyphs, compiled glyphs, font tables, and WOFF compression or transform work from the previous build, giving you faster feedback while developing. In our 100–600-glyph benchmarks, a one-SVG edit rebuilt **1.5–1.8× faster than a full Rust build** and **12–17× faster than Vusion**, which always rebuilds the entire font.
 
 Multi-weight families use a variant compilation path to produce TTF, WOFF, and WOFF2; see [multi-variant fonts](./node#multi-variant-fonts).
+
+#### Persistent cache
+
+Incremental generation helps within one process. The opt-in [`cacheLocation`](./node#cachelocation) carries saved work across processes—a new dev server, a CLI run, or a CI job with a restored cache. Values are milliseconds with the native default settings from the tables above; **Warm speedup** is the uncached time divided by the warm time.
+
+##### macOS
+
+| Formats         | Glyphs | No cache | First run (empty cache) |                         Warm (nothing changed) | Warm speedup | One icon edited |
+| --------------- | -----: | -------: | ----------------------: | ---------------------------------------------: | -----------: | --------------: |
+| All five        |    100 |     12.4 |                    13.8 |  <strong class="benchmark-winner">2.3</strong> |         5.4× |            13.6 |
+| All five        |    300 |     41.2 |                    46.4 |  <strong class="benchmark-winner">7.6</strong> |         5.4× |            43.8 |
+| All five        |    600 |     75.7 |                    86.1 | <strong class="benchmark-winner">15.3</strong> |         4.9× |            84.1 |
+| WOFF2           |    100 |     11.9 |                    13.4 |  <strong class="benchmark-winner">2.0</strong> |         6.0× |            12.6 |
+| WOFF2           |    300 |     40.2 |                    46.0 |  <strong class="benchmark-winner">6.4</strong> |         6.3× |            40.8 |
+| WOFF2           |    600 |     74.2 |                    82.1 | <strong class="benchmark-winner">13.4</strong> |         5.5× |            75.2 |
+| WOFF + WOFF2    |    100 |     11.8 |                    12.6 |  <strong class="benchmark-winner">2.1</strong> |         5.6× |            12.9 |
+| WOFF + WOFF2    |    300 |     41.0 |                    44.6 |  <strong class="benchmark-winner">6.6</strong> |         6.2× |            40.3 |
+| WOFF + WOFF2    |    600 |     75.6 |                    86.1 | <strong class="benchmark-winner">13.9</strong> |         5.4× |            74.3 |
+| All five, logos |    600 |    338.3 |                   365.5 | <strong class="benchmark-winner">23.0</strong> |        14.7× |           178.2 |
+
+##### Linux
+
+| Formats         | Glyphs | No cache | First run (empty cache) |                         Warm (nothing changed) | Warm speedup | One icon edited |
+| --------------- | -----: | -------: | ----------------------: | ---------------------------------------------: | -----------: | --------------: |
+| All five        |    100 |     12.8 |                    13.7 |  <strong class="benchmark-winner">1.5</strong> |         8.5× |            12.5 |
+| All five        |    300 |     40.3 |                    47.0 |  <strong class="benchmark-winner">5.4</strong> |         7.5× |            40.2 |
+| All five        |    600 |     73.0 |                    85.6 | <strong class="benchmark-winner">10.6</strong> |         6.9× |            83.9 |
+| WOFF2           |    100 |     10.6 |                    12.6 |  <strong class="benchmark-winner">1.1</strong> |         9.6× |            10.3 |
+| WOFF2           |    300 |     37.8 |                    46.1 |  <strong class="benchmark-winner">3.6</strong> |        10.5× |            36.2 |
+| WOFF2           |    600 |     72.8 |                    79.2 |  <strong class="benchmark-winner">7.3</strong> |        10.0× |            71.6 |
+| WOFF + WOFF2    |    100 |     10.8 |                    12.5 |  <strong class="benchmark-winner">1.0</strong> |        10.8× |            10.5 |
+| WOFF + WOFF2    |    300 |     38.8 |                    43.9 |  <strong class="benchmark-winner">4.1</strong> |         9.5× |            37.1 |
+| WOFF + WOFF2    |    600 |     71.4 |                    78.7 |  <strong class="benchmark-winner">7.0</strong> |        10.2× |            68.9 |
+| All five, logos |    600 |    313.7 |                   346.6 | <strong class="benchmark-winner">21.7</strong> |        14.5× |           213.2 |
+
+- **Nothing changed:** every finished font comes from the cache.
+    - macOS: the nine simple-icons workloads take 2.0–15.3 ms instead of 11.8–75.7 ms, a geometric mean of **5.6× faster than uncached** (4.9–6.3×) and **36× faster than Vusion**. The 600 logos take 23.0 ms instead of 338.3 ms (**14.7×**).
+    - Linux: 1.0–10.6 ms instead of 10.6–73.0 ms, **9.2× faster than uncached** (6.9–10.8×) and **76× faster than Vusion**. The 600 logos take 21.7 ms instead of 313.7 ms (**14.5×**).
+- **First run:** writing the cache makes the first build 7–14% slower on macOS and 7–22% slower on Linux.
+- **One icon edited:** unchanged icons skip parsing and path processing, but every font is still re-encoded. For simple single-path icons, encoding (WOFF2 compression above all) dominates, so an edit takes 98–111% of the uncached time on macOS and 96–115% on Linux. Complex icons gain more: the 600 logos rebuild in 178.2 ms instead of 338.3 ms on macOS (**1.9×**) and 213.2 ms instead of 313.7 ms on Linux (**1.5×**).
+
+**Peak memory:** a first run also encodes the cache, so it peaks 5–11 MiB higher than an uncached run. A warm run skips glyph processing and font encoding, so it peaks 1–7 MiB lower for TTF only and 10–29 MiB lower with WOFF2. Differences in MiB from an uncached run with 600 glyphs:
+
+| Platform | Corpus       | Formats     | First run (empty cache) | Warm (nothing changed) |
+| -------- | ------------ | ----------- | ----------------------: | ---------------------: |
+| macOS    | simple-icons | TTF         |                    +7.4 |                   −3.1 |
+| macOS    | simple-icons | TTF + WOFF2 |                    +7.9 |                  −10.1 |
+| macOS    | logos        | TTF         |                    +8.3 |                   −7.3 |
+| macOS    | logos        | TTF + WOFF2 |                    +7.1 |                  −29.3 |
+| Linux    | simple-icons | TTF         |                    +5.6 |                   −1.3 |
+| Linux    | simple-icons | TTF + WOFF2 |                    +4.7 |                  −11.0 |
+| Linux    | logos        | TTF         |                   +11.4 |                   −2.3 |
+| Linux    | logos        | TTF + WOFF2 |                    +8.4 |                  −23.2 |
+
+Measured on October 22, 2026, with the same fixtures, Node.js 26.11.1, machine, and Linux container limits as the tables above, from a release build of the engine. Each case ran 6 fresh Node processes; each process warmed up once and measured 3 generations, and the tables report the mean of the process medians. "First run" used a new empty cache directory for every generation, so it includes writing the cache. "One icon edited" changed one SVG before every generation. Memory used the [RSS method](#measurement-method) (one generation per fresh process, 6 processes per case), with "warm" reading a cache filled by an earlier process; the processes also loaded the icon set, so only the differences are shown. Vusion figures come from the uncached tables above, measured separately.
 
 <style scoped>
 .benchmark-winner {

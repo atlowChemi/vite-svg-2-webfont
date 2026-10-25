@@ -59,6 +59,12 @@ Custom start codepoint in hex:
 webfont-generator --dest ./dist/fonts --start-codepoint 0xE000 ./icons/
 ```
 
+Reuse work from previous runs:
+
+```sh
+webfont-generator --dest ./dist/fonts --cache-location .webfont-cache ./icons/
+```
+
 ## Options reference
 
 ### JSON manifest
@@ -89,7 +95,7 @@ With active `colorGlyphs`, the manifest also accepts `"colorSlots": { "secondary
 Run it with `webfont-generator --config icons.webfont.json`.
 
 - `dest` is required. Supply `files` for a single design or ordered `variants` for a [multi-variant family](./node#multi-variant-fonts).
-- Relative input paths, `dest`, `cssDest`, `htmlDest`, `cssTemplate`, and `htmlTemplate` resolve against the manifest directory, independent of the working directory. URL values such as `cssFontsUrl` are not rebased.
+- Relative input paths, `dest`, `cssDest`, `htmlDest`, `cssTemplate`, `htmlTemplate`, and `cacheLocation` resolve against the manifest directory, independent of the working directory. URL values such as `cssFontsUrl` are not rebased.
 - Input arrays preserve explicit entry order. Each directory expands at its position into sorted lowercase `.svg` files, non-recursively. JSON paths do not expand wildcards or globs.
 - Missing entries and duplicate normalized input paths within one variant (or the ordinary file list) are errors. The same source may appear in different variants.
 - Unknown option fields and invalid JSON types are rejected, including nested options. Diagnostics include the manifest path and the affected option field; malformed JSON includes line and column information.
@@ -127,6 +133,12 @@ Run it with `webfont-generator --config icons.webfont.json`.
 | `--html` / `--no-html`         | `--no-html`  | Generate or skip HTML preview      |
 | `--write` / `--no-write`       | `--write`    | Write files to disk or dry run     |
 | `--ligature` / `--no-ligature` | `--ligature` | Enable or disable ligature support |
+
+### Cache options
+
+| Flag                     | Description                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--cache-location <DIR>` | Persistent generation cache; see [`cacheLocation`](./node#cachelocation) for how it behaves (the CLI doesn't set `formatOptions.ttf.ts`, so cached formats keep the TTF timestamp of the run that created them unless your config sets it) and [caching across builds](./node#caching-across-builds) for CI and Docker setups |
 
 ### Template options
 

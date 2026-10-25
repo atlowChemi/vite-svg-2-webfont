@@ -1,6 +1,8 @@
 import { expectTypeOf, it } from 'vite-plus/test';
 import { GenerateWebfontsResult as NativeGenerateWebfontsResult, generateWebfonts as generateNativeWebfonts } from '../binding.js';
 import {
+    clearCache,
+    type ClearCacheReport,
     generateWebfonts,
     templates,
     type CssContext,
@@ -20,6 +22,13 @@ import {
     type RegenerationFiles,
     type VariantFileSet,
 } from '../index.js';
+
+it('exports the cache API', () => {
+    expectTypeOf(clearCache).toEqualTypeOf<(cacheLocation: string) => Promise<ClearCacheReport>>();
+    expectTypeOf<ClearCacheReport>().toEqualTypeOf<{ filesRemoved: number; bytesRemoved: number }>();
+    expectTypeOf<GenerateWebfontsFileOptions['cacheLocation']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<GenerateWebfontsVariantOptions['cacheLocation']>().toEqualTypeOf<string | undefined>();
+});
 
 it('exports the public generator API', () => {
     expectTypeOf<GenerateWebfontsFileOptions['colorGlyphs']>().toEqualTypeOf<true | string[] | undefined>();

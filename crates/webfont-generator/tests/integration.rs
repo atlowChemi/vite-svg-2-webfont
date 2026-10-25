@@ -701,6 +701,48 @@ mod cli {
     }
 
     #[test]
+    fn manifest_cache_locations_are_config_relative() {
+        use serde_json::json;
+        let root = std::path::PathBuf::from(super::temp_dest("cli-cache"));
+        std::fs::create_dir_all(root.join("icons")).unwrap();
+        std::fs::copy(
+            std::path::Path::new(&fixture_dir()).join("plus.svg"),
+            root.join("icons/plus.svg"),
+        )
+        .unwrap();
+        let path = root.join("icons.json");
+        let manifest = json!({"dest": "out", "files": ["icons"], "cacheLocation": ".cache"});
+        std::fs::write(&path, manifest.to_string()).unwrap();
+        let run = |command: &mut std::process::Command| {
+            let output = command.output().unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            String::from_utf8(output.stdout).unwrap()
+        };
+        let cache_files = || {
+            std::fs::read_dir(root.join(".cache"))
+                .map(|entries| entries.count())
+                .unwrap_or(0)
+        };
+
+        run(cli_bin()
+            .current_dir(std::env::temp_dir())
+            .arg("--config")
+            .arg(&path));
+        assert_eq!(cache_files(), 1);
+        let first = std::fs::read(root.join("out/iconfont.woff2")).unwrap();
+        run(cli_bin().arg("--config").arg(&path));
+        assert_eq!(
+            first,
+            std::fs::read(root.join("out/iconfont.woff2")).unwrap()
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn manifests_generate_from_an_unrelated_working_directory_and_report_fields() {
         use serde_json::json;
         let root = std::path::PathBuf::from(super::temp_dest("cli-manifest"));
@@ -771,6 +813,10 @@ mod cli {
             (
                 json!({"dest":"out", "files":["icons"], "cssDest":""}),
                 "cssDest",
+            ),
+            (
+                json!({"dest":"out", "files":["icons"], "cacheLocation":""}),
+                "cacheLocation",
             ),
             (json!({"dest":"out", "files":[""]}), "files[0]"),
             (json!({"files":["icons"]}), "dest"),

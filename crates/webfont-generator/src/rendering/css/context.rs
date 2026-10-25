@@ -283,7 +283,9 @@ fn make_codepoints(
     (hex, num)
 }
 
-pub(super) fn resolved_template_options(options: &ResolvedGenerationOptions) -> Map<String, Value> {
+pub(in crate::rendering) fn resolved_template_options(
+    options: &ResolvedGenerationOptions,
+) -> Map<String, Value> {
     let mut template_options = Map::from_iter([
         ("baseSelector".to_owned(), Value::String(".icon".to_owned())),
         ("classPrefix".to_owned(), Value::String("icon-".to_owned())),

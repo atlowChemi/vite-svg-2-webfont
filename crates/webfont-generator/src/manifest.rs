@@ -23,6 +23,7 @@ pub(crate) fn load(path: &Path) -> Result<GenerateWebfontsOptions, String> {
         ("htmlDest", &mut options.html_dest),
         ("cssTemplate", &mut options.css_template),
         ("htmlTemplate", &mut options.html_template),
+        ("cacheLocation", &mut options.cache_location),
     ] {
         if let Some(value) = value {
             if value.is_empty() {

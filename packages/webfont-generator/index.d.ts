@@ -1,4 +1,5 @@
 import type {
+    ClearCacheReport,
     CssContext as RawCssContext,
     FontVariant,
     FormatOptions,
@@ -191,6 +192,13 @@ export declare function generateWebfonts<T extends FontType = FontType>(
     options: GenerateWebfontsInputOptions<T>,
 ): Promise<GenerateWebfontsResult<T | 'eot' | 'woff' | 'woff2', never>>;
 
+/**
+ * Remove every file the generation cache created in `cacheLocation` (see the
+ * `cacheLocation` option), including leftovers from interrupted writes. Other
+ * files are left untouched; a missing directory resolves with zero counts.
+ */
+export declare function clearCache(cacheLocation: string): Promise<ClearCacheReport>;
+
 export declare namespace generateWebfonts {
     /**
      * Paths of default templates available for use.
@@ -199,6 +207,7 @@ export declare namespace generateWebfonts {
 }
 
 export {
+    ClearCacheReport,
     VariantFileSet,
     FormatOptions,
     FontVariant,

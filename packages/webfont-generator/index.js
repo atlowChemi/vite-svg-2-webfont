@@ -1,4 +1,4 @@
-import { generateWebfonts as generateNativeBinding, MissingGlyphBehavior } from './binding.js';
+import { clearCache, generateWebfonts as generateNativeBinding, MissingGlyphBehavior } from './binding.js';
 import * as templates from './templates.js';
 import { validateOptions } from './validations.js';
 
@@ -58,4 +58,4 @@ async function generateWebfonts(options) {
 
 generateWebfonts.templates = templates;
 
-export { generateWebfonts, MissingGlyphBehavior, templates };
+export { clearCache, generateWebfonts, MissingGlyphBehavior, templates };

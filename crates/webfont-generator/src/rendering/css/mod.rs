@@ -3,6 +3,8 @@ mod dependencies;
 mod hash;
 mod render;
 
+pub(super) use context::resolved_template_options;
+
 pub(crate) use context::SharedTemplateData;
 #[cfg(feature = "in_memory")]
 pub(crate) use context::make_content_css_context;
