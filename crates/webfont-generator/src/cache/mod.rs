@@ -212,8 +212,8 @@ impl CacheState {
         Self::with_identity(&settings, &settings, glyph_set(options, sources))
     }
 
-    /// A variant family's cache: the designs (names, weights, default) join the settings, so its
-    /// file never collides with a single-design cache for the same font name.
+    /// A variant family's cache: a family marker keeps its file apart from a single-design cache
+    /// for the same font name, and the designs (names, weights, default) key its fonts.
     pub(crate) fn new_variant<Files: AsRef<[LoadedSvgSource]>>(
         options: &ResolvedGenerationOptions,
         variants: &ResolvedVariants,
@@ -242,9 +242,13 @@ impl CacheState {
     /// `identity` decides which file (and so which saved glyphs) applies; `keys` adds what only
     /// the finished fonts depend on.
     fn with_identity(identity: &Value, keys: &Value, glyph_set: [u8; 16]) -> Self {
-        // Level 2 validity depends on everything except per-format encoding options, which only
-        // level 1 keys need. Those stay out of the file identity so formats share one file.
-        let glyph_settings = with_format_options(identity, &[]);
+        // Level 2 validity depends on everything except per-format encoding options and palette
+        // slots (only the color tables use them), which only level 1 keys need. Those stay out of
+        // the file identity so formats share one file and slot changes keep saved glyphs.
+        let mut glyph_settings = with_format_options(identity, &[]);
+        if let Some(settings) = glyph_settings.as_object_mut() {
+            settings.remove("colorSlots");
+        }
         let fingerprint = digest(&(FORMAT_VERSION, ENGINE_VERSION, &glyph_settings));
         let settings_digests = format_settings_digests(keys);
         Self {
@@ -310,7 +314,7 @@ impl CacheState {
             .collect()
     }
 
-    /// Seed an in-memory glyph cache so unchanged monochrome glyphs skip parse and processing.
+    /// Seed an in-memory glyph cache so unchanged glyphs skip parse and processing.
     pub(crate) fn hydrate(
         &self,
         svg_options: &SvgOptions,
@@ -318,14 +322,17 @@ impl CacheState {
     ) -> GlyphCache {
         let mut cache = GlyphCache::default();
         for source in sources {
-            if svg_options.selects_color(&source.glyph_name) {
-                continue;
-            }
+            // Saved work only applies in the same color mode the glyph is selected for now.
+            let color = svg_options.selects_color(&source.glyph_name);
             let hash = source_content_hash(&source.contents);
-            if let Some(glyph) = self.parsed.get(&hash) {
+            if let Some(glyph) = self.parsed.get(&hash)
+                && glyph.color_layers.is_some() == color
+            {
                 cache.by_content_hash.insert(hash, glyph.clone());
             }
-            if let Some(glyph) = self.processed.get(&hash) {
+            if let Some(glyph) = self.processed.get(&hash)
+                && glyph.color_layers.is_some() == color
+            {
                 cache
                     .processed_entries
                     .insert(source.id.clone(), glyph.clone());
@@ -335,7 +342,7 @@ impl CacheState {
         cache
     }
 
-    /// Seed a variant glyph cache so unchanged monochrome glyphs skip parse and processing.
+    /// Seed a variant glyph cache so unchanged glyphs skip parse and processing.
     pub(crate) fn hydrate_variants<Files: AsRef<[LoadedSvgSource]>>(
         &self,
         svg_options: &SvgOptions,
@@ -348,18 +355,23 @@ impl CacheState {
         for (index, files) in variants.iter().enumerate() {
             let mut parsed = GlyphCache::default();
             for source in files.as_ref() {
-                if svg_options.selects_color(&source.glyph_name) {
-                    continue;
-                }
+                let color = svg_options.selects_color(&source.glyph_name);
                 let hash = source_content_hash(&source.contents);
-                let Some(glyph) = self.parsed.get(&hash) else {
+                let Some(glyph) = self
+                    .parsed
+                    .get(&hash)
+                    .filter(|glyph| glyph.color_layers.is_some() == color)
+                else {
                     continue;
                 };
                 // A known content hash marks the entry current, so preparation keeps it.
                 parsed.entries.insert(source.id.clone(), glyph.clone());
                 parsed.content_hashes.insert(source.id.clone(), hash);
                 parsed.by_content_hash.insert(hash, glyph.clone());
-                for (advance, glyph) in self.variant_processed.get(&hash).into_iter().flatten() {
+                let processed = self.variant_processed.get(&hash).into_iter().flatten();
+                for (advance, glyph) in
+                    processed.filter(|(_, glyph)| glyph.color_layers.is_some() == color)
+                {
                     cache
                         .processed
                         .insert((index, source.id.clone(), *advance), glyph.clone());
@@ -375,7 +387,6 @@ impl CacheState {
     /// ones.
     pub(crate) fn update(
         &mut self,
-        svg_options: &SvgOptions,
         sources: &[LoadedSvgSource],
         glyph_cache: &GlyphCache,
         outputs: &FontOutputs,
@@ -383,25 +394,19 @@ impl CacheState {
     ) -> Option<Vec<u8>> {
         self.parsed.clear();
         self.processed.clear();
-        // ponytail: color glyphs aren't persisted (their layer paints have no encoding yet);
-        // they recompute on every run. Add a paint encoding if color-heavy sets need it.
+        // ponytail: one entry per content hash, so an SVG used as both a color and a monochrome
+        // glyph keeps only one mode's work (the other recomputes). Key by mode if that shows up.
         for source in sources {
-            if svg_options.selects_color(&source.glyph_name) {
-                continue;
-            }
             let hash = source_content_hash(&source.contents);
             // Glyphs reused straight from the cache are only indexed by content hash.
             if let Some(glyph) = glyph_cache
                 .entries
                 .get(&source.id)
                 .or_else(|| glyph_cache.by_content_hash.get(&hash))
-                && glyph.color_layers.is_none()
             {
                 self.parsed.insert(hash, glyph.clone());
             }
-            if let Some(glyph) = glyph_cache.processed_entries.get(&source.id)
-                && glyph.color_layers.is_none()
-            {
+            if let Some(glyph) = glyph_cache.processed_entries.get(&source.id) {
                 self.processed.insert(hash, glyph.clone());
             }
         }
@@ -413,7 +418,6 @@ impl CacheState {
     /// the current `variants` sources.
     pub(crate) fn update_variants<Files: AsRef<[LoadedSvgSource]>>(
         &mut self,
-        svg_options: &SvgOptions,
         variants: &[Files],
         glyph_cache: &VariantGlyphCache,
         outputs: &FontOutputs,
@@ -428,23 +432,22 @@ impl CacheState {
             };
             for source in files.as_ref() {
                 let hash = source_content_hash(&source.contents);
-                // ponytail: color glyphs aren't persisted, as for single designs.
-                if svg_options.selects_color(&source.glyph_name)
-                    || parsed.content_hashes.get(&source.id) != Some(&hash)
-                {
+                if parsed.content_hashes.get(&source.id) != Some(&hash) {
                     continue;
                 }
-                if let Some(glyph) = parsed.entries.get(&source.id)
-                    && glyph.color_layers.is_none()
-                {
+                if let Some(glyph) = parsed.entries.get(&source.id) {
                     self.parsed.insert(hash, glyph.clone());
                     hashes.insert((index, source.id.as_str()), hash);
                 }
             }
         }
+        // `processed` iterates in arbitrary order: keeping only glyphs in the same color mode as
+        // the saved parsed glyph makes every candidate identical, so the bytes are deterministic.
         for ((index, id, advance), glyph) in &glyph_cache.processed {
             if let Some(hash) = hashes.get(&(*index, id.as_str()))
-                && glyph.color_layers.is_none()
+                && self.parsed.get(hash).is_some_and(|parsed| {
+                    parsed.color_layers.is_some() == glyph.color_layers.is_some()
+                })
             {
                 let entries = self.variant_processed.entry(*hash).or_default();
                 if entries.iter().all(|(known, _)| known != advance) {
@@ -525,6 +528,7 @@ impl CacheState {
             for path in &glyph.paths {
                 out.tiny_path(path);
             }
+            out.parsed_color_layers(glyph.color_layers.as_deref());
         }
 
         let mut processed: Vec<_> = self.processed.iter().collect();
@@ -581,10 +585,11 @@ impl CacheState {
             for _ in 0..input.len(8)? {
                 paths.push(input.tiny_path()?);
             }
+            let color_layers = input.parsed_color_layers(paths.len())?;
             self.parsed.insert(
                 hash,
                 Arc::new(CachedGlyph {
-                    color_layers: None,
+                    color_layers,
                     height,
                     paths,
                     width,
@@ -721,22 +726,18 @@ impl DiskCache {
     /// warm start.
     pub(crate) fn store(
         mut self,
-        svg_options: &SvgOptions,
         sources: &[LoadedSvgSource],
         glyph_cache: &GlyphCache,
         outputs: &FontOutputs,
         types: &[FontType],
     ) {
-        let bytes = self
-            .state
-            .update(svg_options, sources, glyph_cache, outputs, types);
+        let bytes = self.state.update(sources, glyph_cache, outputs, types);
         self.save(bytes);
     }
 
     /// Variant counterpart of [`Self::store`].
     pub(crate) fn store_variants<Files: AsRef<[LoadedSvgSource]>>(
         mut self,
-        svg_options: &SvgOptions,
         variants: &[Files],
         glyph_cache: &VariantGlyphCache,
         outputs: &FontOutputs,
@@ -744,7 +745,7 @@ impl DiskCache {
     ) {
         let bytes = self
             .state
-            .update_variants(svg_options, variants, glyph_cache, outputs, types);
+            .update_variants(variants, glyph_cache, outputs, types);
         self.save(bytes);
     }
 

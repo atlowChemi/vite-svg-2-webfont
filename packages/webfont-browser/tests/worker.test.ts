@@ -148,6 +148,26 @@ function fonts(response: Response): Record<string, Uint8Array> {
     return rest;
 }
 
+it('produces identical color glyph outputs from a warm cache', async () => {
+    const color = JSON.stringify({
+        ...JSON.parse(allFormats),
+        sources: [{ id: 'logo', name: 'logo', svg: '<svg viewBox="0 0 24 24"><path fill="#ff9900" d="M2 2H22V22H2Z"/><path fill="#0066ff" d="M6 6H12V12H6Z"/></svg>' }],
+        types: ['ttf', 'woff', 'woff2'],
+        colorGlyphs: true,
+    });
+    expect(await request({ method: 'generate', options: color })).toMatchObject({ ok: true });
+    const outputs = await request({ method: 'outputs' });
+    await startWorker();
+    expect(await request({ method: 'generate', options: color, cache: new Uint8Array() })).toMatchObject({ ok: true });
+    const exported = await request({ method: 'cache' });
+    if (!exported.ok || !(exported.value instanceof Uint8Array)) throw new Error('expected exported cache bytes');
+
+    await startWorker();
+    expect(await request({ method: 'generate', options: color, cache: exported.value })).toMatchObject({ ok: true });
+    expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
+    expect(await request({ method: 'cache' })).toEqual({ id: expect.any(Number), ok: true, value: undefined });
+});
+
 it('reuses cached fonts across sessions with the default browser clock', async () => {
     const clockOptions = JSON.stringify({ ...JSON.parse(allFormats), formatOptions: undefined });
     vi.useFakeTimers({ now: 1_700_000_000_000, toFake: ['Date'] });

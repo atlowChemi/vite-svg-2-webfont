@@ -13,6 +13,7 @@ mod winding;
 use rayon::prelude::*;
 use std::io::{Error, ErrorKind};
 
+pub(crate) use geometry::bezpath_hash;
 pub(crate) use incremental::{prepare_svg_font_incremental, source_content_hash};
 use process::{glyph_scale, process_glyph};
 pub(crate) use serialize::build_svg_font;

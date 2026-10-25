@@ -397,7 +397,6 @@ impl GenerateWebfontsFromSourcesResult {
         }
         let caches = glyphs.as_ref().or(self.caches.as_ref())?;
         let options = &self.options.common;
-        let svg_options = svg_options_from_options(options);
         if let Some(variants) = &self.options.variants {
             let sources = &self.options.sources;
             let family = resolve_content_variant_sources(
@@ -407,23 +406,11 @@ impl GenerateWebfontsFromSourcesResult {
             )
             .expect("committed variant sources resolve");
             state.refresh_glyph_set(variant_glyph_set(&family));
-            return state.update_variants(
-                &svg_options,
-                sources,
-                &caches.variants,
-                &self.fonts,
-                &options.types,
-            );
+            return state.update_variants(sources, &caches.variants, &self.fonts, &options.types);
         }
         let sources = &self.options.sources[0];
         state.refresh_glyph_set(glyph_set(options, sources));
-        state.update(
-            &svg_options,
-            sources,
-            &caches.glyphs,
-            &self.fonts,
-            &options.types,
-        )
+        state.update(sources, &caches.glyphs, &self.fonts, &options.types)
     }
 
     /// Collect fonts and enabled companions, sharing all payloads with this result.

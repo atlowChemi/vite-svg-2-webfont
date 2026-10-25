@@ -25,6 +25,11 @@ async function tempDir() {
     return path;
 }
 
+/** A two-layer color icon whose first layer uses `color`. */
+function coloredStar(color: string) {
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="${color}" d="M2 2H18V20H2Z"/><path fill="#0066ff" d="M6 6H12V12H6Z"/></svg>`;
+}
+
 async function fonts(cacheLocation?: string) {
     const result = await generateWebfonts({ dest: tmpdir(), files: icons, types, css: false, writeFiles: false, cacheLocation });
     return types.map(type => Buffer.from(result[type]!));
@@ -107,6 +112,32 @@ describe('cacheLocation', () => {
         await writeFile(file, corrupt);
         expect(await variantFonts(cacheLocation)).toEqual(uncached);
         expect(await readFile(file)).toEqual(valid);
+    });
+
+    it('produces the same color glyph fonts cold, warm, and after a format option or icon change', async () => {
+        const dir = await tempDir();
+        const star = join(dir, 'star.svg');
+        await writeFile(star, coloredStar('#ff9900'));
+        const colorTypes: FontType[] = ['ttf', 'woff2'];
+        const colorFonts = async (cacheLocation?: string, compressionQuality?: number) => {
+            const result = await generateWebfonts({
+                dest: tmpdir(),
+                files: [...icons, star],
+                types: colorTypes,
+                colorGlyphs: ['star'],
+                formatOptions: compressionQuality === undefined ? undefined : { woff2: { compressionQuality } },
+                css: false,
+                writeFiles: false,
+                cacheLocation,
+            });
+            return colorTypes.map(type => Buffer.from(result[type]!));
+        };
+        const cacheLocation = join(dir, 'cache');
+        expect(await colorFonts(cacheLocation)).toEqual(await colorFonts());
+        expect(await colorFonts(cacheLocation)).toEqual(await colorFonts());
+        expect(await colorFonts(cacheLocation, 9)).toEqual(await colorFonts(undefined, 9));
+        await writeFile(star, coloredStar('#00cc66'));
+        expect(await colorFonts(cacheLocation, 9)).toEqual(await colorFonts(undefined, 9));
     });
 
     it('rejects an empty location', async () => {

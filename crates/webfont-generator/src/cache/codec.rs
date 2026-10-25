@@ -6,9 +6,12 @@ use std::str::from_utf8;
 use std::sync::Arc;
 
 use kurbo::{BezPath, PathEl, Point};
+use usvg::FillRule;
 use usvg::tiny_skia_path::{Path as TinyPath, PathBuilder, PathVerb};
 
-use crate::svg::types::CachedProcessedGlyph;
+use crate::svg::bezpath_hash;
+use crate::svg::types::{CachedProcessedGlyph, ParsedColorLayer};
+use crate::types::color::{ProcessedColorLayer, ResolvedLayerPaint};
 
 #[derive(Default)]
 pub(super) struct Writer(pub(super) Vec<u8>);
@@ -90,18 +93,63 @@ impl Writer {
         }
     }
 
-    /// A monochrome processed glyph (color layers are never persisted).
     pub(super) fn processed_glyph(&mut self, glyph: &CachedProcessedGlyph) {
         self.f64(glyph.height);
         self.f64(glyph.width);
         self.bytes(glyph.path_data.as_bytes());
-        match (&glyph.ttf_path, glyph.ttf_path_hash) {
-            (Some(path), Some(path_hash)) => {
+        // The outline hash isn't stored: it keys glyph deduplication, so it's recomputed on load.
+        match &glyph.ttf_path {
+            Some(path) => {
                 self.u8(1);
-                self.u64(path_hash);
                 self.bez_path(path);
             }
-            _ => self.u8(0),
+            None => self.u8(0),
+        }
+        match glyph.color_layers.as_deref() {
+            None => self.u8(0),
+            Some(layers) => {
+                self.u8(1);
+                self.len(layers.len());
+                for layer in layers {
+                    self.bez_path(&layer.outline);
+                    self.paint(layer.paint);
+                }
+            }
+        }
+    }
+
+    pub(super) fn parsed_color_layers(&mut self, layers: Option<&[ParsedColorLayer]>) {
+        let Some(layers) = layers else {
+            return self.u8(0);
+        };
+        self.u8(1);
+        self.len(layers.len());
+        for layer in layers {
+            self.len(layer.path_index);
+            self.paint(layer.paint);
+            self.u8(match layer.fill_rule {
+                FillRule::NonZero => 0,
+                FillRule::EvenOdd => 1,
+            });
+        }
+    }
+
+    fn paint(&mut self, paint: ResolvedLayerPaint) {
+        match paint {
+            ResolvedLayerPaint::Foreground { alpha } => {
+                self.u8(0);
+                self.f32(alpha);
+            }
+            ResolvedLayerPaint::Solid {
+                red,
+                green,
+                blue,
+                alpha,
+            } => {
+                self.u8(1);
+                self.0.extend_from_slice(&[red, green, blue]);
+                self.f32(alpha);
+            }
         }
     }
 }
@@ -208,15 +256,86 @@ impl<'a> Reader<'a> {
         let path_data = from_utf8(self.bytes()?).ok()?.into();
         let (ttf_path_hash, ttf_path) = match self.u8()? {
             0 => (None, None),
-            _ => (Some(self.u64()?), Some(self.bez_path()?)),
+            1 => {
+                let path = self.bez_path()?;
+                (Some(bezpath_hash(&path)), Some(path))
+            }
+            _ => return None,
+        };
+        let color_layers = match self.u8()? {
+            0 => None,
+            1 => {
+                // At least an empty outline (4 bytes) and a foreground paint (5 bytes) per layer.
+                let count = self.len(9)?;
+                let mut layers = Vec::new();
+                for _ in 0..count {
+                    let outline = self.bez_path()?;
+                    let paint = self.paint()?;
+                    // Recomputed, never trusted: color tables deduplicate outlines by this hash.
+                    let outline_hash = bezpath_hash(&outline);
+                    layers.push(ProcessedColorLayer {
+                        outline,
+                        outline_hash,
+                        paint,
+                    });
+                }
+                Some(layers.into())
+            }
+            _ => return None,
         };
         Some(CachedProcessedGlyph {
-            color_layers: None,
+            color_layers,
             height,
             path_data,
             ttf_path,
             ttf_path_hash,
             width,
+        })
+    }
+}
+
+impl Reader<'_> {
+    /// Color layers of a parsed glyph with `path_count` paths; `Some(None)` for a monochrome one.
+    pub(super) fn parsed_color_layers(
+        &mut self,
+        path_count: usize,
+    ) -> Option<Option<Arc<[ParsedColorLayer]>>> {
+        match self.u8()? {
+            0 => return Some(None),
+            1 => {}
+            _ => return None,
+        }
+        // A path index (4 bytes), a foreground paint (5 bytes) and a fill rule (1 byte) per layer.
+        let count = self.len(10)?;
+        let mut layers = Vec::new();
+        for _ in 0..count {
+            let path_index = self.u32()? as usize;
+            (path_index < path_count).then_some(())?;
+            let paint = self.paint()?;
+            let fill_rule = match self.u8()? {
+                0 => FillRule::NonZero,
+                1 => FillRule::EvenOdd,
+                _ => return None,
+            };
+            layers.push(ParsedColorLayer {
+                path_index,
+                paint,
+                fill_rule,
+            });
+        }
+        Some(Some(layers.into()))
+    }
+
+    fn paint(&mut self) -> Option<ResolvedLayerPaint> {
+        Some(match self.u8()? {
+            0 => ResolvedLayerPaint::Foreground { alpha: self.f32()? },
+            1 => ResolvedLayerPaint::Solid {
+                red: self.u8()?,
+                green: self.u8()?,
+                blue: self.u8()?,
+                alpha: self.f32()?,
+            },
+            _ => return None,
         })
     }
 }
