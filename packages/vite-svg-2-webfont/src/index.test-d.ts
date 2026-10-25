@@ -20,6 +20,16 @@ it('accepts color selection in either source mode', () => {
     viteSvgToWebfont({ context: 'icons', colorGlyphs: ['logo', 1] });
 });
 
+it('accepts the cache switch in either source mode', () => {
+    expectTypeOf<IconPluginOptions['cache']>().toEqualTypeOf<boolean | undefined>();
+    viteSvgToWebfont({ context: 'icons', types: 'woff2', cache: false });
+    viteSvgToWebfont({ context: 'icons', variants: [{ name: 'light', default: true }], cache: true });
+    // @ts-expect-error The cache lives in Vite's cacheDir; the option only switches it on or off.
+    viteSvgToWebfont({ context: 'icons', cache: '.cache' });
+    // @ts-expect-error The engine's cacheLocation is set by the plugin, not passed through.
+    viteSvgToWebfont({ context: 'icons', cacheLocation: '.cache' });
+});
+
 it('infers variant metadata and modern formats without weakening ordinary contracts', () => {
     viteSvgToWebfont({ context: 'icons', files: '*.svg' });
     viteSvgToWebfont({ context: 'icons', variants: [{ name: 'light', default: true, files: '*.svg' }] });

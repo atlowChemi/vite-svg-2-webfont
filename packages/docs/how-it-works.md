@@ -12,7 +12,7 @@ When Vite starts, in either development or build, the plugin:
 
 1. **Resolves your options** and finds the SVG files matching [`files`](/configuration#files) (or each design's files in [`variants`](/configuration#variants)) inside [`context`](/configuration#context).
 2. **Checks the [output cache](#output-cache).** If nothing changed since the last run, it reuses the stored fonts and CSS instead of calling the engine.
-3. **Otherwise calls the engine** to generate every format listed in [`types`](/configuration#types), and stores the result in the cache for next time.
+3. **Otherwise calls the engine** to generate every format listed in [`types`](/configuration#types), and stores the result in the cache for next time. The engine keeps its own [persistent cache](#engine-cache), so unchanged icons and formats are reused even then.
 4. **Exposes the CSS** through the virtual module, `virtual:vite-svg-2-webfont.css` by default (see [`moduleId`](/configuration#moduleid)). Importing it brings the `@font-face` rule and icon classes into your app.
 
 What happens next depends on whether you are running the dev server or a production build.
@@ -84,24 +84,22 @@ flowchart LR
 
 Every other option, such as [`types`](/configuration#types), [`classPrefix`](/configuration#classprefix), or [`normalize`](/configuration#normalize), is passed to the engine and affects the generated fonts and CSS the same way in both modes.
 
-## Output cache
+## Caching
 
-The plugin keeps a persistent cache of its output, so restarting the dev server or re-running a build with unchanged icons skips font generation entirely.
-
-### What is stored
-
-The cache lives in Vite's [`cacheDir`](https://vite.dev/config/shared-options.html#cachedir), which is `node_modules/.vite` by default:
+Two caches, both on by default and both stored in Vite's [`cacheDir`](https://vite.dev/config/shared-options.html#cachedir) (`node_modules/.vite` by default), make restarts and repeated builds fast. Set [`cache: false`](/configuration#cache) to turn both off: every run then generates from scratch, and the plugin writes nothing to `cacheDir`.
 
 ```
 node_modules/.vite/vite-svg-2-webfont/
-├── iconfont.json            # manifest: cache keys, CSS, HTML
-├── iconfont-3f2a….woff2     # fonts, named by a hash of their content
-└── iconfont-91bc….woff
+├── iconfont.json            # output cache manifest: cache keys, CSS, HTML
+├── iconfont-3f2a….woff2     # output cache fonts, named by a hash of their content
+├── iconfont-91bc….woff
+└── engine/                  # engine cache
+    └── iconfont.….wfcache
 ```
 
-Development and build results are stored separately, so switching between `vite` and `vite build` doesn't evict either one. Font files that are no longer referenced are removed when a new result is stored.
+### Output cache
 
-### When the cache is used
+The plugin keeps a persistent cache of its output, so restarting the dev server or re-running a build with unchanged icons skips font generation entirely. Development and build results are stored separately, so switching between `vite` and `vite build` doesn't evict either one. Font files that are no longer referenced are removed when a new result is stored.
 
 The cache key covers everything that can change the output:
 
@@ -112,16 +110,28 @@ The cache key covers everything that can change the output:
 
 If any of these change, the plugin calls the engine again and replaces the stored result. The cache is checked only on the first generation when Vite starts; rebuilds triggered by file changes in development always use the engine.
 
-The cache is skipped entirely when:
+The output cache is skipped when:
 
 - [`cssContext`](/configuration#csscontext) is set, because a callback can change the output in ways the key can't capture
 - an input file can't be read when the key is computed
 
-The cache is an optimization only. If the cache folder can't be written, generation still succeeds, and a damaged or missing cache entry is treated as a miss.
+### Engine cache
 
-### Clearing the cache
+Whenever the plugin does call the engine, the engine reuses its own persistent cache, so a changed option or an edited icon doesn't start from nothing:
 
-To force a fresh generation, delete the `vite-svg-2-webfont` folder inside Vite's [`cacheDir`](https://vite.dev/config/shared-options.html#cachedir) (`node_modules/.vite` by default). The plugin recreates it on the next run.
+- unchanged icons skip parsing and path processing; an edited icon is reprocessed alone
+- formats whose inputs didn't change, such as every font after a CSS-only option change, come straight from the cache
+- it also applies with [`cssContext`](/configuration#csscontext), where the output cache can't
+
+See [`cacheLocation`](/webfont-generator/node#cachelocation) for the engine's details and [performance](/webfont-generator/under-the-hood#persistent-cache) for measured speedups.
+
+In development, rebuilds triggered by file changes normally use the engine's in-memory [incremental generation](#development) instead, which doesn't update the engine cache: icons edited during a session are reprocessed once on the next start. A rebuild calls the engine with its cache, like the first generation, when incremental generation isn't available: with [`cssContext`](/configuration#csscontext), for the first change after an output cache hit, or after an incremental rebuild fails.
+
+### Failures and clearing
+
+Both caches are optimizations only. If the cache folder can't be written, generation still succeeds, and a damaged or missing entry is treated as a miss. Output is identical with and without them.
+
+To force a fresh generation, delete the `vite-svg-2-webfont` folder inside Vite's [`cacheDir`](https://vite.dev/config/shared-options.html#cachedir). The plugin recreates it on the next run.
 
 ::: tip Multiple plugin instances
 Entries are stored per [`fontName`](/configuration#fontname). If you register the plugin more than once, give each instance its own `fontName`. Otherwise the instances keep replacing each other's cache entries and never get a cache hit.

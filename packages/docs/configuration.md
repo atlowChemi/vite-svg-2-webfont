@@ -339,3 +339,11 @@ import 'virtual:vite-svg-2-webfont.css';
 - Reference: [issue discussion](https://github.com/atlowChemi/vite-svg-2-webfont/issues/32#issuecomment-2203187501)
 
 With `generateFiles: true`, font files are written to [`dest`](#dest), and CSS/HTML use their configured destinations. These files are additional to any assets bundled by Vite through the virtual CSS import; enabling this option does not relocate Vite's copies. See [writing additional generator files during builds](./usage#write-additional-generator-files-during-builds).
+
+## `cache`
+
+- Type: `boolean`
+- Description: Reuse work across Vite runs. The plugin keeps its output cache, and the engine keeps a persistent cache of per-icon work and finished fonts, both inside Vite's [`cacheDir`](https://vite.dev/config/shared-options.html#cachedir). Output is the same with or without it. Set `false` to generate from scratch on every run; the plugin then writes nothing to `cacheDir`.
+- Default: `true`
+
+See [caching](./how-it-works#caching) for what is stored and when each cache is used.
