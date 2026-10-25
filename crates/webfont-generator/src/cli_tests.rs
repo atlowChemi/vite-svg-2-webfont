@@ -82,6 +82,19 @@ fn clear_cache_is_a_subcommand_and_generation_accepts_a_cache_location() {
     let cli = Cli::try_parse_from(["webfont-generator", "./clear-cache", "-d", "out"]).unwrap();
     assert!(cli.command.is_none());
     assert_eq!(cli.files, ["./clear-cache"]);
+
+    for args in [
+        vec!["webfont-generator", "clear-cache", "--help"],
+        vec!["webfont-generator", "help", "clear-cache"],
+    ] {
+        let error = Cli::try_parse_from(args).err().unwrap();
+        assert_eq!(error.kind(), clap::error::ErrorKind::DisplayHelp);
+        assert!(
+            error
+                .to_string()
+                .contains("--cache-location <CACHE_LOCATION>")
+        );
+    }
 }
 
 #[test]
