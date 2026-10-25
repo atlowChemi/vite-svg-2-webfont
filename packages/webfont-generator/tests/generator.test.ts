@@ -818,32 +818,37 @@ describe('output size (deterministic)', () => {
     const woff2ByQuality = {} as Record<`q${9 | 10 | 11}`, number>;
     const perFormat = {} as Record<FontType, number>;
 
-    beforeAll(async () => {
-        const dir = await createTempDir('vite-size-');
-        const files = sizeIcons.map((_, i) => join(dir, `i${String(i).padStart(3, '0')}.svg`));
-        await Promise.all(sizeIcons.map((icon, i) => writeFile(files[i], `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width} ${icon.height}">${icon.body}</svg>`)));
+    beforeAll(
+        async () => {
+            const dir = await createTempDir('vite-size-');
+            const files = sizeIcons.map((_, i) => join(dir, `i${String(i).padStart(3, '0')}.svg`));
+            await Promise.all(
+                sizeIcons.map((icon, i) => writeFile(files[i], `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${icon.width} ${icon.height}">${icon.body}</svg>`)),
+            );
 
-        // `fontHeight` is pinned so the em square (and thus byte sizes) is stable.
-        const base: GenerateWebfontsFileOptions = {
-            files,
-            dest: `${dir}/`,
-            fontName: 'size',
-            fontHeight: 24,
-            css: false,
-            writeFiles: false,
-            optimizeOutput: true,
-            types: ['woff2'],
-        };
+            // `fontHeight` is pinned so the em square (and thus byte sizes) is stable.
+            const base: GenerateWebfontsFileOptions = {
+                files,
+                dest: `${dir}/`,
+                fontName: 'size',
+                fontHeight: 24,
+                css: false,
+                writeFiles: false,
+                optimizeOutput: true,
+                types: ['woff2'],
+            };
 
-        const [nine, ten, eleven, all] = await Promise.all([
-            generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 9 } } }),
-            generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 10 } } }),
-            generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 11 } } }),
-            generateWebfonts({ ...base, types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] }),
-        ]);
-        Object.assign(woff2ByQuality, { q9: fontBuffer(nine.woff2).length, q10: fontBuffer(ten.woff2).length, q11: fontBuffer(eleven.woff2).length });
-        Object.assign(perFormat, { svg: all.svg.length, ttf: all.ttf.length, eot: all.eot.length, woff: all.woff.length, woff2: all.woff2.length });
-    });
+            const [nine, ten, eleven, all] = await Promise.all([
+                generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 9 } } }),
+                generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 10 } } }),
+                generateWebfonts({ ...base, formatOptions: { woff2: { compressionQuality: 11 } } }),
+                generateWebfonts({ ...base, types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] }),
+            ]);
+            Object.assign(woff2ByQuality, { q9: fontBuffer(nine.woff2).length, q10: fontBuffer(ten.woff2).length, q11: fontBuffer(eleven.woff2).length });
+            Object.assign(perFormat, { svg: all.svg.length, ttf: all.ttf.length, eot: all.eot.length, woff: all.woff.length, woff2: all.woff2.length });
+        },
+        process.env.WEBFONT_NATIVE_COVERAGE_DIR ? 30_000 : 10_000,
+    );
 
     it('woff2 compression quality defaults to 11', () => {
         expect(perFormat.woff2).toBe(woff2ByQuality.q11);
