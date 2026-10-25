@@ -217,11 +217,19 @@ fn create_svg_copies(
     source: &std::path::Path,
     names: &[&str],
 ) -> (std::path::PathBuf, Vec<String>) {
+    // Tests share names (e.g. `plus-copy`) and run in parallel; timestamps alone can repeat
+    // (microsecond resolution on macOS), so a counter keeps each call's folder separate.
+    static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+    let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
     let unique = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_nanos();
-    let tmp = std::env::temp_dir().join(format!("ttf-dedup-{}-{unique}", names.join("-")));
+    let tmp = std::env::temp_dir().join(format!(
+        "ttf-dedup-{}-{}-{unique}-{call}",
+        names.join("-"),
+        std::process::id()
+    ));
     std::fs::create_dir_all(&tmp).unwrap();
     let files = names
         .iter()
