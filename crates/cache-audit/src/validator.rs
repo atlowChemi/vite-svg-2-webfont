@@ -12,6 +12,21 @@ use wax::{
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 
+pub fn workspace_document(root: &Path) -> Result<pnpm_workspace::WorkspaceManifestDocument> {
+    let document = pnpm_workspace::read_workspace_manifest_document(root)?
+        .ok_or("missing pnpm-workspace.yaml")?;
+    if document
+        .includes
+        .as_ref()
+        .is_some_and(|includes| includes.packages().next().is_some())
+    {
+        return Err(
+            "auditing config-dependency includes is unsupported; use local includes".into(),
+        );
+    }
+    Ok(document)
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum Kind {
@@ -416,7 +431,7 @@ impl Audit {
         if !supported {
             return Err("validator requires stable pnpm 12.13 or newer within major 12; validate cache semantics before adopting another major".into());
         }
-        let text = fs::read_to_string(root.join("pnpm-workspace.yaml"))?;
+        let text = workspace_document(&root)?.text;
         if text.contains("${") {
             return Err("environment-expanded YAML is unsupported".into());
         }

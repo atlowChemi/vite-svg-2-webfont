@@ -19,12 +19,14 @@ tokio-util = "0.7"
 tempfile = "3"
 nix = { version = "0.31", features = ["signal", "process"] }
 indexmap = "2.14"
-pnpm-catalogs-config = { git = "https://github.com/pnpm/pnpm", rev = "fe4a0c232384289de82be3d502896ca7e070050c" }
-pnpm-config = { git = "https://github.com/pnpm/pnpm", rev = "fe4a0c232384289de82be3d502896ca7e070050c" }
-pnpm-workspace = { git = "https://github.com/pnpm/pnpm", rev = "fe4a0c232384289de82be3d502896ca7e070050c" }
-pnpm-workspace-projects-graph = { git = "https://github.com/pnpm/pnpm", rev = "fe4a0c232384289de82be3d502896ca7e070050c" }
-pnpm-workspace-task-scheduler = { git = "https://github.com/pnpm/pnpm", rev = "fe4a0c232384289de82be3d502896ca7e070050c" }
+pnpm-catalogs-config = { git = "https://github.com/pnpm/pnpm", rev = "91774e72a04d52ce61db06339696a433d383c764" }
+pnpm-config = { git = "https://github.com/pnpm/pnpm", rev = "91774e72a04d52ce61db06339696a433d383c764" }
+pnpm-workspace = { git = "https://github.com/pnpm/pnpm", rev = "91774e72a04d52ce61db06339696a433d383c764" }
+pnpm-workspace-projects-graph = { git = "https://github.com/pnpm/pnpm", rev = "91774e72a04d52ce61db06339696a433d383c764" }
+pnpm-workspace-task-scheduler = { git = "https://github.com/pnpm/pnpm", rev = "91774e72a04d52ce61db06339696a433d383c764" }
 
-# Match pnpm's semver fix; dependency workspaces do not inherit their patches.
+# Match pnpm's upstream patches; dependency workspaces do not inherit them.
 [patch.crates-io]
+tar = { git = "https://github.com/pnpm/pnpm", rev = "91774e72a04d52ce61db06339696a433d383c764" }
+dashmap = { git = "https://github.com/pnpm/dashmap", rev = "4401b5c0b2626266dd5d5a9202677bca8b53e57a" }
 node-semver = { git = "https://github.com/pnpm/node-semver-rs", rev = "3d74d6b7f4de1de2006cf2f7663aac09de65b1f6" }

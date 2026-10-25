@@ -25,9 +25,10 @@ it('rejects an unmapped Vite+ task, including tasks in newly discovered packages
         const scripts = Object.fromEntries(Object.keys(aliases).map(name => [name, 'echo fixture']));
         scripts['next:fmt:rust'] = 'cargo fmt --all -- --check';
         const original = Object.fromEntries(Object.values(aliases).map(name => [name, { command: 'echo fixture' }]));
-        writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'fixture', type: 'module', scripts }));
+        writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'fixture', type: 'module', packageManager: 'pnpm@12.15.0', scripts }));
+        writeFileSync(join(root, 'pnpm-workspace.yaml'), stringify({ include: { './tasks.yaml': ['tasks', 'pipelines'] } }));
         writeFileSync(
-            join(root, 'pnpm-workspace.yaml'),
+            join(root, 'tasks.yaml'),
             stringify({
                 tasks: Object.fromEntries(Object.keys(scripts).map(name => [name, { cache: false, dependsOn: [] }])),
                 pipelines: { 'next-check': ['next:fmt:rust'], 'next-test': Object.keys(scripts) },

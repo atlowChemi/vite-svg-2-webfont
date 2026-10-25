@@ -55,6 +55,10 @@ generated binding files; separate invocations should not write them concurrently
 
 ### Dormant pnpm task graph
 
+`pnpm-workspace.yaml` delegates `tasks` and `pipelines` to `pnpm-tasks.yaml`
+using pnpm 12.15's native `include`. Edit task declarations in that file;
+workspace discovery and installation settings remain in the root configuration.
+
 Normal development still uses the `vp` commands above. The `next:*` scripts and
 `next-*` pipelines are the replacement graph under validation, not the active
 workflow. Task coverage is complete; cache readiness is still being validated.
@@ -64,7 +68,7 @@ flowchart LR
     active["vp run package#task (active)"] --> vite["Vite+ task configuration"]
     vite --> tools["Vite+, Cargo, NAPI, and package tools"]
     next["pnpm run next:pipeline PIPELINE (dormant)"] --> identity["Toolchain and local-config fingerprints"]
-    identity --> pipeline["pnpm-workspace.yaml: next-* pipeline"]
+    identity --> pipeline["pnpm-tasks.yaml: next-* pipeline"]
     pipeline --> tasks["Root next:* tasks and prerequisite edges"]
     tasks --> scripts["Package package.json: next:* raw commands"]
     scripts --> tools

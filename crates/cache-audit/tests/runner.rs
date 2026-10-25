@@ -21,7 +21,7 @@ fn run(root: &Path, reports: &Path, args: &[&str]) -> Output {
 
 fn put_manifest(root: &Path, prepare: &str) {
     fs::write(root.join("package.json"), json!({
-        "name": "runner-fixture", "private": true, "packageManager": "pnpm@12.14.0",
+        "name": "runner-fixture", "private": true, "packageManager": "pnpm@12.15.0",
         "scripts": {
                 "dependency": prepare,
             "build": "printf 'build\\n' >> trace; cat dep.out > final.out; printf '%s' \"$CARGO_TARGET_DIR\" > target-path",

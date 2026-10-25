@@ -1,0 +1,260 @@
+# Dormant migration entry points; normal development and CI still use vp run.
+# Root-owned tasks cover workspace inputs that package-local ../../ globs cannot hash.
+pipelines:
+    next-native: [next:native]
+    next-check: [next:fmt:rust, next:adapter:check, next:browser:check]
+    next-test: [next:fmt:rust, next:adapter:test, next:browser:test, next:test:js]
+    next-build: [next:plugin:pack, next:browser:pack]
+    next-docs: [next:docs]
+    next-example: [next:example]
+    next-coverage: [next:coverage]
+    next-assets: [next:docs:social]
+    next-compat: [next:test:compat]
+    next-scripts-coverage: [next:coverage:scripts]
+    next-bench: [next:bench:vitest, next:fmt:rust]
+    next-engine-bench: [next:engine:bench]
+    next-engine-coverage: [next:engine:coverage]
+    next-cli-coverage: [next:engine:coverage:cli]
+    next-doctests: [next:engine:doctests]
+    next-engine-color-proof: [next:engine:color-proof]
+    next-adapter-browser: [next:adapter:browser]
+    next-adapter-color-proof: [next:adapter:color-proof]
+    next-adapter-coverage: [next:adapter:coverage]
+    next-native-coverage: [next:adapter:coverage:native]
+    next-binding-regenerate: [next:adapter:binding:regenerate]
+    next-adapter-bench: [next:adapter:bench]
+    next-native-release: [next:native:release, next:fmt:rust]
+    next-browser-tarball: [next:browser:tgz]
+    next-browser-coverage: [next:browser:coverage]
+    next-browser-publish: [next:browser:publish]
+    next-plugin-dev: [next:plugin:dev]
+    next-plugin-tarball: [next:plugin:tgz]
+    next-plugin-test: [next:plugin:test]
+    next-plugin-browser: [next:plugin:browser]
+    next-fixtures-refresh: [next:plugin:fixtures]
+    next-plugin-publish: [next:plugin:publish]
+    next-example-dev: [next:example:dev]
+    next-example-preview: [next:example:preview]
+    next-docs-dev: [next:docs:dev]
+    next-docs-preview: [next:docs:preview]
+tasks:
+    next:pipeline: { cache: false, dependsOn: [] }
+    next:verify: { cache: false, dependsOn: [] }
+    # Package scripts are raw commands, not independently cacheable entry points.
+    next:build: { cache: false, dependsOn: [] }
+    next:pack: { cache: false, dependsOn: [] }
+    next:check: { cache: false, dependsOn: [] }
+    next:test: { cache: false, dependsOn: [] }
+    next:test:features: { cache: false, dependsOn: [] }
+    next:optimize-svg: { cache: false, dependsOn: [] }
+    next:social-card: { cache: false, dependsOn: [] }
+    next:dev: { cache: false, dependsOn: [] }
+    next:preview: { cache: false, dependsOn: [] }
+    next:bench: { cache: false, dependsOn: [] }
+    next:pack:tgz: { cache: false, dependsOn: [] }
+    next:publish: { cache: false, dependsOn: [] }
+    next:build:release: { cache: false, dependsOn: [] }
+    next:binding:regenerate: { cache: false, dependsOn: [] }
+    next:test:browser: { cache: false, dependsOn: [] }
+    next:test:coverage: { cache: false, dependsOn: [] }
+    next:test:coverage:cli: { cache: false, dependsOn: [] }
+    next:test:coverage:native: { cache: false, dependsOn: [] }
+    next:test:doctests: { cache: false, dependsOn: [] }
+    next:test:color-proof: { cache: false, dependsOn: [] }
+    next:test:fixtures:refresh: { cache: false, dependsOn: [] }
+
+    # Newly inventoried tasks stay uncached until their cache-contract checks pass.
+    # Dev/preview, publishing, measurements, and source-mutating maintenance are
+    # explicit executions; defining a pipeline never schedules it automatically.
+    next:bench:vitest: { cache: false, dependsOn: [next:native:release] }
+    next:test:compat: { cache: false, dependsOn: [next:native] }
+    next:coverage:scripts: { cache: false, dependsOn: [] }
+    next:engine:bench: { cache: false, dependsOn: [] }
+    next:engine:coverage: { cache: false, dependsOn: [] }
+    next:engine:coverage:cli: { cache: false, dependsOn: [] }
+    next:engine:doctests: { cache: false, dependsOn: [] }
+    next:engine:color-proof: { cache: false, dependsOn: [] }
+    next:adapter:browser: { cache: false, dependsOn: [next:native, next:adapter:color-proof] }
+    next:adapter:color-proof: { cache: false, dependsOn: [] }
+    next:adapter:coverage: { cache: false, dependsOn: [] }
+    next:adapter:coverage:native: { cache: false, dependsOn: [] }
+    next:adapter:binding:regenerate: { cache: false, dependsOn: [] }
+    next:adapter:bench: { cache: false, dependsOn: [] }
+    next:native:release:
+        cache: false
+        dependsOn: [next:adapter:test]
+        outputs: [packages/webfont-generator/binding.js, packages/webfont-generator/binding.d.ts, packages/webfont-generator/*.node]
+    next:browser:tgz:
+        cache: false
+        dependsOn: [next:browser:pack]
+        outputs: [packages/webfont-browser/atlowchemi-webfont-browser-generator-*.tgz]
+    next:browser:coverage: { cache: false, dependsOn: [next:browser:pack] }
+    next:browser:publish: { cache: false, dependsOn: [next:browser:tgz] }
+    next:plugin:dev: { cache: false, dependsOn: [] }
+    next:plugin:tgz:
+        cache: false
+        dependsOn: [next:plugin:pack]
+        outputs: [packages/vite-svg-2-webfont/vite-svg-2-webfont-*.tgz]
+    next:plugin:browser: { cache: false, dependsOn: [next:native] }
+    next:plugin:fixtures: { cache: false, dependsOn: [next:plugin:pack] }
+    # Release CI supplies the native artifacts; preserve the existing dependency
+    # bypass by running raw pack scripts inside this uncached publishing command.
+    next:plugin:publish: { cache: false, dependsOn: [] }
+    next:example:dev: { cache: false, dependsOn: [next:plugin:pack, next:docs:svg] }
+    next:example:preview: { cache: false, dependsOn: [next:example] }
+    next:docs:dev: { cache: false, dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack] }
+    next:docs:preview: { cache: false, dependsOn: [next:docs] }
+
+    # Formatting is a pipeline sibling, not a dependency that widens package check keys.
+    next:fmt:rust:
+        cache: false
+        dependsOn: []
+    # Result caching still awaits toolchain fingerprints and auditing.
+    next:engine:check:
+        cache: false
+        dependsOn: []
+    next:engine:features:
+        cache: false
+        env: [UPDATE_SVG_FIXTURES]
+        dependsOn: [next:engine:check]
+    next:engine:test:
+        cache: false
+        env: [UPDATE_SVG_FIXTURES]
+        dependsOn: [next:engine:check, next:engine:features]
+    next:adapter:check:
+        cache: false
+        dependsOn: [next:engine:check]
+    next:adapter:test:
+        cache: false
+        env: [UPDATE_SVG_FIXTURES]
+        dependsOn: [next:adapter:check, next:engine:test]
+
+    # Candidate native coverage for the auditor. Enable result caching only after
+    # automatic compiler/toolchain fingerprints and the blocking audit land.
+    # Cargo's intermediate target directory is deliberately not a restored output.
+    next:native:
+        cache: false
+        dependsOn: []
+        inputs:
+            - '**/.gitignore'
+            - package.json
+            - pnpm-workspace.yaml
+            - pnpm-tasks.yaml
+            - pnpm-lock.yaml
+            - Cargo.toml
+            - Cargo.lock
+            - .cargo/**
+            - rust-toolchain*
+            - crates/webfont-generator/**
+            - packages/webfont-browser/Cargo.toml
+            - packages/webfont-browser/README.md
+            - packages/webfont-browser/**/*.rs
+            - packages/*/package.json
+            - crates/*/package.json
+            # Optional configuration/loader probes must affect the key if created.
+            - .npmrc
+            - .pnp.cjs
+            - .pnpmfile.*
+            - package.{json5,yaml}
+            - libgcc_s.so.1
+            - packages/.cargo/**
+            - packages/{Cargo.toml,HEAD,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml}
+            - pnpm11/pnpm/package.json
+            # Cargo/NAPI inspect adapter assets and target-discovery files too.
+            - packages/webfont-generator/**
+        outputs:
+            - packages/webfont-generator/binding.js
+            - packages/webfont-generator/binding.d.ts
+            - packages/webfont-generator/*.node
+        env: [CACHE_TOOLCHAIN_FINGERPRINT, RUSTFLAGS, CARGO_ENCODED_RUSTFLAGS, CARGO_BUILD_TARGET, CARGO_TARGET_DIR, RUSTUP_TOOLCHAIN, CC, CXX]
+    next:wasm:
+        cache: false
+        dependsOn: []
+        inputs:
+            - package.json
+            - pnpm-workspace.yaml
+            - pnpm-tasks.yaml
+            - pnpm-lock.yaml
+            - Cargo.toml
+            - Cargo.lock
+            - .cargo/**
+            - rust-toolchain*
+            - crates/webfont-generator/**
+            - packages/webfont-generator/Cargo.toml
+            - packages/webfont-browser/package.json
+            - packages/webfont-browser/Cargo.toml
+            - packages/webfont-browser/native/**
+            - packages/webfont-browser/scripts/**
+            - packages/webfont-browser/{README.md,build.rs}
+            - packages/webfont-browser/{src,tests}/**/*.rs
+            - packages/webfont-generator/{README.md,build.rs}
+            - packages/webfont-generator/{src,tests}/**/*.rs
+            - '**/{package.json,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml,.pnp.cjs}'
+            - '{.npmrc,.pnpmfile.cjs,.pnpmfile.mjs,package.json5,package.yaml}'
+        outputs: [packages/webfont-browser/generated/**]
+        env: [CACHE_TOOLCHAIN_FINGERPRINT, RUSTFLAGS, CARGO_ENCODED_RUSTFLAGS, CARGO_TARGET_DIR, RUSTUP_TOOLCHAIN, WASM_BINDGEN]
+    next:browser:pack:
+        cache: false
+        env: [CACHE_TOOLCHAIN_FINGERPRINT, NODE_ENV]
+        dependsOn: [next:wasm]
+        outputs: [packages/webfont-browser/dist/**]
+    next:browser:check:
+        cache: false
+        dependsOn: [next:wasm]
+    next:browser:test:
+        cache: false
+        dependsOn: [next:browser:check, next:browser:pack]
+    next:plugin:pack:
+        # May upload Codecov bundle analysis; retain execution until audited.
+        cache: false
+        env: [CACHE_TOOLCHAIN_FINGERPRINT, NODE_ENV, CODECOV_TOKEN, ALLOW_BUNDLE_ANALYSIS]
+        dependsOn: [next:native]
+        outputs: [packages/vite-svg-2-webfont/dist/**]
+    next:plugin:test:
+        cache: false
+        dependsOn: [next:native]
+    next:test:js:
+        cache: false
+        dependsOn: [next:native, next:browser:pack]
+    next:coverage:
+        cache: false
+        dependsOn: [next:native]
+
+    next:docs:svg:
+        dependsOn: []
+        env: [CACHE_TOOLCHAIN_FINGERPRINT]
+        inputs:
+            - scripts/next-pipeline.mjs
+            - package.json
+            - pnpm-workspace.yaml
+            - pnpm-tasks.yaml
+            - pnpm-lock.yaml
+            - packages/docs/package.json
+            - packages/docs/assets/svg/**
+            - packages/docs/svgo.config.*
+            - '**/{package.json,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml,.pnp.cjs}'
+            - '{.npmrc,.pnpmfile.cjs,.pnpmfile.mjs,package.json5,package.yaml}'
+            - '**/svgo.config.{js,cjs,mjs,ts}'
+        outputs: [packages/docs/public/**/*.svg]
+    next:docs:social:
+        # Bundled fonts avoid host-font inputs; caching still needs reproducibility checks.
+        cache: false
+        dependsOn: [next:docs:svg]
+        inputs:
+            - package.json
+            - pnpm-workspace.yaml
+            - pnpm-tasks.yaml
+            - pnpm-lock.yaml
+            - packages/docs/package.json
+            - packages/docs/scripts/generate-social-card.ts
+        outputs: [packages/docs/public/social-card.png, packages/docs/public/github-social-preview.png]
+    next:docs:
+        cache: false
+        env: [CACHE_TOOLCHAIN_FINGERPRINT, NODE_ENV, GITHUB_ACTIONS]
+        dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack]
+        outputs: [packages/docs/.vitepress/dist/**, packages/docs/examples/write-files/generated/**]
+    next:example:
+        cache: false
+        env: [CACHE_TOOLCHAIN_FINGERPRINT, CACHE_INPUT_EXAMPLE_ENV_LOCAL, CACHE_INPUT_EXAMPLE_ENV_PRODUCTION_LOCAL, NODE_ENV]
+        dependsOn: [next:plugin:pack, next:docs:svg]
+        outputs: [packages/example/dist/**]

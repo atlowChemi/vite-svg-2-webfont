@@ -1,13 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync, mkdirSync, openSync, closeSync, writeFileSync, globSync } from 'node:fs';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { parse } from 'yaml';
 
 const root = new URL('../', import.meta.url);
 const manifest = path => JSON.parse(readFileSync(new URL(`${path}/package.json`, root), 'utf8'));
-const workspace = parse(readFileSync(new URL('pnpm-workspace.yaml', root), 'utf8'));
+// Let installed pnpm resolve includes and setting ownership.
+const workspace = Object.fromEntries(
+    ['tasks', 'pipelines'].map(setting => [setting, JSON.parse(execFileSync('pnpm', ['config', 'get', setting, '--json'], { cwd: root, encoding: 'utf8' }))]),
+);
 const rootPackage = manifest('.');
 const mappings = new Map();
 const rootTasks = {

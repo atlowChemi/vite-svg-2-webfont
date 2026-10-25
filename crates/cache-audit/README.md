@@ -28,8 +28,12 @@ Cargo sources.
 
 ## Resolve task graphs
 
-The binary embeds pnpm 12.14.0's configuration, workspace discovery, project graph,
-and task graph APIs at commit `fe4a0c232384289de82be3d502896ca7e070050c`.
+The binary embeds pnpm 12.15.0's configuration, workspace discovery, project graph,
+and task graph APIs at commit `91774e72a04d52ce61db06339696a433d383c764`.
+Task and pipeline definitions live in `pnpm-tasks.yaml`, delegated by the root
+workspace's native `include`. Validation uses pnpm's merged local-include document;
+negative checks mutate the owning file only inside the temporary copy. Config-dependency
+includes are explicitly unsupported by the validator rather than silently omitted.
 These unpublished APIs are pinned independently of the installed pnpm version.
 
 ```sh

@@ -157,12 +157,19 @@ async fn compatibility(root: &Path, reports: &Path, cancel: &CancellationToken) 
             fixture.join("pnpm-workspace.yaml"),
             serde_yaml_ng::to_string(&json!({
                 "packages":["."], "cacheDir":temp.path().join("cache"), "stateDir":temp.path().join("state"), "storeDir":temp.path().join("store"),
+                "include":{"./tasks.yaml":["tasks","pipelines"]}
+            }))?,
+        )?;
+        let mut definitions = json!({
                 "pipelines":{"proof":["build"]},
                 "tasks": {
                     "build":{"cache":true,"inputs":inputs,"outputs":["result"],"env":["CACHE_COMPAT_VALUE"],"dependsOn":["dependency"]},
                     "dependency":{"cache":true,"inputs":["dependency.txt"],"outputs":["dependency.out"],"dependsOn":[]}
                 }
-            }))?,
+        });
+        fs::write(
+            fixture.join("tasks.yaml"),
+            serde_yaml_ng::to_string(&definitions)?,
         )?;
         cache_run(&fixture, &log, false, "a", cancel).await?;
         cache_run(&fixture, &log, true, "a", cancel).await?;
@@ -180,6 +187,20 @@ async fn compatibility(root: &Path, reports: &Path, cancel: &CancellationToken) 
                 fs::write(fixture.join(path), content)?;
                 cache_run(&fixture, &log, false, "a", cancel).await?;
             }
+            cache_run(&fixture, &log, false, "b", cancel).await?;
+            cache_run(&fixture, &log, true, "b", cancel).await?;
+            definitions["tasks"]["unrelated"] = json!({"cache":false,"dependsOn":[]});
+            fs::write(
+                fixture.join("tasks.yaml"),
+                serde_yaml_ng::to_string(&definitions)?,
+            )?;
+            cache_run(&fixture, &log, true, "b", cancel).await?;
+            definitions["tasks"]["build"]["env"] =
+                json!(["CACHE_COMPAT_VALUE", "CACHE_COMPAT_ADDITIONAL"]);
+            fs::write(
+                fixture.join("tasks.yaml"),
+                serde_yaml_ng::to_string(&definitions)?,
+            )?;
             cache_run(&fixture, &log, false, "b", cancel).await?;
             cache_run(&fixture, &log, true, "b", cancel).await?;
         } else {
@@ -243,7 +264,21 @@ fn copy_workspace(
 }
 
 async fn negative(root: &Path, reports: &Path, cancel: &CancellationToken) -> Result<()> {
-    let original: Value = serde_yaml_ng::from_slice(&fs::read(root.join("pnpm-workspace.yaml"))?)?;
+    let document = crate::validator::workspace_document(root)?;
+    let owner = match document
+        .includes
+        .as_ref()
+        .map(|includes| includes.owner(&pnpm_workspace::SettingSlot::Setting("tasks".into())))
+    {
+        Some(pnpm_workspace::SettingOwner::Include(pnpm_workspace::IncludeSource::Local {
+            path,
+            ..
+        })) => path.clone(),
+        _ => document.path,
+    };
+    let owner = owner.strip_prefix(root)?;
+    // Mutate the owning source, not a flattened copy that loses delegation.
+    let original: Value = serde_yaml_ng::from_slice(&fs::read(root.join(owner))?)?;
     let temporary = tempfile::Builder::new()
         .prefix("cache-audit-negative-")
         .tempdir()?;
@@ -312,10 +347,7 @@ async fn negative(root: &Path, reports: &Path, cancel: &CancellationToken) -> Re
         if before == values.len() {
             return Err(format!("missing baseline declaration: {declaration}").into());
         }
-        fs::write(
-            copy.join("pnpm-workspace.yaml"),
-            serde_yaml_ng::to_string(&config)?,
-        )?;
+        fs::write(copy.join(owner), serde_yaml_ng::to_string(&config)?)?;
         let directory = reports.join(format!("negative-{name}"));
         let code = runner::run(
             [
