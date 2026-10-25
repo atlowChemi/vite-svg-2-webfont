@@ -5,7 +5,7 @@ use js_sys::{Object, Reflect, Uint8Array};
 use wasm_bindgen::prelude::*;
 use webfont_generator::{
     FontType, GenerateWebfontsFromSourcesOptions, GenerateWebfontsFromSourcesResult, OutputKind,
-    SourceChange, SourceMembership, TtfFormatOptions, generate_from_sources_sync,
+    SourceChange, SourceMembership, generate_from_sources_sync,
 };
 
 #[cfg(all(test, target_arch = "wasm32"))]
@@ -22,28 +22,26 @@ pub struct FontSession(GenerateWebfontsFromSourcesResult);
 #[wasm_bindgen]
 impl FontSession {
     /// Decode and validate memory options. An omitted timestamp uses the browser clock,
-    /// captured once so incremental updates retain the same font metadata.
+    /// captured once so incremental updates retain the same font metadata; fonts reused from
+    /// `cache` keep the timestamp of the session that created them. `cache` enables the
+    /// persistent cache with bytes from an earlier `cacheBytes()` (empty to start cold).
     #[wasm_bindgen(constructor)]
-    pub fn new(options: &str) -> Result<FontSession, JsValue> {
+    pub fn new(options: &str, cache: Option<Vec<u8>>) -> Result<FontSession, JsValue> {
         let mut options: GenerateWebfontsFromSourcesOptions =
             serde_json::from_str(options).map_err(error)?;
-        let ttf = options
+        options.cache = cache;
+        // WebAssembly has no system clock. The browser clock is only a fallback, so it doesn't
+        // become part of cache keys and cached fonts keep the timestamp of the run that made them.
+        let ts = options
             .format_options
-            .get_or_insert_default()
-            .ttf
-            .get_or_insert(TtfFormatOptions {
-                copyright: None,
-                description: None,
-                ts: None,
-                url: None,
-                version: None,
-            });
-        if ttf.ts.is_none() {
+            .as_ref()
+            .and_then(|formats| formats.ttf.as_ref()?.ts);
+        if ts.is_none() {
             let now = js_sys::Date::now() / 1000.0;
             if !now.is_finite() {
                 return Err(error("Browser clock returned an invalid timestamp"));
             }
-            ttf.ts = Some(now.floor() as i64);
+            options.fallback_ts = Some(now.floor() as i64);
         }
         generate_from_sources_sync(options).map(Self).map_err(error)
     }
@@ -102,6 +100,15 @@ impl FontSession {
             .generate_html()
             .map(|text| text.to_string())
             .map_err(error)
+    }
+
+    /// Encode the persistent cache, or `undefined` when caching is off or nothing changed since
+    /// the bytes were loaded or last returned.
+    #[wasm_bindgen(js_name = cacheBytes)]
+    pub fn cache_bytes(&mut self) -> Option<Uint8Array> {
+        self.0
+            .cache_bytes()
+            .map(|bytes| Uint8Array::from(bytes.as_slice()))
     }
 
     /// Copy requested fonts and enabled companions into an object keyed by output kind.

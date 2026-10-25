@@ -3,10 +3,11 @@
 export const memory: WebAssembly.Memory;
 export const __wbg_fontsession_free: (a: number, b: number) => void;
 export const fontsession_add: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+export const fontsession_cacheBytes: (a: number) => any;
 export const fontsession_css: (a: number) => [number, number, number, number];
 export const fontsession_font: (a: number, b: number, c: number) => [number, number, number];
 export const fontsession_html: (a: number) => [number, number, number, number];
-export const fontsession_new: (a: number, b: number) => [number, number, number];
+export const fontsession_new: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const fontsession_outputs: (a: number) => [number, number, number];
 export const fontsession_regenerate: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const fontsession_remove: (a: number, b: number, c: number) => [number, number];

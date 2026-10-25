@@ -12,6 +12,11 @@ export class FontSession {
      */
     add(source: string, variant?: string | null): void;
     /**
+     * Encode the persistent cache, or `undefined` when caching is off or nothing changed since
+     * the bytes were loaded or last returned.
+     */
+    cacheBytes(): Uint8Array | undefined;
+    /**
      * Render CSS lazily, even when CSS collection is disabled.
      */
     css(): string;
@@ -25,9 +30,11 @@ export class FontSession {
     html(): string;
     /**
      * Decode and validate memory options. An omitted timestamp uses the browser clock,
-     * captured once so incremental updates retain the same font metadata.
+     * captured once so incremental updates retain the same font metadata; fonts reused from
+     * `cache` keep the timestamp of the session that created them. `cache` enables the
+     * persistent cache with bytes from an earlier `cacheBytes()` (empty to start cold).
      */
-    constructor(options: string);
+    constructor(options: string, cache?: Uint8Array | null);
     /**
      * Copy requested fonts and enabled companions into an object keyed by output kind.
      */
@@ -52,10 +59,11 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_fontsession_free: (a: number, b: number) => void;
     readonly fontsession_add: (a: number, b: number, c: number, d: number, e: number) => [number, number];
+    readonly fontsession_cacheBytes: (a: number) => any;
     readonly fontsession_css: (a: number) => [number, number, number, number];
     readonly fontsession_font: (a: number, b: number, c: number) => [number, number, number];
     readonly fontsession_html: (a: number) => [number, number, number, number];
-    readonly fontsession_new: (a: number, b: number) => [number, number, number];
+    readonly fontsession_new: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly fontsession_outputs: (a: number) => [number, number, number];
     readonly fontsession_regenerate: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly fontsession_remove: (a: number, b: number, c: number) => [number, number];

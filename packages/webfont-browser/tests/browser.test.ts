@@ -43,7 +43,7 @@ it('generates copied fonts in a worker and browsers load all modern containers',
     expect(await result.font('ttf')).not.toEqual(original);
     expect(await result.generateCss()).toContain('@font-face');
     expect(await result.generateHtml()).toContain('square');
-    expect(Object.keys(result).toSorted()).toEqual(['add', 'collectOutputs', 'dispose', 'font', 'generateCss', 'generateHtml', 'regenerate', 'remove', 'update']);
+    expect(Object.keys(result).toSorted()).toEqual(['add', 'collectOutputs', 'dispose', 'exportCache', 'font', 'generateCss', 'generateHtml', 'regenerate', 'remove', 'update']);
     result.dispose();
     expect(Object.values(outputs).every(bytes => bytes.byteLength > 0)).toBe(true);
     await expect(result.font('ttf')).rejects.toThrow('disposed');
@@ -271,4 +271,59 @@ it('disposes at scope exit with explicit resource management, including exceptio
     ).rejects.toThrow('scope failed');
     await expect(result.font('ttf')).rejects.toThrow('disposed');
     expect(() => result.dispose()).not.toThrow();
+});
+
+function idb<T>(request: IDBRequest<T>): Promise<T> {
+    const { promise, reject, resolve } = Promise.withResolvers<T>();
+    request.addEventListener('success', () => resolve(request.result), { once: true });
+    request.addEventListener('error', () => reject(request.error), { once: true });
+    return promise;
+}
+
+it('round-trips cache bytes through IndexedDB into byte-identical warm generations', async () => {
+    const options: GenerateWebfontsOptions = { types: ['svg', 'ttf', 'woff', 'woff2'], incremental: true };
+    const expected = await (await generate(options)).collectOutputs();
+    const cold = await generate({ ...options, cache: new Uint8Array() });
+    expect(await cold.collectOutputs()).toEqual(expected);
+    const bytes = await cold.exportCache();
+    expect(bytes).toBeInstanceOf(Uint8Array);
+    await expect(cold.exportCache()).resolves.toBeUndefined();
+
+    const open = indexedDB.open('webfont-cache-test', 1);
+    open.addEventListener('upgradeneeded', () => open.result.createObjectStore('cache'), { once: true });
+    const db = await idb(open);
+    await idb(db.transaction('cache', 'readwrite').objectStore('cache').put(bytes, 'iconfont'));
+    const stored = await idb<Uint8Array>(db.transaction('cache').objectStore('cache').get('iconfont'));
+    db.close();
+    await idb(indexedDB.deleteDatabase('webfont-cache-test'));
+
+    const warm = await generate({ ...options, cache: stored });
+    expect(await warm.collectOutputs()).toEqual(expected);
+    await expect(warm.exportCache()).resolves.toBeUndefined();
+    await warm.regenerate({ sources: [source.id] }, [{ type: 'changed', id: source.id, svg: changed }]);
+    expect(await warm.exportCache()).toBeInstanceOf(Uint8Array);
+    // The caller keeps its buffer: cache bytes are copied to the worker, not transferred.
+    expect(stored.byteLength).toBeGreaterThan(0);
+});
+
+it.each([
+    ['an invalid header', () => new TextEncoder().encode('not a cache')],
+    ['a truncated body', (valid: Uint8Array) => valid.subarray(0, valid.length >> 1)],
+    [
+        'a flipped byte inside a stored font',
+        (valid: Uint8Array) => {
+            const flipped = valid.slice();
+            flipped[flipped.length - 10]! ^= 0xff;
+            return flipped;
+        },
+    ],
+])('falls back to byte-identical outputs for cache bytes with %s', async (_, corrupt) => {
+    const options: GenerateWebfontsOptions = { types: ['svg', 'ttf', 'eot', 'woff', 'woff2'] };
+    const expected = await (await generate(options)).collectOutputs();
+    const valid = await (await generate({ ...options, cache: new Uint8Array() })).exportCache();
+    if (!valid) throw new Error('expected exported cache bytes');
+
+    const recovered = await generate({ ...options, cache: corrupt(valid) });
+    expect(await recovered.collectOutputs()).toEqual(expected);
+    expect(await recovered.exportCache()).toEqual(valid);
 });

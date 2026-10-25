@@ -9,19 +9,18 @@ use crate::formats::{eot, woff1, woff2};
 #[cfg(feature = "fs")]
 use crate::incremental::RegenerationState;
 #[cfg(feature = "fs")]
-use crate::input::{LoadedSvgSource, ResolvedFileGenerationOptions};
-use crate::input::{ResolvedGenerationOptions, ResolvedVariants};
+use crate::input::ResolvedFileGenerationOptions;
+use crate::input::{LoadedSvgSource, ResolvedGenerationOptions, ResolvedVariants};
 use crate::result::FontOutputs;
 #[cfg(feature = "fs")]
 use crate::result::GenerateWebfontsResult;
 use crate::sfnt;
 use crate::sfnt::CachedCompiledGlyph;
 use crate::svg::build_svg_font;
+use crate::svg::prepare_svg_font_incremental;
+use crate::svg::types::{GlyphCache, PreparedSvgFont, SvgOptions};
 #[cfg(feature = "fs")]
-use crate::svg::types::GlyphCache;
-use crate::svg::types::{PreparedSvgFont, SvgOptions};
-#[cfg(feature = "fs")]
-use crate::svg::{prepare_svg_font, prepare_svg_font_incremental, svg_options_from_options};
+use crate::svg::{prepare_svg_font, svg_options_from_options};
 use crate::types::FontType;
 
 #[cfg(all(test, feature = "fs"))]
@@ -157,65 +156,42 @@ pub(crate) fn generate_webfonts_sync(
         .cache_location
         .as_deref()
         .map(|dir| crate::cache::DiskCache::open(dir, &options, &source_files));
-    let hits = disk
-        .as_ref()
-        .map(|disk| disk.font_hits(&options.types))
-        .unwrap_or_default();
-    let missing: Vec<FontType> = options
-        .types
-        .iter()
-        .copied()
-        .filter(|font_type| hits.iter().all(|hit| hit.font_type() != *font_type))
-        .collect();
-    // Only a run whose fonts all came from the cache may skip glyph work: with no formats
-    // requested, the SVGs must still be parsed (and so validated) as without a cache.
-    let full_hit = !hits.is_empty() && missing.is_empty();
 
     // When incremental, retain the parsed-glyph cache so a later `regenerate` can reuse the
     // glyphs whose source didn't change. Otherwise the geometry is dropped as soon as the font
-    // is built, so one-shot builds carry no extra memory. A persistent cache seeds it from disk.
-    let seeded_cache = || match &disk {
-        Some(disk) => disk.hydrate(&svg_options, &source_files),
-        None => GlyphCache::default(),
-    };
-    let (mut fonts, glyph_cache, ttf_cache) = if full_hit {
-        // Every requested format came from the persistent cache: no glyph work at all.
-        let glyph_cache = options.incremental.then(seeded_cache);
-        let ttf_cache = options.incremental.then(TtfGlyphCache::default);
-        (FontOutputs::default(), glyph_cache, ttf_cache)
-    } else if options.incremental || disk.is_some() {
-        let mut cache = seeded_cache();
-        let mut ttf_cache = options.incremental.then(TtfGlyphCache::default);
-        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
-        let fonts = build_missing_outputs(
+    // is built, so one-shot builds carry no extra memory.
+    let mut ttf_cache = options.incremental.then(TtfGlyphCache::default);
+    let (fonts, glyph_cache) = if let Some(disk) = disk {
+        let outcome = build_with_cache(
             &options,
             &svg_options,
-            &prepared,
-            &missing,
+            &source_files,
+            &disk,
             ttf_cache.as_mut(),
-        )?;
-        (fonts, Some(cache), ttf_cache)
+        );
+        let (fonts, glyph_cache, built) = outcome?;
+        if built && let Some(glyph_cache) = &glyph_cache {
+            disk.store(
+                &svg_options,
+                &source_files,
+                glyph_cache,
+                &fonts,
+                &options.types,
+            );
+        }
+        (fonts, glyph_cache.filter(|_| options.incremental))
+    } else if options.incremental {
+        let mut cache = GlyphCache::default();
+        let prepared = prepare_svg_font_incremental(&svg_options, &source_files, &mut cache)?;
+        let fonts = build_font_outputs(&options, &svg_options, &prepared, ttf_cache.as_mut())?;
+        (fonts, Some(cache))
     } else {
         let prepared = prepare_svg_font(&svg_options, &source_files)?;
-        let fonts = build_font_outputs(&options, &svg_options, &prepared, None)?;
-        (fonts, None, None)
+        (
+            build_font_outputs(&options, &svg_options, &prepared, None)?,
+            None,
+        )
     };
-    for font in hits {
-        font.place(&mut fonts);
-    }
-    if let Some(disk) = disk
-        && !full_hit
-        && let Some(glyph_cache) = &glyph_cache
-    {
-        disk.store(
-            &svg_options,
-            &source_files,
-            glyph_cache,
-            &fonts,
-            &options.types,
-        );
-    }
-    let glyph_cache = glyph_cache.filter(|_| options.incremental);
     let regeneration_state = glyph_cache.map(|glyph_cache| RegenerationState {
         variant_cache: None,
         variant_write_pending: false,
@@ -237,21 +213,42 @@ pub(crate) fn generate_webfonts_sync(
     })
 }
 
-/// Build only `missing` formats; the rest come from the persistent cache.
-#[cfg(feature = "fs")]
-fn build_missing_outputs(
+/// Generate with a persistent cache: reuse every cached format, seed glyph work from cached
+/// glyphs, and build only the formats that missed. Returns the outputs, the glyph cache used
+/// (seeded from `state`, then filled by any glyph work; `None` when every format hit and the
+/// result isn't incremental, so nothing needs it), and whether anything was built.
+pub(crate) fn build_with_cache(
     options: &ResolvedGenerationOptions,
     svg_options: &SvgOptions<'_>,
-    prepared: &PreparedSvgFont,
-    missing: &[FontType],
+    sources: &[LoadedSvgSource],
+    state: &crate::cache::CacheState,
     ttf_cache: Option<&mut TtfGlyphCache>,
-) -> std::io::Result<FontOutputs> {
-    if missing.len() == options.types.len() {
-        return build_font_outputs(options, svg_options, prepared, ttf_cache);
+) -> std::io::Result<(FontOutputs, Option<GlyphCache>, bool)> {
+    let hits = state.font_hits(&options.types);
+    let missing: Vec<FontType> = options
+        .types
+        .iter()
+        .copied()
+        .filter(|font_type| hits.iter().all(|hit| hit.font_type() != *font_type))
+        .collect();
+    // Only a run whose fonts all came from the cache may skip glyph work: with no formats
+    // requested, the SVGs must still be parsed (and so validated) as without a cache.
+    let full_hit = !hits.is_empty() && missing.is_empty();
+    // Hydrating hashes every source and clones every cached glyph; skip it when nothing uses it.
+    let mut glyph_cache =
+        (options.incremental || !full_hit).then(|| state.hydrate(svg_options, sources));
+    let mut fonts = if let Some(glyph_cache) = glyph_cache.as_mut().filter(|_| !full_hit) {
+        let prepared = prepare_svg_font_incremental(svg_options, sources, glyph_cache)?;
+        let mut subset = options.clone();
+        subset.types.clone_from(&missing);
+        build_font_outputs(&subset, svg_options, &prepared, ttf_cache)?
+    } else {
+        FontOutputs::default()
+    };
+    for font in hits {
+        font.place(&mut fonts);
     }
-    let mut subset = options.clone();
-    subset.types = missing.to_vec();
-    build_font_outputs(&subset, svg_options, prepared, ttf_cache)
+    Ok((fonts, glyph_cache, !full_hit))
 }
 
 #[cfg(feature = "fs")]

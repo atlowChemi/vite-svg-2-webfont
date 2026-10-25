@@ -16,4 +16,5 @@ Generate webfonts from SVG text in browser workers, powered by precompiled WebAs
 - [Installation and usage](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser#installation)
 - [API reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser#result-methods)
 - [Incremental updates](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser#incremental-updates)
+- [Persistent cache](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser#persistent-cache)
 - [Worker lifetime and hosting](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser#worker-lifetime-and-hosting)
