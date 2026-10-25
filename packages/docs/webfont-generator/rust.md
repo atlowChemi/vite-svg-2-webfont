@@ -205,7 +205,7 @@ are reused, output is byte-identical, and bytes from another engine version or o
 ignored. `result.cache_bytes()` (`&mut self`) encodes the current state, including incremental
 updates, and returns `None` when caching is off, nothing changed since the bytes were loaded or
 last returned, or a failed update left the result without its glyph data (the next successful
-update restores it). Single-design only; variant families ignore `cache`.
+update restores it).
 
 `fallback_ts` supplies the TTF timestamp on targets without a system clock. Unlike
 `format_options.ttf.ts`, it isn't part of cache keys, so later runs with another clock still reuse
@@ -369,8 +369,7 @@ Set `cache_location` to reuse work across processes. Unchanged icons skip parsin
 processing, and formats whose inputs didn't change come straight from the cache. Output is
 byte-identical to an uncached run, except that when `format_options.ttf.ts` is unset, each
 cached format keeps the TTF `head` timestamp of the run that created it, so formats in one output
-can carry different timestamps; set `ts` for reproducible output. See
-[`cacheLocation`](./node#cachelocation) for the full behavior (it is the same option),
+can carry different timestamps; set `ts` for reproducible output. See [`cacheLocation`](./node#cachelocation) for the full behavior (it is the same option),
 [caching across builds](./node#caching-across-builds) for CI and Docker setups, and
 [performance](./under-the-hood#persistent-cache) for measured speedups.
 

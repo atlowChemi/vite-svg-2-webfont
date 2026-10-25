@@ -6,12 +6,13 @@ mod updates;
 use std::io::{Error, Result};
 use std::sync::{Arc, OnceLock};
 
-use crate::cache::CacheState;
+use crate::cache::{CacheState, glyph_set, variant_glyph_set};
 use crate::incremental::sources::{SourceUpdate, refresh_source_cache, replace_source_cache};
 use crate::input::finalize_generate_webfonts_options;
 use crate::output::collect::{CollectedOutput, collect_outputs};
 use crate::pipeline::{
-    TtfGlyphCache, build_content_variant_outputs, build_font_outputs, build_with_cache,
+    TtfGlyphCache, build_content_variant_outputs, build_font_outputs, build_variant_with_cache,
+    build_with_cache,
 };
 use crate::rendering::css::{
     SharedTemplateData, calc_content_hash, make_content_css_context, make_urls,
@@ -37,7 +38,7 @@ pub use updates::{SourceChange, SourceMembership, VariantSourceSet};
 struct PersistentCache {
     state: CacheState,
     /// Glyph data for results without incremental caches (which hold it otherwise).
-    glyphs: Option<GlyphCache>,
+    glyphs: Option<SourceCaches>,
     /// Set when a failed update reset the incremental caches: until a build succeeds and refills
     /// them, exporting would drop every saved glyph, so `cache_bytes` returns `None` instead.
     caches_reset: bool,
@@ -91,7 +92,7 @@ pub fn generate_from_sources_sync(
     let cache = options.cache.take();
     let mut options = resolve(options)?;
     let mut caches = options.common.incremental.then(SourceCaches::default);
-    let (fonts, persistent) = match cache.filter(|_| options.variants.is_none()) {
+    let (fonts, persistent) = match cache {
         Some(bytes) => build_cached(&mut options, caches.as_mut(), bytes)?,
         None => (build(&mut options, caches.as_mut(), &[])?, None),
     };
@@ -130,13 +131,46 @@ fn generation_join_error(error: tokio::task::JoinError) -> Error {
     Error::other(format!("Source generation task failed: {error}"))
 }
 
-/// Initial single-design build seeded from persistent cache bytes. The persistent state is
-/// dropped when nothing could ever be exported: a full hit without incremental updates.
+/// Initial build seeded from persistent cache bytes. The persistent state is dropped when nothing
+/// could ever be exported: a full hit without incremental updates.
 fn build_cached(
     options: &mut ResolvedSourceOptions,
     caches: Option<&mut SourceCaches>,
     bytes: Vec<u8>,
 ) -> Result<(FontOutputs, Option<PersistentCache>)> {
+    if let Some(variants) = &options.variants {
+        let family = resolve_content_variant_sources(
+            &mut options.common,
+            variants,
+            options.sources.iter().map(Vec::as_slice).collect(),
+        )?;
+        let mut state = CacheState::new_variant(&options.common, variants, &family);
+        if !bytes.is_empty() {
+            state.load(bytes);
+        }
+        let svg_options = svg_options_from_options(&options.common);
+        let built =
+            build_variant_with_cache(&options.common, variants, &svg_options, &family, &state);
+        let (fonts, glyphs, _) = built?;
+        let glyphs = match (caches, glyphs) {
+            (Some(cache), Some(glyphs)) => {
+                cache.variants = glyphs;
+                None
+            }
+            (None, None) => return Ok((fonts, None)),
+            (_, glyphs) => glyphs.map(|variants| SourceCaches {
+                variants,
+                ..Default::default()
+            }),
+        };
+        state.release_glyphs();
+        let persistent = PersistentCache {
+            state,
+            glyphs,
+            caches_reset: false,
+        };
+        return Ok((fonts, Some(persistent)));
+    }
     finalize_generate_webfonts_options(&mut options.common, &options.sources[0])?;
     let sources = &options.sources[0];
     let mut state = CacheState::new(&options.common, sources);
@@ -155,7 +189,10 @@ fn build_cached(
             None
         }
         (None, None) => return Ok((fonts, None)),
-        (_, glyphs) => glyphs,
+        (_, glyphs) => glyphs.map(|glyphs| SourceCaches {
+            glyphs,
+            ..Default::default()
+        }),
     };
     state.release_glyphs();
     let persistent = PersistentCache {
@@ -358,18 +395,34 @@ impl GenerateWebfontsFromSourcesResult {
         if *caches_reset {
             return None;
         }
-        let glyphs = glyphs
-            .as_ref()
-            .or(self.caches.as_ref().map(|cache| &cache.glyphs))?;
+        let caches = glyphs.as_ref().or(self.caches.as_ref())?;
+        let options = &self.options.common;
+        let svg_options = svg_options_from_options(options);
+        if let Some(variants) = &self.options.variants {
+            let sources = &self.options.sources;
+            let family = resolve_content_variant_sources(
+                &mut options.clone(),
+                variants,
+                sources.iter().map(Vec::as_slice).collect(),
+            )
+            .expect("committed variant sources resolve");
+            state.refresh_glyph_set(variant_glyph_set(&family));
+            return state.update_variants(
+                &svg_options,
+                sources,
+                &caches.variants,
+                &self.fonts,
+                &options.types,
+            );
+        }
         let sources = &self.options.sources[0];
-        state.refresh_glyph_set(&self.options.common, sources);
-        let svg_options = svg_options_from_options(&self.options.common);
+        state.refresh_glyph_set(glyph_set(options, sources));
         state.update(
             &svg_options,
             sources,
-            glyphs,
+            &caches.glyphs,
             &self.fonts,
-            &self.options.common.types,
+            &options.types,
         )
     }
 

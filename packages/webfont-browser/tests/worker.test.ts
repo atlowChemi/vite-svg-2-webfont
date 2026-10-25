@@ -204,3 +204,35 @@ it.each([
     expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
     expect(await request({ method: 'cache' })).toEqual({ id: expect.any(Number), ok: true, value: cache });
 });
+
+it('produces identical variant family outputs cold, warm and from corrupt cache bytes', async () => {
+    const icon = JSON.parse(options).sources[0];
+    const family = JSON.stringify({
+        variants: [
+            { name: 'light', weight: 300, default: true, sources: [icon] },
+            { name: 'bold', weight: 700, sources: [{ ...icon, id: 'bold', svg: '<svg viewBox="0 0 24 24"><path d="M1 1L23 23H1Z"/></svg>' }] },
+        ],
+        types: ['ttf', 'woff', 'woff2'],
+        formatOptions: { ttf: { ts: 0 } },
+    });
+    expect(await request({ method: 'generate', options: family })).toMatchObject({ ok: true });
+    const outputs = await request({ method: 'outputs' });
+    await startWorker();
+    expect(await request({ method: 'generate', options: family, cache: new Uint8Array() })).toMatchObject({ ok: true });
+    expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
+    const exported = await request({ method: 'cache' });
+    if (!exported.ok || !(exported.value instanceof Uint8Array)) throw new Error('expected exported cache bytes');
+    const cache = exported.value;
+
+    await startWorker();
+    expect(await request({ method: 'generate', options: family, cache })).toMatchObject({ ok: true });
+    expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
+    expect(await request({ method: 'cache' })).toEqual({ id: expect.any(Number), ok: true, value: undefined });
+
+    await startWorker();
+    const flipped = cache.slice();
+    flipped[flipped.length - 10]! ^= 0xff;
+    expect(await request({ method: 'generate', options: family, cache: flipped })).toMatchObject({ ok: true });
+    expect(await request({ method: 'outputs' })).toEqual({ ...outputs, id: expect.any(Number) });
+    expect(await request({ method: 'cache' })).toEqual({ id: expect.any(Number), ok: true, value: cache });
+});

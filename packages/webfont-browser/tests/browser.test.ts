@@ -327,3 +327,29 @@ it.each([
     expect(await recovered.collectOutputs()).toEqual(expected);
     expect(await recovered.exportCache()).toEqual(valid);
 });
+
+it('produces byte-identical variant family outputs with and without cache bytes, including corrupt ones', async () => {
+    const options: GenerateWebfontsOptions = {
+        sources: [],
+        variants: [
+            { name: 'light', weight: 300, default: true, sources: [source] },
+            { name: 'bold', weight: 700, sources: [{ ...source, id: 'bold', svg: changed }] },
+        ],
+        incremental: true,
+    };
+    const expected = await (await generate(options)).collectOutputs();
+    const cold = await generate({ ...options, cache: new Uint8Array() });
+    expect(await cold.collectOutputs()).toEqual(expected);
+    const valid = await cold.exportCache();
+    if (!valid) throw new Error('expected exported cache bytes');
+
+    const warm = await generate({ ...options, cache: valid });
+    expect(await warm.collectOutputs()).toEqual(expected);
+    await expect(warm.exportCache()).resolves.toBeUndefined();
+
+    const flipped = valid.slice();
+    flipped[flipped.length - 10]! ^= 0xff;
+    const recovered = await generate({ ...options, cache: flipped });
+    expect(await recovered.collectOutputs()).toEqual(expected);
+    expect(await recovered.exportCache()).toEqual(valid);
+});

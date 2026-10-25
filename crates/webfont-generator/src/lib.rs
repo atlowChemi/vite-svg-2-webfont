@@ -496,9 +496,7 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
             .collect::<Vec<_>>();
         let source_files = load_variant_svg_files_with_hooks(&variant_paths, hooks).await?;
         let generation = tokio::task::spawn_blocking(move || {
-            let (family, source_files, cache) =
-                prepare_variant_family(&mut resolved_options, source_files)?;
-            generate_variant_webfonts_sync(resolved_options, source_files, family, cache)
+            generate_variant_webfonts_sync(resolved_options, source_files)
         });
         generation.await.map_err(variant_preparation_join_error)??
     } else {

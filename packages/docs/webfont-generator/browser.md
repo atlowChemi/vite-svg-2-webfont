@@ -171,8 +171,7 @@ if (updated) await saveCache('icons', updated);
 - `exportCache()` reflects incremental updates and resolves `undefined` when nothing changed since
   the cache was loaded or last exported, so you can skip writes.
 - Bytes from another engine version or other settings are ignored, and corrupted or truncated
-  bytes fall back to a correct uncached run (each cache carries a checksum). Variant families
-  ignore `cache`.
+  bytes fall back to a correct uncached run (each cache carries a checksum).
 
 ::: warning Only pass trusted cache bytes
 Cached fonts are reused as-is, so only pass bytes your own app stored. Don't accept cache bytes

@@ -1386,6 +1386,8 @@ fn cache_bytes_round_trip_into_warm_byte_identical_runs() {
     assert!(warm.cache_bytes().is_none());
 
     // Without incremental caches, the result keeps the glyph data needed for export.
+    let mut one_shot = generate_from_sources_sync(cached(Vec::new(), false)).unwrap();
+    assert_eq!(one_shot.cache_bytes().unwrap(), bytes);
     let mut one_shot = generate_from_sources_sync(cached(bytes, false)).unwrap();
     assert_fonts_equal(&one_shot, &uncached);
     assert!(one_shot.cache_bytes().is_none());
@@ -1564,12 +1566,141 @@ fn unusable_or_unrequested_cache_bytes_are_ignored() {
 
     let mut uncached = generate_from_sources_sync(options()).unwrap();
     assert!(uncached.cache_bytes().is_none());
-    let mut family = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
-        cache: Some(Vec::new()),
-        ..variant_options()
-    })
-    .unwrap();
-    assert!(family.cache_bytes().is_none());
+}
+
+const COLOR: &str = r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#ff9900" d="M2 2H18V20H2Z"/><path fill="#0066ff" d="M6 6H12V12H6Z"/></svg>"##;
+
+/// A two-design family with a design-specific glyph, a shared one, and a color glyph.
+fn cached_family(bytes: Option<Vec<u8>>, incremental: bool) -> GenerateWebfontsFromSourcesOptions {
+    let mut options = variant_options();
+    let designs = options.variants.as_mut().unwrap();
+    designs[0]
+        .sources
+        .push(source("light-b", "triangle", OTHER));
+    designs[1].sources.push(source(
+        "bold-b",
+        "triangle",
+        &OTHER.replace("24 24H0", "20 24H0"),
+    ));
+    for design in designs.iter_mut() {
+        design.sources.push(source("logo", "logo", COLOR));
+    }
+    GenerateWebfontsFromSourcesOptions {
+        color_glyphs: Some(crate::ColorGlyphSelection::Named(vec!["logo".into()])),
+        incremental: Some(incremental),
+        cache: bytes,
+        ..options
+    }
+}
+
+/// (parsed, processed) variant glyph work for an incremental result.
+fn variant_work(result: &GenerateWebfontsFromSourcesResult) -> (usize, usize) {
+    let variants = &result.caches.as_ref().unwrap().variants;
+    let parsed = variants
+        .parsed
+        .iter()
+        .map(|design| design.parse_count)
+        .sum();
+    (parsed, variants.process_count)
+}
+
+#[test]
+fn variant_cache_bytes_round_trip_and_follow_updates() {
+    let uncached = generate_from_sources_sync(cached_family(None, true)).unwrap();
+    let mut cold = generate_from_sources_sync(cached_family(Some(Vec::new()), true)).unwrap();
+    assert_fonts_equal(&cold, &uncached);
+    assert_eq!(variant_work(&cold), (6, 6));
+    let bytes = cold.cache_bytes().unwrap();
+    assert!(cold.cache_bytes().is_none());
+    // Without incremental caches, the result keeps the variant glyph data needed for export.
+    let mut one_shot = generate_from_sources_sync(cached_family(Some(Vec::new()), false)).unwrap();
+    assert_fonts_equal(&one_shot, &uncached);
+    assert_eq!(one_shot.cache_bytes().unwrap(), bytes);
+
+    let mut warm = generate_from_sources_sync(cached_family(Some(bytes.clone()), true)).unwrap();
+    assert_fonts_equal(&warm, &uncached);
+    assert_eq!(variant_work(&warm), (0, 0));
+    assert!(warm.cache_bytes().is_none());
+    // A settings change that only feeds CSS reuses every font: nothing was prepared or retained.
+    let mut css = cached_family(Some(bytes.clone()), false);
+    css.css_fonts_url = Some("/fonts/".into());
+    let mut css = generate_from_sources_sync(css).unwrap();
+    assert_fonts_equal(&css, &uncached);
+    assert!(css.persistent.is_none());
+    assert!(css.cache_bytes().is_none());
+
+    let changed = SVG.replace("H20", "H16");
+    warm.update_sync("shared".into(), changed.clone(), None)
+        .unwrap();
+    let mut edited = cached_family(None, true);
+    for design in edited.variants.as_mut().unwrap() {
+        design.sources[0].svg.clone_from(&changed);
+    }
+    assert_fonts_equal(&warm, &generate_from_sources_sync(edited.clone()).unwrap());
+    let updated = warm.cache_bytes().unwrap();
+    assert_ne!(updated, bytes);
+
+    edited.cache = Some(updated);
+    let mut rewarmed = generate_from_sources_sync(edited.clone()).unwrap();
+    assert_eq!(variant_work(&rewarmed), (0, 0));
+    edited.cache = None;
+    assert_fonts_equal(&rewarmed, &generate_from_sources_sync(edited).unwrap());
+    assert!(rewarmed.cache_bytes().is_none());
+}
+
+#[test]
+fn variant_families_with_no_requested_formats_still_validate_sources() {
+    let broken = |cache| {
+        let mut options = cached_family(cache, false);
+        options.types = Some(Vec::new());
+        let bold = &mut options.variants.as_mut().unwrap()[1].sources;
+        bold.iter_mut()
+            .find(|source| source.id == "bold-b")
+            .unwrap()
+            .svg = "<svg".into();
+        generate_from_sources_sync(options)
+            .err()
+            .unwrap()
+            .to_string()
+    };
+    // An empty format list is never a cache hit, so the family is prepared as without a cache.
+    assert_eq!(broken(Some(Vec::new())), broken(None));
+}
+
+#[test]
+fn unusable_variant_cache_bytes_fall_back_and_are_replaced() {
+    let expected = generate_from_sources_sync(cached_family(None, true)).unwrap();
+    let valid = generate_from_sources_sync(cached_family(Some(Vec::new()), true))
+        .unwrap()
+        .cache_bytes()
+        .unwrap();
+    // A single-design cache for the same font name has another identity.
+    let single = generate_from_sources_sync(cached(Vec::new(), true))
+        .unwrap()
+        .cache_bytes()
+        .unwrap();
+
+    let mut wrong_version = valid.clone();
+    wrong_version[8] ^= 0xff;
+    let mut flipped_payload = valid.clone();
+    let last = flipped_payload.len() - 10;
+    flipped_payload[last] ^= 0xff;
+    let mut trailing = valid.clone();
+    trailing.extend_from_slice(b"extra");
+    for bytes in [
+        b"not a cache".to_vec(),
+        Vec::new(),
+        wrong_version,
+        valid[..valid.len() / 2].to_vec(),
+        flipped_payload,
+        trailing,
+        single,
+    ] {
+        let mut result = generate_from_sources_sync(cached_family(Some(bytes), true)).unwrap();
+        assert_fonts_equal(&result, &expected);
+        assert_eq!(variant_work(&result), (6, 6));
+        assert_eq!(result.cache_bytes().unwrap(), valid);
+    }
 }
 
 #[cfg(feature = "fs")]
@@ -1608,4 +1739,96 @@ fn memory_cache_bytes_are_the_file_cache_format() {
     .unwrap();
     assert_eq!(glyph_work(&warm), (0, 0));
     std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
+fn variant_caches_follow_missing_glyph_fallback() {
+    // A light-only glyph that the bold design falls back to the light artwork for.
+    let mut family = cached_family(Some(Vec::new()), true);
+    family.variants.as_mut().unwrap()[0].sources.push(source(
+        "light-only",
+        "circle",
+        &SVG.replace("H20", "H12"),
+    ));
+    family.missing_glyphs = Some(crate::MissingGlyphOptions {
+        behavior: crate::MissingGlyphBehavior::Fallback,
+        variant: Some("light".into()),
+    });
+    let uncached = |options: &GenerateWebfontsFromSourcesOptions| {
+        generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+            cache: None,
+            ..options.clone()
+        })
+        .unwrap()
+    };
+    let mut cold = generate_from_sources_sync(family.clone()).unwrap();
+    assert_fonts_equal(&cold, &uncached(&family));
+    family.cache = cold.cache_bytes();
+    let warm = generate_from_sources_sync(family.clone()).unwrap();
+    assert_fonts_equal(&warm, &uncached(&family));
+    assert_eq!(variant_work(&warm), (0, 0));
+
+    // The same bytes serve a blank fallback: the glyph set records how each cell resolved.
+    let mut blank = family.clone();
+    blank.missing_glyphs = None;
+    assert_fonts_equal(
+        &generate_from_sources_sync(blank.clone()).unwrap(),
+        &uncached(&blank),
+    );
+}
+
+#[test]
+fn variant_caches_cover_blank_glyphs_failed_updates_and_invalid_families() {
+    // A light-only glyph is blank in the bold design.
+    let mut sparse = cached_family(Some(Vec::new()), true);
+    let light_only = SVG.replace("H20", "H12");
+    sparse.variants.as_mut().unwrap()[0]
+        .sources
+        .push(source("light-only", "circle", &light_only));
+    let uncached = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+        cache: None,
+        ..sparse.clone()
+    })
+    .unwrap();
+    let mut cold = generate_from_sources_sync(sparse.clone()).unwrap();
+    assert_fonts_equal(&cold, &uncached);
+    sparse.cache = cold.cache_bytes();
+    let mut warm = generate_from_sources_sync(sparse.clone()).unwrap();
+    assert_fonts_equal(&warm, &uncached);
+    assert_eq!(variant_work(&warm), (0, 0));
+
+    // A failed update discards the glyph caches, so nothing is exported until an update succeeds.
+    assert!(
+        warm.update_sync("light-only".into(), "<broken".into(), None)
+            .is_err()
+    );
+    assert_eq!(warm.cache_bytes(), None);
+    let edited = SVG.replace("H20", "H16");
+    warm.update_sync("light-only".into(), edited.clone(), None)
+        .unwrap();
+    let mut updated = sparse.clone();
+    for source in updated
+        .variants
+        .as_mut()
+        .unwrap()
+        .iter_mut()
+        .flat_map(|design| &mut design.sources)
+    {
+        if source.id == "light-only" {
+            source.svg.clone_from(&edited);
+        }
+    }
+    updated.cache = warm.cache_bytes();
+    assert!(updated.cache.is_some());
+    let rewarmed = generate_from_sources_sync(updated.clone()).unwrap();
+    assert_eq!(variant_work(&rewarmed), (0, 0));
+    updated.cache = None;
+    assert_fonts_equal(&rewarmed, &generate_from_sources_sync(updated).unwrap());
+
+    // Family validation still fails before the cache is consulted.
+    sparse.missing_glyphs = Some(crate::MissingGlyphOptions {
+        behavior: crate::MissingGlyphBehavior::Error,
+        variant: None,
+    });
+    assert!(generate_from_sources_sync(sparse).is_err());
 }
