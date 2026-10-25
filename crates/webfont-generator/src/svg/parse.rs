@@ -186,6 +186,16 @@ fn root_aspect_ratio<'a>(
         return Ok(Cow::Borrowed(svg));
     }
 
+    // With no dimension attributes, usvg takes the viewport size from the
+    // viewBox, so meet/slice/none have the same mapping. usvg 0.49 does not
+    // resolve width/height from CSS (they are not presentation attributes).
+    if !root
+        .attributes()
+        .any(|attr| matches!(attr.name(), "width" | "height"))
+    {
+        return Ok(Cow::Borrowed(svg));
+    }
+
     // Let usvg compose the requested viewBox mapping with root transforms and
     // transform-origin. Correcting already-transformed paths changes their order.
     let mut rewritten = svg.to_owned();

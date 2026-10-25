@@ -126,6 +126,43 @@ fn root_aspect_ratio_keeps_authored_alignment_and_nested_transforms() {
 }
 
 #[test]
+fn viewbox_only_icons_skip_rewriting_but_dimension_attributes_do_not() {
+    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 10 100 50" transform="translate(10 20)"><path d="M5 10H35V30H5Z"/></svg>"#;
+    for source in [
+        svg.to_owned(),
+        svg.replace("viewBox=", r#"style="width:200px;height:50px" viewBox="#),
+        svg.replace(
+            "<path",
+            "<style>svg { width:200px; height:50px }</style><path",
+        ),
+    ] {
+        let document = parse_svg_document(&source).unwrap();
+        assert!(matches!(
+            root_aspect_ratio(&source, &document, false).unwrap(),
+            Cow::Borrowed(_)
+        ));
+        let stretched = parse(&source, false).unwrap();
+        let preserved = parse(&source, true).unwrap();
+        assert_eq!(stretched.paths[0], preserved.paths[0]);
+    }
+    for attributes in [
+        r#"width="200" height="50""#,
+        r#"xmlns:s="http://www.w3.org/2000/svg" s:width="200" s:height="50""#,
+    ] {
+        let source = svg.replace("viewBox=", &format!("{attributes} viewBox="));
+        let document = parse_svg_document(&source).unwrap();
+        assert!(matches!(
+            root_aspect_ratio(&source, &document, false).unwrap(),
+            Cow::Owned(_)
+        ));
+        assert_eq!(
+            parse(&source, false).unwrap().paths[0].bounds().width(),
+            60.0
+        );
+    }
+}
+
+#[test]
 fn collects_stroke_caps_joins_and_dashes_but_ignores_images() {
     let glyph = parse(
         r#"<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100">
