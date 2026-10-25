@@ -7,20 +7,23 @@ against pnpm's effective task inputs and outputs. Normal builds still use Vite+.
 
 Install Node, Git, and Rust `nightly-2026-08-02` (with rustfmt and Clippy).
 Linux regression tests also require Python 3, a C compiler, and static libc.
-From this directory:
+From the repository root, use the workspace package:
 
 ```sh
-vp run build
-vp run test
-vp run check
+vp run @atlowchemi/cache-audit#build
+vp run @atlowchemi/cache-audit#test
+vp run @atlowchemi/cache-audit#check
 ```
 
 The package scripts fetch the pinned upstream revision, apply the checked-in
 mutation-tracking patch, and verify the resulting diff. Downloads are reused by
 revision and patch hash under `target`. Cargo overrides point at those patched
 sources. See [patch maintenance](patches/README.md). Bare Cargo does not apply the
-patch; use these scripts. The isolated workspace is excluded from product Cargo
-and pnpm installs, and builds avoid inheriting pnpm's vendored Cargo sources.
+patch; use these scripts. `packages/cache-audit` exposes these commands in the root
+pnpm workspace. The Rust project remains a separate Cargo workspace under
+`crates/cache-audit`; its nested pnpm workspace boundary keeps its nightly
+dependencies out of root Cargo discovery. Builds avoid inheriting pnpm's vendored
+Cargo sources.
 
 ## Observe or audit
 
@@ -104,7 +107,7 @@ local example configuration without hashing its contents into every task.
 
 - Supports stable pnpm **12.x starting at 12.13** and uses **wax 0.7.0**.
   Routine minor/patch upgrades do not require editing a version allowlist. CI runs
-  `scripts/compat.mjs` against the installed pnpm to check replacement/default/
+  `packages/cache-audit/scripts/compat.mjs` against the installed pnpm to check replacement/default/
   additive inputs, ignored and untracked files, dependency/environment invalidation,
   and output restoration. Explicit unsupported configuration still fails. New
   majors and prereleases require a semantics review. The cache implementation and
@@ -162,10 +165,10 @@ on Linux:
 
 ```sh
 vp exec node scripts/verify-pipelines.mjs
-vp exec node crates/cache-audit/scripts/compat.mjs
+vp run @atlowchemi/cache-audit#test:compat
 vp exec node scripts/verify-pipelines.mjs --run
-vp exec node crates/cache-audit/scripts/audit.mjs --all
-vp exec node crates/cache-audit/scripts/negative.mjs
+vp run @atlowchemi/cache-audit#audit -- --all
+vp run @atlowchemi/cache-audit#audit:negative
 ```
 
 The runtime comparison executes all eight dormant graphs uncached and any

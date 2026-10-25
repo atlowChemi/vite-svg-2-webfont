@@ -54,7 +54,7 @@ jobs:
             - name: Verify dormant command and prerequisite parity
               run: vp run next:verify
             - name: Verify installed pnpm cache semantics
-              run: vp exec node crates/cache-audit/scripts/compat.mjs
+              run: vp run @atlowchemi/cache-audit#test:compat
             - name: Record toolchain identity
               run: |
                   mkdir -p artifacts/cache-audit
@@ -62,24 +62,23 @@ jobs:
             - name: Install isolated auditor toolchain
               run: rustup toolchain install nightly-2026-08-02 --profile minimal --component clippy --component rustfmt
             - name: Build and test observer
-              working-directory: crates/cache-audit
               env:
                   CARGO_TARGET_DIR: ${{ runner.temp }}/cache-audit-build
               run: |
-                  node scripts/cargo.mjs build --locked
-                  node scripts/cargo.mjs test --locked
-                  node scripts/cargo.mjs clippy --locked -- -D warnings
+                  vp run @atlowchemi/cache-audit#build
+                  vp run @atlowchemi/cache-audit#test
+                  vp run @atlowchemi/cache-audit#check
             - name: Audit all build tasks with fresh compiler state
               id: audit
               continue-on-error: true
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
-              run: node crates/cache-audit/scripts/audit.mjs --all
+              run: vp run @atlowchemi/cache-audit#audit -- --all
             - name: Verify deliberately missing native declarations fail
               if: steps.audit.outcome == 'success'
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
-              run: node crates/cache-audit/scripts/negative.mjs
+              run: vp run @atlowchemi/cache-audit#audit:negative
             - name: Report audit status
               if: always()
               env:

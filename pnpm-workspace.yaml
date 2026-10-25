@@ -1,8 +1,6 @@
 packages:
     - 'packages/*'
     - 'crates/*'
-    # The observer has its own nightly Cargo workspace and install lifecycle.
-    - '!crates/cache-audit'
 
 # Dormant migration entry points; normal development and CI still use vp run.
 # Root-owned tasks cover workspace inputs that package-local ../../ globs cannot hash.

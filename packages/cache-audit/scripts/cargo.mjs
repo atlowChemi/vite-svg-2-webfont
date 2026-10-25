@@ -4,7 +4,7 @@ import { readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../../crates/cache-audit/', import.meta.url));
 const manifest = join(root, 'Cargo.toml');
 const revision = '8db455ef9c2b1c7b33cf70d8ba370c1f2c49d4c9';
 const patch = join(root, 'patches/fspy-mutations.patch');
