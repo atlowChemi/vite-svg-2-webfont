@@ -6,7 +6,8 @@ against pnpm's effective task inputs and outputs. Normal builds still use Vite+.
 ## Build and test
 
 Install Node, Git, and Rust `nightly-2026-08-02` (with rustfmt and Clippy).
-Linux regression tests also require Python 3, a C compiler, and static libc.
+Linux regression tests also require Python 3, a C compiler, static libc, and
+the installed pnpm on `PATH` for graph parity checks.
 From the repository root, use the workspace package:
 
 ```sh
@@ -24,6 +25,63 @@ pnpm workspace. The Rust project remains a separate Cargo workspace under
 `crates/cache-audit`; its nested pnpm workspace boundary keeps its nightly
 dependencies out of root Cargo discovery. Builds avoid inheriting pnpm's vendored
 Cargo sources.
+
+## Resolve task graphs
+
+The binary embeds pnpm 12.14.0's configuration, workspace discovery, project graph,
+and task graph APIs at commit `fe4a0c232384289de82be3d502896ca7e070050c`.
+These unpublished APIs are pinned independently of the installed pnpm version.
+
+```sh
+crates/cache-audit/target/debug/cache-audit graph --pipeline next-build
+crates/cache-audit/target/debug/cache-audit graph --task next:native
+crates/cache-audit/target/debug/cache-audit graph --all --verify-pnpm
+```
+
+Use `--workspace PATH` for another checkout. Exactly one selection is required;
+output is a JSON object keyed by pipeline or task name. Graph resolution loads
+pnpm's merged configuration and detects cycles without executing tasks or
+installing dependencies. It selects the full workspace, not affected projects.
+Graph-only configuration loading skips pnpm's store-placement probes.
+
+`--verify-pnpm` compares each selected pipeline with the installed
+`pnpm pipeline NAME --full --dry-run --json` and fails on drift. CI runs this for
+every pipeline. Fixture tests cover default and explicit dependencies, catalogs,
+missing-script nodes, root inclusion, cycles, and invalid selection.
+Graph resolution alone does not execute commands or provide sandbox isolation.
+
+## Run a graph-aware audit
+
+```sh
+vp run @atlowchemi/cache-audit#audit -- --task next:native
+vp run @atlowchemi/cache-audit#audit -- --pipeline next-assets
+vp run @atlowchemi/cache-audit#audit -- --all
+```
+
+The equivalent binary entry point is `cache-audit audit --workspace PATH` with
+one of those selectors. `--task` audits matching tasks and prepares prerequisites;
+`--pipeline` audits every executable node in that pipeline. `--all` audits only
+tasks listed in the reviewed native/build policy files, preparing their dependency
+closure once. Select servers, publishing, and other open-ended pipelines explicitly.
+`--policy PATH` supplies another policy file; `--reports PATH` selects the report
+directory. The legacy package command `audit -- TASK [POLICY]` is also accepted.
+
+Rust uses pnpm's graph builder and topological ordering. Execution is serial so
+overlapping output paths cannot contaminate simultaneous observations. Missing-script
+nodes pass dependency status through. Failed commands block descendants; findings
+from successful commands are reported while consumers can still run. Independent
+tasks continue after failures. A single task returns 2 for audit findings; aggregate
+failures return 1. SIGINT/SIGTERM cancels subprocess groups and returns 130.
+
+Each audited task gets a fresh temporary Cargo target, removed after its command
+and before the addon-load check. Reports contain observed accesses only for that task, plus
+logs and statuses for prerequisites. The runner reuses the existing toolchain
+fingerprint helper before execution and prepares WASM tools outside observation.
+It resolves pnpm's store location before observation and requires dependencies to
+be current, preventing pnpm's automatic install path from mutating the lockfile
+during a task. Run `vp install` beforehand when manifests have changed.
+Source workspaces still receive normal build outputs; this is observation, not an
+OS sandbox. Use the isolated negative checker for declaration mutations.
 
 ## Observe or audit
 
@@ -107,7 +165,7 @@ local example configuration without hashing its contents into every task.
 
 - Supports stable pnpm **12.x starting at 12.13** and uses **wax 0.7.0**.
   Routine minor/patch upgrades do not require editing a version allowlist. CI runs
-  `packages/cache-audit/scripts/compat.mjs` against the installed pnpm to check replacement/default/
+  `cache-audit compat` against the installed pnpm to check replacement/default/
   additive inputs, ignored and untracked files, dependency/environment invalidation,
   and output restoration. Explicit unsupported configuration still fails. New
   majors and prereleases require a semantics review. The cache implementation and
@@ -171,12 +229,21 @@ vp run @atlowchemi/cache-audit#audit -- --all
 vp run @atlowchemi/cache-audit#audit:negative
 ```
 
-The runtime comparison executes all eight dormant graphs uncached and any
-selected task not reached by those graphs. The audit runner prepares prerequisites,
-installs WASM tools before observation, uses a fresh temporary Cargo target, and
-checks that the generated native addon loads. `negative.mjs` deliberately removes
-native source/output declarations and restores the workspace YAML in `finally`.
-Run mutation checks in an isolated checkout without concurrent builds.
+The static comparison covers all 45 configured Vite+ tasks. Its runtime suite
+executes finite build/test/coverage/tarball pipelines uncached; servers, publishing,
+measurements, and source-mutating maintenance are explicitly invoked separately.
+Rust owns audit execution, compatibility checks, and declaration-negative checks;
+`packages/cache-audit/scripts/run.mjs` only launches the binary and forwards signals.
+`compat` uses a temporary fixture and separate pnpm cache/store/state directories.
+`negative` copies the installed workspace, deliberately removes native source/output
+declarations there, and checks the observed diagnostics. It copies files rather
+than hardlinking them to the source, relocates internal absolute symlinks, and
+removes the copy afterward. Root Git metadata, root/auditor Cargo targets, and reports are
+excluded; tracked-file membership is reconstructed in the copy. Installed external
+tools remain shared under the usual immutable-toolchain assumption. A frozen install
+with lifecycle scripts disabled refreshes pnpm's absolute workspace metadata inside
+the copy before mutations or observation. Keep the source
+checkout idle while taking its copy. Both checks require the compiled auditor.
 
 `CACHE_AUDIT_BIN` selects the compiled auditor; `CACHE_AUDIT_REPORTS` overrides
 `artifacts/cache-audit`. Reports include command logs, audit JSON, and task status.
@@ -184,6 +251,6 @@ Run mutation checks in an isolated checkout without concurrent builds.
 Use `pnpm run next:pipeline next-assets` for dormant cached execution. The launcher
 computes toolchain/build-environment identity before pnpm chooses cache keys;
 the cached SVG wrapper rejects a missing fingerprint. Normal workflows still use
-Vite+. The manual/scheduled `cache-audit.yaml` workflow executes dormant graphs
+Vite+. The PR/manual/scheduled `cache-audit.yaml` workflow executes dormant graphs
 and collects report-only filesystem audits; adding the file does not establish
 that a GitHub run has passed.

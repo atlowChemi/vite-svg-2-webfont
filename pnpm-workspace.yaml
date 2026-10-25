@@ -1,6 +1,7 @@
 packages:
     - 'packages/*'
     - 'crates/*'
+    - '!crates/cache-audit'
 
 # Dormant migration entry points; normal development and CI still use vp run.
 # Root-owned tasks cover workspace inputs that package-local ../../ globs cannot hash.
@@ -14,6 +15,34 @@ pipelines:
     next-example: [next:example]
     next-coverage: [next:coverage]
     next-assets: [next:docs:social]
+    next-compat: [next:test:compat]
+    next-scripts-coverage: [next:coverage:scripts]
+    next-bench: [next:bench:vitest, next:fmt:rust]
+    next-engine-bench: [next:engine:bench]
+    next-engine-coverage: [next:engine:coverage]
+    next-cli-coverage: [next:engine:coverage:cli]
+    next-doctests: [next:engine:doctests]
+    next-engine-color-proof: [next:engine:color-proof]
+    next-adapter-browser: [next:adapter:browser]
+    next-adapter-color-proof: [next:adapter:color-proof]
+    next-adapter-coverage: [next:adapter:coverage]
+    next-native-coverage: [next:adapter:coverage:native]
+    next-binding-regenerate: [next:adapter:binding:regenerate]
+    next-adapter-bench: [next:adapter:bench]
+    next-native-release: [next:native:release, next:fmt:rust]
+    next-browser-tarball: [next:browser:tgz]
+    next-browser-coverage: [next:browser:coverage]
+    next-browser-publish: [next:browser:publish]
+    next-plugin-dev: [next:plugin:dev]
+    next-plugin-tarball: [next:plugin:tgz]
+    next-plugin-test: [next:plugin:test]
+    next-plugin-browser: [next:plugin:browser]
+    next-fixtures-refresh: [next:plugin:fixtures]
+    next-plugin-publish: [next:plugin:publish]
+    next-example-dev: [next:example:dev]
+    next-example-preview: [next:example:preview]
+    next-docs-dev: [next:docs:dev]
+    next-docs-preview: [next:docs:preview]
 tasks:
     next:pipeline: { cache: false, dependsOn: [] }
     next:verify: { cache: false, dependsOn: [] }
@@ -25,6 +54,62 @@ tasks:
     next:test:features: { cache: false, dependsOn: [] }
     next:optimize-svg: { cache: false, dependsOn: [] }
     next:social-card: { cache: false, dependsOn: [] }
+    next:dev: { cache: false, dependsOn: [] }
+    next:preview: { cache: false, dependsOn: [] }
+    next:bench: { cache: false, dependsOn: [] }
+    next:pack:tgz: { cache: false, dependsOn: [] }
+    next:publish: { cache: false, dependsOn: [] }
+    next:build:release: { cache: false, dependsOn: [] }
+    next:binding:regenerate: { cache: false, dependsOn: [] }
+    next:test:browser: { cache: false, dependsOn: [] }
+    next:test:coverage: { cache: false, dependsOn: [] }
+    next:test:coverage:cli: { cache: false, dependsOn: [] }
+    next:test:coverage:native: { cache: false, dependsOn: [] }
+    next:test:doctests: { cache: false, dependsOn: [] }
+    next:test:color-proof: { cache: false, dependsOn: [] }
+    next:test:fixtures:refresh: { cache: false, dependsOn: [] }
+
+    # Newly inventoried tasks stay uncached until their cache-contract checks pass.
+    # Dev/preview, publishing, measurements, and source-mutating maintenance are
+    # explicit executions; defining a pipeline never schedules it automatically.
+    next:bench:vitest: { cache: false, dependsOn: [next:native:release] }
+    next:test:compat: { cache: false, dependsOn: [next:native] }
+    next:coverage:scripts: { cache: false, dependsOn: [] }
+    next:engine:bench: { cache: false, dependsOn: [] }
+    next:engine:coverage: { cache: false, dependsOn: [] }
+    next:engine:coverage:cli: { cache: false, dependsOn: [] }
+    next:engine:doctests: { cache: false, dependsOn: [] }
+    next:engine:color-proof: { cache: false, dependsOn: [] }
+    next:adapter:browser: { cache: false, dependsOn: [next:native, next:adapter:color-proof] }
+    next:adapter:color-proof: { cache: false, dependsOn: [] }
+    next:adapter:coverage: { cache: false, dependsOn: [] }
+    next:adapter:coverage:native: { cache: false, dependsOn: [] }
+    next:adapter:binding:regenerate: { cache: false, dependsOn: [] }
+    next:adapter:bench: { cache: false, dependsOn: [] }
+    next:native:release:
+        cache: false
+        dependsOn: [next:adapter:test]
+        outputs: [packages/webfont-generator/binding.js, packages/webfont-generator/binding.d.ts, packages/webfont-generator/*.node]
+    next:browser:tgz:
+        cache: false
+        dependsOn: [next:browser:pack]
+        outputs: [packages/webfont-browser/atlowchemi-webfont-browser-generator-*.tgz]
+    next:browser:coverage: { cache: false, dependsOn: [next:browser:pack] }
+    next:browser:publish: { cache: false, dependsOn: [next:browser:tgz] }
+    next:plugin:dev: { cache: false, dependsOn: [] }
+    next:plugin:tgz:
+        cache: false
+        dependsOn: [next:plugin:pack]
+        outputs: [packages/vite-svg-2-webfont/vite-svg-2-webfont-*.tgz]
+    next:plugin:browser: { cache: false, dependsOn: [next:native] }
+    next:plugin:fixtures: { cache: false, dependsOn: [next:plugin:pack] }
+    # Release CI supplies the native artifacts; preserve the existing dependency
+    # bypass by running raw pack scripts inside this uncached publishing command.
+    next:plugin:publish: { cache: false, dependsOn: [] }
+    next:example:dev: { cache: false, dependsOn: [next:plugin:pack, next:docs:svg] }
+    next:example:preview: { cache: false, dependsOn: [next:example] }
+    next:docs:dev: { cache: false, dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack] }
+    next:docs:preview: { cache: false, dependsOn: [next:docs] }
 
     # Formatting is a pipeline sibling, not a dependency that widens package check keys.
     next:fmt:rust:
@@ -155,7 +240,7 @@ tasks:
             - '**/svgo.config.{js,cjs,mjs,ts}'
         outputs: [packages/docs/public/**/*.svg]
     next:docs:social:
-        # Rendering may use host fonts; do not cache until that input is audited.
+        # Bundled fonts avoid host-font inputs; caching still needs reproducibility checks.
         cache: false
         dependsOn: [next:docs:svg]
         inputs:
@@ -164,7 +249,7 @@ tasks:
             - pnpm-lock.yaml
             - packages/docs/package.json
             - packages/docs/scripts/generate-social-card.ts
-        outputs: [packages/docs/public/social-card.png]
+        outputs: [packages/docs/public/social-card.png, packages/docs/public/github-social-preview.png]
     next:docs:
         cache: false
         env: [CACHE_TOOLCHAIN_FINGERPRINT, NODE_ENV, GITHUB_ACTIONS]

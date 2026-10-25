@@ -4,9 +4,9 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "test:compat": "node scripts/compat.mjs",
-        "audit": "node scripts/audit.mjs",
-        "audit:negative": "node scripts/negative.mjs",
+        "test:compat": "node scripts/run.mjs compat",
+        "audit": "node scripts/run.mjs audit",
+        "audit:negative": "node scripts/run.mjs negative",
         "build": "node scripts/cargo.mjs build --locked",
         "test": "node scripts/cargo.mjs test --locked",
         "check": "node scripts/cargo.mjs clippy --locked -- -D warnings && node scripts/cargo.mjs fmt -- --check"

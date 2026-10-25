@@ -53,6 +53,14 @@ struct Policies {
     tasks: BTreeMap<String, Policy>,
 }
 
+pub fn policy_tasks(path: &Path) -> Result<Vec<String>> {
+    let policies: Policies = serde_yaml_ng::from_slice(&fs::read(path)?)?;
+    if policies.version != 1 {
+        return Err("unsupported audit policy version".into());
+    }
+    Ok(policies.tasks.into_keys().collect())
+}
+
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct Policy {

@@ -1,6 +1,7 @@
 name: Dormant pipeline audit
 
 on:
+    pull_request:
     workflow_dispatch:
     schedule:
         - cron: '23 5 * * 1'
@@ -53,8 +54,6 @@ jobs:
               run: git diff --exit-code HEAD -- pnpm-lock.yaml
             - name: Verify dormant command and prerequisite parity
               run: vp run next:verify
-            - name: Verify installed pnpm cache semantics
-              run: vp run @atlowchemi/cache-audit#test:compat
             - name: Record toolchain identity
               run: |
                   mkdir -p artifacts/cache-audit
@@ -68,6 +67,12 @@ jobs:
                   vp run @atlowchemi/cache-audit#build
                   vp run @atlowchemi/cache-audit#test
                   vp run @atlowchemi/cache-audit#check
+            - name: Compare Rust graphs with installed pnpm
+              run: ${{ runner.temp }}/cache-audit-build/debug/cache-audit graph --all --verify-pnpm > artifacts/cache-audit/graphs.json
+            - name: Verify installed pnpm cache semantics
+              env:
+                  CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
+              run: vp run @atlowchemi/cache-audit#test:compat
             - name: Audit all build tasks with fresh compiler state
               id: audit
               continue-on-error: true

@@ -2,12 +2,27 @@ use std::{env, error::Error, io, os::unix::process::ExitStatusExt, process::Stdi
 
 use fspy::PathAccess;
 use serde_json::json;
+mod checks;
+mod graph;
+mod runner;
 mod validator;
 use validator::{Access, Audit, Kind};
 
 #[tokio::main]
 async fn main() {
-    match observe().await {
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let signal = cancel.clone();
+    tokio::spawn(async move {
+        let mut terminate =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+                .expect("install SIGTERM handler");
+        tokio::select! {
+            _ = tokio::signal::ctrl_c() => {},
+            _ = terminate.recv() => {},
+        }
+        signal.cancel();
+    });
+    match observe(cancel).await {
         Ok(code) => std::process::exit(code),
         Err(error) => {
             eprintln!("cache-audit: {error}");
@@ -16,7 +31,19 @@ async fn main() {
     }
 }
 
-async fn observe() -> Result<i32, Box<dyn Error>> {
+async fn observe(cancel: tokio_util::sync::CancellationToken) -> Result<i32, Box<dyn Error>> {
+    if env::args_os().nth(1).is_some_and(|arg| arg == "graph") {
+        return graph::run(env::args_os().skip(2));
+    }
+    if env::args_os().nth(1).is_some_and(|arg| arg == "audit") {
+        return runner::run(env::args_os().skip(2), cancel).await;
+    }
+    if env::args_os()
+        .nth(1)
+        .is_some_and(|arg| arg == "compat" || arg == "negative")
+    {
+        return checks::run(env::args_os().skip(1), cancel).await;
+    }
     let mut args = env::args_os().skip(1);
     let mut options = std::collections::BTreeMap::new();
     loop {
@@ -62,9 +89,7 @@ async fn observe() -> Result<i32, Box<dyn Error>> {
         // Keep stdout exclusively for the access manifest, without buffering child logs.
         .stdout(Stdio::from(io::stderr()))
         .stderr(Stdio::inherit());
-    let child = command
-        .spawn(tokio_util::sync::CancellationToken::new())
-        .await?;
+    let child = command.spawn(cancel).await?;
     let termination = child.wait_handle.await?;
     // Never emit a success-shaped manifest when observation was incomplete.
     let accesses = termination.path_accesses?;
