@@ -309,7 +309,8 @@ fn removed_icons_are_pruned_and_old_settings_files_replaced() {
     let options = resolve_options(project.options(Some(&project.cache())));
     let disk = DiskCache::open(&project.cache().to_string_lossy(), &options, &[]);
     assert!(disk.loaded.is_some());
-    assert_eq!((disk.parsed.len(), disk.processed.len()), (2, 2));
+    let glyphs = disk.glyphs().unwrap();
+    assert_eq!((glyphs.parsed.len(), glyphs.processed.len()), (2, 2));
 
     let mut changed = project.options(Some(&project.cache()));
     changed.font_height = Some(500.0);
@@ -358,6 +359,62 @@ fn unusable_cache_files_and_locations_fall_back_to_a_correct_cold_run() {
     let blocked = file.join("nested");
     let result = run(project.options(Some(&blocked)));
     assert_eq!(fonts(&result), expected);
+}
+
+#[test]
+fn glyph_section_is_only_checked_and_decoded_when_needed() {
+    let project = Project::new("lazy");
+    let mut one_shot = project.options(Some(&project.cache()));
+    one_shot.incremental = Some(false);
+    let expected = fonts(&run(project.options(None)));
+    run(one_shot.clone());
+    let file = project
+        .cache()
+        .join(cache_files(&project.cache()).pop().unwrap());
+
+    // Loading decodes the fonts; the glyph section waits until something needs it.
+    let options = resolve_options(one_shot.clone());
+    let disk = DiskCache::open(&project.cache().to_string_lossy(), &options, &[]);
+    assert_eq!(disk.fonts.len(), 5);
+    assert!(disk.glyphs.get().is_none());
+    assert!(disk.glyphs().is_some());
+
+    // A flipped byte inside the glyph section: a run whose fonts all hit never notices.
+    let header = MAGIC.len() + 4 + 4 + ENGINE_VERSION.len() + 16;
+    let mut bytes = fs::read(&file).unwrap();
+    bytes[header + 8 + 20] ^= 0xff;
+    fs::write(&file, &bytes).unwrap();
+    assert_eq!(fonts(&run(one_shot.clone())), expected);
+    assert_eq!(fs::read(&file).unwrap(), bytes);
+
+    // A run that needs the glyphs finds them corrupt: a full miss that rewrites the file.
+    let result = run(project.options(Some(&project.cache())));
+    assert_eq!(fonts(&result), expected);
+    assert_eq!(work(&result), (3, 3));
+    assert_ne!(fs::read(&file).unwrap(), bytes);
+    assert_eq!(work(&run(project.options(Some(&project.cache())))), (0, 0));
+}
+
+#[test]
+fn a_corrupt_variant_glyph_section_is_a_full_miss_when_needed() {
+    let project = Project::family("lazy-family");
+    let expected = variant_fonts(&run(project.variant_options(None)));
+    run(project.variant_options(Some(&project.cache())));
+    let file = project
+        .cache()
+        .join(cache_files(&project.cache()).pop().unwrap());
+    let header = MAGIC.len() + 4 + 4 + ENGINE_VERSION.len() + 16;
+    let mut bytes = fs::read(&file).unwrap();
+    bytes[header + 8 + 20] ^= 0xff;
+    fs::write(&file, &bytes).unwrap();
+
+    // Incremental results always need the saved glyphs, so the corruption is found.
+    let result = run(project.variant_options(Some(&project.cache())));
+    assert_eq!(variant_fonts(&result), expected);
+    assert_ne!(variant_work(&result), (0, 0));
+    assert_ne!(fs::read(&file).unwrap(), bytes);
+    let warm = run(project.variant_options(Some(&project.cache())));
+    assert_eq!(variant_work(&warm), (0, 0));
 }
 
 #[test]
@@ -665,7 +722,12 @@ fn variant_glyphs_are_saved_only_in_the_mode_of_their_parsed_glyph() {
             &FontOutputs::default(),
             &[],
         );
-        state.variant_processed.get(&hash).map(Vec::len)
+        state
+            .glyphs()
+            .unwrap()
+            .variant_processed
+            .get(&hash)
+            .map(Vec::len)
     };
     assert_eq!(saved(true), None);
     assert_eq!(saved(false), Some(1));

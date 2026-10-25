@@ -30,7 +30,7 @@ Not sure which one fits? See [Which package do I need?](/which-package). Usage f
 - **Fast rebuilds:** [incremental generation](./node#incremental) reuses work from the previous build when only a few icons change.
 - **Warm starts:** an opt-in [persistent cache](./node#cachelocation) lets a new process reuse work from earlier runs for unchanged icons and formats.
 - **No filesystem required:** generate from SVG text in memory, which is what the [browser package](./browser) uses.
-- **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads without caching. With a warm [persistent cache](./under-the-hood#persistent-cache), unchanged rebuilds are 36× (macOS) and 76× (Linux) faster than Vusion. See [performance](./under-the-hood#performance).
+- **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads without caching. With a warm [persistent cache](./under-the-hood#persistent-cache), unchanged rebuilds are 43× (macOS) and 113× (Linux) faster than Vusion. See [performance](./under-the-hood#performance).
 
 ## Why a new engine
 

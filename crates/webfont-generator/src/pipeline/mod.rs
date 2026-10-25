@@ -227,10 +227,7 @@ pub(crate) fn build_with_cache(
     state: &CacheState,
     ttf_cache: Option<&mut TtfGlyphCache>,
 ) -> std::io::Result<(FontOutputs, Option<GlyphCache>, bool)> {
-    let (hits, missing) = split_hits(state, &options.types);
-    // Only a run whose fonts all came from the cache may skip glyph work: with no formats
-    // requested, the SVGs must still be parsed (and so validated) as without a cache.
-    let full_hit = !hits.is_empty() && missing.is_empty();
+    let (hits, missing, full_hit) = split_hits(state, options);
     // Hydrating hashes every source and clones every cached glyph; skip it when nothing uses it.
     let mut glyph_cache =
         (options.incremental || !full_hit).then(|| state.hydrate(svg_options, sources));
@@ -248,15 +245,28 @@ pub(crate) fn build_with_cache(
     Ok((fonts, glyph_cache, !full_hit))
 }
 
-/// Cached output for each requested format with a current entry, and the formats still to build.
-fn split_hits(state: &CacheState, types: &[FontType]) -> (Vec<CachedFont>, Vec<FontType>) {
-    let hits = state.font_hits(types);
-    let missing = types
+/// Cached output for each requested format with a current entry, the formats still to build, and
+/// whether every font hit. Only a run whose fonts all came from the cache may skip glyph work:
+/// with no formats requested, the sources must still be prepared (and so validated).
+fn split_hits(
+    state: &CacheState,
+    options: &ResolvedGenerationOptions,
+) -> (Vec<CachedFont>, Vec<FontType>, bool) {
+    let mut hits = state.font_hits(&options.types);
+    let needs_glyphs = options.incremental || hits.is_empty() || hits.len() < options.types.len();
+    // A run that needs the saved glyphs and finds them corrupt treats the whole cache as a miss,
+    // like a corrupt file, so the rebuild replaces every section.
+    if needs_glyphs && state.glyphs().is_none() {
+        hits.clear();
+    }
+    let missing: Vec<FontType> = options
+        .types
         .iter()
         .copied()
         .filter(|font_type| hits.iter().all(|hit| hit.font_type() != *font_type))
         .collect();
-    (hits, missing)
+    let full_hit = !hits.is_empty() && missing.is_empty();
+    (hits, missing, full_hit)
 }
 
 /// Variant counterpart of [`build_with_cache`]. When every format hits, the family is never
@@ -268,9 +278,7 @@ pub(crate) fn build_variant_with_cache<Files: AsRef<[LoadedSvgSource]>>(
     family: &VariantFamilySources<Files>,
     state: &CacheState,
 ) -> std::io::Result<(FontOutputs, Option<VariantGlyphCache>, bool)> {
-    let (hits, missing) = split_hits(state, &options.types);
-    // As for single designs, an empty format list still prepares (and validates) the family.
-    let full_hit = !hits.is_empty() && missing.is_empty();
+    let (hits, missing, full_hit) = split_hits(state, options);
     let mut glyph_cache = (options.incremental || !full_hit)
         .then(|| state.hydrate_variants(svg_options, &family.variants));
     let mut fonts = if let Some(glyph_cache) = glyph_cache.as_mut().filter(|_| !full_hit) {

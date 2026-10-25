@@ -25,13 +25,14 @@ use std::io::{ErrorKind, Read, Result};
 use std::mem::take;
 #[cfg(feature = "fs")]
 use std::ops::Deref;
+use std::ops::Range;
 #[cfg(feature = "fs")]
 use std::path::{Path, PathBuf};
 #[cfg(feature = "fs")]
 use std::process;
-use std::sync::Arc;
 #[cfg(feature = "fs")]
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
+use std::sync::{Arc, OnceLock};
 
 use flate2::Crc;
 use md5::compute;
@@ -184,18 +185,29 @@ pub fn clear_cache(cache_location: impl AsRef<Path>) -> Result<ClearCacheReport>
     Ok(report)
 }
 
-/// Cache contents for one generation, independent of where the bytes live: identity, decoded
-/// entries, and everything needed to look up and produce updated bytes.
-pub(crate) struct CacheState {
-    fingerprint: [u8; 16],
-    /// Body checksum and length of the bytes last loaded or returned by `update`, to skip
-    /// rewriting identical bytes without keeping a second copy of them.
-    loaded: Option<(u32, usize)>,
+/// Level 2 entries: per-icon work keyed by source content hash.
+#[derive(Default)]
+pub(crate) struct Glyphs {
     processed_signature: Option<[u8; 16]>,
     parsed: HashMap<[u8; 16], Arc<CachedGlyph>>,
     processed: HashMap<[u8; 16], CachedProcessedGlyph>,
     /// Variant families: processed glyphs per content hash and advance width bits.
     variant_processed: HashMap<[u8; 16], Vec<(u64, CachedProcessedGlyph)>>,
+}
+
+/// Cache contents for one generation, independent of where the bytes live: identity, decoded
+/// entries, and everything needed to look up and produce updated bytes.
+pub(crate) struct CacheState {
+    fingerprint: [u8; 16],
+    /// Section checksums (glyphs, fonts) and length of the bytes last loaded or returned by
+    /// `update`, to skip rewriting identical bytes without keeping a second copy of them.
+    loaded: Option<([u32; 2], usize)>,
+    /// The loaded bytes and the glyph section's range, kept until the glyphs are needed: a run
+    /// whose fonts all hit never checks or decodes them. Set and cleared together with `loaded`,
+    /// which holds the section's expected checksum.
+    pending: Option<(Vec<u8>, Range<usize>)>,
+    /// Level 2, decoded on first use; `None` inside when the loaded glyph section is corrupt.
+    glyphs: OnceLock<Option<Glyphs>>,
     fonts: Vec<FontEntry>,
     glyph_set: [u8; 16],
     /// Digest of the settings each format depends on, in `FONT_TYPES` order, kept so keys can be
@@ -254,10 +266,8 @@ impl CacheState {
         Self {
             fingerprint,
             loaded: None,
-            processed_signature: None,
-            parsed: HashMap::new(),
-            processed: HashMap::new(),
-            variant_processed: HashMap::new(),
+            pending: None,
+            glyphs: OnceLock::new(),
             fonts: Vec::new(),
             glyph_set,
             #[cfg(feature = "in_memory")]
@@ -276,24 +286,46 @@ impl CacheState {
 
     /// Adopt previously saved bytes. Anything that doesn't decode for this identity is ignored.
     pub(crate) fn load(&mut self, bytes: Vec<u8>) {
-        if let Some(body_checksum) = self.decode(&bytes) {
-            self.loaded = Some((body_checksum, bytes.len()));
+        if let Some((checksums, glyphs)) = self.decode(&bytes) {
+            self.loaded = Some((checksums, bytes.len()));
+            self.pending = Some((bytes, glyphs));
         } else {
-            self.processed_signature = None;
-            self.parsed.clear();
-            self.processed.clear();
-            self.variant_processed.clear();
             self.fonts.clear();
         }
+    }
+
+    /// Saved per-icon work, checked and decoded on first use. `None` when the loaded glyph
+    /// section is corrupt: callers then treat the whole cache as a miss.
+    pub(crate) fn glyphs(&self) -> Option<&Glyphs> {
+        self.glyphs
+            .get_or_init(|| match &self.pending {
+                None => Some(Glyphs::default()),
+                Some((bytes, range)) => {
+                    let section = &bytes[range.clone()];
+                    let expected = self.loaded.map(|(checksums, _)| checksums[0]);
+                    (Some(checksum(section)) == expected)
+                        .then(|| decode_glyphs(section))
+                        .flatten()
+                }
+            })
+            .as_ref()
+    }
+
+    /// Replace level 2 with `glyphs`, dropping the loaded bytes. Unless the loaded glyph section
+    /// was checked and valid, its checksum mustn't let identical new bytes skip a write.
+    fn replace_glyphs(&mut self, glyphs: Glyphs) {
+        if !matches!(self.glyphs.get(), Some(Some(_))) {
+            self.loaded = None;
+        }
+        self.pending = None;
+        self.glyphs = OnceLock::from(Some(glyphs));
     }
 
     /// Free the decoded glyphs once they seeded a glyph cache: `update` and `update_variants`
     /// rebuild them from it.
     #[cfg(feature = "in_memory")]
     pub(crate) fn release_glyphs(&mut self) {
-        self.parsed = HashMap::new();
-        self.processed = HashMap::new();
-        self.variant_processed = HashMap::new();
+        self.replace_glyphs(Glyphs::default());
     }
 
     fn font_key(&self, font_type: FontType) -> [u8; 16] {
@@ -321,16 +353,19 @@ impl CacheState {
         sources: &[LoadedSvgSource],
     ) -> GlyphCache {
         let mut cache = GlyphCache::default();
+        let Some(glyphs) = self.glyphs() else {
+            return cache;
+        };
         for source in sources {
             // Saved work only applies in the same color mode the glyph is selected for now.
             let color = svg_options.selects_color(&source.glyph_name);
             let hash = source_content_hash(&source.contents);
-            if let Some(glyph) = self.parsed.get(&hash)
+            if let Some(glyph) = glyphs.parsed.get(&hash)
                 && glyph.color_layers.is_some() == color
             {
                 cache.by_content_hash.insert(hash, glyph.clone());
             }
-            if let Some(glyph) = self.processed.get(&hash)
+            if let Some(glyph) = glyphs.processed.get(&hash)
                 && glyph.color_layers.is_some() == color
             {
                 cache
@@ -338,7 +373,7 @@ impl CacheState {
                     .insert(source.id.clone(), glyph.clone());
             }
         }
-        cache.processed_signature = self.processed_signature;
+        cache.processed_signature = glyphs.processed_signature;
         cache
     }
 
@@ -348,8 +383,11 @@ impl CacheState {
         svg_options: &SvgOptions,
         variants: &[Files],
     ) -> VariantGlyphCache {
+        let Some(glyphs) = self.glyphs() else {
+            return VariantGlyphCache::default();
+        };
         let mut cache = VariantGlyphCache {
-            signature: self.processed_signature,
+            signature: glyphs.processed_signature,
             ..Default::default()
         };
         for (index, files) in variants.iter().enumerate() {
@@ -357,7 +395,7 @@ impl CacheState {
             for source in files.as_ref() {
                 let color = svg_options.selects_color(&source.glyph_name);
                 let hash = source_content_hash(&source.contents);
-                let Some(glyph) = self
+                let Some(glyph) = glyphs
                     .parsed
                     .get(&hash)
                     .filter(|glyph| glyph.color_layers.is_some() == color)
@@ -368,7 +406,7 @@ impl CacheState {
                 parsed.entries.insert(source.id.clone(), glyph.clone());
                 parsed.content_hashes.insert(source.id.clone(), hash);
                 parsed.by_content_hash.insert(hash, glyph.clone());
-                let processed = self.variant_processed.get(&hash).into_iter().flatten();
+                let processed = glyphs.variant_processed.get(&hash).into_iter().flatten();
                 for (advance, glyph) in
                     processed.filter(|(_, glyph)| glyph.color_layers.is_some() == color)
                 {
@@ -392,8 +430,7 @@ impl CacheState {
         outputs: &FontOutputs,
         types: &[FontType],
     ) -> Option<Vec<u8>> {
-        self.parsed.clear();
-        self.processed.clear();
+        let mut glyphs = Glyphs::default();
         // ponytail: one entry per content hash, so an SVG used as both a color and a monochrome
         // glyph keeps only one mode's work (the other recomputes). Key by mode if that shows up.
         for source in sources {
@@ -404,13 +441,14 @@ impl CacheState {
                 .get(&source.id)
                 .or_else(|| glyph_cache.by_content_hash.get(&hash))
             {
-                self.parsed.insert(hash, glyph.clone());
+                glyphs.parsed.insert(hash, glyph.clone());
             }
             if let Some(glyph) = glyph_cache.processed_entries.get(&source.id) {
-                self.processed.insert(hash, glyph.clone());
+                glyphs.processed.insert(hash, glyph.clone());
             }
         }
-        self.processed_signature = glyph_cache.processed_signature;
+        glyphs.processed_signature = glyph_cache.processed_signature;
+        self.replace_glyphs(glyphs);
         self.finish(outputs, types)
     }
 
@@ -423,8 +461,7 @@ impl CacheState {
         outputs: &FontOutputs,
         types: &[FontType],
     ) -> Option<Vec<u8>> {
-        self.parsed.clear();
-        self.variant_processed.clear();
+        let mut glyphs = Glyphs::default();
         let mut hashes = HashMap::new();
         for (index, files) in variants.iter().enumerate() {
             let Some(parsed) = glyph_cache.parsed.get(index) else {
@@ -436,7 +473,7 @@ impl CacheState {
                     continue;
                 }
                 if let Some(glyph) = parsed.entries.get(&source.id) {
-                    self.parsed.insert(hash, glyph.clone());
+                    glyphs.parsed.insert(hash, glyph.clone());
                     hashes.insert((index, source.id.as_str()), hash);
                 }
             }
@@ -445,17 +482,18 @@ impl CacheState {
         // the saved parsed glyph makes every candidate identical, so the bytes are deterministic.
         for ((index, id, advance), glyph) in &glyph_cache.processed {
             if let Some(hash) = hashes.get(&(*index, id.as_str()))
-                && self.parsed.get(hash).is_some_and(|parsed| {
+                && glyphs.parsed.get(hash).is_some_and(|parsed| {
                     parsed.color_layers.is_some() == glyph.color_layers.is_some()
                 })
             {
-                let entries = self.variant_processed.entry(*hash).or_default();
+                let entries = glyphs.variant_processed.entry(*hash).or_default();
                 if entries.iter().all(|(known, _)| known != advance) {
                     entries.push((*advance, glyph.clone()));
                 }
             }
         }
-        self.processed_signature = glyph_cache.signature;
+        glyphs.processed_signature = glyph_cache.signature;
+        self.replace_glyphs(glyphs);
         self.finish(outputs, types)
     }
 
@@ -488,8 +526,8 @@ impl CacheState {
         }
         self.fonts = fonts;
 
-        let (encoded, body_checksum) = self.encode();
-        let identity = Some((body_checksum, encoded.len()));
+        let (encoded, checksums) = self.encode();
+        let identity = Some((checksums, encoded.len()));
         // ponytail: a CRC32 collision skips one write; the old bytes stay valid for their own
         // keys, so output is unaffected and the next change rewrites them.
         if self.loaded == identity {
@@ -499,131 +537,162 @@ impl CacheState {
         Some(encoded)
     }
 
-    /// The file bytes and their body checksum.
-    fn encode(&self) -> (Vec<u8>, u32) {
-        // The checksum catches corruption the structure checks can't, such as a flipped byte
-        // inside stored font bytes. The body is written straight after the header and the
-        // checksum filled in afterwards, so the bytes are never copied.
+    /// The file bytes and their section checksums (glyphs, fonts).
+    fn encode(&self) -> (Vec<u8>, [u32; 2]) {
         let mut out = Writer::default();
         out.0.extend_from_slice(MAGIC);
         out.u32(FORMAT_VERSION);
         out.bytes(ENGINE_VERSION.as_bytes());
         out.array(&self.fingerprint);
-        let checksum_at = out.0.len();
-        out.u32(0);
-        let body_start = out.0.len();
-
-        // Always set after a store: preparation computes it before anything is persisted.
-        out.array(&self.processed_signature.unwrap_or_default());
-
-        // Sorted so identical content always encodes identically (lets unchanged runs skip writes).
-        let mut parsed: Vec<_> = self.parsed.iter().collect();
-        parsed.sort_unstable_by_key(|(hash, _)| **hash);
-        out.len(parsed.len());
-        for (hash, glyph) in parsed {
-            out.array(hash);
-            out.f64(glyph.height);
-            out.f64(glyph.width);
-            out.len(glyph.paths.len());
-            for path in &glyph.paths {
-                out.tiny_path(path);
+        let empty = Glyphs::default();
+        let glyphs = self.glyphs().unwrap_or(&empty);
+        let glyph_checksum = section(&mut out, |out| encode_glyphs(out, glyphs));
+        let font_checksum = section(&mut out, |out| {
+            out.len(self.fonts.len());
+            for entry in &self.fonts {
+                out.u8(font_type_tag(entry.font.font_type()));
+                out.array(&entry.key);
+                out.array(&entry.glyph_set);
+                out.bytes(entry.font.bytes());
             }
-            out.parsed_color_layers(glyph.color_layers.as_deref());
-        }
-
-        let mut processed: Vec<_> = self.processed.iter().collect();
-        processed.sort_unstable_by_key(|(hash, _)| **hash);
-        out.len(processed.len());
-        for (hash, glyph) in processed {
-            out.array(hash);
-            out.processed_glyph(glyph);
-        }
-
-        let mut variant_processed: Vec<_> = self.variant_processed.iter().collect();
-        variant_processed.sort_unstable_by_key(|(hash, _)| **hash);
-        out.len(variant_processed.len());
-        for (hash, entries) in variant_processed {
-            out.array(hash);
-            let mut entries: Vec<_> = entries.iter().collect();
-            entries.sort_unstable_by_key(|(advance, _)| *advance);
-            out.len(entries.len());
-            for (advance, glyph) in entries {
-                out.u64(*advance);
-                out.processed_glyph(glyph);
-            }
-        }
-
-        out.len(self.fonts.len());
-        for entry in &self.fonts {
-            out.u8(font_type_tag(entry.font.font_type()));
-            out.array(&entry.key);
-            out.array(&entry.glyph_set);
-            out.bytes(entry.font.bytes());
-        }
-        let body_checksum = checksum(&out.0[body_start..]);
-        out.0[checksum_at..body_start].copy_from_slice(&body_checksum.to_le_bytes());
-        (out.0, body_checksum)
+        });
+        (out.0, [glyph_checksum, font_checksum])
     }
 
-    /// Decode `bytes` into this state, returning the verified body checksum.
-    fn decode(&mut self, bytes: &[u8]) -> Option<u32> {
+    /// Check the header and decode the font section. Returns both section checksums and the
+    /// glyph section's range, which is left for [`Self::glyphs`].
+    fn decode(&mut self, bytes: &[u8]) -> Option<([u32; 2], Range<usize>)> {
         let mut input = Reader(bytes);
         (input.take(MAGIC.len())? == MAGIC).then_some(())?;
         (input.u32()? == FORMAT_VERSION).then_some(())?;
         (input.bytes()? == ENGINE_VERSION.as_bytes()).then_some(())?;
         (input.array::<16>()? == self.fingerprint).then_some(())?;
-        let expected = input.u32()?;
-        (checksum(input.0) == expected).then_some(())?;
 
-        self.processed_signature = Some(input.array()?);
+        let glyph_checksum = input.u32()?;
+        let glyph_len = input.u32()? as usize;
+        let glyph_start = bytes.len() - input.0.len();
+        input.take(glyph_len)?;
 
-        for _ in 0..input.len(16)? {
-            let hash = input.array()?;
-            let height = input.f64()?;
-            let width = input.f64()?;
-            let mut paths = Vec::new();
-            for _ in 0..input.len(8)? {
-                paths.push(input.tiny_path()?);
-            }
-            let color_layers = input.parsed_color_layers(paths.len())?;
-            self.parsed.insert(
-                hash,
-                Arc::new(CachedGlyph {
-                    color_layers,
-                    height,
-                    paths,
-                    width,
-                }),
-            );
-        }
-
-        for _ in 0..input.len(16)? {
-            let hash = input.array()?;
-            self.processed.insert(hash, input.processed_glyph()?);
-        }
-
-        for _ in 0..input.len(16)? {
-            let hash = input.array()?;
-            let mut entries = Vec::new();
-            for _ in 0..input.len(8)? {
-                entries.push((input.u64()?, input.processed_glyph()?));
-            }
-            self.variant_processed.insert(hash, entries);
-        }
-
-        for _ in 0..input.len(33)? {
-            let font_type = *FONT_TYPES.get(input.u8()? as usize)?;
-            let key = input.array()?;
-            let glyph_set = input.array()?;
-            let font = CachedFont::decode(font_type, input.bytes()?.to_vec())?;
+        let font_checksum = input.u32()?;
+        let font_len = input.u32()? as usize;
+        let mut fonts = Reader(input.take(font_len)?);
+        input.0.is_empty().then_some(())?;
+        (checksum(fonts.0) == font_checksum).then_some(())?;
+        for _ in 0..fonts.len(33)? {
+            let font_type = *FONT_TYPES.get(fonts.u8()? as usize)?;
+            let key = fonts.array()?;
+            let glyph_set = fonts.array()?;
+            let font = CachedFont::decode(font_type, fonts.bytes()?.to_vec())?;
             self.fonts.push(FontEntry {
                 key,
                 glyph_set,
                 font,
             });
         }
-        input.0.is_empty().then_some(expected)
+        fonts.0.is_empty().then_some(())?;
+        Some((
+            [glyph_checksum, font_checksum],
+            glyph_start..glyph_start + glyph_len,
+        ))
     }
+}
+
+/// Write one section: its checksum and length, then the bytes `write` produces. The body goes
+/// straight into `out` and the frame is filled in afterwards, so nothing is copied. Returns the
+/// checksum, which catches corruption the structure checks can't (a flipped byte inside a font).
+fn section(out: &mut Writer, write: impl FnOnce(&mut Writer)) -> u32 {
+    let frame = out.0.len();
+    out.u32(0);
+    out.u32(0);
+    let start = out.0.len();
+    write(out);
+    let body_checksum = checksum(&out.0[start..]);
+    let len = u32::try_from(out.0.len() - start).expect("cache sections stay below 4 GiB");
+    out.0[frame..frame + 4].copy_from_slice(&body_checksum.to_le_bytes());
+    out.0[frame + 4..start].copy_from_slice(&len.to_le_bytes());
+    body_checksum
+}
+
+fn encode_glyphs(out: &mut Writer, glyphs: &Glyphs) {
+    // Always set after a store: preparation computes it before anything is persisted.
+    out.array(&glyphs.processed_signature.unwrap_or_default());
+
+    // Sorted so identical content always encodes identically (lets unchanged runs skip writes).
+    let mut parsed: Vec<_> = glyphs.parsed.iter().collect();
+    parsed.sort_unstable_by_key(|(hash, _)| **hash);
+    out.len(parsed.len());
+    for (hash, glyph) in parsed {
+        out.array(hash);
+        out.f64(glyph.height);
+        out.f64(glyph.width);
+        out.len(glyph.paths.len());
+        for path in &glyph.paths {
+            out.tiny_path(path);
+        }
+        out.parsed_color_layers(glyph.color_layers.as_deref());
+    }
+
+    let mut processed: Vec<_> = glyphs.processed.iter().collect();
+    processed.sort_unstable_by_key(|(hash, _)| **hash);
+    out.len(processed.len());
+    for (hash, glyph) in processed {
+        out.array(hash);
+        out.processed_glyph(glyph);
+    }
+
+    let mut variant_processed: Vec<_> = glyphs.variant_processed.iter().collect();
+    variant_processed.sort_unstable_by_key(|(hash, _)| **hash);
+    out.len(variant_processed.len());
+    for (hash, entries) in variant_processed {
+        out.array(hash);
+        let mut entries: Vec<_> = entries.iter().collect();
+        entries.sort_unstable_by_key(|(advance, _)| *advance);
+        out.len(entries.len());
+        for (advance, glyph) in entries {
+            out.u64(*advance);
+            out.processed_glyph(glyph);
+        }
+    }
+}
+
+fn decode_glyphs(section: &[u8]) -> Option<Glyphs> {
+    let mut input = Reader(section);
+    let mut glyphs = Glyphs {
+        processed_signature: Some(input.array()?),
+        ..Default::default()
+    };
+    for _ in 0..input.len(16)? {
+        let hash = input.array()?;
+        let height = input.f64()?;
+        let width = input.f64()?;
+        let mut paths = Vec::new();
+        for _ in 0..input.len(8)? {
+            paths.push(input.tiny_path()?);
+        }
+        let color_layers = input.parsed_color_layers(paths.len())?;
+        glyphs.parsed.insert(
+            hash,
+            Arc::new(CachedGlyph {
+                color_layers,
+                height,
+                paths,
+                width,
+            }),
+        );
+    }
+    for _ in 0..input.len(16)? {
+        let hash = input.array()?;
+        glyphs.processed.insert(hash, input.processed_glyph()?);
+    }
+    for _ in 0..input.len(16)? {
+        let hash = input.array()?;
+        let mut entries = Vec::new();
+        for _ in 0..input.len(8)? {
+            entries.push((input.u64()?, input.processed_glyph()?));
+        }
+        glyphs.variant_processed.insert(hash, entries);
+    }
+    input.0.is_empty().then_some(glyphs)
 }
 
 /// Whether `path` is a cache file (checked by its name and header) or a temporary file left by an
