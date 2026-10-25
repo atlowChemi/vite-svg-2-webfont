@@ -393,7 +393,6 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
     - Without a fixed `formatOptions.ttf.ts` (Rust API and CLI only), each cached format keeps the TTF `head` timestamp of the run that created it, so formats in one output can carry different timestamps. Set `ts` for reproducible output.
     - Entries are keyed by file contents, not paths, so a moved checkout still hits.
     - A single-design font and a variant family with the same `fontName` replace each other's cache file, so alternating between them runs uncached.
-    - Color glyphs aren't saved per icon: when a font has to be rebuilt, its color glyphs are recomputed, while fonts that didn't change are still reused whole.
     - The engine owns the `*.wfcache` files it creates; remove them with [`clearCache()`](#clearcache-cachelocation). Rebuilding the native engine locally without a version change keeps old entries, so clear the cache after such a build.
     - Read or write failures (missing permissions, corrupt or truncated files) never fail generation; the run recomputes, replaces corrupt or truncated files, and leaves an unwritable location uncached. Each file carries a checksum, so accidental corruption is detected rather than reused. A directory where the cache file belongs is never removed; generation prints a warning and stays uncached until you remove it.
     - Cached fonts are reused as-is, so only restore trusted caches; see the [warning under caching across builds](#caching-across-builds).

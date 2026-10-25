@@ -482,7 +482,7 @@ fn a_fully_cached_incremental_result_regenerates_correctly() {
 }
 
 #[test]
-fn color_glyphs_are_recomputed_while_monochrome_glyphs_stay_cached() {
+fn color_glyphs_are_cached_like_monochrome_glyphs() {
     let project = Project::new("color");
     fs::write(
         project.root.join("icons/star.svg"),
@@ -502,15 +502,68 @@ fn color_glyphs_are_recomputed_while_monochrome_glyphs_stay_cached() {
     };
     run(options(Some(&project.cache())));
 
-    // An option-only change misses level 1, so glyph work runs: only the color glyph repeats it.
+    // An option-only change misses level 1, yet every glyph, color included, reuses its work.
     let mut changed = options(Some(&project.cache()));
     changed.format_options.as_mut().unwrap().woff2 = Some(Woff2FormatOptions {
         compression_quality: Some(9),
     });
     let warm = run(changed.clone());
-    assert_eq!(work(&warm), (1, 1));
-    changed.cache_location = None;
-    assert_eq!(bytes(&warm), bytes(&run(changed)));
+    assert_eq!(work(&warm), (0, 0));
+    let mut uncached = changed.clone();
+    uncached.cache_location = None;
+    assert_eq!(bytes(&warm), bytes(&run(uncached.clone())));
+
+    // Editing the color icon reprocesses it alone.
+    fs::write(
+        project.root.join("icons/star.svg"),
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#0099ff" d="M2 2H16V20H2Z"/></svg>"##,
+    )
+    .unwrap();
+    let edited = run(changed.clone());
+    assert_eq!(work(&edited), (1, 1));
+    assert_eq!(bytes(&edited), bytes(&run(uncached)));
+
+    // Back to monochrome: a new file, and the output still matches an uncached run.
+    let mut monochrome = changed;
+    monochrome.color_glyphs = None;
+    let result = run(monochrome.clone());
+    monochrome.cache_location = None;
+    assert_eq!(bytes(&result), bytes(&run(monochrome)));
+}
+
+#[test]
+fn palette_slot_changes_keep_saved_glyphs() {
+    let project = Project::new("slots");
+    fs::write(
+        project.root.join("icons/star.svg"),
+        r##"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#ff9900" d="M2 2H18V20H2Z"/></svg>"##,
+    )
+    .unwrap();
+    let options = |slot: &str| GenerateWebfontsOptions {
+        color_glyphs: Some(ColorGlyphSelection::Named(vec!["star".to_owned()])),
+        color_slots: Some(HashMap::from([("brand".to_owned(), slot.to_owned())])),
+        types: Some(vec![FontType::Ttf, FontType::Woff2]),
+        ..project.options(Some(&project.cache()))
+    };
+    let fonts = |result: &GenerateWebfontsResult| {
+        (
+            result.fonts.ttf_font.clone(),
+            result.fonts.woff2_font.clone(),
+        )
+    };
+    let uncached = |mut options: GenerateWebfontsOptions| {
+        options.cache_location = None;
+        fonts(&run(options))
+    };
+    let cold = run(options("#ff9900"));
+    assert_eq!(fonts(&cold), uncached(options("#ff9900")));
+    let file = cache_files(&project.cache());
+
+    // Slots only feed the color tables: same file, every glyph reused, fonts rebuilt correctly.
+    let changed = run(options("#0066ff"));
+    assert_eq!(cache_files(&project.cache()), file);
+    assert_eq!(work(&changed), (0, 0));
+    assert_eq!(fonts(&changed), uncached(options("#0066ff")));
 }
 
 #[test]
@@ -565,6 +618,60 @@ fn clear_cache_reports_unreadable_or_locked_locations() {
 }
 
 #[test]
+fn variant_glyphs_are_saved_only_in_the_mode_of_their_parsed_glyph() {
+    use std::slice;
+
+    use crate::input::LoadedSvgSource;
+
+    // One SVG, saved as a monochrome parsed glyph, offered processed in both modes. Processed
+    // entries iterate in arbitrary order, so only same-mode ones may be kept for the bytes to stay
+    // deterministic.
+    let source = LoadedSvgSource {
+        contents: svg(12).into(),
+        glyph_name: "logo".to_owned(),
+        id: "logo".to_owned(),
+    };
+    let hash = source_content_hash(&source.contents);
+    let project = Project::new("variant-modes");
+    let options = resolve_options(project.options(None));
+    let processed = |color: bool| CachedProcessedGlyph {
+        color_layers: color.then(|| Vec::new().into()),
+        height: 24.0,
+        path_data: "".into(),
+        ttf_path: None,
+        ttf_path_hash: None,
+        width: 24.0,
+    };
+    let saved = |color: bool| {
+        let mut parsed = GlyphCache::default();
+        let glyph = Arc::new(CachedGlyph {
+            color_layers: None,
+            height: 24.0,
+            paths: Vec::new(),
+            width: 24.0,
+        });
+        parsed.entries.insert(source.id.clone(), glyph);
+        parsed.content_hashes.insert(source.id.clone(), hash);
+        let cache = VariantGlyphCache {
+            parsed: vec![parsed],
+            processed: HashMap::from([((0, source.id.clone(), 7), processed(color))]),
+            signature: Some([1; 16]),
+            ..Default::default()
+        };
+        let mut state = CacheState::new(&options, slice::from_ref(&source));
+        state.update_variants(
+            &[vec![source.clone()]],
+            &cache,
+            &FontOutputs::default(),
+            &[],
+        );
+        state.variant_processed.get(&hash).map(Vec::len)
+    };
+    assert_eq!(saved(true), None);
+    assert_eq!(saved(false), Some(1));
+}
+
+#[test]
 fn malformed_path_tags_decode_to_none() {
     // One verb with an unknown tag, then zero points.
     let mut writer = Writer::default();
@@ -577,6 +684,103 @@ fn malformed_path_tags_decode_to_none() {
     writer.len(1);
     writer.u8(9);
     assert!(Reader(&writer.0).bez_path().is_none());
+}
+
+#[test]
+fn color_layers_round_trip_and_reject_malformed_input() {
+    use crate::svg::bezpath_hash;
+    use crate::svg::types::ParsedColorLayer;
+    use crate::types::color::{ProcessedColorLayer, ResolvedLayerPaint};
+    use kurbo::BezPath;
+    use usvg::FillRule;
+
+    let solid = ResolvedLayerPaint::Solid {
+        red: 255,
+        green: 153,
+        blue: 0,
+        alpha: 0.5,
+    };
+    let parsed = [
+        ParsedColorLayer {
+            path_index: 1,
+            paint: solid,
+            fill_rule: FillRule::EvenOdd,
+        },
+        ParsedColorLayer {
+            path_index: 0,
+            paint: ResolvedLayerPaint::Foreground { alpha: 1.0 },
+            fill_rule: FillRule::NonZero,
+        },
+    ];
+    let encode = |layers: &[ParsedColorLayer]| {
+        let mut writer = Writer::default();
+        writer.parsed_color_layers(Some(layers));
+        writer.0
+    };
+    let bytes = encode(&parsed);
+    let decoded = Reader(&bytes).parsed_color_layers(2).unwrap().unwrap();
+    assert_eq!(format!("{decoded:?}"), format!("{:?}", &parsed[..]));
+    assert!(Reader(&[0]).parsed_color_layers(2).unwrap().is_none());
+    // Only 0 (monochrome) and 1 (layers follow) are valid presence flags.
+    let mut bad_presence = bytes.clone();
+    bad_presence[0] = 2;
+    assert!(Reader(&bad_presence).parsed_color_layers(2).is_none());
+
+    // A path index past the glyph's paths, an unknown paint tag, an unknown fill rule.
+    assert!(Reader(&bytes).parsed_color_layers(1).is_none());
+    // Layout: flag (1), count (4), then path index (4), paint tag (1), RGB (3), alpha (4), fill (1).
+    let mut bad_paint = bytes.clone();
+    bad_paint[9] = 7;
+    assert!(Reader(&bad_paint).parsed_color_layers(2).is_none());
+    let mut bad_fill = bytes.clone();
+    bad_fill[17] = 7;
+    assert!(Reader(&bad_fill).parsed_color_layers(2).is_none());
+
+    // Processed layers never trust a stored outline hash: it is recomputed on load.
+    let outline = Arc::new(BezPath::from_svg("M0 0L10 0L10 10Z").unwrap());
+    let glyph = CachedProcessedGlyph {
+        color_layers: Some(
+            vec![ProcessedColorLayer {
+                outline: outline.clone(),
+                outline_hash: 42,
+                paint: solid,
+            }]
+            .into(),
+        ),
+        height: 24.0,
+        path_data: "".into(),
+        ttf_path: None,
+        ttf_path_hash: None,
+        width: 24.0,
+    };
+    let mut writer = Writer::default();
+    writer.processed_glyph(&glyph);
+    let decoded = Reader(&writer.0).processed_glyph().unwrap();
+    let layers = decoded.color_layers.unwrap();
+    assert_eq!(*layers[0].outline, *outline);
+    assert_eq!(layers[0].outline_hash, bezpath_hash(&outline));
+    assert_eq!(layers[0].paint, solid);
+    // Height, width, empty path data, no TTF outline, then the color flag.
+    let mut bad_flag = writer.0.clone();
+    let flag = 8 + 8 + 4 + 1;
+    bad_flag[flag] = 2;
+    assert!(Reader(&bad_flag).processed_glyph().is_none());
+
+    // The TTF outline hash keys glyph deduplication, so it isn't stored either.
+    let monochrome = CachedProcessedGlyph {
+        color_layers: None,
+        ttf_path: Some(outline.clone()),
+        ttf_path_hash: Some(42),
+        ..glyph
+    };
+    let mut writer = Writer::default();
+    writer.processed_glyph(&monochrome);
+    let decoded = Reader(&writer.0).processed_glyph().unwrap();
+    assert_eq!(decoded.ttf_path.as_deref(), Some(&*outline));
+    assert_eq!(decoded.ttf_path_hash, Some(bezpath_hash(&outline)));
+    let mut bad_ttf_flag = writer.0.clone();
+    bad_ttf_flag[8 + 8 + 4] = 2;
+    assert!(Reader(&bad_ttf_flag).processed_glyph().is_none());
 }
 
 const VARIANTS: [&str; 2] = ["light", "bold"];
@@ -848,7 +1052,7 @@ fn single_design_and_variant_caches_for_one_font_name_never_mix() {
 }
 
 #[test]
-fn color_variants_stay_byte_identical_and_recompute_only_color_glyphs() {
+fn color_variants_stay_byte_identical_and_reuse_color_glyphs() {
     let project = Project::family("variant-color");
     for design in VARIANTS {
         fs::write(project.root.join(design).join("star.svg"), STAR).unwrap();
@@ -869,8 +1073,8 @@ fn color_variants_stay_byte_identical_and_recompute_only_color_glyphs() {
         compression_quality: Some(9),
     });
     let rebuilt = run(changed.clone());
-    // Only the color glyph repeats its work, once per design.
-    assert_eq!(variant_work(&rebuilt), (2, 2));
+    // Color glyphs reuse their saved work in every design too.
+    assert_eq!(variant_work(&rebuilt), (0, 0));
     changed.cache_location = None;
     assert_eq!(variant_fonts(&rebuilt), variant_fonts(&run(changed)));
 }

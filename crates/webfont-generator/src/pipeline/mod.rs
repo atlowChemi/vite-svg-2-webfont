@@ -180,13 +180,7 @@ pub(crate) fn generate_webfonts_sync(
         );
         let (fonts, glyph_cache, built) = outcome?;
         if built && let Some(glyph_cache) = &glyph_cache {
-            disk.store(
-                &svg_options,
-                &source_files,
-                glyph_cache,
-                &fonts,
-                &options.types,
-            );
+            disk.store(&source_files, glyph_cache, &fonts, &options.types);
         }
         (fonts, glyph_cache.filter(|_| options.incremental))
     } else if options.incremental {
@@ -313,13 +307,7 @@ pub(crate) fn generate_variant_webfonts_sync(
         let outcome = build_variant_with_cache(&options, variants, &svg_options, &family, &disk);
         let (fonts, glyph_cache, built) = outcome?;
         if built && let Some(glyph_cache) = &glyph_cache {
-            disk.store_variants(
-                &svg_options,
-                &family.variants,
-                glyph_cache,
-                &fonts,
-                &options.types,
-            );
+            disk.store_variants(&family.variants, glyph_cache, &fonts, &options.types);
         }
         let glyph_cache = glyph_cache.filter(|_| options.incremental);
         (

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::sync::{Arc, atomic::Ordering};
 
 use super::*;
@@ -1287,7 +1288,7 @@ fn custom_templates_and_nondefault_settings_match_the_file_adapter() {
             center_vertically: Some(true),
             ligature: Some(false),
             round: Some(2.0),
-            codepoints: Some(std::collections::HashMap::from([("add".into(), 0xE040)])),
+            codepoints: Some(HashMap::from([("add".into(), 0xE040)])),
             types: options().types,
             format_options: options().format_options,
             ..Default::default()
@@ -1591,6 +1592,37 @@ fn cached_family(bytes: Option<Vec<u8>>, incremental: bool) -> GenerateWebfontsF
         cache: bytes,
         ..options
     }
+}
+
+#[test]
+fn palette_slot_changes_keep_saved_glyphs_in_memory() {
+    let slots = |color: &str| {
+        Some(std::collections::HashMap::from([(
+            "brand".to_owned(),
+            color.to_owned(),
+        )]))
+    };
+    let check = |mut options: GenerateWebfontsFromSourcesOptions,
+                 work: fn(&GenerateWebfontsFromSourcesResult) -> (usize, usize)| {
+        options.color_slots = slots("#ff9900");
+        options.cache = Some(Vec::new());
+        options.cache = generate_from_sources_sync(options.clone())
+            .unwrap()
+            .cache_bytes();
+        assert!(options.cache.is_some());
+        // Slots only feed the color tables: every saved glyph is reused, the fonts are rebuilt.
+        options.color_slots = slots("#0066ff");
+        let changed = generate_from_sources_sync(options.clone()).unwrap();
+        assert_eq!(work(&changed), (0, 0));
+        options.cache = None;
+        assert_fonts_equal(&changed, &generate_from_sources_sync(options).unwrap());
+    };
+    let mut single = cached(Vec::new(), true);
+    single.sources.push(source("logo", "logo", COLOR));
+    single.color_glyphs = Some(crate::ColorGlyphSelection::Named(vec!["logo".into()]));
+    single.types = Some(vec![FontType::Ttf, FontType::Woff2]);
+    check(single, glyph_work);
+    check(cached_family(None, true), variant_work);
 }
 
 /// (parsed, processed) variant glyph work for an incremental result.
