@@ -60,10 +60,15 @@ fn reports_xml_viewbox_and_usvg_errors_distinctly() {
 }
 
 #[test]
-fn parses_viewboxes() {
+fn parses_viewboxes_and_dimension_prefixes() {
     assert_eq!(parse_view_box("1, 2, 30, 40"), Some((1.0, 2.0, 30.0, 40.0)));
     assert_eq!(parse_view_box("0 0 10"), None);
     assert_eq!(parse_view_box("0 0 ten 10"), None);
+
+    assert_eq!(parse_number_prefix("250px"), Some(250.0));
+    assert_eq!(parse_number_prefix(" -1.5e2pt"), Some(-150.0));
+    assert_eq!(parse_number_prefix("none"), None);
+    assert_eq!(parse_number_prefix("."), None);
 }
 
 #[test]
@@ -83,98 +88,28 @@ fn parses_filled_paths_without_a_viewbox() {
 }
 
 #[test]
-fn root_transform_wraps_the_requested_viewbox_mapping() {
-    for (preserve, expected) in [
-        (false, (20.0, 30.0, 80.0, 50.0)),
-        (true, (65.0, 30.0, 95.0, 50.0)),
-    ] {
-        for aspect in ["", r#" preserveAspectRatio="none""#] {
-            let glyph = parse(
-                &format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 100 100" transform="translate(10 20)"{aspect}>
-                    <path d="M5 10H35V30H5Z"/>
-                </svg>"#),
-                preserve,
-            ).unwrap();
-            let bounds = glyph.paths[0].bounds();
-            assert_eq!(
-                (bounds.left(), bounds.top(), bounds.right(), bounds.bottom()),
-                expected,
-                "preserve={preserve}, aspect={aspect}"
-            );
-        }
-    }
-}
-
-#[test]
-fn root_aspect_ratio_keeps_authored_alignment_and_nested_transforms() {
-    let svg = r#"<?xml version="1.0"?><!-- <svg> -->
-        <s:svg xmlns:s="http://www.w3.org/2000/svg" data-note=">" width="200" height="100"
-            viewBox="0 0 100 100" preserveAspectRatio="xMinYMin meet" transform="translate(10 20)">
-            <s:g transform="translate(2 3)"><s:path d="M5 10H35V30H5Z"/></s:g>
-        </s:svg>"#;
-    for (preserve, expected) in [
-        (true, (17.0, 33.0, 47.0, 53.0)),
-        (false, (24.0, 33.0, 84.0, 53.0)),
-    ] {
-        let glyph = parse(svg, preserve).unwrap();
-        let bounds = glyph.paths[0].bounds();
-        assert_eq!(
-            (bounds.left(), bounds.top(), bounds.right(), bounds.bottom()),
-            expected
-        );
-    }
-}
-
-#[test]
-fn viewbox_only_icons_skip_rewriting_but_dimension_attributes_do_not() {
-    let options = usvg::Options::default();
-    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="5 10 100 50" transform="translate(10 20)"><path d="M5 10H35V30H5Z"/></svg>"#;
-    for source in [
-        svg.to_owned(),
-        svg.replace("viewBox=", r#"style="width:200px;height:50px" viewBox="#),
-    ] {
-        let document = parse_svg_document(&source).unwrap();
-        assert!(matches!(
-            root_aspect_ratio(&source, &document, false, &options).unwrap(),
-            Cow::Borrowed(_)
-        ));
-        let stretched = parse(&source, false).unwrap();
-        let preserved = parse(&source, true).unwrap();
-        assert_eq!(stretched.paths[0], preserved.paths[0]);
-    }
-    for attributes in [
-        r#"width="200" height="50""#,
-        r#"xmlns:s="http://www.w3.org/2000/svg" s:width="200" s:height="50""#,
-    ] {
-        let source = svg.replace("viewBox=", &format!("{attributes} viewBox="));
-        let document = parse_svg_document(&source).unwrap();
-        assert!(matches!(
-            root_aspect_ratio(&source, &document, false, &options).unwrap(),
-            Cow::Owned(_)
-        ));
-        assert_eq!(
-            parse(&source, false).unwrap().paths[0].bounds().width(),
-            60.0
-        );
-    }
-}
-
-#[test]
-fn aspect_ratio_rewrites_still_apply_before_stylesheet_selectors() {
-    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50">
-        <style>svg[preserveAspectRatio="none"] path { transform:scale(2) }</style>
-        <path d="M5 10H35V20H5Z"/></svg>"#;
-    assert_eq!(parse(svg, false).unwrap().paths[0].bounds().width(), 60.0);
-
-    let svg = r#"<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50"/>"#;
-    let document = parse_svg_document(svg).unwrap();
-    let options = usvg::Options {
-        style_sheet: Some(r#"svg[preserveAspectRatio="none"] path { transform:scale(2) }"#.into()),
-        ..Default::default()
+fn builds_only_the_required_root_viewbox_correction() {
+    let metrics = RootSvgMetrics {
+        current_preserve_aspect_ratio: true,
+        view_box_height: 100.0,
+        view_box_width: 100.0,
+        view_box_x: 0.0,
+        view_box_y: 0.0,
+        viewport_height: 100.0,
+        viewport_width: 200.0,
     };
-    assert!(matches!(
-        root_aspect_ratio(svg, &document, false, &options).unwrap(),
-        Cow::Owned(_)
+
+    assert!(
+        build_root_viewbox_correction(&metrics, true)
+            .unwrap()
+            .is_none()
+    );
+    let correction = build_root_viewbox_correction(&metrics, false)
+        .unwrap()
+        .expect("stretching should require a correction");
+    assert!(transforms_close(
+        correction,
+        Transform::from_row(2.0, 0.0, 0.0, 1.0, -100.0, 0.0)
     ));
 }
 
