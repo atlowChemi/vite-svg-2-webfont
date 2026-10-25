@@ -1530,6 +1530,34 @@ fn a_fallback_timestamp_is_used_but_kept_out_of_cache_keys() {
 }
 
 #[test]
+fn a_corrupt_glyph_section_in_cache_bytes_is_found_when_needed() {
+    let expected = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
+        cache: None,
+        ..cached(Vec::new(), true)
+    })
+    .unwrap();
+    let valid = generate_from_sources_sync(cached(Vec::new(), true))
+        .unwrap()
+        .cache_bytes()
+        .unwrap();
+    // Magic, format version, engine version, fingerprint, then the glyph section's frame.
+    let header = 8 + 4 + 4 + env!("CARGO_PKG_VERSION").len() + 16;
+    let mut corrupt = valid.clone();
+    corrupt[header + 8 + 20] ^= 0xff;
+
+    // Incremental results need the saved glyphs: a full miss that exports fresh, valid bytes.
+    let mut incremental = generate_from_sources_sync(cached(corrupt.clone(), true)).unwrap();
+    assert_fonts_equal(&incremental, &expected);
+    assert_eq!(glyph_work(&incremental), (2, 2));
+    assert_eq!(incremental.cache_bytes().unwrap(), valid);
+
+    // A one-shot run whose fonts all hit never reads them, so nothing changes or is exported.
+    let mut one_shot = generate_from_sources_sync(cached(corrupt, false)).unwrap();
+    assert_fonts_equal(&one_shot, &expected);
+    assert_eq!(one_shot.cache_bytes(), None);
+}
+
+#[test]
 fn unusable_or_unrequested_cache_bytes_are_ignored() {
     let expected = generate_from_sources_sync(GenerateWebfontsFromSourcesOptions {
         cache: None,
