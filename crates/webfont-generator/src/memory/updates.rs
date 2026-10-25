@@ -228,6 +228,15 @@ impl GenerateWebfontsFromSourcesResult {
         membership: SourceMembership,
         changes: Vec<SourceChange>,
     ) -> Result<()> {
+        let threads = self.options.common.threads;
+        crate::threads::install(threads, || self.regenerate_in_pool(membership, changes))
+    }
+
+    fn regenerate_in_pool(
+        &mut self,
+        membership: SourceMembership,
+        changes: Vec<SourceChange>,
+    ) -> Result<()> {
         if self.caches.is_none() {
             return Err(invalid("Source updates require incremental generation"));
         }

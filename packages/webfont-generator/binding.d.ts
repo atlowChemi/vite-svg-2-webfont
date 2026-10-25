@@ -340,6 +340,12 @@ export interface GenerateWebfontsOptions {
    */
   templateOptions?: Record<string, any>
   /**
+   * How many threads read SVG files and do glyph work at once, including in later `regenerate`
+   * calls. A positive integer; glyph work never uses more threads than CPU cores. Unset reads
+   * with one task per core and shares one glyph thread pool. Output is identical for every value.
+   */
+  threads?: number
+  /**
    * Font formats to generate. Ordinary mode defaults to `['eot', 'woff', 'woff2']`;
    * variant mode defaults to `['woff', 'woff2']` and rejects SVG and EOT.
    */

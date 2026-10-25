@@ -3,6 +3,15 @@ use super::*;
 #[test]
 fn config_is_complete_and_excludes_explicit_generation_arguments() {
     assert!(Cli::try_parse_from(["webfont-generator", "--config", "icons.json"]).is_ok());
+    let cli = Cli::try_parse_from([
+        "webfont-generator",
+        "--config",
+        "icons.json",
+        "--threads",
+        "2",
+    ])
+    .unwrap();
+    assert_eq!(cli.threads, std::num::NonZeroUsize::new(2));
     for extra in [
         vec!["./icon.svg"],
         vec!["--dest", "out"],
@@ -44,6 +53,19 @@ fn config_is_complete_and_excludes_explicit_generation_arguments() {
             kind
         );
     }
+}
+
+#[test]
+fn config_conflicts_with_every_generation_argument_but_threads() {
+    use clap::CommandFactory;
+    let mut command = Cli::command();
+    command.build();
+    let ids: Vec<_> = command
+        .get_arguments()
+        .map(|arg| arg.get_id().as_str())
+        .filter(|id| !["config", "threads", "help", "version"].contains(id))
+        .collect();
+    assert_eq!(ids, GENERATION_ARGS);
 }
 
 #[test]

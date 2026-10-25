@@ -8,6 +8,31 @@ mod manifest;
 #[cfg(test)]
 mod cli_tests;
 
+/// Arguments a `--config` file replaces. `--threads` is machine-specific, so it may override a
+/// checked-in config.
+const GENERATION_ARGS: [&str; 20] = [
+    "files",
+    "dest",
+    "font_name",
+    "types",
+    "css",
+    "no_css",
+    "html",
+    "no_html",
+    "css_template",
+    "html_template",
+    "css_fonts_url",
+    "write",
+    "no_write",
+    "ligature",
+    "no_ligature",
+    "font_height",
+    "ascent",
+    "descent",
+    "start_codepoint",
+    "cache_location",
+];
+
 const STYLES: styling::Styles = styling::Styles::styled()
     .header(styling::AnsiColor::Green.on_default().bold())
     .usage(styling::AnsiColor::Green.on_default().bold())
@@ -27,8 +52,8 @@ struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
 
-    /// Complete JSON configuration; paths are relative to this file
-    #[arg(long, exclusive = true)]
+    /// Complete JSON configuration; paths are relative to this file. Only `--threads` can be added
+    #[arg(long, conflicts_with_all = GENERATION_ARGS)]
     config: Option<String>,
     /// SVG files or directories containing SVG files, as explicit paths (`./icons`)
     #[arg(required_unless_present = "config", value_parser = explicit_path)]
@@ -109,6 +134,11 @@ struct Cli {
     /// Directory for the persistent generation cache; later runs reuse unchanged work
     #[arg(long)]
     cache_location: Option<String>,
+
+    /// How many threads read SVG files and do glyph work at once; glyph work stops at the core
+    /// count [default: one per core]
+    #[arg(long)]
+    threads: Option<std::num::NonZeroUsize>,
 }
 
 #[derive(Subcommand)]
@@ -175,7 +205,10 @@ fn main() -> ExitCode {
 
     if let Some(path) = &cli.config {
         return match manifest::load(Path::new(path)) {
-            Ok(options) => generate(options, Some(path)),
+            Ok(mut options) => {
+                options.threads = cli.threads.or(options.threads);
+                generate(options, Some(path))
+            }
             Err(error) => {
                 eprintln!("Error: {path}: {error}");
                 ExitCode::FAILURE
@@ -222,6 +255,7 @@ fn main() -> ExitCode {
         html_template: cli.html_template,
         ligature: Some(!cli.no_ligature),
         start_codepoint,
+        threads: cli.threads,
         types: cli.types,
         write_files: Some(!cli.no_write),
         ..Default::default()

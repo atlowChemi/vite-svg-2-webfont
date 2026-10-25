@@ -118,6 +118,11 @@ pub struct GenerateWebfontsFromSourcesOptions {
     pub start_codepoint: Option<u32>,
     /// Additional template context values.
     pub template_options: Option<serde_json::Map<String, serde_json::Value>>,
+    /// How many threads do glyph work at once (never more than CPU cores), including later source
+    /// updates. WOFF2's Brotli worker isn't counted. Unset uses Rayon's global pool
+    /// (`RAYON_NUM_THREADS` applies). Output is identical for every value. Not deserialized.
+    #[serde(skip)]
+    pub threads: Option<std::num::NonZeroUsize>,
     /// Requested formats; ordinary defaults EOT/WOFF/WOFF2, variants WOFF/WOFF2.
     pub types: Option<Vec<FontType>>,
     /// Variant CSS modifier prefix (default `icon--`).
@@ -163,6 +168,7 @@ pub(super) fn resolve(
         round: options.round,
         start_codepoint: options.start_codepoint,
         template_options: options.template_options,
+        threads: options.threads,
         types: options.types,
         variant_class_prefix: options.variant_class_prefix,
     };

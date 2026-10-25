@@ -28,6 +28,8 @@ it('exports the cache API', () => {
     expectTypeOf<ClearCacheReport>().toEqualTypeOf<{ filesRemoved: number; bytesRemoved: number }>();
     expectTypeOf<GenerateWebfontsFileOptions['cacheLocation']>().toEqualTypeOf<string | undefined>();
     expectTypeOf<GenerateWebfontsVariantOptions['cacheLocation']>().toEqualTypeOf<string | undefined>();
+    expectTypeOf<GenerateWebfontsFileOptions['threads']>().toEqualTypeOf<number | undefined>();
+    expectTypeOf<GenerateWebfontsVariantOptions['threads']>().toEqualTypeOf<number | undefined>();
 });
 
 it('exports the public generator API', () => {

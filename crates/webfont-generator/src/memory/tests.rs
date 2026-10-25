@@ -170,6 +170,22 @@ async fn single_source_helpers_preserve_order_and_recover_consumed_results() {
     assert_fonts_equal(&result, &generate_from_sources_sync(input).unwrap());
 }
 
+#[test]
+fn thread_counts_generate_and_update_the_same_fonts() {
+    let mut input = options();
+    input.sources.push(source("second", "second", OTHER));
+    let mut unset = generate_from_sources_sync(input.clone()).unwrap();
+    input.threads = std::num::NonZeroUsize::new(2);
+    let mut two = generate_from_sources_sync(input).unwrap();
+    assert_fonts_equal(&two, &unset);
+    for result in [&mut unset, &mut two] {
+        result
+            .update_sync("second".into(), SVG.into(), None)
+            .unwrap();
+    }
+    assert_fonts_equal(&two, &unset);
+}
+
 fn assert_fonts_equal(
     left: &GenerateWebfontsFromSourcesResult,
     right: &GenerateWebfontsFromSourcesResult,

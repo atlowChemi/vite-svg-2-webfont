@@ -449,6 +449,12 @@ pub struct GenerateWebfontsOptions {
     /// context for both CSS and HTML rendering. Typical home for
     /// `classPrefix` and `baseSelector`.
     pub template_options: Option<Map<String, Value>>,
+    /// How many threads read SVG files and do glyph work at once, including in later `regenerate`
+    /// calls on the result. Glyph work never uses more threads than CPU cores; reads can, since they
+    /// wait on storage. Not counted: WOFF2's Brotli worker, output file writes and the Tokio
+    /// runtime's own threads. Unset reads with one task per core and runs glyph work on Rayon's
+    /// global pool (`RAYON_NUM_THREADS` applies). Output is identical for every value.
+    pub threads: Option<std::num::NonZeroUsize>,
     /// Font formats to generate. Ordinary mode defaults to `['eot', 'woff', 'woff2']`;
     /// variant mode defaults to `['woff', 'woff2']` and rejects SVG and EOT.
     pub types: Option<Vec<FontType>>,

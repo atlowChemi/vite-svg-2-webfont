@@ -92,6 +92,21 @@ impl TryFrom<GenerateWebfontsOptions> for webfont_generator::GenerateWebfontsOpt
                 ));
             }
         };
+        // Any safe integer from 1; glyph work stays capped at the core count anyway.
+        let threads = match value.threads {
+            None => None,
+            Some(threads)
+                if threads.fract() == 0.0 && (1.0..=9_007_199_254_740_991.0).contains(&threads) =>
+            {
+                std::num::NonZeroUsize::new(threads as usize)
+            }
+            Some(_) => {
+                return Err(Error::new(
+                    Status::InvalidArg,
+                    "options.threads: expected a positive integer",
+                ));
+            }
+        };
         Ok(Self {
             color_glyphs,
             color_slots: value.color_slots,
@@ -128,6 +143,7 @@ impl TryFrom<GenerateWebfontsOptions> for webfont_generator::GenerateWebfontsOpt
             round: value.round,
             start_codepoint: value.start_codepoint,
             template_options: value.template_options,
+            threads,
             types: value
                 .types
                 .map(|values| values.into_iter().map(Into::into).collect()),

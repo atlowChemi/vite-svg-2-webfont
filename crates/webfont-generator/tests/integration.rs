@@ -701,6 +701,61 @@ mod cli {
     }
 
     #[test]
+    fn threads_flag_keeps_output_and_rejects_zero() {
+        let root = std::path::PathBuf::from(super::temp_dest("cli-threads"));
+        std::fs::create_dir_all(&root).unwrap();
+        let fonts = |dest: &str, extra: &[&str]| {
+            let output = cli_bin()
+                .arg(fixture_dir())
+                .args([
+                    "--dest",
+                    &root.join(dest).to_string_lossy(),
+                    "--types",
+                    "svg",
+                ])
+                .args(extra)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            // SVG fonts carry no timestamp, so separate runs compare byte for byte.
+            std::fs::read(root.join(dest).join("iconfont.svg")).unwrap()
+        };
+        assert_eq!(fonts("two", &["--threads", "2"]), fonts("unset", &[]));
+        // A checked-in config can be combined with a machine-specific thread count.
+        let config = root.join("icons.json");
+        let manifest =
+            serde_json::json!({"dest": "config", "files": [fixture_dir()], "types": ["svg"]});
+        std::fs::write(&config, manifest.to_string()).unwrap();
+        let output = cli_bin()
+            .arg("--config")
+            .arg(&config)
+            .args(["--threads", "2"])
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert_eq!(
+            std::fs::read(root.join("config/iconfont.svg")).unwrap(),
+            fonts("unset", &[])
+        );
+        let output = cli_bin()
+            .arg(fixture_dir())
+            .args(["--dest", &root.to_string_lossy(), "--threads", "0"])
+            .output()
+            .unwrap();
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains("--threads"));
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn manifest_cache_locations_are_config_relative_and_clear_cache_removes_them() {
         use serde_json::json;
         let root = std::path::PathBuf::from(super::temp_dest("cli-cache"));
@@ -832,6 +887,10 @@ mod cli {
             (
                 json!({"dest":"out", "files":["icons"], "cacheLocation":""}),
                 "cacheLocation",
+            ),
+            (
+                json!({"dest":"out", "files":["icons"], "threads":0}),
+                "threads",
             ),
             (json!({"dest":"out", "files":[""]}), "files[0]"),
             (json!({"files":["icons"]}), "dest"),
@@ -1248,4 +1307,101 @@ mod cli {
 
         let _ = std::fs::remove_dir_all(&dest);
     }
+}
+
+#[test]
+fn every_thread_count_generates_and_regenerates_the_same_fonts() {
+    use std::num::NonZeroUsize;
+    use webfont_generator::{GlyphChange, RegenerationFiles};
+
+    let fonts = |result: &webfont_generator::GenerateWebfontsResult| {
+        vec![
+            result.svg_string().map(|svg| svg.as_bytes().to_vec()),
+            result.ttf_bytes().map(<[u8]>::to_vec),
+            result.eot_bytes().map(<[u8]>::to_vec),
+            result.woff_bytes().map(<[u8]>::to_vec),
+            result.woff2_bytes().map(<[u8]>::to_vec),
+        ]
+    };
+    let fixtures = fixture_files();
+    let format_options = Some(FormatOptions {
+        ttf: Some(TtfFormatOptions {
+            copyright: None,
+            description: None,
+            ts: Some(1_700_000_000),
+            url: None,
+            version: None,
+        }),
+        ..Default::default()
+    });
+    let run = |threads: Option<usize>| {
+        let dir = Path::new(&temp_dest("threads")).join(format!("{threads:?}"));
+        std::fs::create_dir_all(&dir).unwrap();
+        let files: Vec<String> = fixtures
+            .iter()
+            .map(|fixture| {
+                let path = dir.join(Path::new(fixture).file_name().unwrap());
+                std::fs::copy(fixture, &path).unwrap();
+                path.to_string_lossy().into_owned()
+            })
+            .collect();
+        let mut result = webfont_generator::generate_sync(
+            GenerateWebfontsOptions {
+                css: Some(false),
+                dest: dir.to_string_lossy().into_owned(),
+                files: files.clone(),
+                format_options: format_options.clone(),
+                incremental: Some(true),
+                threads: threads.and_then(NonZeroUsize::new),
+                types: Some(vec![
+                    FontType::Svg,
+                    FontType::Ttf,
+                    FontType::Eot,
+                    FontType::Woff,
+                    FontType::Woff2,
+                ]),
+                write_files: Some(false),
+                ..Default::default()
+            },
+            None,
+        )
+        .unwrap();
+        let generated = fonts(&result);
+        std::fs::copy(&fixtures[1], &files[0]).unwrap();
+        result
+            .regenerate(
+                &RegenerationFiles::Single(files.clone()),
+                &[(files[0].clone(), GlyphChange::Changed { name: None })],
+            )
+            .unwrap();
+        let regenerated = fonts(&result);
+        let mut variants = variant_options();
+        variants.threads = threads.and_then(NonZeroUsize::new);
+        variants.format_options = format_options.clone();
+        let family = webfont_generator::generate_sync(variants, None).unwrap();
+        std::fs::remove_dir_all(&dir).ok();
+        (
+            generated,
+            regenerated,
+            family.woff2_bytes().map(<[u8]>::to_vec),
+        )
+    };
+
+    let digest = |run: &(Vec<Option<Vec<u8>>>, Vec<Option<Vec<u8>>>, Option<Vec<u8>>)| {
+        use std::hash::{Hash, Hasher};
+        let parts: Vec<_> = run.0.iter().chain(&run.1).chain([&run.2]).collect();
+        parts
+            .into_iter()
+            .map(|part| {
+                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                part.hash(&mut hasher);
+                hasher.finish()
+            })
+            .collect::<Vec<_>>()
+    };
+    let unset = run(None);
+    assert_ne!(unset.0, unset.1, "the edit changes the fonts");
+    let unset = digest(&unset);
+    assert_eq!(digest(&run(Some(1))), unset);
+    assert_eq!(digest(&run(Some(3))), unset);
 }
