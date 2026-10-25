@@ -1,7 +1,7 @@
 # @atlowchemi/webfont-generator
 
 <p align="center">
-  <img src="../docs/public/webfont-generator-logo.png" alt="webfont-generator logo" width="200" />
+  <img src="../docs/assets/svg/webfont-napi-logo.svg" alt="webfont-generator Node.js addon logo" width="200" />
 </p>
 
 <p align="center">

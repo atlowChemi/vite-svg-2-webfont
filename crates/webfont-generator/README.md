@@ -1,5 +1,9 @@
 # webfont-generator
 
+<p align="center">
+  <img src="../../packages/docs/public/webfont-generator-logo.png" alt="webfont-generator Rust engine logo" width="200" />
+</p>
+
 [![crates.io](https://img.shields.io/crates/v/webfont-generator.svg?style=flat-square)](https://crates.io/crates/webfont-generator)
 [![docs.rs](https://img.shields.io/docsrs/webfont-generator?style=flat-square)](https://docs.rs/webfont-generator)
 [![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/master/LICENSE)
