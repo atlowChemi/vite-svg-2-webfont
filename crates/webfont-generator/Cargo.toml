@@ -23,8 +23,8 @@ cli = ["fs", "dep:clap", "dep:serde_path_to_error"]
 bench = ["fs", "in_memory"]
 
 [dependencies]
-brotli = "=9.0.0"
-clap = { version = "4", features = ["derive"], optional = true }
+brotli = "=9.1.0"
+clap = { version = "4.6.7", features = ["derive"], optional = true }
 handlebars = "6.4.1"
 kurbo = "0.13.1"
 md5 = "0.8.0"
@@ -36,8 +36,8 @@ serde_json = "1.0.150"
 serde_path_to_error = { version = "0.1", optional = true }
 oxvg_path = "0.0.9"
 tokio = { version = "1", features = ["macros", "rt", "rt-multi-thread"], optional = true }
-usvg = { version = "0.48.0", default-features = false }
-write-fonts = { version = "0.54.0", features = ["read"] }
+usvg = { version = "0.49.0", default-features = false }
+write-fonts = { version = "0.55.0", features = ["read"] }
 
 indexmap = "2"
 

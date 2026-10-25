@@ -52,7 +52,8 @@ use crate::types::FontType;
 
 const MAGIC: &[u8; 8] = b"WFGCACHE";
 /// Bump when the file layout or any persisted type's meaning changes.
-const FORMAT_VERSION: u32 = 1;
+// Invalidate glyphs and tables generated before the usvg 0.49 / write-fonts 0.55 upgrade.
+const FORMAT_VERSION: u32 = 2;
 const ENGINE_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[cfg(feature = "fs")]
 const EXTENSION: &str = "wfcache";

@@ -60,15 +60,10 @@ fn reports_xml_viewbox_and_usvg_errors_distinctly() {
 }
 
 #[test]
-fn parses_viewboxes_and_dimension_prefixes() {
+fn parses_viewboxes() {
     assert_eq!(parse_view_box("1, 2, 30, 40"), Some((1.0, 2.0, 30.0, 40.0)));
     assert_eq!(parse_view_box("0 0 10"), None);
     assert_eq!(parse_view_box("0 0 ten 10"), None);
-
-    assert_eq!(parse_number_prefix("250px"), Some(250.0));
-    assert_eq!(parse_number_prefix(" -1.5e2pt"), Some(-150.0));
-    assert_eq!(parse_number_prefix("none"), None);
-    assert_eq!(parse_number_prefix("."), None);
 }
 
 #[test]
@@ -88,29 +83,46 @@ fn parses_filled_paths_without_a_viewbox() {
 }
 
 #[test]
-fn builds_only_the_required_root_viewbox_correction() {
-    let metrics = RootSvgMetrics {
-        current_preserve_aspect_ratio: true,
-        view_box_height: 100.0,
-        view_box_width: 100.0,
-        view_box_x: 0.0,
-        view_box_y: 0.0,
-        viewport_height: 100.0,
-        viewport_width: 200.0,
-    };
+fn root_transform_wraps_the_requested_viewbox_mapping() {
+    for (preserve, expected) in [
+        (false, (20.0, 30.0, 80.0, 50.0)),
+        (true, (65.0, 30.0, 95.0, 50.0)),
+    ] {
+        for aspect in ["", r#" preserveAspectRatio="none""#] {
+            let glyph = parse(
+                &format!(r#"<svg xmlns="http://www.w3.org/2000/svg" width="200" height="100" viewBox="0 0 100 100" transform="translate(10 20)"{aspect}>
+                    <path d="M5 10H35V30H5Z"/>
+                </svg>"#),
+                preserve,
+            ).unwrap();
+            let bounds = glyph.paths[0].bounds();
+            assert_eq!(
+                (bounds.left(), bounds.top(), bounds.right(), bounds.bottom()),
+                expected,
+                "preserve={preserve}, aspect={aspect}"
+            );
+        }
+    }
+}
 
-    assert!(
-        build_root_viewbox_correction(&metrics, true)
-            .unwrap()
-            .is_none()
-    );
-    let correction = build_root_viewbox_correction(&metrics, false)
-        .unwrap()
-        .expect("stretching should require a correction");
-    assert!(transforms_close(
-        correction,
-        Transform::from_row(2.0, 0.0, 0.0, 1.0, -100.0, 0.0)
-    ));
+#[test]
+fn root_aspect_ratio_keeps_authored_alignment_and_nested_transforms() {
+    let svg = r#"<?xml version="1.0"?><!-- <svg> -->
+        <s:svg xmlns:s="http://www.w3.org/2000/svg" data-note=">" width="200" height="100"
+            viewBox="0 0 100 100" preserveAspectRatio="xMinYMin meet" transform="translate(10 20)">
+            <s:g transform="translate(2 3)"><s:path d="M5 10H35V30H5Z"/></s:g>
+        </s:svg>"#;
+    for (preserve, expected) in [
+        (true, (17.0, 33.0, 47.0, 53.0)),
+        (false, (24.0, 33.0, 84.0, 53.0)),
+    ] {
+        let glyph = parse(svg, preserve).unwrap();
+        let bounds = glyph.paths[0].bounds();
+        assert_eq!(
+            (bounds.left(), bounds.top(), bounds.right(), bounds.bottom()),
+            expected
+        );
+    }
 }
 
 #[test]

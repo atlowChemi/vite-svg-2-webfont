@@ -1,21 +1,11 @@
+use std::borrow::Cow;
 use std::io::{Error, ErrorKind};
-use usvg::Transform;
 use usvg::tiny_skia_path::Path as TinyPath;
 
 use crate::svg::types::{GlyphWorkItem, ParsedColorLayer, ParsedGlyph};
 use crate::types::color::ResolvedLayerPaint;
 
 mod color;
-
-struct RootSvgMetrics {
-    current_preserve_aspect_ratio: bool,
-    view_box_height: f64,
-    view_box_width: f64,
-    view_box_x: f64,
-    view_box_y: f64,
-    viewport_height: f64,
-    viewport_width: f64,
-}
 
 pub(crate) fn parse_svg_glyph(
     item: &GlyphWorkItem,
@@ -25,7 +15,12 @@ pub(crate) fn parse_svg_glyph(
 ) -> Result<ParsedGlyph, Error> {
     let svg = item.source_file.contents.as_ref();
     let document = parse_svg_document(svg)?;
-    let root_metrics = parse_root_svg_metrics(&document)?;
+    let svg = root_aspect_ratio(svg, &document, preserve_aspect_ratio)?;
+    let document = match &svg {
+        Cow::Owned(rewritten) => parse_svg_document(rewritten)?,
+        Cow::Borrowed(_) => document,
+    };
+    let svg = svg.as_ref();
     let tree = usvg::Tree::from_xmltree(&document, options).map_err(|error| {
         Error::new(
             ErrorKind::InvalidInput,
@@ -52,19 +47,7 @@ pub(crate) fn parse_svg_glyph(
     };
     let mut paths = Vec::new();
     let mut color_layers = color.then(Vec::new);
-    let root_correction = if let Some(metrics) = root_metrics.as_ref() {
-        build_root_viewbox_correction(metrics, preserve_aspect_ratio)?
-    } else {
-        None
-    };
-
-    collect_paths(
-        tree.root(),
-        root_correction,
-        &mut paths,
-        marker,
-        &mut color_layers,
-    )?;
+    collect_paths(tree.root(), &mut paths, marker, &mut color_layers)?;
 
     Ok(ParsedGlyph {
         color_layers: color_layers.map(Into::into),
@@ -79,7 +62,6 @@ pub(crate) fn parse_svg_glyph(
 
 fn collect_paths(
     group: &usvg::Group,
-    root_correction: Option<Transform>,
     paths: &mut Vec<TinyPath>,
     marker: Option<usvg::Color>,
     color_layers: &mut Option<Vec<ParsedColorLayer>>,
@@ -87,7 +69,7 @@ fn collect_paths(
     for node in group.children() {
         match node {
             usvg::Node::Group(child_group) => {
-                collect_paths(child_group, root_correction, paths, marker, color_layers)?
+                collect_paths(child_group, paths, marker, color_layers)?
             }
             usvg::Node::Path(path) => {
                 // Convert stroke-only paths to filled outlines (matching upstream svgicons2svgfont behavior)
@@ -127,13 +109,6 @@ fn collect_paths(
                 let transformed = path_data.transform(path.abs_transform()).ok_or_else(|| {
                     Error::other("Failed to apply an absolute transform to a glyph path.")
                 })?;
-                let transformed = if let Some(root_correction) = root_correction {
-                    transformed.transform(root_correction).ok_or_else(|| {
-                        Error::other("Failed to apply a root viewBox correction to a glyph path.")
-                    })?
-                } else {
-                    transformed
-                };
                 if let Some(layers) = color_layers
                     && path.is_visible()
                     && let Some(fill) = path.fill()
@@ -181,112 +156,50 @@ fn parse_svg_document(svg: &str) -> Result<roxmltree::Document<'_>, Error> {
     })
 }
 
-fn parse_root_svg_metrics(
+fn root_aspect_ratio<'a>(
+    svg: &'a str,
     document: &roxmltree::Document<'_>,
-) -> Result<Option<RootSvgMetrics>, Error> {
+    preserve: bool,
+) -> Result<Cow<'a, str>, Error> {
     let root = document.root_element();
     if !root.has_tag_name("svg") {
-        return Ok(None);
+        return Ok(Cow::Borrowed(svg));
     }
 
     let Some(view_box) = root.attribute("viewBox") else {
-        return Ok(None);
+        return Ok(Cow::Borrowed(svg));
     };
-    let values = parse_view_box(view_box).ok_or_else(|| {
+    parse_view_box(view_box).ok_or_else(|| {
         Error::new(
             ErrorKind::InvalidInput,
             "Failed to parse the SVG viewBox for native generation.",
         )
     })?;
-    let viewport_width = root
-        .attribute("width")
-        .and_then(parse_number_prefix)
-        .unwrap_or(values.2);
-    let viewport_height = root
-        .attribute("height")
-        .and_then(parse_number_prefix)
-        .unwrap_or(values.3);
-    let current_preserve_aspect_ratio = root
-        .attribute("preserveAspectRatio")
-        .map(|value| !value.trim_start().starts_with("none"))
-        .unwrap_or(true);
-
-    Ok(Some(RootSvgMetrics {
-        current_preserve_aspect_ratio,
-        view_box_height: values.3,
-        view_box_width: values.2,
-        view_box_x: values.0,
-        view_box_y: values.1,
-        viewport_height,
-        viewport_width,
-    }))
-}
-
-fn build_root_viewbox_correction(
-    metrics: &RootSvgMetrics,
-    preserve_aspect_ratio: bool,
-) -> Result<Option<Transform>, Error> {
-    let current = root_viewbox_transform(metrics, metrics.current_preserve_aspect_ratio);
-    let desired = root_viewbox_transform(metrics, preserve_aspect_ratio);
-
-    if transforms_close(current, desired) {
-        return Ok(None);
+    let desired = if preserve { "xMidYMid meet" } else { "none" };
+    let attribute = root.attribute_node("preserveAspectRatio");
+    let current_preserve = !attribute
+        .map(|attr| attr.value())
+        .unwrap_or("xMidYMid meet")
+        .trim_start()
+        .starts_with("none");
+    if preserve == current_preserve {
+        return Ok(Cow::Borrowed(svg));
     }
 
-    let inverse_current = current
-        .invert()
-        .ok_or_else(|| Error::other("Failed to invert the current root viewBox transform."))?;
-
-    Ok(Some(concat_transforms(desired, inverse_current)))
-}
-
-fn root_viewbox_transform(metrics: &RootSvgMetrics, preserve_aspect_ratio: bool) -> Transform {
-    let sx = metrics.viewport_width / metrics.view_box_width;
-    let sy = metrics.viewport_height / metrics.view_box_height;
-    let (sx, sy) = if preserve_aspect_ratio {
-        let scale = sx.min(sy);
-        (scale, scale)
+    // Let usvg compose the requested viewBox mapping with root transforms and
+    // transform-origin. Correcting already-transformed paths changes their order.
+    let mut rewritten = svg.to_owned();
+    if let Some(attribute) = attribute {
+        rewritten.replace_range(attribute.range_value(), desired);
     } else {
-        (sx, sy)
-    };
-
-    let x = -metrics.view_box_x * sx;
-    let y = -metrics.view_box_y * sy;
-    let w = metrics.viewport_width - metrics.view_box_width * sx;
-    let h = metrics.viewport_height - metrics.view_box_height * sy;
-    let tx = if preserve_aspect_ratio {
-        x + w / 2.0
-    } else {
-        x
-    };
-    let ty = if preserve_aspect_ratio {
-        y + h / 2.0
-    } else {
-        y
-    };
-
-    Transform::from_row(sx as f32, 0.0, 0.0, sy as f32, tx as f32, ty as f32)
-}
-
-fn concat_transforms(a: Transform, b: Transform) -> Transform {
-    Transform {
-        sx: a.sx * b.sx + a.kx * b.ky,
-        kx: a.sx * b.kx + a.kx * b.sy,
-        tx: a.sx * b.tx + a.kx * b.ty + a.tx,
-        ky: a.ky * b.sx + a.sy * b.ky,
-        sy: a.ky * b.kx + a.sy * b.sy,
-        ty: a.ky * b.tx + a.sy * b.ty + a.ty,
+        let start = root.range().start + 1;
+        let end = start
+            + svg[start..]
+                .find(|c: char| c.is_ascii_whitespace() || matches!(c, '/' | '>'))
+                .ok_or_else(|| Error::other("Missing SVG root name terminator."))?;
+        rewritten.insert_str(end, &format!(r#" preserveAspectRatio="{desired}""#));
     }
-}
-
-fn transforms_close(a: Transform, b: Transform) -> bool {
-    const EPSILON: f32 = 0.0001;
-    (a.sx - b.sx).abs() < EPSILON
-        && (a.kx - b.kx).abs() < EPSILON
-        && (a.ky - b.ky).abs() < EPSILON
-        && (a.sy - b.sy).abs() < EPSILON
-        && (a.tx - b.tx).abs() < EPSILON
-        && (a.ty - b.ty).abs() < EPSILON
+    Ok(Cow::Owned(rewritten))
 }
 
 fn parse_view_box(value: &str) -> Option<(f64, f64, f64, f64)> {
@@ -302,34 +215,6 @@ fn parse_view_box(value: &str) -> Option<(f64, f64, f64, f64)> {
     }
 
     Some((values[0], values[1], values[2], values[3]))
-}
-
-fn parse_number_prefix(value: &str) -> Option<f64> {
-    let trimmed = value.trim_start();
-    let mut end = 0;
-    let mut seen_digit = false;
-
-    for (index, character) in trimmed.char_indices() {
-        let allowed = character.is_ascii_digit()
-            || character == '+'
-            || character == '-'
-            || character == '.'
-            || character == 'e'
-            || character == 'E';
-        if !allowed {
-            break;
-        }
-        if character.is_ascii_digit() {
-            seen_digit = true;
-        }
-        end = index + character.len_utf8();
-    }
-
-    if !seen_digit || end == 0 {
-        return None;
-    }
-
-    trimmed[..end].parse::<f64>().ok()
 }
 
 #[cfg(test)]

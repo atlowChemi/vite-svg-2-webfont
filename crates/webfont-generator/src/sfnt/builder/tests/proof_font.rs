@@ -232,10 +232,12 @@ fn ligature_target(
     let ReadSubstitutionLookup::Ligature(lookup) = lookup else {
         panic!("expected a ligature lookup")
     };
-    lookup
-        .subtables()
-        .get(0)
-        .unwrap()
+    let write_fonts::read::tables::gsub::LigatureSubst::Format1(subtable) =
+        lookup.subtables().get(0).unwrap()
+    else {
+        panic!("expected conventional ligature format")
+    };
+    subtable
         .ligature_sets()
         .get(0)
         .unwrap()
