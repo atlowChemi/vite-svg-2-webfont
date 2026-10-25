@@ -112,6 +112,7 @@ struct Cli {
 }
 
 #[derive(Subcommand)]
+#[command(defer = true)]
 enum Command {
     /// Remove the files the generation cache created in a directory
     ClearCache {

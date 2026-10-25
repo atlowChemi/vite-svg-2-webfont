@@ -348,7 +348,7 @@ fn writes_weight_conditioned_direct_and_ligature_substitutions() {
                 .coverage()
                 .unwrap()
                 .iter()
-                .map(|gid| gid.to_u16())
+                .map(|gid| gid.to_u32())
                 .collect::<Vec<_>>(),
             vec![1, 2]
         );
@@ -412,7 +412,11 @@ fn large_variant_families_do_not_collide_with_ligature_characters() {
     else {
         panic!("expected ligatures");
     };
-    let subtable = lookup.subtables().get(0).unwrap();
+    let write_fonts::read::tables::gsub::LigatureSubst::Format1(subtable) =
+        lookup.subtables().get(0).unwrap()
+    else {
+        panic!("expected conventional ligature format")
+    };
     let ligatures = subtable.ligature_sets().get(0).unwrap();
     let mut targets = (0..ligatures.ligature_count())
         .map(|index| {
@@ -479,10 +483,12 @@ fn ligature_target(gsub: &write_fonts::read::tables::gsub::Gsub<'_>, lookup_inde
     let ReadSubstitutionLookup::Ligature(lookup) = lookup else {
         panic!("expected liga to use ligature substitution")
     };
-    lookup
-        .subtables()
-        .get(0)
-        .unwrap()
+    let write_fonts::read::tables::gsub::LigatureSubst::Format1(subtable) =
+        lookup.subtables().get(0).unwrap()
+    else {
+        panic!("expected conventional ligature format")
+    };
+    subtable
         .ligature_sets()
         .get(0)
         .unwrap()

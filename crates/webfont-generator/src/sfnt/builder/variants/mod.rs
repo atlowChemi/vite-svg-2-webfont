@@ -430,7 +430,7 @@ fn build_variant_ligature_lookup(
         }
     }
     let mut variation_store = VariationStoreBuilder::new(0);
-    SubstitutionLookup::Ligature(builder.build(&mut variation_store))
+    SubstitutionLookup::from(builder.build(&mut variation_store))
 }
 
 fn variant_range(variants: &ResolvedVariants, variant_index: usize) -> (F2Dot14, F2Dot14) {

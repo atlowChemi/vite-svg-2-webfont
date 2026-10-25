@@ -91,6 +91,6 @@ pub(super) fn build_ligature_gsub(
     )]);
     let mut variation_store = VariationStoreBuilder::new(0);
     let lookup = lookup_builder.build(&mut variation_store);
-    let lookup_list = SubstitutionLookupList::new(vec![SubstitutionLookup::Ligature(lookup)]);
+    let lookup_list = SubstitutionLookupList::new(vec![SubstitutionLookup::from(lookup)]);
     Some(Gsub::new(script_list, feature_list, lookup_list))
 }
