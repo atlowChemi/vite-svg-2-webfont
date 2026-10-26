@@ -965,6 +965,32 @@ declare module 'vite-plus/test' {
     }
 }
 
+describe('threads', () => {
+    it('generates and regenerates the same fonts as the default', async () => {
+        const dir = await createTempDir('threads-');
+        const [a, b] = await Promise.all([writeRegenIcon(dir, 'a', 'a'), writeRegenIcon(dir, 'b', 'b')]);
+        const unset = await generateWebfonts({ ...regenBaseOpts(dir, [a, b]), incremental: true });
+        const two = await generateWebfonts({ ...regenBaseOpts(dir, [a, b]), incremental: true, threads: 2 });
+        expect(two).toEqualFont(unset);
+
+        await writeFile(b, regenIcon(REGEN_PATHS.changed));
+        for (const result of [unset, two]) result.regenerate({ files: [a, b] }, [{ path: b, changeType: 'changed' }]);
+        expect(two).toEqualFont(unset);
+    });
+
+    it('accepts integers above the core count', async () => {
+        const dir = await createTempDir('threads-large-');
+        const a = await writeRegenIcon(dir, 'a', 'a');
+        expect(await generateWebfonts({ ...regenBaseOpts(dir, [a]), threads: Number.MAX_SAFE_INTEGER })).toEqualFont(await generateWebfonts(regenBaseOpts(dir, [a])));
+    });
+
+    it.each([0, -1, 1.5, Number.NaN, Infinity])('rejects %s', async threads => {
+        const dir = await createTempDir('threads-invalid-');
+        const a = await writeRegenIcon(dir, 'a', 'a');
+        await expect(generateWebfonts({ ...regenBaseOpts(dir, [a]), threads })).rejects.toThrow('options.threads: expected a positive integer');
+    });
+});
+
 describe('regenerate (incremental)', () => {
     it('matches a fresh build after a content change', async () => {
         const dir = await createTempDir('regen-change-');

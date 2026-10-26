@@ -148,6 +148,15 @@ impl GenerateWebfontsResult {
         files: &RegenerationFiles,
         changes: &[(String, GlyphChange)],
     ) -> std::io::Result<()> {
+        let threads = self.options.threads;
+        crate::threads::install(threads, || self.regenerate_in_pool(files, changes))
+    }
+
+    fn regenerate_in_pool(
+        &mut self,
+        files: &RegenerationFiles,
+        changes: &[(String, GlyphChange)],
+    ) -> std::io::Result<()> {
         let ordered_paths = match files {
             RegenerationFiles::Single(files) => files.as_slice(),
             RegenerationFiles::Variants(sets) => {
@@ -311,6 +320,11 @@ impl GenerateWebfontsResult {
     /// # }
     /// ```
     pub fn regenerate_all(&mut self, files: &RegenerationFiles) -> std::io::Result<()> {
+        let threads = self.options.threads;
+        crate::threads::install(threads, || self.regenerate_all_in_pool(files))
+    }
+
+    fn regenerate_all_in_pool(&mut self, files: &RegenerationFiles) -> std::io::Result<()> {
         let ordered_paths = match files {
             RegenerationFiles::Single(files) => files.as_slice(),
             RegenerationFiles::Variants(sets) => return self.regenerate_variant_files(sets, None),

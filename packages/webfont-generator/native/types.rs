@@ -396,6 +396,10 @@ pub struct GenerateWebfontsOptions {
     /// context for both CSS and HTML rendering. Typical home for
     /// `classPrefix` and `baseSelector`.
     pub template_options: Option<Map<String, Value>>,
+    /// How many threads read SVG files and do glyph work at once, including in later `regenerate`
+    /// calls. A positive integer; glyph work never uses more threads than CPU cores. Unset reads
+    /// with one task per core and shares one glyph thread pool. Output is identical for every value.
+    pub threads: Option<f64>,
     /// Font formats to generate. Ordinary mode defaults to `['eot', 'woff', 'woff2']`;
     /// variant mode defaults to `['woff', 'woff2']` and rejects SVG and EOT.
     pub types: Option<Vec<FontType>>,

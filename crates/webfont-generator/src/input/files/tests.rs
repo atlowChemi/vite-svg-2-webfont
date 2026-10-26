@@ -57,41 +57,49 @@ async fn reports_file_loading_errors_in_source_order() {
         "/missing/second.svg".to_owned(),
     ];
 
-    let error = load_svg_contents(&paths).await.unwrap_err();
+    let error = load_svg_contents(&paths, None).await.unwrap_err();
 
     assert!(error.to_string().contains("/missing/first.svg"));
 }
 
+/// Removes a test's temporary folder even when an assertion fails.
+struct TempFolder(std::path::PathBuf);
+
+impl Drop for TempFolder {
+    fn drop(&mut self) {
+        let _ = std::fs::remove_dir_all(&self.0);
+    }
+}
+
 #[tokio::test]
 async fn loads_many_files_across_tasks_in_source_order() {
-    // Enough files for several read tasks (at most one task per 16 files).
-    let paths: Vec<String> = (0..100)
+    let folder =
+        TempFolder(std::env::temp_dir().join(format!("webfont-load-order-{}", std::process::id())));
+    std::fs::create_dir_all(&folder.0).unwrap();
+    // 100 files over 4 tasks of 25. The first task's files are large, so it very likely finishes
+    // last and the result is only in source order if the chunks are put back in order.
+    let files: Vec<(String, String)> = (0..100)
         .map(|index| {
-            let path = std::env::temp_dir()
-                .join(format!("webfont-load-{}-{index}.svg", std::process::id()));
-            std::fs::write(&path, format!("<svg id=\"{index}\" />")).unwrap();
-            path.to_string_lossy().into_owned()
+            let path = folder.0.join(format!("{index}.svg"));
+            let padding = if index < 25 { 200_000 } else { 0 };
+            let contents = format!("<svg id=\"{index}\">{}</svg>", " ".repeat(padding));
+            std::fs::write(&path, &contents).unwrap();
+            (path.to_string_lossy().into_owned(), contents)
         })
         .collect();
+    let paths: Vec<String> = files.iter().map(|(path, _)| path.clone()).collect();
+    let four = std::num::NonZeroUsize::new(4);
 
-    let loaded = load_svg_contents(&paths).await.unwrap();
-    let expected: Vec<_> = paths
-        .iter()
-        .enumerate()
-        .map(|(index, path)| (path.clone(), format!("<svg id=\"{index}\" />")))
-        .collect();
-    assert_eq!(loaded, expected);
+    assert_eq!(load_svg_contents(&paths, four).await.unwrap(), files);
+    // Unset uses one task per core (at most one per 16 files): same result.
+    assert_eq!(load_svg_contents(&paths, None).await.unwrap(), files);
 
     // Missing files in different chunks: the first one in source order is reported.
     let mut broken = paths.clone();
     broken[40] = "/missing/forty.svg".to_owned();
     broken[90] = "/missing/ninety.svg".to_owned();
-    let error = load_svg_contents(&broken).await.unwrap_err();
+    let error = load_svg_contents(&broken, four).await.unwrap_err();
     assert!(error.to_string().contains("/missing/forty.svg"));
-
-    for path in paths {
-        let _ = std::fs::remove_file(path);
-    }
 }
 
 #[tokio::test]
@@ -100,7 +108,9 @@ async fn hooked_loader_uses_default_glyph_names() {
     std::fs::write(&path, "<svg />").unwrap();
     let paths = vec![path.to_string_lossy().into_owned()];
 
-    let source_files = load_svg_files_with_hooks(&paths, &(), true).await.unwrap();
+    let source_files = load_svg_files_with_hooks(&paths, &(), true, None)
+        .await
+        .unwrap();
 
     assert_eq!(
         source_files[0].glyph_name,

@@ -105,6 +105,8 @@ mod sfnt;
 mod svg;
 #[cfg(all(test, any(feature = "fs", feature = "in_memory")))]
 mod test_helpers;
+#[cfg(any(feature = "fs", feature = "in_memory"))]
+mod threads;
 mod types;
 
 #[cfg(feature = "fs")]
@@ -488,25 +490,34 @@ pub async fn generate_with_hooks<H: GenerationHooks>(
     hooks: &H,
 ) -> Result<GenerateWebfontsResult, H::Error> {
     let mut resolved_options = resolve_validated_generate_webfonts_options(options)?;
+    let threads = resolved_options.threads;
     let mut result = if let Some(variants) = &resolved_options.variants {
         let variant_paths = variants
             .variants
             .iter()
             .map(|variant| variant.source_ids.clone())
             .collect::<Vec<_>>();
-        let source_files = load_variant_svg_files_with_hooks(&variant_paths, hooks).await?;
+        let source_files =
+            load_variant_svg_files_with_hooks(&variant_paths, hooks, threads).await?;
         let generation = tokio::task::spawn_blocking(move || {
-            generate_variant_webfonts_sync(resolved_options, source_files)
+            crate::threads::install(threads, || {
+                generate_variant_webfonts_sync(resolved_options, source_files)
+            })
         });
         generation.await.map_err(variant_preparation_join_error)??
     } else {
-        let source_files = load_svg_files_with_hooks(&resolved_options.files, hooks, true).await?;
+        let source_files =
+            load_svg_files_with_hooks(&resolved_options.files, hooks, true, threads).await?;
         finalize_generate_webfonts_options(&mut resolved_options, &source_files)?;
-        tokio::task::spawn_blocking(move || generate_webfonts_sync(resolved_options, source_files))
-            .await
-            .map_err(|error| {
-                std::io::Error::other(format!("Native webfont generation task failed: {error}"))
-            })??
+        tokio::task::spawn_blocking(move || {
+            crate::threads::install(threads, || {
+                generate_webfonts_sync(resolved_options, source_files)
+            })
+        })
+        .await
+        .map_err(|error| {
+            std::io::Error::other(format!("Native webfont generation task failed: {error}"))
+        })??
     };
 
     // Pre-compute mutated contexts through runtime-independent async hooks.

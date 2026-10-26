@@ -23,6 +23,8 @@ pub(crate) fn parse_svg_glyph(
     options: &usvg::Options,
     color: bool,
 ) -> Result<ParsedGlyph, Error> {
+    #[cfg(test)]
+    crate::threads::record_parse();
     let svg = item.source_file.contents.as_ref();
     let document = parse_svg_document(svg)?;
     let root_metrics = parse_root_svg_metrics(&document)?;

@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::num::NonZeroUsize;
 
 use crate::types::color::ResolvedColorSelection;
 use crate::types::{
@@ -46,6 +47,7 @@ pub(crate) struct GenerationOptions {
     pub round: Option<f64>,
     pub start_codepoint: Option<u32>,
     pub template_options: Option<serde_json::Map<String, serde_json::Value>>,
+    pub threads: Option<NonZeroUsize>,
     pub types: Option<Vec<FontType>>,
     pub variant_class_prefix: Option<String>,
 }
@@ -84,6 +86,8 @@ pub(crate) struct ResolvedGenerationOptions {
     pub round: Option<f64>,
     pub start_codepoint: u32,
     pub template_options: Option<serde_json::Map<String, serde_json::Value>>,
+    /// Not part of cache keys: thread counts never change output.
+    pub threads: Option<NonZeroUsize>,
     pub types: Vec<FontType>,
     /// TTF timestamp when `formatOptions.ttf.ts` is unset; deliberately not part of cache keys.
     pub fallback_ts: Option<i64>,
@@ -162,6 +166,7 @@ impl GenerationOptions {
             round: self.round,
             start_codepoint: self.start_codepoint.unwrap_or(0xF101),
             template_options: self.template_options,
+            threads: self.threads,
             types,
             fallback_ts: None,
         })

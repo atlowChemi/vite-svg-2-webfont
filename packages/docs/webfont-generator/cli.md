@@ -22,7 +22,7 @@ The `cli` feature is opt-in and not included in the default feature set. It enab
 
 ```sh
 webfont-generator [OPTIONS] --dest <DEST> <FILES>...
-webfont-generator --config <PATH>
+webfont-generator --config <PATH> [--threads <N>]
 webfont-generator clear-cache --cache-location <DIR>
 ```
 
@@ -71,7 +71,7 @@ webfont-generator clear-cache --cache-location .webfont-cache
 
 ### JSON manifest
 
-`--config <PATH>` loads a complete JSON configuration using the camelCase [generator options](./node#options-reference). It cannot be combined with positional inputs or any generation flag, even a flag set to its default. `--help` and `--version` still work.
+`--config <PATH>` loads a complete JSON configuration using the camelCase [generator options](./node#options-reference). It cannot be combined with positional inputs or any generation flag, even a flag set to its default. The exception is `--threads`, which is machine-specific and overrides the config's `threads`. `--help` and `--version` still work.
 
 The manifest accepts `"colorGlyphs": true` or `"colorGlyphs": ["logo"]`. Omit it or use `[]` for monochrome output; explicit `null`, `false`, strings, and mixed-type arrays are invalid. Select compatible formats explicitly in ordinary mode, for example `"types": ["woff2", "woff"]`; the ordinary default includes incompatible EOT. Names are logical glyph names, and selection applies across all variants, including fallbacks. Duplicates are harmless; unknown names are rejected in first-occurrence input order. There is no separate color CLI flag. See [`colorGlyphs`](./node#colorglyphs) for option details and [color glyphs](./#color-glyphs) for the supported SVG subset and browser/platform behavior.
 
@@ -141,6 +141,12 @@ Run it with `webfont-generator --config icons.webfont.json`.
 | Flag                     | Description                                                                                                                                                                                                                                                                                                                   |
 | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `--cache-location <DIR>` | Persistent generation cache; see [`cacheLocation`](./node#cachelocation) for how it behaves (the CLI doesn't set `formatOptions.ttf.ts`, so cached formats keep the TTF timestamp of the run that created them unless your config sets it) and [caching across builds](./node#caching-across-builds) for CI and Docker setups |
+
+### Thread options
+
+| Flag            | Default      | Description                                                                                                                                                                                                                            |
+| --------------- | ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--threads <N>` | One per core | Threads reading SVG files and doing glyph work at once (glyph work stops at the core count); see [`threads`](./node#threads). Also allowed with `--config`, where it overrides the config's value. Output is identical for every value |
 
 ### Subcommands
 

@@ -87,6 +87,13 @@ pub struct GenerateWebfontsFromSourcesResult {
 /// # Ok::<(), std::io::Error>(())
 /// ```
 pub fn generate_from_sources_sync(
+    options: GenerateWebfontsFromSourcesOptions,
+) -> Result<GenerateWebfontsFromSourcesResult> {
+    let threads = options.threads;
+    crate::threads::install(threads, || generate_in_pool(options))
+}
+
+fn generate_in_pool(
     mut options: GenerateWebfontsFromSourcesOptions,
 ) -> Result<GenerateWebfontsFromSourcesResult> {
     let cache = options.cache.take();

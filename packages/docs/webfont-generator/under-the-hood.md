@@ -22,7 +22,7 @@ Owning the full pipeline made a new parallel architecture possible. The engine p
 
 For a single-face font, the generation pipeline works as follows:
 
-1. **SVG loading** -- Read and validate source SVG files in parallel
+1. **SVG loading** -- Read and validate source SVG files in parallel, with at most one read task per core (or per [`threads`](./node#threads)) and per 16 files
 2. **Glyph preparation** -- Parse glyph paths and optional solid paint with `usvg`, process geometry with `oxvg_path`, and normalize shared layer/fallback geometry. Parsed and processed caches retain paint for selected glyphs.
 3. **Parallel SVG and table assembly** -- Serialize the SVG font if requested and supported by the selected options. Compile paint-aware selectable glyphs and auxiliary layers into shared tables using [`write-fonts`](https://github.com/googlefonts/fontations): `glyf` fallback plus COLR/CPAL for selected glyphs.
 4. **Requested binary outputs** -- Assemble TTF if requested; generate WOFF and WOFF2 from shared tables, and EOT (which embeds TTF) when supported by the selected options.

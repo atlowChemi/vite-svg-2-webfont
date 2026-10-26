@@ -397,6 +397,16 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
     - Read or write failures (missing permissions, corrupt or truncated files) never fail generation; the run recomputes, replaces corrupt or truncated files, and leaves an unwritable location uncached. Saved fonts and saved per-icon work carry separate checksums, so accidental corruption is detected rather than reused. Runs whose fonts all come from the cache don't read the per-icon work, so damage limited to it is detected and repaired by the next run that needs it (one with a format to rebuild, or an incremental one). A directory where the cache file belongs is never removed; generation prints a warning and stays uncached until you remove it.
     - Cached fonts are reused as-is, so only restore trusted caches; see the [warning under caching across builds](#caching-across-builds).
 
+### `threads`
+
+- Type: `number` (a positive integer)
+- Default: one per CPU core
+- Description: How many threads read SVG files and do glyph work at once, including in later [`regenerate()`](#regenerate-files-changes) calls on the result. Set it when several generations run side by side (for example in a monorepo build) or to leave cores free for other work. Output is identical for every value.
+    - Glyph work never uses more threads than CPU cores: it keeps every thread busy, so more would only add switching. Reads can go higher, which can help on slow or network storage.
+    - Not counted: WOFF2's Brotli compressor runs one extra worker thread, output files are written concurrently, and the async runtime keeps its own threads.
+    - Unset, files are read with up to one task per core, and glyph work runs on [Rayon](https://github.com/rayon-rs/rayon)'s shared thread pool, so the `RAYON_NUM_THREADS` environment variable still applies.
+    - Each value gets its own thread pool, kept for the life of the process so later generations and rebuilds reuse its threads. If the system refuses to start them, generation prints a warning and runs on the shared pool instead.
+
 ### `fixedWidth`
 
 - Type: `boolean`
