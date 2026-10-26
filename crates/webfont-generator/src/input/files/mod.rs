@@ -1,35 +1,59 @@
 #[cfg(test)]
 mod tests;
 
+use std::fs::read_to_string;
 use std::io::{Error, ErrorKind};
 use std::path::Path;
+use std::thread::available_parallelism;
 
 use crate::GenerationHooks;
 use tokio::task::JoinSet;
 
 use super::sources::{LoadedSvgSource, validate_glyph_names};
 
-/// Load SVG file contents in parallel, preserving the original order.
-async fn load_svg_contents(paths: &[String]) -> std::io::Result<Vec<(String, String)>> {
-    let mut tasks = JoinSet::new();
+/// At most one blocking read task starts per this many files (the files are then split evenly):
+/// below that, starting another thread costs more than reading the files it would take over.
+const FILES_PER_TASK: usize = 16;
 
-    for (index, path) in paths.iter().cloned().enumerate() {
-        tasks.spawn(async move { (index, path.clone(), tokio::fs::read_to_string(path).await) });
+/// Load SVG file contents with blocking reads spread over up to one task per core, preserving
+/// the original order. Small sets use a single task.
+async fn load_svg_contents(paths: &[String]) -> std::io::Result<Vec<(String, String)>> {
+    let workers = available_parallelism()
+        .map_or(1, usize::from)
+        .min(paths.len().div_ceil(FILES_PER_TASK))
+        .max(1);
+    let mut tasks = JoinSet::new();
+    for (index, chunk) in paths
+        .chunks(paths.len().div_ceil(workers).max(1))
+        .enumerate()
+    {
+        let chunk = chunk.to_vec();
+        tasks.spawn_blocking(move || {
+            let read: Vec<_> = chunk
+                .into_iter()
+                .map(|path| {
+                    let contents = read_to_string(&path);
+                    (path, contents)
+                })
+                .collect();
+            (index, read)
+        });
     }
 
-    let mut results = Vec::with_capacity(paths.len());
+    let mut chunks = Vec::with_capacity(workers);
     while let Some(result) = tasks.join_next().await {
-        results.push(
+        chunks.push(
             result.map_err(|error| {
                 std::io::Error::other(format!("SVG loading task failed: {error}"))
             })?,
         );
     }
 
-    results.sort_by_key(|(index, _, _)| *index);
-    results
+    chunks.sort_by_key(|(index, _)| *index);
+    chunks
         .into_iter()
-        .map(|(_, path, contents)| match contents {
+        .flat_map(|(_, read)| read)
+        .map(|(path, contents)| match contents {
             Ok(contents) => Ok((path, contents)),
             Err(error) => Err(std::io::Error::other(format!(
                 "Failed to read source SVG file '{path}': {error}"
