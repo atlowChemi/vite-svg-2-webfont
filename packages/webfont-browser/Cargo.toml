@@ -6,6 +6,9 @@ publish = false
 license = "MIT"
 description = "Private browser bindings for the webfont engine"
 
+[lints]
+workspace = true
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 path = "native/lib.rs"

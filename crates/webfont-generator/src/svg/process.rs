@@ -8,7 +8,7 @@ use crate::svg::types::{ParsedGlyph, ProcessedGlyph};
 use crate::svg::winding::{normalize_evenodd, normalize_winding};
 use crate::types::color::ProcessedColorLayer;
 
-#[allow(clippy::too_many_arguments)]
+#[expect(clippy::too_many_arguments)]
 pub(crate) fn process_glyph(
     glyph: ParsedGlyph,
     normalize: bool,

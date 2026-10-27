@@ -6,6 +6,9 @@ publish = false
 license = "MIT"
 description = "Node.js adapter for the webfont-generator Rust engine"
 
+[lints]
+workspace = true
+
 [lib]
 path = "native/lib.rs"
 crate-type = ["cdylib"]
