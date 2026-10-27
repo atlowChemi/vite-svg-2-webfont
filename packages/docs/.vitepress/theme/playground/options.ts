@@ -28,6 +28,7 @@ export type PlaygroundSettings = {
     startCodepoint: number;
     css: boolean;
     html: boolean;
+    ts: boolean;
     cssFontsUrl: string;
     classPrefix: string;
     baseSelector: string;
@@ -69,6 +70,7 @@ export const defaultSettings: PlaygroundSettings = {
     startCodepoint: DEFAULT_START_CODEPOINT,
     css: true,
     html: true,
+    ts: false,
     cssFontsUrl: '',
     classPrefix: 'icon-',
     baseSelector: '.icon',
@@ -144,6 +146,7 @@ export function toGenerateOptions(icons: readonly PlaygroundIcon[], settings: Pl
         ligature: settings.ligature,
         css: settings.css,
         html: settings.html,
+        ts: settings.ts,
         cssFontsUrl: nonEmpty(settings.cssFontsUrl),
         templateOptions: { ...parseTemplateData(settings.templateData), classPrefix: settings.classPrefix, baseSelector: settings.baseSelector },
         colorGlyphs,

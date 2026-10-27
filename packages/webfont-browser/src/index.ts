@@ -69,6 +69,7 @@ export async function generateWebfonts(options: GenerateWebfontsOptions, runtime
         font: (format: FontType) => request<Uint8Array<ArrayBuffer> | undefined>({ method: 'font', format }),
         generateCss: () => request<string>({ method: 'css' }),
         generateHtml: () => request<string>({ method: 'html' }),
+        generateTs: () => request<string>({ method: 'ts' }),
         collectOutputs: () => request<CollectedOutputs>({ method: 'outputs' }),
         exportCache: () => request<Uint8Array<ArrayBuffer> | undefined>({ method: 'cache' }),
         regenerate: async (membership: SourceMembership, changes: SourceChange[]): Promise<void> => {

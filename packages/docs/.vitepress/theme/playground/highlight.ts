@@ -16,10 +16,11 @@ export function loadHighlighter(): Promise<HighlighterCore> {
     return highlighter;
 }
 
-export type HighlightLanguage = 'css' | 'html' | 'xml';
+export type HighlightLanguage = 'css' | 'html' | 'xml' | 'ts';
 
-/** Grammars fetched only once that output is shown: HTML embeds JavaScript, and XML (for SVG fonts) embeds Java. */
+/** Fetch each grammar only when its output is shown. */
 const lazyGrammars = {
+    ts: () => import('shiki/langs/typescript.mjs'),
     html: () => import('shiki/langs/html.mjs'),
     xml: () => import('shiki/langs/xml.mjs'),
 };

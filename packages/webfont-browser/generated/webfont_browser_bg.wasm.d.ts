@@ -11,6 +11,7 @@ export const fontsession_new: (a: number, b: number, c: number, d: number) => [n
 export const fontsession_outputs: (a: number) => [number, number, number];
 export const fontsession_regenerate: (a: number, b: number, c: number, d: number, e: number) => [number, number];
 export const fontsession_remove: (a: number, b: number, c: number) => [number, number];
+export const fontsession_ts: (a: number) => [number, number, number, number];
 export const fontsession_update: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
 export const __wbindgen_exn_store: (a: number) => void;
 export const __externref_table_alloc: () => number;

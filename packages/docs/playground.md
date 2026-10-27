@@ -1,6 +1,6 @@
 ---
 title: Playground
-description: Turn SVG icons into a webfont in your browser — tweak every option, preview the result, and download fonts, CSS, and HTML.
+description: Turn SVG icons into a webfont in your browser — tweak every option, preview the result, and download fonts, CSS, HTML, and TypeScript.
 layout: page
 sidebar: false
 ---

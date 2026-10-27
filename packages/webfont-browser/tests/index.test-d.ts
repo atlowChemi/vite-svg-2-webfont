@@ -55,8 +55,9 @@ it('returns optional owned bytes, async rendering and synchronous disposal', asy
     expectTypeOf(result.font('svg')).toEqualTypeOf<Promise<Uint8Array<ArrayBuffer> | undefined>>();
     expectTypeOf(result.generateCss()).toEqualTypeOf<Promise<string>>();
     expectTypeOf(result.generateHtml()).toEqualTypeOf<Promise<string>>();
+    expectTypeOf(result.generateTs()).toEqualTypeOf<Promise<string>>();
     expectTypeOf(result.collectOutputs()).toEqualTypeOf<Promise<CollectedOutputs>>();
-    expectTypeOf<CollectedOutputs>().toEqualTypeOf<Partial<Record<FontType | 'css' | 'html', Uint8Array<ArrayBuffer>>>>();
+    expectTypeOf<CollectedOutputs>().toEqualTypeOf<Partial<Record<FontType | 'css' | 'html' | 'ts', Uint8Array<ArrayBuffer>>>>();
     expectTypeOf(result.dispose()).toBeVoid();
     expectTypeOf(result[Symbol.dispose]()).toBeVoid();
     // @ts-expect-error Unsupported font containers are rejected.

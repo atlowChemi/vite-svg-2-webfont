@@ -38,6 +38,8 @@ export type GenerateWebfontsOptions = {
         woff2?: { compressionQuality?: number };
     };
     html?: boolean;
+    /** Include fixed TypeScript source in collectOutputs(); defaults to false. */
+    ts?: boolean;
     incremental?: boolean;
     fontHeight?: number;
     fontName?: string;
@@ -60,13 +62,15 @@ export type GenerateWebfontsOptions = {
 export type SourceMembership = { sources: string[]; variants?: never } | { variants: { name: string; ids: string[] }[]; sources?: never };
 export type SourceChange = ({ type: 'added' } & SvgSource) | { type: 'changed'; id: string; svg: string; name?: string } | { type: 'removed'; id: string };
 /** Bytes are independently owned and remain valid after regeneration or disposal. */
-export type CollectedOutputs = Partial<Record<FontType | 'css' | 'html', Uint8Array<ArrayBuffer>>>;
+export type CollectedOutputs = Partial<Record<FontType | 'css' | 'html' | 'ts', Uint8Array<ArrayBuffer>>>;
 
 /** One worker-owned result. Calls execute in submission order, including after recoverable errors. */
 export type WebfontResult = {
     font: (format: FontType) => Promise<Uint8Array<ArrayBuffer> | undefined>;
     generateCss: () => Promise<string>;
     generateHtml: () => Promise<string>;
+    /** Fixed icons tuple, IconName union and selector constants, independent of collection flags. */
+    generateTs: () => Promise<string>;
     collectOutputs: () => Promise<CollectedOutputs>;
     /** Persistent cache bytes to store, or `undefined` when caching is off or nothing changed since the bytes were loaded or last exported. */
     exportCache: () => Promise<Uint8Array<ArrayBuffer> | undefined>;
@@ -91,7 +95,7 @@ export type RequestPayload =
     | { method: 'update'; sourceId: string; svg: string; name?: string }
     | { method: 'remove'; sourceId: string }
     | { method: 'font'; format: string }
-    | { method: 'css' | 'html' | 'outputs' | 'cache' };
+    | { method: 'css' | 'html' | 'ts' | 'outputs' | 'cache' };
 export type Request = { id: number } & RequestPayload;
 export type Result = undefined | string | Uint8Array<ArrayBuffer> | CollectedOutputs;
 export type Response = { id: number } & ({ ok: true; value: Result } | { ok: false; error: Error; fatal: boolean });

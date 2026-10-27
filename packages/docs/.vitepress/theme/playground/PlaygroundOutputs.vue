@@ -12,8 +12,8 @@ const props = defineProps<{ build: WebfontBuild; settings: PlaygroundSettings; i
 
 const { copied, copy } = useClipboard();
 
-/** Fonts in their CSS order, then the CSS and HTML. */
-const outputOrder = computed(() => [...selectedTypes(props.settings), 'css', 'html']);
+/** Fonts in their CSS order, then CSS, HTML and TypeScript. */
+const outputOrder = computed(() => [...selectedTypes(props.settings), 'css', 'html', 'ts']);
 
 const files = computed(() =>
     Object.entries(props.build.outputs)
