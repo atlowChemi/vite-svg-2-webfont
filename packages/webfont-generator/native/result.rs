@@ -122,6 +122,16 @@ impl GenerateWebfontsResult {
         self.0.generate_css_pure(urls).map_err(to_napi_err)
     }
 
+    /// Render fixed TypeScript metadata (icons, IconName, iconBaseSelector and iconClassPrefix).
+    /// Uses the effective generation context even when CSS output is disabled.
+    #[napi]
+    pub fn generate_ts(&self) -> napi::Result<String> {
+        self.0
+            .generate_ts()
+            .map(|source| source.to_string())
+            .map_err(to_napi_err)
+    }
+
     /// Render the HTML preview string for this result. Pass `urls` to
     /// override font URLs in the embedded stylesheet. A supplied map is a complete override;
     /// omitted formats use empty URLs. The result is cached per `urls` value.

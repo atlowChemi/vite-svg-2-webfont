@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto';
 import { tmpdir as osTmpdir } from 'node:os';
 import { constants, rm as fsRm, mkdtempSync } from 'node:fs';
 import { resolve, dirname, join as pathJoin } from 'node:path';
-import { watch, access, mkdir, writeFile, stat } from 'node:fs/promises';
+import { watch, access, mkdir, open, rm, writeFile, stat } from 'node:fs/promises';
+import { setTimeout } from 'node:timers/promises';
 import type { FontType } from '@atlowchemi/webfont-generator';
 
 export const MIME_TYPES: Record<FontType, string> = {
@@ -74,7 +75,7 @@ export async function setupWatcher(
     onChange: (changes: WatchedChangeBatch) => void | Promise<void>,
     _handleWatchEvent: typeof handleWatchEvent = handleWatchEvent,
 ): Promise<void> {
-    let timer: ReturnType<typeof setTimeout> | undefined;
+    let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
     let flushChain = Promise.resolve();
     const pending = new Map<string, WatchedChange>();
 
@@ -105,7 +106,7 @@ export async function setupWatcher(
         if (timer) {
             clearTimeout(timer);
         }
-        timer = setTimeout(() => {
+        timer = globalThis.setTimeout(() => {
             scheduleFlush();
         }, WATCH_BATCH_DELAY_MS);
     };
@@ -162,6 +163,34 @@ export async function ensureDirExistsAndWriteFile(content: string | Uint8Array, 
     const options = { mode: 0o777, recursive: true };
     await mkdir(dirname(dest), options);
     await writeFile(dest, content);
+}
+
+/** Exclusive file lock; metadata helps diagnose abandoned writers without stealing live locks. */
+export async function createLock(directory: string): Promise<AsyncDisposable> {
+    const path = pathJoin(directory, '.lock');
+    const deadline = Date.now() + 10_000;
+    let file;
+    // Lock retries must be sequential.
+    /* oxlint-disable no-await-in-loop */
+    for (;;) {
+        try {
+            file = await open(path, 'wx');
+            break;
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+            if (Date.now() >= deadline) throw new Error(`Timed out acquiring lock ${path}. If no generator is running, remove stale lock ${path}.`, { cause: error });
+            await setTimeout(20);
+        }
+    }
+    /* oxlint-enable no-await-in-loop */
+    try {
+        await using handle = file;
+        await handle.writeFile(JSON.stringify({ pid: process.pid, createdAt: new Date().toISOString() }));
+    } catch (error) {
+        await rm(path, { force: true });
+        throw error;
+    }
+    return { [Symbol.asyncDispose]: () => rm(path) };
 }
 
 export function getTmpDir(): string {

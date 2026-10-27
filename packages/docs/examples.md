@@ -81,9 +81,15 @@ Ligatures are on by default: inside an element that uses the icon font, typing a
 
 ## Type-safe icon component
 
-An HTML template can generate any text file. This one writes a TypeScript module listing every icon name, so an `<Icon>` component only accepts icons that exist. The same module works with Vue, React, Angular, and Svelte.
+The TypeScript virtual module exports a readonly `icons` tuple, an exact `IconName` union, `iconBaseSelector`, and `iconClassPrefix`. An `<Icon>` component only accepts names that exist. The same module works with Vue, React, Angular, and Svelte, independently of file output settings.
 
-<ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', template: 'icons.ts.hbs', generated: 'icons.ts', components: 'Components', css: 'Generated CSS', output: 'Output' }">
+Add `/// <reference types="vite-svg-2-webfont/virtuals" />` to your existing `vite-env.d.ts`, or add `vite-svg-2-webfont/virtuals` to `compilerOptions.types` in your application's `tsconfig.json`. Run Vite once before standalone type-checking on a fresh installation; starting Vite after a type-check step cannot initialize that earlier step. Reinstalling dependencies may remove generated types.
+
+Declarations live inside the installed plugin package. Apps sharing that installation share declarations: use distinct `tsModuleId` values to avoid overwrites, but this does not isolate app types. Removed IDs remain until the generated directory is cleared (preserve its empty `index.d.ts`) or the package is reinstalled. Unwritable installations fail generation rather than silently serving stale types. A crashed publisher may leave a `.lock` file containing its PID and creation time; remove it only after all generators have stopped.
+
+For optional physical source output, set `generateFiles: 'ts'` (default destination: `<dest>/<fontName>.ts`) or include `'ts'` in the array. `generateFiles: true` includes TS only with explicit `tsDest`; false/omitted writes no TS source. Build output also requires `allowWriteFilesInBuild: true`. The metadata describes generation context, even with CSS disabled or a custom CSS template that renders different classes.
+
+<ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', types: 'Type setup', components: 'Components', css: 'Generated CSS', generated: 'Generated TS', output: 'Output' }">
 <template #config>
 
 <<< ./examples/type-safe-component/vite.config.ts
@@ -92,14 +98,23 @@ An HTML template can generate any text file. This one writes a TypeScript module
 <template #icons>
 <ExampleIcons example="type-safe-component" />
 </template>
-<template #template>
+<template #types>
 
-<<< ./examples/type-safe-component/icons.ts.hbs{handlebars}
+Choose either option, preserving any existing type references or entries:
 
-</template>
-<template #generated>
+::: code-group
 
-<<< ./examples/type-safe-component/icons.ts
+<<< ./examples/type-safe-component/vite-env.d.ts
+
+```json [tsconfig.json]
+{
+    "compilerOptions": {
+        "types": ["vite/client", "vite-svg-2-webfont/virtuals"]
+    }
+}
+```
+
+:::
 
 </template>
 <template #components>
@@ -119,6 +134,11 @@ An HTML template can generate any text file. This one writes a TypeScript module
 </template>
 <template #css>
 <ExampleCss example="type-safe-component" />
+</template>
+<template #generated>
+
+<<< ./examples/type-safe-component/icons.ts
+
 </template>
 <template #output>
 <ExampleOutput example="type-safe-component">

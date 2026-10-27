@@ -1,4 +1,5 @@
 import * as fs from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { addAbortListener } from 'node:events';
 import { join as pathJoin } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -12,6 +13,74 @@ vi.mock('fs/promises', async () => {
 });
 
 describe('utils', () => {
+    describe('createLock', () => {
+        const folders: string[] = [];
+        async function temporary() {
+            const directory = await fs.mkdtemp(pathJoin(tmpdir(), 'webfont-lock-'));
+            folders.push(directory);
+            return directory;
+        }
+        afterEach(async () => {
+            vi.useRealTimers();
+            vi.restoreAllMocks();
+            await Promise.all(folders.splice(0).map(directory => fs.rm(directory, { recursive: true, force: true })));
+        });
+
+        it('records ownership and releases the lock when its scope throws', async () => {
+            const directory = await temporary();
+            await expect(async () => {
+                await using _lock = await utils.createLock(directory);
+                const metadata = JSON.parse(await fs.readFile(pathJoin(directory, '.lock'), 'utf8'));
+                expect(metadata.pid).toBe(process.pid);
+                expect(Number.isNaN(Date.parse(metadata.createdAt))).toBe(false);
+                throw new Error('publication failed');
+            }).rejects.toThrow('publication failed');
+            await expect(fs.stat(pathJoin(directory, '.lock'))).rejects.toMatchObject({ code: 'ENOENT' });
+        });
+
+        it('waits for another writer to release the lock', async () => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+            const directory = await temporary();
+            const path = pathJoin(directory, '.lock');
+            const first = await utils.createLock(directory);
+            const original = await fs.readFile(path, 'utf8');
+            vi.setSystemTime(new Date('2026-01-01T00:00:01Z'));
+            const open = vi.spyOn(fs, 'open');
+            const next = utils.createLock(directory);
+            await expect(open.mock.results[0]?.value).rejects.toMatchObject({ code: 'EEXIST' });
+            expect(await fs.readFile(path, 'utf8')).toBe(original);
+            await first[Symbol.asyncDispose]();
+            await using _second = await next;
+            const replacement = await fs.readFile(path, 'utf8');
+            expect(replacement).not.toBe(original);
+            expect(JSON.parse(replacement)).toEqual({ pid: process.pid, createdAt: '2026-01-01T00:00:01.000Z' });
+        });
+
+        it('closes the handle and removes the lock if writing its metadata fails', async () => {
+            const directory = await temporary();
+            const path = pathJoin(directory, '.lock');
+            const handle = await fs.open(path, 'wx');
+            vi.spyOn(fs, 'open').mockResolvedValueOnce(handle);
+            vi.spyOn(handle, 'writeFile').mockRejectedValueOnce(new Error('disk full'));
+            await expect(utils.createLock(directory)).rejects.toThrow('disk full');
+            await expect(handle.stat()).rejects.toMatchObject({ code: 'EBADF' });
+            await expect(fs.stat(path)).rejects.toMatchObject({ code: 'ENOENT' });
+        });
+
+        it('times out without deleting another writer and propagates filesystem failures', async () => {
+            vi.useFakeTimers({ toFake: ['Date'] });
+            const directory = await temporary();
+            await expect(utils.createLock(pathJoin(directory, 'missing'))).rejects.toMatchObject({ code: 'ENOENT' });
+            await using _owner = await utils.createLock(directory);
+            const original = await fs.readFile(pathJoin(directory, '.lock'), 'utf8');
+            const next = utils.createLock(directory);
+            vi.advanceTimersByTime(10_001);
+            await expect(next).rejects.toThrow('remove stale lock');
+            expect(await fs.readFile(pathJoin(directory, '.lock'), 'utf8')).toBe(original);
+        });
+    });
+
     describe('doesFileExist', () => {
         afterEach(() => {
             vi.resetAllMocks();

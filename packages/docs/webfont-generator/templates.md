@@ -151,19 +151,10 @@ regardless of the API used to generate the font.
 
 ### Generate Type Safe Component
 
-Another useful example could be a template to export icon names and a TypeScript union type.
-This could allow a React or Vue component to accept only valid icon names as a prop.
-Use the HTML context for this because it supplies the ordered `names` array:
+Use fixed TypeScript output to export icon names and their union type. No Handlebars template is needed.
+For Vite virtual imports and declaration discovery, see the [component example](../examples.md#type-safe-icon-component).
 
 ::: code-group
-
-```handlebars [icons.ts.hbs]
-export const iconBaseSelector = '{{baseSelector}}' as const; export const iconClassPrefix = '{{classPrefix}}' as const; export const icons = [
-{{#each names}}
-    '{{this}}',
-{{/each}}
-] as const; export type IconOption = typeof icons[number];
-```
 
 ```ts [generate-icons.ts]
 import { generateWebfonts } from '@atlowchemi/webfont-generator';
@@ -171,32 +162,35 @@ import { generateWebfonts } from '@atlowchemi/webfont-generator';
 await generateWebfonts({
     files: ['icons/add.svg', 'icons/remove.svg'],
     dest: './dist/fonts',
-    html: true,
-    htmlTemplate: './icons.ts.hbs',
-    htmlDest: './src/generated/icons.ts',
+    ts: true,
+    tsDest: './src/generated/icons.ts',
 });
 ```
 
+<!-- prettier-ignore -->
 ```ts [src/generated/icons.ts]
-export const iconBaseSelector = '.icon' as const;
-export const iconClassPrefix = 'icon-' as const;
-export const icons = ['add', 'remove'] as const;
+export const iconBaseSelector = ".icon" as const;
+export const iconClassPrefix = "icon-" as const;
+export const icons = [
+  "add",
+  "remove"
+] as const;
 
-export type IconOption = (typeof icons)[number]; // 'add' | 'remove'
+export type IconName = (typeof icons)[number];
 ```
 
 ```tsx [src/components/Icon.tsx]
 import type { FC } from 'react';
-import { iconBaseSelector, iconClassPrefix, type IconOption } from '../generated/icons';
+import { iconBaseSelector, iconClassPrefix, type IconName } from '../generated/icons';
 
-export const Icon: FC<{ name: IconOption }> = ({ name }) => <span className={`${iconBaseSelector.slice(1)} ${iconClassPrefix}${name}`} aria-hidden="true" />;
+export const Icon: FC<{ name: IconName }> = ({ name }) => <span className={`${iconBaseSelector.slice(1)} ${iconClassPrefix}${name}`} aria-hidden="true" />;
 ```
 
 ```vue [src/components/Icon.vue]
 <script setup lang="ts">
-import { iconBaseSelector, iconClassPrefix, type IconOption } from '../generated/icons';
+import { iconBaseSelector, iconClassPrefix, type IconName } from '../generated/icons';
 
-defineProps<{ name: IconOption }>();
+defineProps<{ name: IconName }>();
 </script>
 
 <template>
@@ -206,10 +200,9 @@ defineProps<{ name: IconOption }>();
 
 :::
 
-Import `icons` to iterate over the available names, or `IconOption` to type an icon component's
-name prop. Here `htmlDest` writes TypeScript source instead of an HTML preview; CSS and font
-generation still use their configured destinations. This simple template assumes names and
-selector settings that can be embedded directly in single-quoted TypeScript strings.
+Import `icons` to iterate over the available names, or `IconName` to type an icon component's
+name prop. `tsDest` controls the source path; CSS and fonts keep their own destinations.
+The fixed renderer escapes names and selectors safely, including quotes and control characters.
 
 Both components assume the default `.icon` base selector: `.slice(1)` turns that selector into
 the `icon` class name. If you customize `baseSelector`, adapt the component's classes to match.

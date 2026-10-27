@@ -1,12 +1,13 @@
 import { join } from 'node:path';
 import { build, type Plugin } from 'vite-plus';
-import { viteSvgToWebfont } from '../../src';
 
 /** Exercise the real production plugin and serve its emitted bytes to the browser test. */
 export function builtFamilyFixture(): Plugin {
     return {
         name: 'built-plugin-family-fixture',
         async configureServer(server) {
+            // TODO [engine:node@>=24, 2027-04-30]: Restore the static source import once Node 22 support ends; config bundling preserves `await using`.
+            const { viteSvgToWebfont } = (await server.ssrLoadModule(join(import.meta.dirname, '../../src/index.ts'))) as typeof import('../../src');
             const root = join(import.meta.dirname, 'fixtures');
             const bundle = await build({
                 root,

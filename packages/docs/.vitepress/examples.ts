@@ -99,9 +99,11 @@ function isolate(plugin: Plugin, slug: string): IsolatedExample {
     const isolated: Plugin = {
         ...plugin,
         name: `${PLUGIN_NAME}:${slug}`,
-        resolveId: id => (id === publicId ? resolvedId : undefined),
+        resolveId(id) {
+            return id === publicId ? resolvedId : callHook(plugin.resolveId as Hook, this, id, undefined, {});
+        },
         async load(id) {
-            if (id !== resolvedId) return undefined;
+            if (id !== resolvedId) return callHook(plugin.load as Hook, this, id);
             return callHook(plugin.load as Hook, this, await ownId(this));
         },
         async transform(code, id) {

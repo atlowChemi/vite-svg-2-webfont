@@ -131,12 +131,12 @@ type GuaranteedFormats<Formats extends readonly FontType[]> = {
  * excluded formats are `null`. Literal format lists and omitted `types`
  * infer guaranteed formats, while widened arrays retain nullable getters.
  *
- * Also carries `generateCss` and `generateHtml` for rendering with custom
+ * Also carries `generateTs` for fixed metadata, and `generateCss` and `generateHtml` for rendering with custom
  * URLs after the fact.
  */
 export type GenerateWebfontsResult<T extends FontType = FontType, Guaranteed extends T = T> = {
     [F in FontType]: F extends Guaranteed ? FontValue<F> : F extends T ? FontValue<F> | null : null;
-} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml'> & {
+} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml' | 'generateTs'> & {
         regenerate(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null): void;
         regenerateAsync(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null): Promise<GenerateWebfontsResult<T, Guaranteed>>;
         /** Append a new file. Families require a target variant. Requires incremental generation. */

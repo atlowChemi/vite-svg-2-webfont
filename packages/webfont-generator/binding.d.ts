@@ -45,6 +45,11 @@ export declare class GenerateWebfontsResult {
    */
   generateCss(urls?: Partial<Record<FontType, string>>): string
   /**
+   * Render fixed TypeScript metadata (icons, IconName, iconBaseSelector and iconClassPrefix).
+   * Uses the effective generation context even when CSS output is disabled.
+   */
+  generateTs(): string
+  /**
    * Render the HTML preview string for this result. Pass `urls` to
    * override font URLs in the embedded stylesheet. A supplied map is a complete override;
    * omitted formats use empty URLs. The result is cached per `urls` value.
@@ -269,6 +274,10 @@ export interface GenerateWebfontsOptions {
   formatOptions?: FormatOptions
   /** Whether to generate an HTML preview file. Defaults to `false`. */
   html?: boolean
+  /** Write a fixed TypeScript metadata module when `writeFiles` is enabled. Defaults to false. */
+  ts?: boolean
+  /** TypeScript output path. Defaults to `<dest>/<fontName>.ts`. */
+  tsDest?: string
   /**
    * Output path for the generated HTML preview file. Defaults to
    * `path.join(dest, fontName + '.html')`.

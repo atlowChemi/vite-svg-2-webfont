@@ -228,14 +228,23 @@ See the [generator's color guidance](/webfont-generator/#color-glyphs) for suppo
 - Type: `boolean | string | string[]`
 - Description: Controls which generated files are written directly to disk during development, and during builds when [`allowWriteFilesInBuild`](#allowwritefilesinbuild) is enabled
 - Valid values:
-    - `true` for all generated file types
+    - `true` for CSS, HTML and fonts, plus TS only when `tsDest` is explicitly supplied
     - `false` for no generated files
     - `'html'`
     - `'css'`
     - `'fonts'`
+    - `'ts'`
 - Default: `false`
 
-These files use [`dest`](#dest), [`cssDest`](#cssdest), and [`htmlDest`](#htmldest). This option does not control Vite's bundled assets: importing the virtual CSS lets Vite bundle the referenced fonts even when `generateFiles` is `false`.
+These files use [`dest`](#dest), [`cssDest`](#cssdest), [`htmlDest`](#htmldest), and [`tsDest`](#tsdest). This option does not control Vite's bundled assets or virtual metadata: both virtual modules remain available when `generateFiles` is `false`.
+
+## `tsDest`
+
+- Type: `string`
+- Default: `<dest>/<fontName>.ts`
+- Description: Destination for fixed TypeScript metadata source. Relative paths resolve against [`dest`](#dest); directory paths have `<fontName>.ts` appended, like [`cssDest`](#cssdest).
+
+Enable writing with [`generateFiles`](#generatefiles). With `generateFiles: true`, TS is written only if `tsDest` is explicit. Builds additionally require [`allowWriteFilesInBuild: true`](#allowwritefilesinbuild).
 
 ## `types`
 
@@ -324,6 +333,20 @@ With the default value, import the module like this:
 ```ts [main.ts]
 import 'virtual:vite-svg-2-webfont.css';
 ```
+
+## `tsModuleId`
+
+- Type: `string`
+- Default: `'vite-svg-2-webfont.ts'`
+- Description: Unprefixed virtual metadata module ID, independent of `generateFiles` and `tsDest`.
+
+```ts
+import { icons, iconBaseSelector, iconClassPrefix, type IconName } from 'virtual:vite-svg-2-webfont.ts';
+```
+
+The module exports a readonly literal tuple and exact icon-name union. Add `/// <reference types="vite-svg-2-webfont/virtuals" />` to your existing `vite-env.d.ts`, or include `vite-svg-2-webfont/virtuals` in `compilerOptions.types` in your application's `tsconfig.json`. Run Vite before the first standalone type-check after installing dependencies. No application-source declaration file is generated.
+
+Declarations share the installed package instance: distinct IDs avoid overwrites but do not isolate apps. See the [component example](./examples#type-safe-icon-component) for initialization, shared-installation, stale-entry, and write-failure details.
 
 ## `inline`
 

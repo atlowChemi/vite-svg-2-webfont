@@ -3,11 +3,12 @@ import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 
 const webfontFolder = resolve(import.meta.dirname, 'src', 'webfont');
 
-let viteSvgToWebfont: Awaited<typeof import('../vite-svg-2-webfont/src')>['viteSvgToWebfont'] | undefined;
+let viteSvgToWebfont: (typeof import('vite-svg-2-webfont'))['viteSvgToWebfont'] | undefined;
 try {
-    ({ viteSvgToWebfont } = await import('../vite-svg-2-webfont/src/index.js'));
+    // TODO [2027-04-30]: Restore the source import once Node 22 support ends; task discovery cannot parse unlowered `await using`.
+    ({ viteSvgToWebfont } = await import(import.meta.resolve('vite-svg-2-webfont')));
 } catch {
-    // Ignore errors, as the native module might not be built yet, and we don't want to fail the config loading because of that.
+    // Task discovery runs before the plugin and native module are built.
 }
 
 // https://vitejs.dev/config/

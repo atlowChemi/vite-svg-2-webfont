@@ -1,5 +1,6 @@
 import { join as pathJoin } from 'node:path';
 import type { ModuleGraph, ModuleNode, Plugin } from 'vite-plus';
+import { moduleSource, publishDeclaration } from './virtualTypes';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, resolveSources, parsePreloadFormatsOption } from './optionParser';
 import type { ParsedOptions } from './optionParser';
@@ -64,6 +65,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const moduleId = options.moduleId ?? DEFAULT_MODULE_ID;
     const virtualModuleId = getVirtualModuleId(moduleId);
     const resolvedVirtualModuleId = getResolvedVirtualModuleId(virtualModuleId);
+    const virtualTsModuleId = getVirtualModuleId(options.tsModuleId ?? 'vite-svg-2-webfont.ts');
+    const resolvedTsModuleId = getResolvedVirtualModuleId(virtualTsModuleId);
 
     const getGeneratedFont = (type: T) => {
         const cached = generatedFontBuffers.get(type);
@@ -116,16 +119,29 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
 
     const getCss = () => outputs?.css ?? generatedFonts!.generateCss();
     const getHtml = () => outputs?.html ?? generatedFonts!.generateHtml();
+    const getTs = () => outputs?.ts ?? generatedFonts!.generateTs();
 
     let lastCssOutput: string | undefined;
     let lastHtmlOutput: string | undefined;
+    let lastTsOutput: string | undefined;
+    let lastVirtualTsOutput: string | undefined;
 
     /** Write the companion CSS/HTML to disk in dev, skipping any file whose rendered output is unchanged. */
     const writeDevFiles = async () => {
-        if (isBuild || processedOptions.writeFiles || !(processedOptions.css || processedOptions.html)) {
+        if ((isBuild && !options.allowWriteFilesInBuild) || processedOptions.writeFiles || !(processedOptions.css || processedOptions.html || processedOptions.ts)) {
             return;
         }
         const tasks: Array<Promise<void>> = [];
+        if (processedOptions.ts) {
+            const ts = getTs();
+            if (ts !== lastTsOutput)
+                tasks.push(
+                    ensureDirExistsAndWriteFile(ts, processedOptions.tsDest).then(() => {
+                        lastTsOutput = ts;
+                        return undefined;
+                    }),
+                );
+        }
         if (processedOptions.css) {
             const css = inline(getCss());
             if (css !== lastCssOutput) {
@@ -152,10 +168,17 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     };
 
     const reloadVirtualModule = async () => {
-        const module = _moduleGraph?.getModuleById(resolvedVirtualModuleId);
-        if (module && _reloadModule) {
-            await _reloadModule(module).catch(() => null);
-        }
+        await Promise.all(
+            [resolvedVirtualModuleId, resolvedTsModuleId]
+                .filter(id => id !== resolvedTsModuleId || getTs() !== lastVirtualTsOutput)
+                .map(async id => {
+                    const module = _moduleGraph?.getModuleById(id);
+                    if (module && _reloadModule) {
+                        _moduleGraph!.invalidateModule(module);
+                        await _reloadModule(module).catch(() => null);
+                    }
+                }),
+        );
     };
 
     const getCacheKey = async (input: ParsedOptions) => {
@@ -164,7 +187,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         if (!useCache || processedOptions.cssContext) return null;
         const files = [...(input.files ?? input.variants.flatMap(variant => variant.files)), ...[input.cssTemplate, input.htmlTemplate].filter(file => file !== undefined)];
         try {
-            return await computeCacheKey(input, files, [isBuild, Boolean(options.inline)], ac.signal);
+            // Engine-cache paths do not affect output; Vite can change their Windows short/long-path spelling between startups.
+            return await computeCacheKey({ ...input, cacheLocation: undefined }, files, [isBuild, Boolean(options.inline)], ac.signal);
         } catch {
             return null;
         }
@@ -198,7 +222,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         const css = render(() => generatedFonts!.generateCss());
         const moduleCss = isBuild && !options.inline ? render(() => renderModuleCss(fonts)) : undefined;
         const html = processedOptions.html ? render(() => generatedFonts!.generateHtml()) : undefined;
-        const entry: CacheEntry = { key, fonts, css, ...(moduleCss !== undefined && { moduleCss }), ...(html !== undefined && { html }) };
+        const ts = generatedFonts!.generateTs();
+        const entry: CacheEntry = { key, fonts, css, ts, ...(moduleCss !== undefined && { moduleCss }), ...(html !== undefined && { html }) };
         // The cache is an optimization; an unwritable cacheDir must not fail generation.
         if (useCache) {
             await writeCacheEntry(cacheFolder, processedOptions.fontName, isBuild ? 'build' : 'dev', entry, buffers).catch(() => undefined);
@@ -214,6 +239,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             ),
             processedOptions.css && ensureDirExistsAndWriteFile(outputs!.css!, processedOptions.cssDest),
             processedOptions.html && ensureDirExistsAndWriteFile(outputs!.html!, processedOptions.htmlDest),
+            processedOptions.ts && ensureDirExistsAndWriteFile(outputs!.ts!, processedOptions.tsDest),
         ]);
     };
 
@@ -229,7 +255,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         if (ac.signal.aborted) {
             return;
         }
-        if (hit) {
+        if (hit?.entry.ts !== undefined) {
             generatedFonts = undefined;
             outputs = hit.entry;
             generatedFontBuffers.clear();
@@ -248,6 +274,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             outputs = await storeOutputs(key);
         }
         if (sources) publishedSources = regenerationFiles(sources);
+        await publishDeclaration(virtualTsModuleId, getTs());
         await writeDevFiles();
         if (updateFiles && !ac.signal.aborted) {
             await reloadVirtualModule();
@@ -285,6 +312,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             await generate(true);
             return;
         }
+        await publishDeclaration(virtualTsModuleId, getTs());
         await writeDevFiles();
         if (ac.signal.aborted) {
             return;
@@ -322,6 +350,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
         },
         resolveId(id) {
+            if (id === virtualTsModuleId) return resolvedTsModuleId;
             if (id !== virtualModuleId) {
                 return undefined;
             }
@@ -370,6 +399,10 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             return inline(getCss());
         },
         load(id) {
+            if (id === resolvedTsModuleId) {
+                lastVirtualTsOutput = getTs();
+                return moduleSource(lastVirtualTsOutput);
+            }
             if (id !== resolvedVirtualModuleId) {
                 return undefined;
             }
