@@ -14,7 +14,7 @@ A native Rust [NAPI](https://napi.rs) addon that generates webfonts (SVG, TTF, E
 The addon selects the Rust engine's `fs` capability (including its required `async`
 support) with engine defaults disabled. Cargo feature selection is internal to the
 addon; npm consumers use the file-based JavaScript API documented here.
-Native WOFF compression uses the engine's static zlib backend.
+WOFF compression uses the engine's pure-Rust zlib-rs backend.
 Incremental results also support single-file `add`, `update`, and `remove` helpers without
 resending membership, plus `addAsync`/`updateAsync`/`removeAsync` returning replacement results.
 See [single-file actions](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#single-file-actions).
