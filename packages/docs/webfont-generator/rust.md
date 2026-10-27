@@ -141,7 +141,7 @@ Requires the [`in_memory` feature](#feature-flags) (enabled by default); asynchr
 Text options and source-update types implement `serde::Deserialize`, using camelCase and
 rejecting unknown fields. `SourceChange` uses a `type` tag (`added`, `changed`, `removed`),
 and `SourceMembership` accepts `{ "sources": [...] }` or `{ "variants": [...] }`.
-On wasm32 targets WOFF uses pure-Rust compression; native targets use static zlib.
+WOFF uses flate2's pure-Rust zlib-rs backend on both native and wasm32 targets.
 
 `generate_from_sources_sync(options)` returns `std::io::Result<GenerateWebfontsFromSourcesResult>`
 without constructing a runtime, reading sources/templates, or writing output files.

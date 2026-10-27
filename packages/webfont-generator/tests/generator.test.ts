@@ -870,7 +870,7 @@ describe('output size (deterministic)', () => {
             "eot": 60660,
             "svg": 807668,
             "ttf": 60508,
-            "woff": 29956,
+            "woff": 30016,
             "woff2": 22480,
           }
         `);

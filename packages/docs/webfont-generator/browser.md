@@ -67,7 +67,7 @@ Without `formatOptions.ttf.ts`, generation captures the browser clock once and r
 timestamp during updates; fonts reused from a [persistent cache](#persistent-cache) keep the
 timestamp of the session that created them. A fixed Unix timestamp produces reproducible font
 metadata.
-WOFF uses pure-Rust compression; native zlib output may differ at the byte level.
+WOFF uses the pure-Rust zlib-rs compression backend on both native and wasm32 targets.
 WOFF2 uses single-threaded Brotli at every supported compression quality (0–11).
 
 ### Using the output

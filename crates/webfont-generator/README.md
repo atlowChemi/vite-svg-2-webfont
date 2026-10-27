@@ -61,7 +61,7 @@ External SVG image paths are not loaded.
 Text options and source-update types implement `serde::Deserialize` with camelCase fields
 and reject unknown fields. Updates use `type`-tagged `added`, `changed`, and `removed` objects;
 membership uses either `{ "sources": [...] }` or `{ "variants": [...] }`.
-On wasm32 targets WOFF uses the pure-Rust flate2 backend; native builds use static zlib.
+WOFF uses flate2's pure-Rust zlib-rs backend on both native and wasm32 targets.
 
 Set `incremental: Some(true)` to use `regenerate_sync` or consuming async `regenerate`.
 For single text actions, use `add_sync(source, variant)`, `update_sync(id, svg, name)`,
