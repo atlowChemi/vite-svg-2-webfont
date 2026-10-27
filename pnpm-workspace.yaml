@@ -23,6 +23,10 @@ catalog:
 cargo:
     enabled: true
 
+# Stabilize selectors collected in parallel Markdown transforms, before CSS hashing.
+patchedDependencies:
+    vitepress-plugin-group-icons@1.8.1: patches/vitepress-plugin-group-icons@1.8.1.patch
+
 overrides:
     lodash@>=4.0.0 <=4.17.22: '^4.18.1'
     make-fetch-happen: 16.0.1

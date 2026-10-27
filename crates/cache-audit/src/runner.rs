@@ -234,39 +234,6 @@ pub async fn run(
             .into(),
     );
     environment.insert("PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN".into(), "error".into());
-    let fingerprint = root.join("scripts/next-pipeline.mjs");
-    if fingerprint.exists() {
-        let output = tempfile::NamedTempFile::new()?;
-        let code = execute(
-            Command::new("node")
-                .arg(fingerprint)
-                .arg("--fingerprint")
-                .current_dir(&root)
-                .stdout(Stdio::from(output.reopen()?)),
-            &cancel,
-        )
-        .await?;
-        if code != 0 {
-            return Ok(code);
-        }
-        let value: Value = serde_json::from_reader(output.reopen()?)?;
-        environment.insert(
-            "CACHE_TOOLCHAIN_FINGERPRINT".into(),
-            value["fingerprint"]
-                .as_str()
-                .ok_or("missing fingerprint")?
-                .into(),
-        );
-        for (key, value) in value["fileInputs"]
-            .as_object()
-            .ok_or("missing file fingerprints")?
-        {
-            environment.insert(
-                key.clone(),
-                value.as_str().ok_or("invalid file fingerprint")?.into(),
-            );
-        }
-    }
     let mut outcomes = HashMap::<TaskKey, bool>::new();
     let mut results = Vec::new();
     let mut failed = false;

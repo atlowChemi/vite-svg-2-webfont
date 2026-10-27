@@ -1,0 +1,12 @@
+diff --git a/dist/index.mjs b/dist/index.mjs
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -356,7 +356,7 @@ function iconRule(selector, svg) {
+ }
+ async function generateIconCSS(matched, root) {
+ 	return (await Promise.all(matched.map(async ({ icon, labels }) => {
+-		const selectors = labels.map((label) => `[data-title='${escapeCSSString(label)}']::before`);
++		const selectors = labels.toSorted().map((label) => `[data-title='${escapeCSSString(label)}']::before`);
+ 		if (typeof icon === "string") return iconRule(selectors.join(","), await getSVG(icon, root));
+ 		return iconRule(prefixSelectors("", selectors), await getSVG(icon.light, root)) + iconRule(prefixSelectors("html.dark", selectors), await getSVG(icon.dark, root));
+ 	}))).sort().join("");

@@ -352,6 +352,23 @@ fn validates_real_accesses_and_rejects_missing_declarations() {
         Some(2)
     );
 
+    // Uncacheable local configuration is permitted only with explicit cache: false.
+    workspace(&root, "[input]", "[output]");
+    let uncached_policy = format!(
+        "{policy}      - {{pattern: ignored, kinds: [read], reason: 'Uncached local configuration'}}\n    requiresUncached: true\n"
+    );
+    fs::write(root.join("policy.yaml"), &uncached_policy).unwrap();
+    let config = fs::read_to_string(root.join("pnpm-workspace.yaml")).unwrap();
+    for cache in ["", "\n    cache: true", "\n    cache: false"] {
+        fs::write(
+            root.join("pnpm-workspace.yaml"),
+            config.replace("outputs: [output]", &format!("outputs: [output]{cache}")),
+        )
+        .unwrap();
+        let (result, _) = audit(&root, ".", "cat ignored >/dev/null");
+        assert_eq!(result.status.success(), cache.ends_with("false"));
+    }
+
     // Ignored local configuration needs a verified, explicitly keyed environment hash.
     workspace(&root, "[input]", "[output]");
     let config = fs::read_to_string(root.join("pnpm-workspace.yaml"))

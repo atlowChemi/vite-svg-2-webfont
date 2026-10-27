@@ -23,7 +23,7 @@ tasks:
         ignore:
             - &external
               pattern: '/**'
-              reason: 'External installed toolchain/system files; versions fingerprinted separately, dependency installs must remain immutable'
+              reason: 'External installed toolchain/system files; upgrades require task-cache invalidation, dependency installs must remain immutable'
             - &directories
               pattern: '**'
               kinds: [read]
@@ -125,16 +125,15 @@ tasks:
         cleanupOutputs: *retired
 
     '.#next:example':
+        requiresUncached: true
         missingInputs: *file-probes
         ignore:
             - pattern: 'packages/example/.env.local'
               kinds: [read]
-              environment: CACHE_INPUT_EXAMPLE_ENV_LOCAL
-              reason: 'Git-ignored local configuration keyed by its verified SHA-256 or missing marker'
+              reason: 'Ignored local configuration; this policy requires task caching to stay disabled'
             - pattern: 'packages/example/.env.production.local'
               kinds: [read]
-              environment: CACHE_INPUT_EXAMPLE_ENV_PRODUCTION_LOCAL
-              reason: 'Git-ignored mode configuration keyed by its verified SHA-256 or missing marker'
+              reason: 'Ignored production configuration; this policy requires task caching to stay disabled'
             - *external
             - *directories
             - *discovery

@@ -8,7 +8,10 @@ const root = new URL('../', import.meta.url);
 const manifest = path => JSON.parse(readFileSync(new URL(`${path}/package.json`, root), 'utf8'));
 // Let installed pnpm resolve includes and setting ownership.
 const workspace = Object.fromEntries(
-    ['tasks', 'pipelines'].map(setting => [setting, JSON.parse(execFileSync('pnpm', ['config', 'get', setting, '--json'], { cwd: root, encoding: 'utf8' }))]),
+    ['tasks', 'pipelines'].map(setting => [
+        setting,
+        JSON.parse(execFileSync('pnpm', ['config', 'get', setting, '--location', 'project', '--json'], { cwd: root, encoding: 'utf8' })),
+    ]),
 );
 const rootPackage = manifest('.');
 const mappings = new Map();
@@ -20,8 +23,8 @@ const rootTasks = {
     'next:coverage:scripts': 'coverage:scripts',
 };
 for (const [name, command] of Object.entries(rootPackage.scripts)) {
-    const match = command.match(/^(?:node scripts\/next-pipeline\.mjs --require-fingerprint && )?pnpm --dir (\S+) run next:(\S+)$/);
-    if (name.startsWith('next:') && !['next:pipeline', 'next:verify', 'next:fmt:rust', ...Object.keys(rootTasks)].includes(name)) {
+    const match = command.match(/^pnpm --dir (\S+) run next:(\S+)$/);
+    if (name.startsWith('next:') && !['next:verify', 'next:fmt:rust', ...Object.keys(rootTasks)].includes(name)) {
         assert.ok(match, `Unrecognized dormant wrapper: ${name}`);
     }
     if (match) mappings.set(name, { directory: match[1], task: match[2] });
@@ -68,7 +71,8 @@ for (const [name, { directory, task }] of mappings) {
         assert.ok(workspace.tasks[name].env?.includes(variable), `${name}: missing Vite+ cache environment input ${variable}`);
     }
 }
-for (const pipeline of ['next-check', 'next-test']) {
+assert.deepEqual(workspace.pipelines['next-test'], ['next:test:js'], 'Root test must preserve the Vitest scope and its build prerequisites');
+for (const pipeline of ['next-check', 'next-rust-test']) {
     assert.ok(workspace.pipelines[pipeline].includes('next:fmt:rust'), `${pipeline}: missing workspace Rust formatting`);
 }
 for (const [pipeline, tasks] of Object.entries(workspace.pipelines)) {
@@ -95,6 +99,8 @@ if (process.argv.includes('--run')) {
         'next-native',
         'next-check',
         'next-test',
+        'next-rust-test',
+        'next-browser-test',
         'next-build',
         'next-docs',
         'next-example',
@@ -108,8 +114,8 @@ if (process.argv.includes('--run')) {
     ];
     const executions = pipelines.map(pipeline => ({
         name: pipeline,
-        program: process.execPath,
-        args: [fileURLToPath(new URL('./next-pipeline.mjs', import.meta.url)), pipeline, '--no-cache'],
+        program: 'pnpm',
+        args: ['pipeline', pipeline, '--full', '--no-cache'],
     }));
     for (const { name: pipeline, program, args } of executions) {
         const log = openSync(new URL(`${pipeline.replaceAll(':', '-')}.log`, reports), 'w');

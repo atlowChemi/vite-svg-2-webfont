@@ -49,7 +49,7 @@ tasks:
               kinds: [read]
               reason: 'Repository discovery probes; repository metadata is excluded like root .git, native versions come from package manifests'
             - pattern: '/**'
-              reason: 'Paths outside the workspace: installed toolchain, system files, package store, and isolated Cargo target; versions require separate fingerprints'
+              reason: 'Paths outside the workspace: installed toolchain, system files, package store, and isolated Cargo target; upgrades require task-cache invalidation'
             - pattern: 'packages/webfont-generator/binding.{js,d.ts}'
               kinds: [read]
               reason: 'NAPI reads preexisting generated bindings for transactional replacement; final writes still require output declarations'

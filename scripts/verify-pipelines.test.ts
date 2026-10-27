@@ -31,7 +31,12 @@ it('rejects an unmapped Vite+ task, including tasks in newly discovered packages
             join(root, 'tasks.yaml'),
             stringify({
                 tasks: Object.fromEntries(Object.keys(scripts).map(name => [name, { cache: false, dependsOn: [] }])),
-                pipelines: { 'next-check': ['next:fmt:rust'], 'next-test': Object.keys(scripts) },
+                pipelines: {
+                    'next-check': ['next:fmt:rust'],
+                    'next-rust-test': ['next:fmt:rust'],
+                    'next-test': ['next:test:js'],
+                    'fixture-other-tasks': Object.keys(scripts).filter(name => name !== 'next:test:js'),
+                },
             }),
         );
         config(root, original);

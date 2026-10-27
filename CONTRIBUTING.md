@@ -67,8 +67,7 @@ workflow. Task coverage is complete; cache readiness is still being validated.
 flowchart LR
     active["vp run package#task (active)"] --> vite["Vite+ task configuration"]
     vite --> tools["Vite+, Cargo, NAPI, and package tools"]
-    next["pnpm run next:pipeline PIPELINE (dormant)"] --> identity["Toolchain and local-config fingerprints"]
-    identity --> pipeline["pnpm-tasks.yaml: next-* pipeline"]
+    next["pnpm pipeline PIPELINE --full (dormant)"] --> pipeline["pnpm-tasks.yaml: next-* pipeline"]
     pipeline --> tasks["Root next:* tasks and prerequisite edges"]
     tasks --> scripts["Package package.json: next:* raw commands"]
     scripts --> tools
@@ -92,9 +91,10 @@ flowchart TD
     native["next-native: next:native"] --> plugin["next-build: next:plugin:pack"]
     wasm["next:wasm"] --> browser["next-build: next:browser:pack"]
     svg["next:docs:svg"] --> social["next-assets: next:docs:social"]
-    native --> tests["next-test: next:test:js + adapter/browser tests"]
+    native --> tests["next-test: next:test:js"]
     browser --> tests
-    adapter --> tests
+    adapter --> rusttests["next-rust-test"]
+    browser --> browsertests["next-browser-test: check + tests"]
     plugin --> docs["next-docs: next:docs"]
     browser --> docs
     social --> docs
@@ -115,20 +115,23 @@ flowchart TD
 
 The inventory covers every task in the existing `vite.config.ts` files:
 
-| Owner                                   | Existing tasks (use `vp run owner#task`)                                                                                                              | Dormant pipeline entry points                                                                                                                                                                                         |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Root (omit `owner#`)                    | `test`, `test:compat`, `coverage`, `coverage:scripts`, `bench:vitest`                                                                                 | `next-test`, `next-compat`, `next-coverage`, `next-scripts-coverage`, `next-bench`                                                                                                                                    |
-| `@atlowchemi/webfont-engine`            | `check`, `test`, `test:features`, `bench`, `test:coverage`, `test:coverage:cli`, `test:doctests`, `test:color-proof`                                  | `next-check` / `next-test` include checks and feature tests; `next-engine-bench`, `next-engine-coverage`, `next-cli-coverage`, `next-doctests`, `next-engine-color-proof`                                             |
-| `@atlowchemi/webfont-generator`         | `check`, `test`, `build`, `build:release`, `bench`, `test:browser`, `test:color-proof`, `test:coverage`, `test:coverage:native`, `binding:regenerate` | `next-check`, `next-test`, `next-native`, `next-native-release`, `next-adapter-bench`, `next-adapter-browser`, `next-adapter-color-proof`, `next-adapter-coverage`, `next-native-coverage`, `next-binding-regenerate` |
-| `@atlowchemi/webfont-browser-generator` | `build`, `pack`, `check`, `test`, `pack:tgz`, `test:coverage`, `publish`                                                                              | `next-build` includes WASM and pack; `next-check`, `next-test`, `next-browser-tarball`, `next-browser-coverage`, `next-browser-publish`                                                                               |
-| `vite-svg-2-webfont`                    | `dev`, `pack`, `pack:tgz`, `test`, `test:browser`, `test:fixtures:refresh`, `publish`                                                                 | `next-plugin-dev`, `next-build`, `next-plugin-tarball`, `next-plugin-test`, `next-plugin-browser`, `next-fixtures-refresh`, `next-plugin-publish`                                                                     |
-| `@atlowchemi/vite-svg-webfont-example`  | `dev`, `build`, `preview`                                                                                                                             | `next-example-dev`, `next-example`, `next-example-preview`                                                                                                                                                            |
-| `@atlowchemi/vite-svg-webfont-docs`     | `optimize-svg`, `social-card`, `dev`, `build`, `preview`                                                                                              | `next-assets` includes SVG and social cards; `next-docs-dev`, `next-docs`, `next-docs-preview`                                                                                                                        |
+| Owner                                   | Existing tasks (use `vp run owner#task`)                                                                                                              | Dormant pipeline entry points                                                                                                                                                                                              |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root (omit `owner#`)                    | `test`, `test:compat`, `coverage`, `coverage:scripts`, `bench:vitest`                                                                                 | `next-test`, `next-compat`, `next-coverage`, `next-scripts-coverage`, `next-bench`                                                                                                                                         |
+| `@atlowchemi/webfont-engine`            | `check`, `test`, `test:features`, `bench`, `test:coverage`, `test:coverage:cli`, `test:doctests`, `test:color-proof`                                  | `next-check` / `next-rust-test` include checks and feature tests; `next-engine-bench`, `next-engine-coverage`, `next-cli-coverage`, `next-doctests`, `next-engine-color-proof`                                             |
+| `@atlowchemi/webfont-generator`         | `check`, `test`, `build`, `build:release`, `bench`, `test:browser`, `test:color-proof`, `test:coverage`, `test:coverage:native`, `binding:regenerate` | `next-check`, `next-rust-test`, `next-native`, `next-native-release`, `next-adapter-bench`, `next-adapter-browser`, `next-adapter-color-proof`, `next-adapter-coverage`, `next-native-coverage`, `next-binding-regenerate` |
+| `@atlowchemi/webfont-browser-generator` | `build`, `pack`, `check`, `test`, `pack:tgz`, `test:coverage`, `publish`                                                                              | `next-build` includes WASM and pack; `next-check`, `next-browser-test`, `next-browser-tarball`, `next-browser-coverage`, `next-browser-publish`                                                                            |
+| `vite-svg-2-webfont`                    | `dev`, `pack`, `pack:tgz`, `test`, `test:browser`, `test:fixtures:refresh`, `publish`                                                                 | `next-plugin-dev`, `next-build`, `next-plugin-tarball`, `next-plugin-test`, `next-plugin-browser`, `next-fixtures-refresh`, `next-plugin-publish`                                                                          |
+| `@atlowchemi/vite-svg-webfont-example`  | `dev`, `build`, `preview`                                                                                                                             | `next-example-dev`, `next-example`, `next-example-preview`                                                                                                                                                                 |
+| `@atlowchemi/vite-svg-webfont-docs`     | `optimize-svg`, `social-card`, `dev`, `build`, `preview`                                                                                              | `next-assets` includes SVG and social cards; `next-docs-dev`, `next-docs`, `next-docs-preview`                                                                                                                             |
 
 The package-local `next:TASK` script contains the raw command. Root aliases such
-as `next:native` and `next:wasm` own cross-package cache declarations. Use the
-pipeline launcher to prepare prerequisites and compute environment fingerprints;
-calling a raw package script does neither.
+as `next:native` and `next:wasm` own cross-package cache declarations. Use native
+`pnpm pipeline NAME --full` to prepare prerequisites; a raw package script does not.
+`next-test` preserves the original JS test scope; Rust suites are separate pipelines.
+Keep `--full`: native affected selection currently skips required root-owned tasks
+for docs-only edits. See the auditor's [cache-reset policy](./crates/cache-audit/README.md#run-dormant-pipelines-and-reset-task-caches)
+for external-tool upgrades and ignored local configuration.
 
 Lifecycle hooks (`prepare`, native `prepublishOnly`) retain their existing names
 and automatic package-manager behavior. The auditor's own commands are exposed

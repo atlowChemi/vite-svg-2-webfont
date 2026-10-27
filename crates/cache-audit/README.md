@@ -79,8 +79,7 @@ failures return 1. SIGINT/SIGTERM cancels subprocess groups and returns 130.
 
 Each audited task gets a fresh temporary Cargo target, removed after its command
 and before the addon-load check. Reports contain observed accesses only for that task, plus
-logs and statuses for prerequisites. The runner reuses the existing toolchain
-fingerprint helper before execution and prepares WASM tools outside observation.
+logs and statuses for prerequisites. The runner prepares WASM tools outside observation.
 It resolves pnpm's store location before observation and requires dependencies to
 be current, preventing pnpm's automatic install path from mutating the lockfile
 during a task. Run `vp install` beforehand when manifests have changed.
@@ -122,7 +121,7 @@ tasks:
     '.#next:native':
         ignore:
             - pattern: '/usr/**'
-              reason: 'System toolchain; version fingerprinting is handled separately'
+              reason: 'System toolchain; upgrades require separate task-cache invalidation'
             - pattern: '.'
               kinds: [read, read_dir]
               reason: 'Known working-directory probes'
@@ -149,9 +148,9 @@ directory dependencies, which pnpm's Git file enumeration does not hash.
 `neverCache` both exempts understood accesses and rejects matching paths found in
 the actual input/output selections; it cannot be restricted by access kind.
 Policies are opt-in: external paths are not silently ignored. Keep exceptions
-narrow and review the declared environment/toolchain fingerprints separately.
+narrow and review the declared environment inputs and toolchain cache policy separately.
 `policy.native.yaml` describes the reviewed native-build environment. A clean
-filesystem audit does not replace environment/toolchain fingerprints or enable
+filesystem audit does not replace environment declarations/toolchain invalidation or enable
 result caching.
 
 `policy.build.yaml` covers SVG optimization, WASM, both library packs, social
@@ -162,8 +161,13 @@ are absent afterward.
 
 A read-only literal-path rule can specify `environment: VARIABLE`. The variable
 must appear explicitly in the task's or a dependency's `env` inputs and equal the
-file's SHA-256 (or `missing`) before and after execution. This covers Git-ignored
-local example configuration without hashing its contents into every task.
+file's SHA-256 (or `missing`) before and after execution. This is supported for
+callers that supply a verified pre-key stamp; native pipelines do not generate one.
+The example and docs builds remain uncached because they can read ignored env files.
+The example policy sets `requiresUncached: true`: its narrowly exempted local env
+reads are accepted only while the task explicitly declares `cache: false`. Enabling
+or defaulting its cache makes policy preparation fail. This is an uncached-command
+audit, not approval of a result-cache contract. Other ignored files remain findings.
 
 ## Supported coverage semantics and boundaries
 
@@ -252,9 +256,49 @@ checkout idle while taking its copy. Both checks require the compiled auditor.
 `CACHE_AUDIT_BIN` selects the compiled auditor; `CACHE_AUDIT_REPORTS` overrides
 `artifacts/cache-audit`. Reports include command logs, audit JSON, and task status.
 
-Use `pnpm run next:pipeline next-assets` for dormant cached execution. The launcher
-computes toolchain/build-environment identity before pnpm chooses cache keys;
-the cached SVG wrapper rejects a missing fingerprint. Normal workflows still use
-Vite+. The PR/manual/scheduled `cache-audit.yaml` workflow executes dormant graphs
+Use `pnpm pipeline next-assets --full` directly for dormant cached SVG execution.
+Normal workflows still use Vite+. The PR/manual/scheduled `cache-audit.yaml` workflow executes dormant graphs
 and collects report-only filesystem audits; adding the file does not establish
 that a GitHub run has passed.
+
+## Run dormant pipelines and reset task caches
+
+`pnpm pipeline next-test --full` preserves the root Vitest task and native/browser
+build prerequisites. `next-rust-test` separately runs Rust formatting and the
+engine/adapter validation chain; `next-browser-test` retains browser Rust checks
+and tests. Commands, publishing bypasses, and prerequisites remain mapped to Vite+.
+Read merged configuration with `pnpm config get tasks --location project --json`
+(or `pipelines`); the explicit location makes older bootstrap pnpm launchers
+delegate to the pinned project version.
+
+Most caches remain disabled. The declared `outputs: []` on check/test candidates
+means a cached success restores no compiler binaries or `target/` intermediates.
+Source-mutating fixture-update mode, report-producing variants, coverage, and
+publishing must execute unless their separate contracts have been validated.
+Debug and release native builds retain their existing shared output paths. Run
+them sequentially: switching producers can cause a safe rebuild even with an
+unchanged key, because pnpm refuses to restore over bytes changed by another task.
+
+pnpm 12.15 keys the lockfile, Node version, OS/architecture, task commands, declared
+files/environment, and prerequisite keys. It does not detect external compiler,
+SDK, libc, or tool replacements. Compiler-selection variables such as `RUSTC` are
+declared explicitly; they do not detect a replacement at an unchanged path.
+Before reusing result caches after an external-tool upgrade:
+
+1. Locate the workspace scope from a pipeline's printed report path:
+   `<cacheDir>/pipeline/<workspace-scope>/runs/<run>`.
+2. Remove only `<cacheDir>/pipeline/<workspace-scope>/tasks`, or switch to a fresh
+   cache namespace. Keep developer and CI namespaces independent; CI restore keys
+   must include the target/ABI and an external-tool generation bumped on upgrades.
+3. Run the selected pipeline normally and verify it executes before warming again.
+
+`--no-cache` bypasses reads **and writes**; one uncached run does not replace old
+results. `--force` is an installation option. `pnpm cache delete` clears registry
+metadata, not pipeline results. Default `pnpm config get cache-dir` may be undefined;
+use the actual report path rather than constructing a deletion path from it.
+
+Do not drop `--full` on these root-owned tasks: native affected-project selection
+currently omits required root tasks on docs-only changes. CI activation should reuse
+`scripts/ci/affected-selection.ts` to choose one dependency graph, observe actual
+executions once, and keep scheduled full uncached audits. Running separate pipelines
+in a loop does not deduplicate shared prerequisites across invocations.

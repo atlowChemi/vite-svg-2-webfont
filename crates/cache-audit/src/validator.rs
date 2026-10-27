@@ -48,8 +48,7 @@ struct Task {
     inputs: Option<Vec<String>>,
     outputs: Option<Vec<String>>,
     depends_on: Option<Vec<String>>,
-    #[serde(rename = "cache")]
-    _cache: Option<bool>,
+    cache: Option<bool>,
     #[serde(rename = "env")]
     _env: Option<Vec<String>>,
 }
@@ -79,6 +78,8 @@ pub fn policy_tasks(path: &Path) -> Result<Vec<String>> {
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 struct Policy {
+    #[serde(default)]
+    requires_uncached: bool,
     #[serde(default)]
     ignore: Vec<Rule>,
     #[serde(default)]
@@ -510,6 +511,9 @@ impl Audit {
             }
             None => Policy::default(),
         };
+        if policy.requires_uncached && own.cache != Some(false) {
+            return Err("this audit policy requires explicit cache: false".into());
+        }
         if policy
             .never_cache
             .iter()

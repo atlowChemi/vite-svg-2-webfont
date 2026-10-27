@@ -9,7 +9,6 @@
     },
     "scripts": {
         "prepare": "vp config",
-        "next:pipeline": "node scripts/next-pipeline.mjs",
         "next:verify": "node scripts/verify-pipelines.mjs",
         "next:bench:vitest": "vp test bench --run --reporter=verbose --hideSkippedTests",
         "next:test:compat": "vp test --run --project=compat",
@@ -51,7 +50,7 @@
         "next:browser:test": "pnpm --dir packages/webfont-browser run next:test",
         "next:plugin:pack": "pnpm --dir packages/vite-svg-2-webfont run next:pack",
         "next:plugin:test": "pnpm --dir packages/vite-svg-2-webfont run next:test",
-        "next:docs:svg": "node scripts/next-pipeline.mjs --require-fingerprint && pnpm --dir packages/docs run next:optimize-svg",
+        "next:docs:svg": "pnpm --dir packages/docs run next:optimize-svg",
         "next:docs:social": "pnpm --dir packages/docs run next:social-card",
         "next:docs": "pnpm --dir packages/docs run next:build",
         "next:example": "pnpm --dir packages/example run next:build",
