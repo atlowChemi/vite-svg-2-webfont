@@ -2,3 +2,6 @@
 members = ["crates/webfont-generator", "packages/webfont-generator", "packages/webfont-browser"]
 default-members = ["crates/webfont-generator"]
 resolver = "3"
+
+[workspace.lints.clippy]
+allow_attributes = "deny"

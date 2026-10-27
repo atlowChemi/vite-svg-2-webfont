@@ -14,6 +14,9 @@ categories = ["command-line-utilities", "graphics", "web-programming"]
 name = "webfont-generator"
 required-features = ["cli"]
 
+[lints]
+workspace = true
+
 [features]
 default = ["fs", "in_memory", "async"]
 fs = ["async", "tokio/fs"]
