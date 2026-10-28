@@ -25,6 +25,7 @@ struct FileGenerationOptions {
     dest: String,
     files: Vec<String>,
     html_dest: Option<String>,
+    ts_dest: Option<String>,
     html_template: Option<String>,
     variants: Option<Vec<FontVariant>>,
     write_files: Option<bool>,
@@ -51,6 +52,8 @@ impl From<GenerateWebfontsOptions> for FileGenerationOptions {
             fixed_width,
             format_options,
             html,
+            ts,
+            ts_dest,
             html_dest,
             html_template,
             incremental,
@@ -88,6 +91,7 @@ impl From<GenerateWebfontsOptions> for FileGenerationOptions {
                 fixed_width,
                 format_options,
                 html,
+                ts,
                 incremental,
                 font_height,
                 font_name,
@@ -113,6 +117,7 @@ impl From<GenerateWebfontsOptions> for FileGenerationOptions {
             html_dest,
             html_template,
             variants,
+            ts_dest,
             write_files,
         }
     }
@@ -143,6 +148,7 @@ pub(crate) struct ResolvedFileGenerationOptions {
     pub dest: String,
     pub files: Vec<String>,
     pub html_dest: String,
+    pub ts_dest: String,
     pub html_template: Option<String>,
     pub variants: Option<ResolvedVariants>,
     pub write_files: bool,
@@ -629,6 +635,9 @@ fn resolve_file_options(
         .html_dest
         .unwrap_or_else(|| default_output_dest(&options.dest, &common.font_name, "html"));
     let write_files = options.write_files.unwrap_or(true);
+    let ts_dest = options
+        .ts_dest
+        .unwrap_or_else(|| default_output_dest(&options.dest, &common.font_name, "ts"));
     let variants = options
         .variants
         .as_deref()
@@ -657,6 +666,7 @@ fn resolve_file_options(
         dest: options.dest,
         files: options.files,
         html_dest,
+        ts_dest,
         html_template: match options.html_template {
             Some(ref t) if t.is_empty() => {
                 return Err(std::io::Error::new(

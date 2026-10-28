@@ -7,6 +7,7 @@ mod paths;
 #[cfg(feature = "fs")]
 mod result;
 mod shared;
+pub(crate) mod ts;
 
 use serde_json::{Map, Value};
 

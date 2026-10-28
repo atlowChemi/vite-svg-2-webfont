@@ -280,6 +280,10 @@ impl GenerateWebfontsResult {
         let previous_carried = std::mem::replace(&mut self.carried_render, carried);
         let previous_css_context = self.css_context.take();
         let previous_html_context = self.html_context.take();
+        let previous_ts = self.ts.clone();
+        if !names_unchanged || previous_css_context.is_some() {
+            self.ts = Default::default();
+        }
 
         // Match `generate`'s write behavior: refresh font files, and skip unchanged CSS/HTML.
         if self.options.write_files
@@ -293,6 +297,7 @@ impl GenerateWebfontsResult {
             self.carried_render = previous_carried;
             self.css_context = previous_css_context;
             self.html_context = previous_html_context;
+            self.ts = previous_ts;
             return Err(error);
         }
         Ok(())

@@ -17,6 +17,32 @@ use crate::svg::{
 };
 use crate::{GenerateWebfontsOptions, GenerateWebfontsResult};
 
+/// Resolved metadata for benchmarking the TS renderer without font generation or result caching.
+pub struct BenchTsRenderer {
+    options: crate::input::ResolvedGenerationOptions,
+    names: Vec<String>,
+}
+
+impl BenchTsRenderer {
+    pub fn new(names: Vec<String>) -> Self {
+        Self {
+            options: crate::input::GenerationOptions::default()
+                .resolve(false)
+                .unwrap(),
+            names,
+        }
+    }
+
+    pub fn render(&self) -> String {
+        crate::rendering::ts::render_ts(
+            &self.options,
+            self.names.iter().map(String::as_str),
+            false,
+            None,
+        )
+    }
+}
+
 /// Source fixture used by Rust benchmarks without exposing generator internals.
 #[derive(Clone)]
 pub struct BenchSvgSource {

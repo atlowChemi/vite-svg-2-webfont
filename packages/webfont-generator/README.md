@@ -15,6 +15,11 @@ The addon selects the Rust engine's `fs` capability (including its required `asy
 support) with engine defaults disabled. Cargo feature selection is internal to the
 addon; npm consumers use the file-based JavaScript API documented here.
 WOFF compression uses the engine's pure-Rust zlib-rs backend.
+
+For the underlying engine and command-line APIs, see the
+[Rust reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust) and
+[CLI reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/cli).
+
 Incremental results also support single-file `add`, `update`, and `remove` helpers without
 resending membership, plus `addAsync`/`updateAsync`/`removeAsync` returning replacement results.
 See [single-file actions](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#single-file-actions).

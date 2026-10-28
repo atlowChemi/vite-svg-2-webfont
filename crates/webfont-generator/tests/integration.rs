@@ -1019,6 +1019,70 @@ mod cli {
         Command::new(env!("CARGO_BIN_EXE_webfont-generator"))
     }
 
+    #[test]
+    fn typescript_flags_destinations_and_manifest_paths() {
+        let root = std::path::PathBuf::from(super::temp_dest("cli-typescript"));
+        std::fs::create_dir_all(&root).unwrap();
+        let icon =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("src/svg/fixtures/unit/add.svg");
+        let dest = root.join("fonts");
+        for (flags, enabled) in [
+            (vec![], false),
+            (vec!["--ts"], true),
+            (vec!["--ts", "--no-ts"], false),
+            (vec!["--no-ts", "--ts"], true),
+            (vec!["--ts", "--no-write"], false),
+        ] {
+            let output = cli_bin()
+                .arg("--dest")
+                .arg(&dest)
+                .args(["--types", "ttf", "--no-css"])
+                .args(flags)
+                .arg(&icon)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(dest.join("iconfont.ts").exists(), enabled);
+            if dest.exists() {
+                std::fs::remove_dir_all(&dest).unwrap();
+            }
+        }
+        let custom = root.join("custom.ts");
+        let output = cli_bin()
+            .arg("--dest")
+            .arg(&dest)
+            .args(["--types", "ttf", "--no-css", "--ts", "--ts-dest"])
+            .arg(&custom)
+            .arg(&icon)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            std::fs::read_to_string(custom)
+                .unwrap()
+                .contains("export const icons = [\n  \"add\"\n] as const;")
+        );
+        std::fs::copy(icon, root.join("add.svg")).unwrap();
+        let manifest = root.join("config.json");
+        std::fs::write(&manifest, r#"{"files":["add.svg"],"dest":"manifest-fonts","types":["ttf"],"css":false,"ts":true,"tsDest":"generated/icons.ts"}"#).unwrap();
+        let output = cli_bin().arg("--config").arg(manifest).output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(root.join("generated/icons.ts").exists());
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
     fn fixture_dir() -> String {
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("src/svg/fixtures/icons/cleanicons")

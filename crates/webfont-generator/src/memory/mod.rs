@@ -61,6 +61,7 @@ pub struct GenerateWebfontsFromSourcesResult {
     shared: OnceLock<SharedTemplateData>,
     css: OnceLock<std::result::Result<Arc<String>, String>>,
     html: OnceLock<std::result::Result<Arc<String>, String>>,
+    ts: OnceLock<Arc<String>>,
     #[cfg(test)]
     html_render_count: std::sync::atomic::AtomicUsize,
 }
@@ -111,6 +112,7 @@ fn generate_in_pool(
         shared: OnceLock::new(),
         css: OnceLock::new(),
         html: OnceLock::new(),
+        ts: OnceLock::new(),
         #[cfg(test)]
         html_render_count: Default::default(),
     })
@@ -389,6 +391,26 @@ impl GenerateWebfontsFromSourcesResult {
         render_html_with_hbs_context(template.registry.as_ref(), &hbs_context, &context)
     }
 
+    /// Render a fixed TypeScript source module with icon names and selector settings.
+    /// Explicit requests work even when TS collection is disabled and never render templates.
+    pub fn generate_ts(&self) -> Result<Arc<String>> {
+        Ok(self
+            .ts
+            .get_or_init(|| {
+                Arc::new(crate::rendering::ts::render_ts(
+                    &self.options.common,
+                    self.options
+                        .sources
+                        .iter()
+                        .flatten()
+                        .map(|source| source.glyph_name.as_str()),
+                    self.options.variants.is_some(),
+                    None,
+                ))
+            })
+            .clone())
+    }
+
     /// Encode the persistent cache for storage, reflecting the current fonts and sources
     /// (including incremental updates). Returns `None` when the result was generated without
     /// the [`cache`](GenerateWebfontsFromSourcesOptions::cache) option, or when the bytes equal
@@ -434,6 +456,12 @@ impl GenerateWebfontsFromSourcesResult {
             .html
             .then(|| self.generate_html())
             .transpose()?;
-        Ok(collect_outputs(&self.fonts, css, html))
+        let ts = self
+            .options
+            .common
+            .ts
+            .then(|| self.generate_ts())
+            .transpose()?;
+        Ok(collect_outputs(&self.fonts, css, html, ts))
     }
 }

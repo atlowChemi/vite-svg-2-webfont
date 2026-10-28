@@ -48,6 +48,15 @@ Generate with an HTML preview page:
 webfont-generator --dest ./dist/fonts --html ./icons/
 ```
 
+Generate a fixed TypeScript module with icon names, their `IconName` union, and selector settings:
+
+```sh
+webfont-generator --dest ./dist/fonts --ts --ts-dest ./dist/icons.ts ./icons/
+```
+
+Without `--ts-dest`, TS is written to `<dest>/<font-name>.ts`. A destination alone does not
+enable TS output. See the [TypeScript output contract](./rust#typescript-output).
+
 Dry run (no files written to disk):
 
 ```sh
@@ -97,7 +106,8 @@ With active `colorGlyphs`, the manifest also accepts `"colorSlots": { "secondary
 Run it with `webfont-generator --config icons.webfont.json`.
 
 - `dest` is required. Supply `files` for a single design or ordered `variants` for a [multi-variant family](./node#multi-variant-fonts).
-- Relative input paths, `dest`, `cssDest`, `htmlDest`, `cssTemplate`, `htmlTemplate`, and `cacheLocation` resolve against the manifest directory, independent of the working directory. URL values such as `cssFontsUrl` are not rebased.
+- Relative input paths, `dest`, `cssDest`, `htmlDest`, `tsDest`, `cssTemplate`, `htmlTemplate`, and `cacheLocation` resolve against the manifest directory, independent of the working directory. URL values such as `cssFontsUrl` are not rebased.
+- `"ts": true` enables fixed TypeScript source output; `"tsDest": "generated/icons.ts"` overrides its destination.
 - Input arrays preserve explicit entry order. Each directory expands at its position into sorted lowercase `.svg` files, non-recursively. JSON paths do not expand wildcards or globs.
 - Missing entries and duplicate normalized input paths within one variant (or the ordinary file list) are errors. The same source may appear in different variants.
 - Unknown option fields and invalid JSON types are rejected, including nested options. Diagnostics include the manifest path and the affected option field; malformed JSON includes line and column information.
@@ -129,12 +139,14 @@ Run it with `webfont-generator --config icons.webfont.json`.
 
 ### Output control
 
-| Flag                           | Default      | Description                        |
-| ------------------------------ | ------------ | ---------------------------------- |
-| `--css` / `--no-css`           | `--css`      | Generate or skip CSS output        |
-| `--html` / `--no-html`         | `--no-html`  | Generate or skip HTML preview      |
-| `--write` / `--no-write`       | `--write`    | Write files to disk or dry run     |
-| `--ligature` / `--no-ligature` | `--ligature` | Enable or disable ligature support |
+| Flag                           | Default                 | Description                                     |
+| ------------------------------ | ----------------------- | ----------------------------------------------- |
+| `--css` / `--no-css`           | `--css`                 | Generate or skip CSS output                     |
+| `--html` / `--no-html`         | `--no-html`             | Generate or skip HTML preview                   |
+| `--ts` / `--no-ts`             | `--no-ts`               | Generate or skip fixed TypeScript source        |
+| `--ts-dest <PATH>`             | `<dest>/<font-name>.ts` | TypeScript destination; requires `--ts` to emit |
+| `--write` / `--no-write`       | `--write`               | Write files to disk or dry run                  |
+| `--ligature` / `--no-ligature` | `--ligature`            | Enable or disable ligature support              |
 
 ### Cache options
 

@@ -205,6 +205,7 @@ pub(crate) fn generate_webfonts_sync(
     });
 
     Ok(GenerateWebfontsResult {
+        ts: Default::default(),
         cached: std::sync::OnceLock::new(),
         carried_render: None,
         css_context: None,
@@ -344,6 +345,7 @@ pub(crate) fn generate_variant_webfonts_sync(
         None
     };
     Ok(GenerateWebfontsResult {
+        ts: Default::default(),
         cached: std::sync::OnceLock::new(),
         carried_render: None,
         css_context: None,

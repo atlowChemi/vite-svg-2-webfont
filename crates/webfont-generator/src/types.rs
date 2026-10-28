@@ -399,6 +399,11 @@ pub struct GenerateWebfontsOptions {
     pub format_options: Option<FormatOptions>,
     /// Whether to generate an HTML preview file. Defaults to `false`.
     pub html: Option<bool>,
+    /// Collect/write a fixed TypeScript module exporting icon names and selector settings.
+    /// Defaults to false; explicit result rendering is available regardless of this flag.
+    pub ts: Option<bool>,
+    /// TypeScript source destination. Defaults to `<dest>/<font_name>.ts`.
+    pub ts_dest: Option<String>,
     /// Output path for the generated HTML preview file. Defaults to
     /// `path.join(dest, fontName + '.html')`.
     pub html_dest: Option<String>,

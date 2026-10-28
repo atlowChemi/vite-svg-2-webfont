@@ -399,6 +399,9 @@ impl GenerateWebfontsFromSourcesResult {
             html_dependencies.can_reuse_html(names_unchanged, codepoints_unchanged, keep_css)
                 && matches!(self.html.get(), Some(Ok(_)));
         self.options = staged;
+        if !names_unchanged {
+            self.ts = OnceLock::new();
+        }
         self.fonts = fonts;
         self.shared = OnceLock::new();
         if !keep_css {

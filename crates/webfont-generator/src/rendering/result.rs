@@ -57,6 +57,25 @@ pub(crate) struct CachedTemplateData {
 }
 
 impl GenerateWebfontsResult {
+    /// Render a fixed TypeScript source module with `icons`, `IconName`,
+    /// `iconBaseSelector`, and `iconClassPrefix`. Repeated calls share the output.
+    /// Uses effective CSS context settings, independent of CSS/HTML templates or output flags.
+    pub fn generate_ts(&self) -> std::io::Result<Arc<String>> {
+        Ok(self
+            .ts
+            .get_or_init(|| {
+                Arc::new(super::ts::render_ts(
+                    &self.options,
+                    self.source_files
+                        .iter()
+                        .map(|source| source.glyph_name.as_str()),
+                    self.options.variants.is_some(),
+                    self.css_context.as_ref(),
+                ))
+            })
+            .clone())
+    }
+
     fn validate_render_urls(
         &self,
         urls: Option<&HashMap<FontType, String>>,

@@ -169,6 +169,9 @@ impl GenerateWebfontsResult {
             self.options = Arc::new(options);
             self.source_files = Arc::new(flattened);
             self.cached = Default::default();
+            if !same_names {
+                self.ts = Default::default();
+            }
             self.carried_render = carried;
             state.variant_write_pending = self.options.write_files;
             // The cache now matches committed sources. A later write failure retains this
