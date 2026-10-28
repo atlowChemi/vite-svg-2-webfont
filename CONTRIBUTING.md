@@ -61,7 +61,9 @@ workspace discovery and installation settings remain in the root configuration.
 
 Normal development still uses the `vp` commands above. The `next:*` scripts and
 `next-*` pipelines are the replacement graph under validation, not the active
-workflow. Task coverage is complete; cache readiness is still being validated.
+workflow. Native/WASM builds, engine/adapter Rust checks and tests, tarballs, and
+SVG/social assets enable validated task caches. Vite builds and JS/browser tests
+remain uncached pending the exceptions documented in the auditor README.
 
 ```mermaid
 flowchart LR

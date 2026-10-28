@@ -82,7 +82,7 @@ tasks:
     next:adapter:binding:regenerate: { cache: false, dependsOn: [] }
     next:adapter:bench: { cache: false, dependsOn: [] }
     next:native:release:
-        cache: false
+        cache: true
         dependsOn: [next:adapter:test]
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml}'
@@ -118,7 +118,7 @@ tasks:
             - WASM_BINDGEN
         outputs: [packages/webfont-generator/binding.js, packages/webfont-generator/binding.d.ts, packages/webfont-generator/*.node]
     next:browser:tgz:
-        cache: false
+        cache: true
         dependsOn: [next:browser:pack]
         inputs:
             - '{LICENSE,package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,.npmrc,.pnpmfile.*}'
@@ -128,7 +128,7 @@ tasks:
     next:browser:publish: { cache: false, dependsOn: [next:browser:tgz] }
     next:plugin:dev: { cache: false, dependsOn: [] }
     next:plugin:tgz:
-        cache: false
+        cache: true
         dependsOn: [next:plugin:pack]
         inputs:
             - '{LICENSE,package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,.npmrc,.pnpmfile.*}'
@@ -148,10 +148,10 @@ tasks:
     next:fmt:rust:
         cache: false
         dependsOn: []
-    # Success-only cache candidates; activation requires input/environment audits.
+    # Validated success-only caches; no compiler outputs are restored.
     # External-tool upgrades require a task-cache reset (see cache-audit README).
     next:engine:check:
-        cache: false
+        cache: true
         dependsOn: []
         outputs: []
         env: *rust-env
@@ -165,19 +165,19 @@ tasks:
             - packages/.cargo/**
             - packages/{Cargo.toml,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml}
     next:engine:features:
-        cache: false
+        cache: true
         outputs: []
         env: *rust-env
         inputs: *engine-inputs
         dependsOn: [next:engine:check]
     next:engine:test:
-        cache: false
+        cache: true
         outputs: []
         env: *rust-env
         inputs: *engine-inputs
         dependsOn: [next:engine:check, next:engine:features]
     next:adapter:check:
-        cache: false
+        cache: true
         dependsOn: [next:engine:check]
         outputs: []
         env: *rust-env
@@ -188,17 +188,16 @@ tasks:
             - packages/webfont-generator/{Cargo.toml,build.rs,package.json,README.md,rust-toolchain*}
             - packages/webfont-generator/{native,src,tests,benches,examples,templates,.cargo}/**
     next:adapter:test:
-        cache: false
+        cache: true
         outputs: []
         env: *rust-env
         inputs: *adapter-inputs
         dependsOn: [next:adapter:check, next:engine:test]
 
-    # Candidate native coverage for the auditor. Keep disabled until the blocking
-    # audit and external-tool cache-reset policy are active.
+    # Validated native cache; external-tool upgrades require a task-cache reset.
     # Cargo's intermediate target directory is deliberately not a restored output.
     next:native:
-        cache: false
+        cache: true
         dependsOn: []
         inputs:
             - patches/**
@@ -234,7 +233,7 @@ tasks:
             - packages/webfont-generator/*.node
         env: *rust-env
     next:wasm:
-        cache: false
+        cache: true
         dependsOn: []
         inputs:
             - patches/**
@@ -317,8 +316,8 @@ tasks:
             - '**/svgo.config.{js,cjs,mjs,ts}'
         outputs: [packages/docs/public/**/*.svg]
     next:docs:social:
-        # Bundled fonts avoid host-font inputs; caching still needs reproducibility checks.
-        cache: false
+        # Bundled fonts avoid host-font inputs; fresh-build reproducibility verified.
+        cache: true
         dependsOn: [next:docs:svg]
         inputs:
             - package.json

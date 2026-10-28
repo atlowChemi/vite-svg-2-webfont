@@ -271,10 +271,26 @@ Read merged configuration with `pnpm config get tasks --location project --json`
 (or `pipelines`); the explicit location makes older bootstrap pnpm launchers
 delegate to the pinned project version.
 
-Most caches remain disabled. The declared `outputs: []` on check/test candidates
+Native/WASM builds, engine/adapter Rust checks and tests, tarballs, and SVG/social
+assets enable task caching. The declared `outputs: []` on Rust checks/tests
 means a cached success restores no compiler binaries or `target/` intermediates.
 Source-mutating fixture-update mode, report-producing variants, coverage, and
 publishing must execute unless their separate contracts have been validated.
+
+Remaining uncached categories:
+
+- Vite browser/plugin packages, docs, and example builds can read Git-ignored local
+  env files that pnpm does not reliably key, even when explicitly listed. Plugin
+  packaging can also upload Codecov bundle analysis, which a cache hit would skip.
+- JS/browser validation lacks approved complete input/environment/report contracts;
+  the retained Linux ARM64 WebKit failures also need resolution before approval.
+- Formatting and browser Rust checks still need separate cache-contract validation.
+- Coverage, benchmarks, publishing, fixture/binding regeneration, and dev/preview
+  commands intentionally execute for their reports, measurements or side effects.
+
+Tarball caching does not suppress uncached package-build prerequisites. Native
+release repeats can reuse all five Rust validation tasks and the release artifact;
+the separate Rust-formatting task still executes.
 Debug and release native builds retain their existing shared output paths. Run
 them sequentially: switching producers can cause a safe rebuild even with an
 unchanged key, because pnpm refuses to restore over bytes changed by another task.
