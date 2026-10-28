@@ -92,6 +92,7 @@ impl std::error::Error for RegenerateError {
 /// render the CSS and HTML preview.
 #[cfg(feature = "fs")]
 pub struct GenerateWebfontsResult {
+    pub(crate) ts: OnceLock<Arc<String>>,
     pub(crate) cached: OnceLock<Result<CachedTemplateData, String>>,
     /// Render-cache entries carried across an incremental `regenerate` to seed the rebuilt
     /// [`CachedTemplateData`], so CSS/HTML that
@@ -110,6 +111,7 @@ impl GenerateWebfontsResult {
     pub(crate) fn snapshot_for_regeneration(&self, state: RegenerationState) -> Self {
         Self {
             cached: OnceLock::new(),
+            ts: self.ts.clone(),
             carried_render: self.render_cache_source(),
             css_context: self.css_context.clone(),
             fonts: self.fonts.clone(),

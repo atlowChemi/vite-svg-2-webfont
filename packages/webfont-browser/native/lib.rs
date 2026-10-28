@@ -119,6 +119,7 @@ impl FontSession {
                 OutputKind::Font(font) => font.as_extension(),
                 OutputKind::Css => "css",
                 OutputKind::Html => "html",
+                OutputKind::Ts => "ts",
             };
             Reflect::set(
                 &result,

@@ -90,6 +90,8 @@ pub struct GenerateWebfontsFromSourcesOptions {
     pub format_options: Option<FormatOptions>,
     /// Include HTML in collected outputs (default false).
     pub html: Option<bool>,
+    /// Include the fixed TypeScript source module in collected outputs. Defaults to false.
+    pub ts: Option<bool>,
     /// Retain geometry and encoder caches for subsequent source updates.
     pub incremental: Option<bool>,
     /// Output font height.
@@ -154,6 +156,7 @@ pub(super) fn resolve(
         fixed_width: options.fixed_width,
         format_options: options.format_options,
         html: options.html,
+        ts: options.ts,
         incremental: options.incremental,
         font_height: options.font_height,
         font_name: options.font_name,

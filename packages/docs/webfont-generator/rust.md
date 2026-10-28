@@ -219,15 +219,17 @@ cached fonts, which keep the timestamp of the run that created them.
 | `svg_string()`                                                | `Option<&str>`                                                                               |
 | `ttf_bytes()`, `eot_bytes()`, `woff_bytes()`, `woff2_bytes()` | `Option<&[u8]>`                                                                              |
 | `generate_css()`, `generate_html()`                           | `std::io::Result<Arc<String>>`; renders once and shares the cached text.                     |
+| `generate_ts()`                                               | `std::io::Result<Arc<String>>`; shares the fixed [TypeScript module](#typescript-output).    |
 | `collect_outputs()`                                           | `std::io::Result<Vec<CollectedOutput>>`; shares font payloads and enabled companion renders. |
 | `cache_bytes()`                                               | `Option<Vec<u8>>`; persistent cache bytes to store, see [above](#persistent-cache-bytes).    |
 
-`CollectedOutput` contains `kind: OutputKind` (`Font(FontType)`, `Css`, or `Html`) and
+`CollectedOutput` contains `kind: OutputKind` (`Font(FontType)`, `Css`, `Html`, or `Ts`) and
 `contents: OutputContents` (`Bytes(Arc<Vec<u8>>)` or `Text(Arc<String>)`). Use `as_bytes()`
 to consume either representation. The caller chooses download names or other destinations.
 
 Font getters never initialize templates. CSS requests never compile HTML. HTML embeds the
-cached CSS. Collection respects `css`/`html`; explicit render methods work even when disabled.
+cached CSS. TS requests never initialize templates. Collection respects `css`/`html`/`ts`;
+explicit render methods work even when disabled.
 Template compile/render errors are deferred until that companion is requested.
 
 Memory fingerprints include ordered IDs, names, content, variant membership, resolved settings,
@@ -335,12 +337,14 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 | `order`                 | `Option<Vec<FontType>>`        | Filtered default order                                                     | `@font-face` src order                                                        |
 | `css`                   | `Option<bool>`                 | `true`                                                                     | Generate CSS file                                                             |
 | `html`                  | `Option<bool>`                 | `false`                                                                    | Generate HTML preview                                                         |
+| `ts`                    | `Option<bool>`                 | `false`                                                                    | Include fixed TypeScript source in written outputs or SVG-text collection     |
 | `write_files`           | `Option<bool>`                 | `true`                                                                     | Write output to disk                                                          |
 | `css_template`          | `Option<String>`               | Built-in template                                                          | Custom Handlebars CSS template path                                           |
 | `html_template`         | `Option<String>`               | Built-in template                                                          | Custom Handlebars HTML template path                                          |
 | `css_fonts_url`         | `Option<String>`               | Relative path                                                              | URL prefix for fonts in CSS                                                   |
 | `css_dest`              | `Option<String>`               | `dest/fontName.css`                                                        | CSS output path                                                               |
 | `html_dest`             | `Option<String>`               | `dest/fontName.html`                                                       | HTML output path                                                              |
+| `ts_dest`               | `Option<String>`               | `dest/fontName.ts`                                                         | TypeScript source output path (file API only)                                 |
 | `codepoints`            | `Option<HashMap<String, u32>>` | Empty                                                                      | Explicit glyph codepoints                                                     |
 | `start_codepoint`       | `Option<u32>`                  | `0xF101`                                                                   | Starting auto-codepoint                                                       |
 | `font_height`           | `Option<f64>`                  | --                                                                         | Explicit font height                                                          |
@@ -568,18 +572,53 @@ a partial bundle if a write fails.
 | `woff_bytes()`  | `Option<&[u8]>` | WOFF font bytes     |
 | `woff2_bytes()` | `Option<&[u8]>` | WOFF2 font bytes    |
 
-### Template methods
+### Rendering methods
 
-| Method                      | Return type          | Description                                     |
-| --------------------------- | -------------------- | ----------------------------------------------- |
-| `generate_css_pure(urls?)`  | `io::Result<String>` | Render CSS with optional URL overrides          |
-| `generate_html_pure(urls?)` | `io::Result<String>` | Render HTML preview with optional URL overrides |
+| Method                      | Return type               | Description                                     |
+| --------------------------- | ------------------------- | ----------------------------------------------- |
+| `generate_css_pure(urls?)`  | `io::Result<String>`      | Render CSS with optional URL overrides          |
+| `generate_html_pure(urls?)` | `io::Result<String>`      | Render HTML preview with optional URL overrides |
+| `generate_ts()`             | `io::Result<Arc<String>>` | Render and share the fixed TypeScript module    |
 
-Both methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter. Results are cached internally for repeated calls with the same arguments.
+The CSS and HTML methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter. Results are cached internally for repeated calls with the same arguments.
 
 `None` uses generated URLs. `Some` replaces all defaults, leaving omitted entries empty;
 multi-variant results reject SVG/EOT URL overrides. See the shared [Templates reference](./templates)
 for context fields, generated CSS, HTML previews, and SCSS usage.
+
+### TypeScript output
+
+`generate_ts()` lazily renders and shares a fixed TypeScript source module:
+
+<!-- prettier-ignore -->
+```ts
+export const iconBaseSelector = ".icon" as const;
+export const iconClassPrefix = "icon-" as const;
+export const icons = [
+  "add",
+  "remove"
+] as const;
+
+export type IconName = (typeof icons)[number];
+```
+
+The same method and output contract apply to `GenerateWebfontsFromSourcesResult`.
+Set `ts: Some(true)` to include the module in written outputs or SVG-text collection;
+explicit `generate_ts()` calls work regardless of this flag. File output uses `ts_dest`
+and respects `write_files`. SVG-text collection identifies the module as `OutputKind::Ts`.
+The CLI manifest spells the destination `tsDest`.
+
+Names follow source order and are deduplicated across variant designs. `baseSelector` and
+`classPrefix` come from template options, or the effective CSS context hook for file results.
+Missing or non-string values use `.icon` and `icon-`, matching the built-in CSS renderer;
+explicit empty strings are preserved.
+HTML context hooks do not customize this module. The metadata remains the same when CSS
+output is disabled or a custom CSS template does not use these fields.
+String literals are escaped; no TS template, template override, or TS context callback exists.
+
+Incremental additions, removals, renames, and reordering refresh the module. Geometry-only
+edits reuse the cached module when names are unchanged. This is `.ts` source with runtime
+constants, not a `.d.ts` file.
 
 ### Variant regeneration
 

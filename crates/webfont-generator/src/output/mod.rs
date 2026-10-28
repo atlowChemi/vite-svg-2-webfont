@@ -34,7 +34,8 @@ impl GenerateWebfontsResult {
             .html
             .then(|| self.generate_html_shared(None))
             .transpose()?;
-        Ok(collect_outputs(&self.fonts, css, html))
+        let ts = self.options.ts.then(|| self.generate_ts()).transpose()?;
+        Ok(collect_outputs(&self.fonts, css, html, ts))
     }
 }
 
@@ -62,6 +63,7 @@ fn collect_write_outputs(result: &GenerateWebfontsResult) -> std::io::Result<Vec
                 ),
                 OutputKind::Css => (result.options.css_dest.clone(), true),
                 OutputKind::Html => (result.options.html_dest.clone(), true),
+                OutputKind::Ts => (result.options.ts_dest.clone(), true),
             };
             OutputFile {
                 path,

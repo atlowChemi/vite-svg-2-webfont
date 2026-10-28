@@ -10,7 +10,7 @@ mod cli_tests;
 
 /// Arguments a `--config` file replaces. `--threads` is machine-specific, so it may override a
 /// checked-in config.
-const GENERATION_ARGS: [&str; 20] = [
+const GENERATION_ARGS: [&str; 23] = [
     "files",
     "dest",
     "font_name",
@@ -19,6 +19,9 @@ const GENERATION_ARGS: [&str; 20] = [
     "no_css",
     "html",
     "no_html",
+    "ts",
+    "no_ts",
+    "ts_dest",
     "css_template",
     "html_template",
     "css_fonts_url",
@@ -86,6 +89,18 @@ struct Cli {
     /// Skip HTML generation (default)
     #[arg(long = "no-html", overrides_with = "html", action = ArgAction::SetTrue)]
     no_html: bool,
+
+    /// Generate a fixed TypeScript module with icon names and selector settings
+    #[arg(long, overrides_with = "no_ts", action = ArgAction::SetTrue)]
+    ts: bool,
+
+    /// Skip TypeScript generation (default)
+    #[arg(long, overrides_with = "ts", action = ArgAction::SetTrue)]
+    no_ts: bool,
+
+    /// TypeScript source destination (default: <dest>/<font-name>.ts); enable with --ts
+    #[arg(long)]
+    ts_dest: Option<String>,
 
     /// Custom CSS template path
     #[arg(long)]
@@ -253,6 +268,8 @@ fn main() -> ExitCode {
         font_height: cli.font_height,
         font_name: Some(cli.font_name),
         html: Some(cli.html && !cli.no_html),
+        ts: Some(cli.ts && !cli.no_ts),
+        ts_dest: cli.ts_dest,
         html_template: cli.html_template,
         ligature: Some(!cli.no_ligature),
         start_codepoint,

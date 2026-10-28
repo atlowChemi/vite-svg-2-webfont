@@ -38,6 +38,8 @@ pub enum OutputKind {
     Css,
     /// HTML preview.
     Html,
+    /// TypeScript source with icon names and selector settings.
+    Ts,
 }
 
 /// A generated payload with no filesystem destination.
@@ -55,6 +57,7 @@ pub(crate) fn collect_outputs(
     fonts: &FontOutputs,
     css: Option<Arc<String>>,
     html: Option<Arc<String>>,
+    ts: Option<Arc<String>>,
 ) -> Vec<CollectedOutput> {
     let mut outputs = Vec::new();
 
@@ -99,6 +102,12 @@ pub(crate) fn collect_outputs(
         outputs.push(CollectedOutput {
             kind: OutputKind::Html,
             contents: OutputContents::Text(html),
+        });
+    }
+    if let Some(ts) = ts {
+        outputs.push(CollectedOutput {
+            kind: OutputKind::Ts,
+            contents: OutputContents::Text(ts),
         });
     }
     outputs

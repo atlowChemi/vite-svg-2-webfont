@@ -91,6 +91,7 @@ async fn async_writer_dispatches_every_font_format() {
         ..Default::default()
     });
     let result = GenerateWebfontsResult {
+        ts: Default::default(),
         cached: OnceLock::new(),
         carried_render: None,
         css_context: None,

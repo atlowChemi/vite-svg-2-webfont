@@ -79,11 +79,26 @@ An optional [persistent cache](https://atlowChemi.github.io/vite-svg-2-webfont/w
 
 For color glyphs and named theme palettes, see the [color documentation](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust#color-glyphs).
 
+## TypeScript output
+
+Both file and SVG-text results expose `generate_ts() -> std::io::Result<Arc<String>>`.
+The fixed module exports `icons` (a readonly tuple), `IconName` (its literal union),
+`iconBaseSelector`, and `iconClassPrefix`. Strings are escaped as TypeScript literals.
+Rendering does not load or render CSS/HTML templates and has no custom template option.
+Names follow input order (deduplicated across variants); selectors reflect template options
+and, for file results, the effective CSS context hook. Custom CSS need not use those settings.
+
+Set `ts: Some(true)` to include TS in collected/written outputs. File output defaults to
+`<dest>/<font_name>.ts`; override it with `ts_dest`. `write_files: Some(false)` still suppresses
+all writes. Explicit `generate_ts()` works regardless of `ts` and shares repeated renders;
+incremental membership updates refresh the output. SVG-text collection uses `OutputKind::Ts`.
+
 ## CLI
 
 ```sh
 cargo install webfont-generator --features cli
 webfont-generator --dest ./dist/fonts ./icons/
+webfont-generator --dest ./dist/fonts --ts --ts-dest ./dist/icons.ts ./icons/
 ```
 
 ## Cargo features

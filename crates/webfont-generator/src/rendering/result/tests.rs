@@ -54,6 +54,7 @@ fn build_result_with_templates(
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
 
     GenerateWebfontsResult {
+        ts: Default::default(),
         cached: std::sync::OnceLock::new(),
         carried_render: None,
         css_context: None,
@@ -83,6 +84,7 @@ fn collection_reuses_companion_payloads_and_invalidates_changed_templates() {
             OutputKind::Css => assert!(Arc::ptr_eq(&css, &text)),
             OutputKind::Html => assert!(Arc::ptr_eq(&html, &text)),
             OutputKind::Font(_) => panic!("no fonts in this fixture"),
+            OutputKind::Ts => panic!("TS collection is disabled in this fixture"),
         }
     }
     assert_eq!(
@@ -442,6 +444,7 @@ fn build_multi_type_result() -> GenerateWebfontsResult {
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
 
     GenerateWebfontsResult {
+        ts: Default::default(),
         cached: std::sync::OnceLock::new(),
         carried_render: None,
         css_context: None,
