@@ -6,10 +6,10 @@ import type { WebfontBuild } from './useWebfontBuild';
 
 const props = defineProps<{ build: WebfontBuild }>();
 
-const viewer = ref<'css' | 'html' | 'svg'>('css');
+const viewer = ref<'css' | 'html' | 'svg' | 'ts'>('css');
 const { copied, copy } = useClipboard();
 
-/** The SVG font is the one text-based font format, so it can be shown alongside the CSS and HTML. */
+/** The SVG font is the one text-based font format, so it can be shown alongside CSS, HTML and TypeScript. */
 const svgFont = computed(() => {
     const bytes = props.build.outputs.svg;
     return bytes ? new TextDecoder().decode(bytes) : undefined;
@@ -17,7 +17,7 @@ const svgFont = computed(() => {
 watch(svgFont, text => {
     if (!text && viewer.value === 'svg') viewer.value = 'css';
 });
-const viewerText = computed(() => ({ css: props.build.css, html: props.build.html, svg: svgFont.value })[viewer.value] ?? '');
+const viewerText = computed(() => ({ css: props.build.css, html: props.build.html, ts: props.build.ts, svg: svgFont.value })[viewer.value] ?? '');
 /** Highlighting very large output (an SVG font with many icons) would stall the page; it then stays plain text. */
 const HIGHLIGHT_LIMIT = 200_000;
 const highlighted = shallowRef<{ text: string; html: string }>();
@@ -46,6 +46,7 @@ watch(
             <button type="button" role="tab" data-title="output.css" :aria-selected="viewer === 'css'" @click="viewer = 'css'">CSS</button>
             <button type="button" role="tab" data-title="output.html" :aria-selected="viewer === 'html'" @click="viewer = 'html'">HTML</button>
             <button v-if="svgFont" type="button" role="tab" data-title="output.svg" :aria-selected="viewer === 'svg'" @click="viewer = 'svg'">SVG font</button>
+            <button type="button" role="tab" data-title="output.ts" :aria-selected="viewer === 'ts'" @click="viewer = 'ts'">TypeScript</button>
             <button type="button" class="pg-link" @click="copy('source', viewerText)">
                 {{ copied === 'source' ? 'Copied!' : 'Copy' }}
             </button>

@@ -106,7 +106,7 @@ export default defineConfig({
                     'generated css': 'vscode-icons:file-type-css',
                 },
                 // Tab labels rendered by Vue components, which the Markdown scan does not see.
-                defaultLabels: ['Generated CSS', 'output.css', 'output.html', 'output.svg'],
+                defaultLabels: ['Generated CSS', 'output.css', 'output.html', 'output.svg', 'output.ts'],
             }),
             llmstxt(),
             ...svgAuthoringFontPlugins(),

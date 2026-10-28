@@ -124,6 +124,7 @@ An explicit `dispose()` method is available for manually managed lifetimes inste
 | `font(format)`                    | `Promise<Uint8Array \| undefined>` | Copy a requested font; does not render templates                                                                      |
 | `generateCss()`                   | `Promise<string>`                  | Lazy CSS render, even if CSS collection is disabled                                                                   |
 | `generateHtml()`                  | `Promise<string>`                  | Lazy HTML render, reusing CSS                                                                                         |
+| `generateTs()`                    | `Promise<string>`                  | Fixed TypeScript metadata, even if TS or CSS collection is disabled                                                   |
 | `collectOutputs()`                | `Promise<CollectedOutputs>`        | Object keyed by output kind, with independently owned bytes; unrequested outputs are omitted                          |
 | `regenerate(membership, changes)` | `Promise<void>`                    | Apply source updates; requires `incremental: true`                                                                    |
 | `add(source, variant?)`           | `Promise<void>`                    | Append a new source; families require a target variant. Requires `incremental: true`.                                 |
@@ -132,12 +133,37 @@ An explicit `dispose()` method is available for manually managed lifetimes inste
 | `exportCache()`                   | `Promise<Uint8Array \| undefined>` | Persistent cache bytes to store; `undefined` when caching is off or nothing changed. See [caching](#persistent-cache) |
 | `dispose()`                       | `void`                             | Terminate the worker and reject pending calls. Idempotent: repeated calls have no additional effect and do not throw  |
 
-`CollectedOutputs` is `Partial<Record<FontType | 'css' | 'html', Uint8Array<ArrayBuffer>>>`.
+`CollectedOutputs` is `Partial<Record<FontType | 'css' | 'html' | 'ts', Uint8Array<ArrayBuffer>>>`.
 Access outputs directly by kind, for example `(await result.collectOutputs()).woff2`.
 
 Calls on one result execute in submission order. Returned byte arrays remain valid after updates
 and disposal and cannot mutate the engine's retained buffers. CSS and HTML are compiled lazily;
 an invalid HTML template does not prevent accessing a font or rendering CSS.
+
+## TypeScript metadata
+
+`await result.generateTs()` returns fixed TypeScript source, even when `ts` or `css` is
+false. Set `ts: true` in generation options to also include UTF-8 bytes under `ts` in
+`collectOutputs()`; collection defaults to off.
+
+<!-- prettier-ignore -->
+```ts
+export const iconBaseSelector = ".icon" as const;
+export const iconClassPrefix = "icon-" as const;
+export const icons = [
+  "square"
+] as const;
+
+export type IconName = (typeof icons)[number];
+```
+
+The readonly tuple follows the engine's canonical icon order and variant-family names.
+Selectors use the effective `templateOptions.baseSelector` and `templateOptions.classPrefix`.
+Custom CSS may emit different classes: this metadata describes the context, not parsed CSS.
+There is no TS template, override, callback or browser filesystem destination.
+
+Source additions, removals, renames and batch regeneration refresh the metadata. To change
+options, create a new result.
 
 ## Persistent cache
 
@@ -166,7 +192,7 @@ if (updated) await saveCache('icons', updated);
 ```
 
 - Without a fixed `formatOptions.ttf.ts`, reused fonts keep the timestamp of the session that
-  created them, so output matches that session rather than the current clock. Set `ts` for
+  created them, so output matches that session rather than the current clock. Set `formatOptions.ttf.ts` for
   reproducible output.
 - `exportCache()` reflects incremental updates and resolves `undefined` when nothing changed since
   the cache was loaded or last exported, so you can skip writes.

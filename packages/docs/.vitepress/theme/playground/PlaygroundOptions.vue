@@ -126,6 +126,7 @@ function resetTemplate(key: 'cssTemplate' | 'htmlTemplate') {
             <label>Font URL prefix <input v-model="settings.cssFontsUrl" placeholder="Relative to the CSS file" spellcheck="false" /></label>
             <label class="pg-toggle"><input v-model="settings.css" type="checkbox" /> Include CSS in downloads</label>
             <label class="pg-toggle"><input v-model="settings.html" type="checkbox" /> Include HTML preview in downloads</label>
+            <label class="pg-toggle"><input v-model="settings.ts" type="checkbox" /> Include TypeScript metadata in downloads</label>
             <label>
                 Extra template data (JSON)
                 <textarea v-model="settings.templateData" rows="3" spellcheck="false" placeholder='{ "brand": "acme" }' />

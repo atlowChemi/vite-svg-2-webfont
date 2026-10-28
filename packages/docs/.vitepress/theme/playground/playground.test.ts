@@ -82,6 +82,8 @@ describe('options', () => {
         expect(options.types).toEqual(['woff2', 'woff']);
         expect(options.fontStyle).toBeUndefined();
         expect(options.cssTemplate).toBeUndefined();
+        expect(options.ts).toBe(false);
+        expect(toGenerateOptions(icons, { ...defaultSettings, ts: true, css: false }).ts).toBe(true);
         expect(options.formatOptions).toEqual({ woff2: { compressionQuality: 11 } });
         expect(options.templateOptions).toEqual({ classPrefix: 'icon-', baseSelector: '.icon' });
     });
@@ -115,6 +117,9 @@ describe('zip', () => {
         expect(Object.keys(zip).toSorted()).toEqual(['icons.css', 'icons.woff2']);
         expect(strFromU8(zip['icons.css']!)).toBe('a{}');
         expect(outputFileName('icons', 'html')).toBe('icons.html');
+        const ts = 'export const icons = ["square"] as const;';
+        const withTs = unzipSync(await zipOutputs('icons', { ts: new TextEncoder().encode(ts) }));
+        expect(strFromU8(withTs['icons.ts']!)).toBe(ts);
     });
 });
 
@@ -131,6 +136,10 @@ describe('highlight', () => {
     it('loads the HTML grammar on first use', async () => {
         expect(await highlight('<p class="a">b</p>', 'html')).toContain('--shiki-dark:');
         expect((await loadHighlighter()).getLoadedLanguages()).toContain('html');
+    });
+
+    it('highlights TypeScript metadata', async () => {
+        expect(await highlight('export const icons = ["square"] as const;', 'ts')).toContain('--shiki-dark:');
     });
 
     it('emits light and dark colors like the site code blocks', async () => {

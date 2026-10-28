@@ -6,6 +6,7 @@ export type WebfontBuild = {
     outputs: CollectedOutputs;
     css: string;
     html: string;
+    ts: string;
     /** Font family registered for the preview, or undefined when no browser-loadable format was generated. */
     previewFamily?: string;
     /** Codepoints this build's font contains; icons added since show a placeholder until the next build. */
@@ -62,7 +63,7 @@ export function useWebfontBuild(icons: Ref<PlaygroundIcon[]>, settings: Ref<Play
             const options = toGenerateOptions(icons.value, settings.value);
             const { generateWebfonts } = await import('@atlowchemi/webfont-browser-generator');
             next = await generateWebfonts(options);
-            const [outputs, css, html] = await Promise.all([next.collectOutputs(), renderText(next.generateCss), renderText(next.generateHtml)]);
+            const [outputs, css, html, ts] = await Promise.all([next.collectOutputs(), renderText(next.generateCss), renderText(next.generateHtml), renderText(next.generateTs)]);
             const previewFormat = PREVIEW_FORMATS.find(format => options.types?.includes(format));
             const bytes = previewFormat && (await next.font(previewFormat));
             const family = `webfont-playground-${current}`;
@@ -78,6 +79,7 @@ export function useWebfontBuild(icons: Ref<PlaygroundIcon[]>, settings: Ref<Play
                 outputs,
                 css,
                 html,
+                ts,
                 previewFamily: nextFace && family,
                 codepoints: new Set(Object.values(options.codepoints ?? {})),
                 milliseconds: Math.round(performance.now() - started),

@@ -47,6 +47,9 @@ async function handleRequest(data: Request): Promise<void> {
             case 'outputs':
                 value = currentSession().outputs();
                 break;
+            case 'ts':
+                value = currentSession().ts();
+                break;
             case 'cache':
                 value = currentSession().cacheBytes() as Uint8Array<ArrayBuffer> | undefined;
                 break;

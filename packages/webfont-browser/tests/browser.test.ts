@@ -43,11 +43,67 @@ it('generates copied fonts in a worker and browsers load all modern containers',
     expect(await result.font('ttf')).not.toEqual(original);
     expect(await result.generateCss()).toContain('@font-face');
     expect(await result.generateHtml()).toContain('square');
-    expect(Object.keys(result).toSorted()).toEqual(['add', 'collectOutputs', 'dispose', 'exportCache', 'font', 'generateCss', 'generateHtml', 'regenerate', 'remove', 'update']);
+    expect(Object.keys(result).toSorted()).toEqual([
+        'add',
+        'collectOutputs',
+        'dispose',
+        'exportCache',
+        'font',
+        'generateCss',
+        'generateHtml',
+        'generateTs',
+        'regenerate',
+        'remove',
+        'update',
+    ]);
     result.dispose();
     expect(Object.values(outputs).every(bytes => bytes.byteLength > 0)).toBe(true);
     await expect(result.font('ttf')).rejects.toThrow('disposed');
     result.dispose();
+});
+
+it('renders fixed TS independently of templates and refreshes metadata after every source action', async () => {
+    const settings: GenerateWebfontsOptions = {
+        types: ['ttf'],
+        css: false,
+        html: false,
+        ts: true,
+        incremental: true,
+        cssTemplate: '{{#if',
+        htmlTemplate: '{{#if',
+        templateOptions: { baseSelector: '.custom', classPrefix: 'custom-' },
+    };
+    const result = await generate(settings);
+    const initial = await result.generateTs();
+    expect(initial).toContain('export const iconBaseSelector = ".custom" as const;');
+    expect(initial).toContain('export const iconClassPrefix = "custom-" as const;');
+    expect(initial).toContain('export const icons = [\n  "square"\n] as const;');
+    expect(initial).toContain('export type IconName = (typeof icons)[number];');
+    const collected = (await result.collectOutputs()).ts!;
+    expect(new TextDecoder().decode(collected)).toBe(initial);
+    const second = { id: 'second', name: 'second', svg };
+    await result.add(second);
+    expect(await result.generateTs()).toBe(await (await generate({ ...settings, sources: [source, second] })).generateTs());
+    await result.update(second.id, changed, 'renamed');
+    expect(await result.generateTs()).toContain('[\n  "square",\n  "renamed"\n]');
+    await result.remove(source.id);
+    expect(await result.generateTs()).toContain('[\n  "renamed"\n]');
+    await result.regenerate({ sources: [second.id] }, [{ type: 'changed', id: second.id, name: 'batch', svg }]);
+    expect(await result.generateTs()).toContain('[\n  "batch"\n]');
+    expect(new TextDecoder().decode((await result.collectOutputs()).ts)).toBe(await result.generateTs());
+    expect(new TextDecoder().decode(collected)).toBe(initial);
+    const disabled = await generate({ ...settings, ts: false, templateOptions: { classPrefix: 'other-' } });
+    expect((await disabled.collectOutputs()).ts).toBeUndefined();
+    expect(await disabled.generateTs()).toContain('"other-"');
+    const family = await generate({
+        ...settings,
+        sources: [],
+        variants: [
+            { name: 'light', default: true, sources: [source] },
+            { name: 'bold', sources: [source] },
+        ],
+    });
+    expect(await family.generateTs()).toBe(initial);
 });
 
 it('captures the browser clock when a timestamp is omitted and retains it across updates', async () => {

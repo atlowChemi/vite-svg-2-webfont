@@ -102,6 +102,14 @@ impl FontSession {
             .map_err(error)
     }
 
+    /// Render fixed TypeScript metadata lazily, even when TS or CSS collection is disabled.
+    pub fn ts(&self) -> Result<String, JsValue> {
+        self.0
+            .generate_ts()
+            .map(|text| text.to_string())
+            .map_err(error)
+    }
+
     /// Encode the persistent cache, or `undefined` when caching is off or nothing changed since
     /// the bytes were loaded or last returned.
     #[wasm_bindgen(js_name = cacheBytes)]

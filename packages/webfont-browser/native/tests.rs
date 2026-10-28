@@ -29,7 +29,7 @@ fn generates_copied_outputs_and_recovers_from_errors() {
     let options = json!({
         "sources": [{"id": "opaque", "name": "square", "svg": SVG}],
         "types": ["svg", "ttf", "eot", "woff", "woff2"],
-        "html": true, "incremental": true
+        "html": true, "ts": true, "incremental": true, "formatOptions": {"ttf": {"ts": 0}}
     });
     let mut session = FontSession::new(&options.to_string(), None).unwrap();
     for format in ["svg", "ttf", "eot", "woff", "woff2"] {
@@ -38,7 +38,13 @@ fn generates_copied_outputs_and_recovers_from_errors() {
     assert!(session.font("unknown").is_err());
     assert!(session.css().unwrap().contains("@font-face"));
     assert!(session.html().unwrap().contains("square"));
-    assert_eq!(Object::keys(&session.outputs().unwrap()).length(), 7);
+    let engine =
+        generate_from_sources_sync(serde_json::from_value(options.clone()).unwrap()).unwrap();
+    assert_eq!(session.ts().unwrap(), *engine.generate_ts().unwrap());
+    let outputs = session.outputs().unwrap();
+    assert_eq!(Object::keys(&outputs).length(), 8);
+    let ts = Uint8Array::new(&Reflect::get(&outputs, &"ts".into()).unwrap());
+    assert_eq!(ts.to_vec(), session.ts().unwrap().as_bytes());
     let original = session.font("ttf").unwrap().unwrap();
     let saved = original.to_vec();
     assert!(session.regenerate("invalid", "[]").is_err());
@@ -77,6 +83,7 @@ fn validates_options_and_keeps_templates_lazy() {
     .unwrap();
     assert!(session.font("woff").unwrap().is_none());
     assert!(session.css().is_err());
+    assert!(session.ts().unwrap().contains("square"));
     assert!(session.html().is_err());
     assert!(session.outputs().is_err());
     assert!(session.font("ttf").unwrap().is_some());
@@ -95,6 +102,7 @@ fn single_actions_use_retained_sources_and_preserve_state_on_error() {
             fresh.font("ttf").unwrap().unwrap().to_vec()
         );
         assert_eq!(session.css().unwrap(), fresh.css().unwrap());
+        assert_eq!(session.ts().unwrap(), fresh.ts().unwrap());
     };
     let mut session = FontSession::new(&options.to_string(), None).unwrap();
     let error = session.add("invalid", None).unwrap_err();

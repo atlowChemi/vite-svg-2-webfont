@@ -48,6 +48,10 @@ export class FontSession {
      */
     remove(id: string): void;
     /**
+     * Render fixed TypeScript metadata lazily, even when TS or CSS collection is disabled.
+     */
+    ts(): string;
+    /**
      * Replace SVG text and optionally the name of an existing source in every design.
      */
     update(id: string, svg: string, name?: string | null): void;
@@ -67,6 +71,7 @@ export interface InitOutput {
     readonly fontsession_outputs: (a: number) => [number, number, number];
     readonly fontsession_regenerate: (a: number, b: number, c: number, d: number, e: number) => [number, number];
     readonly fontsession_remove: (a: number, b: number, c: number) => [number, number];
+    readonly fontsession_ts: (a: number) => [number, number, number, number];
     readonly fontsession_update: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => [number, number];
     readonly __wbindgen_exn_store: (a: number) => void;
     readonly __externref_table_alloc: () => number;
