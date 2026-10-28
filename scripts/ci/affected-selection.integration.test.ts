@@ -153,6 +153,17 @@ describe('real Git/pnpm affected selection', () => {
         expect(result.full).toBe(true);
     });
 
+    it('selects the workflow audit for a Renovate-style action pin update alone', () => {
+        const path = '.github/workflows/build-native.yaml';
+        const file = join(fixture, path);
+        writeFileSync(file, readFileSync(file, 'utf8').replaceAll(/taiki-e\/install-action@[a-f0-9]{40}/g, `taiki-e/install-action@${'a'.repeat(40)}`));
+        commit();
+        const result = resolveSelection(base, run);
+        expect(result.files).toEqual([path]);
+        expect(result.jobs['test-scripts']).toBe(true);
+        expect(result.reason).not.toContain('Selection unavailable');
+    });
+
     it('selects both owners of a cross-package rename', () => {
         renameSync(join(fixture, 'packages/docs/getting-started.md'), join(fixture, 'packages/example/moved.md'));
         commit();
