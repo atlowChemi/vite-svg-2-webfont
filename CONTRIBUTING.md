@@ -61,8 +61,8 @@ workspace discovery and installation settings remain in the root configuration.
 
 Normal development still uses the `vp` commands above. The `next:*` scripts and
 `next-*` pipelines are the replacement graph under validation, not the active
-workflow. Native/WASM builds, plugin packaging, Rust formatting, engine/adapter
-checks and tests, browser Clippy, doctests, tarballs, and SVG/social assets enable
+workflow. Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter
+checks and tests, browser Clippy, plugin-local tests, doctests, tarballs, and SVG/social assets enable
 task caches. Remaining exceptions and fresh Codecov bundle-analysis commands are
 documented in the auditor README.
 

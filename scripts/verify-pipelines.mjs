@@ -3,8 +3,10 @@ import { readFileSync, mkdirSync, openSync, closeSync, writeFileSync, globSync }
 import { execFileSync, spawnSync } from 'node:child_process';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { parseArgs } from 'node:util';
 
-const root = new URL('../', import.meta.url);
+const { values } = parseArgs({ options: { workspace: { type: 'string' }, run: { type: 'boolean' } } });
+const root = values.workspace ? pathToFileURL(`${resolve(values.workspace)}/`) : new URL('../', import.meta.url);
 const manifest = path => JSON.parse(readFileSync(new URL(`${path}/package.json`, root), 'utf8'));
 // Let installed pnpm resolve includes and setting ownership.
 const workspace = Object.fromEntries(
@@ -88,8 +90,8 @@ for (const tasks of Object.values(workspace.pipelines)) for (const task of tasks
 for (const task of mappings.keys()) assert.ok(reached.has(task), `${task}: no pipeline reaches this task`);
 assert.equal(rootPackage.scripts['next:fmt:rust'], 'cargo fmt --all -- --check');
 console.log(`Verified ${mappings.size} task commands/prerequisites against Vite+; --run and shared Rust formatting are intentional differences.`);
-if (process.argv.includes('--run')) {
-    const reports = new URL('../artifacts/cache-audit/pipelines/', import.meta.url);
+if (values.run) {
+    const reports = new URL('artifacts/cache-audit/pipelines/', root);
     mkdirSync(reports, { recursive: true });
     const results = [];
     // Only finite, non-publishing validation entry points run automatically.

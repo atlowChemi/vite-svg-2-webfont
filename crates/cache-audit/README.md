@@ -271,22 +271,43 @@ Read merged configuration with `pnpm config get tasks --location project --json`
 (or `pipelines`); the explicit location makes older bootstrap pnpm launchers
 delegate to the pinned project version.
 
-Native/WASM builds, plugin packaging, Rust formatting, engine/adapter Rust checks
-and tests, browser Clippy, doctests, tarballs, and SVG/social assets enable task
+Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter Rust checks
+and tests, browser Clippy, plugin-local tests, doctests, tarballs, and SVG/social assets enable task
 caching. Doctest hits restore `test-results/doctests.xml`. The declared `outputs: []` on Rust checks/tests
 means a cached success restores no compiler binaries or `target/` intermediates.
 Source-mutating fixture-update mode, report-producing variants, coverage, and
 publishing must execute unless their separate contracts have been validated.
 
-Remaining uncached categories:
+Browser/plugin packaging, plugin-local tests, and docs explicitly disable Vite
+dotenv loading. Use process environment for selectors such as `VITE_COMPAT_MAJOR`
+and `GITHUB_ACTIONS`; those inputs remain keyed.
+The example application retains dotenv support and stays uncached because its
+ignored local-env files cannot be reliably keyed by pnpm.
 
-- Browser packaging and docs still need their environment-input review completed;
-  an ignored-env probe produced identical output, not evidence of an actual stale
-  build. Example builds have known ignored local-env inputs that pnpm cannot key.
-- JS/browser validation lacks approved complete input/environment/report contracts;
-  the retained Linux ARM64 WebKit failures also need resolution before approval.
-- Coverage, benchmarks, publishing, fixture/binding regeneration, and dev/preview
-  commands intentionally execute for their reports, measurements or side effects.
+The remaining validation restrictions come from executed probes and source traces:
+
+| Task                                   | Why its unrestricted invocation cannot use a success-only cache                                                                                                      |
+| -------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root JS tests                          | Dynamic JUnit output, fixture-update modes, ignored browser strictness env, and integration tests that archive committed `HEAD` rather than only working-tree inputs |
+| Compatibility and plugin browser tests | Optional `CI_TEST_REPORT` may name an arbitrary external report path; env hashing alone cannot restore that report after deletion                                    |
+| WASM browser tests                     | Same report-path issue; `WEBFONT_COVERAGE` changes browser selection; bundle analysis can request a fresh upload                                                     |
+| Adapter browser tests                  | Ignored `.env.local` can set `VITE_COLOR_PROOF_STRICT`; the strict mode demonstrated WebKit failures while ordinary mode passed                                      |
+| Engine color proof                     | `COLOR_PROOF_OUTPUT_DIR` exports fonts to an arbitrary caller-selected directory; a hit must not silently omit those exports                                         |
+| Adapter color proof                    | `UPDATE_COLOR_PROOF_FIXTURE` intentionally updates tracked font fixtures                                                                                             |
+
+Ordinary no-report/no-update/no-export variants are feasible, but require an
+enforced separate contract: pnpm supports a boolean environment-selected cache
+setting, but cannot derive it from arbitrary report paths or update flags, or
+interpolate those paths into outputs. These existing entry points
+retain all their modes. Coverage, benchmarks, publishing, fixture/binding
+regeneration, and dev/preview commands execute for reports, measurements or side effects.
+
+Plugin-local tests do not use the root JUnit reporter. Their ordinary and upstream
+Vite matrix modes cache successful validation without test scratch outputs.
+Use `--no-cache` for external `NAPI_RS_NATIVE_LIBRARY_PATH`, custom WASI artifacts,
+or injected instrumentation: hashing the library path is not hashing its contents
+or restoring its externally written reports. The raw `next:*` package scripts
+also always execute, without prerequisite orchestration.
 
 Tarball caching does not suppress uncached package-build prerequisites. Native
 release repeats can reuse all five Rust validation tasks, formatting, and the release artifact.

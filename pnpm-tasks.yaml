@@ -281,7 +281,7 @@ tasks:
         outputs: [packages/webfont-browser/generated/**]
         env: *rust-env
     next:browser:pack:
-        cache: false
+        cache: true
         env: [NODE_ENV]
         dependsOn: [next:wasm]
         inputs:
@@ -318,8 +318,19 @@ tasks:
             - packages/vite-svg-2-webfont/{.postcssrc,.postcssrc.*,postcss.config.*,deno.json,deno.jsonc,lerna.json,rust-toolchain,rust-toolchain.toml}
         outputs: [packages/vite-svg-2-webfont/dist/**]
     next:plugin:test:
-        cache: false
+        cache: true
         dependsOn: [next:native]
+        outputs: []
+        env: [VITE_COMPAT_MAJOR, NODE_ENV, NODE_OPTIONS, NAPI_RS_NATIVE_LIBRARY_PATH, NAPI_RS_ENFORCE_VERSION_CHECK, NAPI_RS_FORCE_WASI, NAPI_RS_WASI_FLAVOR]
+        inputs:
+            - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
+            - patches/**
+            - '**/.gitignore'
+            - '**/{package.json,pnpm-workspace.yaml,.pnp.cjs,tsconfig*.json}'
+            - packages/vite-svg-2-webfont/{src,tests}/**
+            - packages/vite-svg-2-webfont/{vite.config.*,tsconfig*.json,.env,.env.*}
+            - *postcss-ancestors
+            - packages/vite-svg-2-webfont/{.postcssrc,.postcssrc.*,postcss.config.*,deno.json,deno.jsonc,lerna.json}
     next:test:js:
         cache: false
         dependsOn: [next:native, next:browser:pack]
@@ -355,8 +366,8 @@ tasks:
             - packages/docs/scripts/generate-social-card.ts
         outputs: [packages/docs/public/social-card.png, packages/docs/public/github-social-preview.png]
     next:docs:
-        # Vite can read ignored local env files; keep uncached under direct invocation.
-        cache: false
+        # Config disables dotenv loading; process environment inputs remain explicit.
+        cache: true
         env: [NODE_ENV, GITHUB_ACTIONS]
         dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack]
         inputs:
