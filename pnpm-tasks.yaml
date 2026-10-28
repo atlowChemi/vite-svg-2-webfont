@@ -73,7 +73,6 @@ tasks:
     next:engine:bench: { cache: false, dependsOn: [] }
     next:engine:coverage: { cache: false, dependsOn: [] }
     next:engine:coverage:cli: { cache: false, dependsOn: [] }
-    next:engine:doctests: { cache: false, dependsOn: [] }
     next:engine:color-proof: { cache: false, dependsOn: [] }
     next:adapter:browser: { cache: false, dependsOn: [next:native, next:adapter:color-proof] }
     next:adapter:color-proof: { cache: false, dependsOn: [] }
@@ -146,8 +145,15 @@ tasks:
 
     # Formatting is a pipeline sibling, not a dependency that widens package check keys.
     next:fmt:rust:
-        cache: false
+        cache: true
         dependsOn: []
+        outputs: []
+        env: [RUSTUP_TOOLCHAIN, RUSTFMT, RUSTFMT_CONFIG_PATH]
+        inputs:
+            - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,Cargo.toml,Cargo.lock,rust-toolchain*,rustfmt.toml,.rustfmt.toml}'
+            - '**/{Cargo.toml,rustfmt.toml,.rustfmt.toml,rust-toolchain,rust-toolchain.toml}'
+            - '{crates,packages}/**/*.rs'
+            - .cargo/**
     # Validated success-only caches; no compiler outputs are restored.
     # External-tool upgrades require a task-cache reset (see cache-audit README).
     next:engine:check:
@@ -164,6 +170,21 @@ tasks:
             - '{crates,packages}/*/{Cargo.toml,package.json}'
             - packages/.cargo/**
             - packages/{Cargo.toml,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml}
+    next:engine:doctests:
+        cache: true
+        dependsOn: []
+        env: *rust-env
+        inputs:
+            - '**/.gitignore'
+            - patches/**
+            - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,Cargo.toml,Cargo.lock,.npmrc,.pnpmfile.*,rust-toolchain*}'
+            - .cargo/**
+            - crates/webfont-generator/**
+            - '{crates,packages}/*/{Cargo.toml,package.json}'
+            - packages/.cargo/**
+            - packages/{Cargo.toml,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml}
+            - scripts/ci/doctests.mjs
+        outputs: [test-results/doctests.xml]
     next:engine:features:
         cache: true
         outputs: []
@@ -272,14 +293,20 @@ tasks:
             - packages/webfont-browser/{.postcssrc,.postcssrc.*,postcss.config.*,deno.json,deno.jsonc,lerna.json}
         outputs: [packages/webfont-browser/dist/**]
     next:browser:check:
-        cache: false
+        cache: true
         dependsOn: [next:wasm]
+        outputs: []
+        env: *rust-env
+        inputs:
+            - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml}'
+            - packages/webfont-browser/{Cargo.toml,README.md,build.rs,rust-toolchain*}
+            - packages/webfont-browser/{native,src,tests,examples,benches,.cargo}/**
     next:browser:test:
         cache: false
         dependsOn: [next:browser:check, next:browser:pack]
     next:plugin:pack:
-        # May upload Codecov bundle analysis; retain execution until audited.
-        cache: false
+        # Hits reuse the bundle and skip analysis uploads; request --no-cache for a fresh report.
+        cache: true
         env: [NODE_ENV, CODECOV_TOKEN, ALLOW_BUNDLE_ANALYSIS]
         dependsOn: [next:native]
         inputs:

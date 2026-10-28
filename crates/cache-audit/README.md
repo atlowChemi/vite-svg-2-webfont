@@ -271,26 +271,37 @@ Read merged configuration with `pnpm config get tasks --location project --json`
 (or `pipelines`); the explicit location makes older bootstrap pnpm launchers
 delegate to the pinned project version.
 
-Native/WASM builds, engine/adapter Rust checks and tests, tarballs, and SVG/social
-assets enable task caching. The declared `outputs: []` on Rust checks/tests
+Native/WASM builds, plugin packaging, Rust formatting, engine/adapter Rust checks
+and tests, browser Clippy, doctests, tarballs, and SVG/social assets enable task
+caching. Doctest hits restore `test-results/doctests.xml`. The declared `outputs: []` on Rust checks/tests
 means a cached success restores no compiler binaries or `target/` intermediates.
 Source-mutating fixture-update mode, report-producing variants, coverage, and
 publishing must execute unless their separate contracts have been validated.
 
 Remaining uncached categories:
 
-- Vite browser/plugin packages, docs, and example builds can read Git-ignored local
-  env files that pnpm does not reliably key, even when explicitly listed. Plugin
-  packaging can also upload Codecov bundle analysis, which a cache hit would skip.
+- Browser packaging and docs still need their environment-input review completed;
+  an ignored-env probe produced identical output, not evidence of an actual stale
+  build. Example builds have known ignored local-env inputs that pnpm cannot key.
 - JS/browser validation lacks approved complete input/environment/report contracts;
   the retained Linux ARM64 WebKit failures also need resolution before approval.
-- Formatting and browser Rust checks still need separate cache-contract validation.
 - Coverage, benchmarks, publishing, fixture/binding regeneration, and dev/preview
   commands intentionally execute for their reports, measurements or side effects.
 
 Tarball caching does not suppress uncached package-build prerequisites. Native
-release repeats can reuse all five Rust validation tasks and the release artifact;
-the separate Rust-formatting task still executes.
+release repeats can reuse all five Rust validation tasks, formatting, and the release artifact.
+
+Plugin packaging cache hits intentionally skip Codecov bundle-analysis uploads.
+The unchanged bundle is reusable; a new per-commit analysis is optional. When a
+fresh report is required, supply `CODECOV_TOKEN` through the environment and run:
+
+```sh
+ALLOW_BUNDLE_ANALYSIS=true pnpm pipeline next-plugin-tarball --full --no-cache
+```
+
+This executes packaging and its prerequisites even when cached, allowing the
+existing Codecov plugin to upload fresh analysis. It does not refresh stored cache
+entries. Coverage carryforward is separate; no bundle carryforward is assumed.
 Debug and release native builds retain their existing shared output paths. Run
 them sequentially: switching producers can cause a safe rebuild even with an
 unchanged key, because pnpm refuses to restore over bytes changed by another task.
