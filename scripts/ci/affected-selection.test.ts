@@ -127,9 +127,48 @@ describe('affected CI', () => {
             expect(release.jobs[job].if).toBe(`needs.release-please.outputs.${output} == 'true'`);
         }
     });
-    it('runs script tests for script changes, not every full package validation', () => {
-        expect(scenario(['scripts/ci/affected-selection.ts'], [packageNames.root]).jobs['test-scripts']).toBe(true);
-        expect(scenario(['pnpm-lock.yaml'], [packageNames.root]).jobs['test-scripts']).toBe(false);
+    it.each([
+        'scripts/ci/affected-selection.ts',
+        'scripts/ci/concurrent-steps.test.ts',
+        'scripts/ci/required-checks.ts',
+        'scripts/ci/rust-coverage.sh',
+        'scripts/regenerate-webfont-binding.mjs',
+        '.github/workflows/build-native.yaml',
+        '.github/workflows/main.yaml',
+        '.github/workflows/release.yaml',
+        '.github/workflows/new-workflow.yml',
+        '.github/actions/upload-test-results/action.yml',
+        'codecov.yml',
+        'package.json',
+        'pnpm-lock.yaml',
+        'pnpm-workspace.yaml',
+        'Cargo.toml',
+        'Cargo.lock',
+        '.node-version',
+        '.npmrc',
+        'vite.config.ts',
+        'tsconfig.json',
+        'packages/webfont-generator/package.json',
+        'packages/webfont-generator/Cargo.toml',
+        'crates/webfont-generator/package.json',
+        'crates/webfont-generator/Cargo.toml',
+        'packages/webfont-generator/vite.config.ts',
+        'packages/webfont-browser/vite.browser.config.ts',
+        'packages/vite-svg-2-webfont/tsconfig.json',
+    ])('selects script tests for their inputs: %s', file => {
+        const selection = scenario([file], [packageNames.root]);
+        expect(selection.jobs['test-scripts']).toBe(true);
+        expect(() => verifyRequiredChecks({ ...results(selection), 'test-scripts': { result: 'skipped' } }, selection)).toThrow('test-scripts: skipped');
+    });
+    it.each(['README.md', 'unknown/file', 'packages/docs/guide.md', 'crates/webfont-generator/src/lib.rs', 'packages/vite-svg-2-webfont/src/index.ts'])(
+        'does not select script tests for unrelated changes: %s',
+        file => {
+            expect(scenario([file], [packageNames.engine, packageNames.plugin, packageNames.docs]).jobs['test-scripts']).toBe(false);
+        },
+    );
+    it('routes selected script tests through the scripts coverage task', () => {
+        expect(workflow.jobs['test-scripts'].needs).toEqual(['affected-selection']);
+        expect(workflow.jobs['test-scripts'].steps.find((step: { id?: string }) => step.id === 'tests').run).toContain('vp run coverage:scripts');
     });
     it.each(['Cargo.lock', 'pnpm-lock.yaml', 'package.json', 'Cargo.toml', 'unknown/file'])('broadens shared changes: %s', file => {
         expect(scenario([file], [packageNames.root]).full).toBe(true);

@@ -14,6 +14,9 @@ export const packageNames = {
 } as const;
 const allPackages = Object.values<string>(packageNames);
 const changelogFiles = new Set(['crates/webfont-generator/CHANGELOG.md', 'packages/webfont-generator/CHANGELOG.md', 'packages/vite-svg-2-webfont/CHANGELOG.md']);
+// Script tests read workflows/coverage config and exercise the real workspace graph.
+// Include their toolchain inputs even when pnpm selects only the root package.
+const scriptTestConfigs = new Set(['pnpm-lock.yaml', 'pnpm-workspace.yaml', 'Cargo.lock', 'codecov.yml', '.node-version', '.npmrc']);
 
 // Map pnpm's affected packages to the existing CI job groups and prerequisites.
 export function selectJobs(packages: string[], files: string[], unknownChanges = false): Record<string, boolean> {
@@ -23,7 +26,16 @@ export function selectJobs(packages: string[], files: string[], unknownChanges =
     const plugin = hostSensitive || packages.includes(packageNames.example);
     return {
         ci: true,
-        'test-scripts': unknownChanges || files.some(file => file.startsWith('scripts/')),
+        'test-scripts':
+            unknownChanges ||
+            files.some(
+                file =>
+                    file.startsWith('scripts/') ||
+                    file.startsWith('.github/workflows/') ||
+                    file.startsWith('.github/actions/') ||
+                    scriptTestConfigs.has(file) ||
+                    /^(?:(?:packages|crates)\/[^/]+\/)?(?:package\.json|Cargo\.toml|vite(?:\.browser)?\.config\.ts|tsconfig(?:\.[^/]+)?\.json)$/.test(file),
+            ),
         'rust-coverage': native,
         'native-coverage': native,
         build: plugin,
