@@ -39,6 +39,7 @@ const config: UserConfig = defineConfig({
     },
     lint: {
         plugins: ['eslint', 'typescript', 'unicorn', 'vitest', 'oxc', 'promise'],
+        jsPlugins: [{ name: 'unicorn-js', specifier: 'eslint-plugin-unicorn' }],
         categories: {
             correctness: 'deny',
             suspicious: 'deny',
@@ -65,6 +66,7 @@ const config: UserConfig = defineConfig({
             },
         },
         rules: {
+            'unicorn-js/expiring-todo-comments': ['error', { checkDates: true, checkDatesOnPullRequests: true }],
             'vitest/consistent-test-it': ['error', { fn: 'it', withinDescribe: 'it' }],
             'typescript/no-unsafe-type-assertion': 'off',
             'vitest/require-mock-type-parameters': 'off',
