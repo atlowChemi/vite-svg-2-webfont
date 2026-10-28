@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { build, createServer, type InlineConfig } from 'vite-plus';
@@ -60,6 +60,29 @@ describe('output cache', () => {
         const second = await p.run();
         expect(generate).toHaveBeenCalledOnce();
         expect(second).toEqual(first);
+    });
+
+    it('reuses outputs when the same cache directory is accessed through another path', async () => {
+        await using p = await project();
+        await p.run();
+        expect(generate).toHaveBeenCalledOnce();
+
+        const alias = join(p.root, '.cache-alias');
+        await symlink(join(p.root, '.cache'), alias, 'junction');
+        await build({ ...p.config(), cacheDir: alias });
+        expect(generate).toHaveBeenCalledOnce();
+    });
+
+    it('regenerates an older entry without TypeScript metadata', async () => {
+        await using p = await project();
+        const first = await p.run();
+        const path = join(p.cacheFolder, 'iconfont.json');
+        const manifest = JSON.parse(await readFile(path, 'utf8'));
+        delete manifest.build.ts;
+        await writeFile(path, JSON.stringify(manifest));
+        expect(await p.run()).toEqual(first);
+        expect(generate).toHaveBeenCalledTimes(2);
+        expect(JSON.parse(await readFile(path, 'utf8')).build.ts).toContain('export const icons');
     });
 
     it('regenerates when an icon changes and prunes the stale fonts', async () => {

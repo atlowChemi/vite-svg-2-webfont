@@ -522,6 +522,23 @@ interface Woff2FormatOptions {
 - Type: `Record<string, any>`
 - Description: Additional key-value pairs merged into the Handlebars template context. This is where `classPrefix` and `baseSelector` are typically set.
 
+## TypeScript metadata
+
+`result.generateTs(): string` returns fixed TypeScript source with `icons` as a readonly
+literal tuple, `IconName = (typeof icons)[number]`, and literal `iconBaseSelector` and
+`iconClassPrefix` constants. It works with CSS disabled and includes effective `cssContext`
+changes. It describes generation context, not the classes a custom CSS template happens to emit.
+There is no TS-specific template, override, or callback.
+
+Set `ts: true` (default: false) to write `<dest>/<fontName>.ts`; `tsDest` overrides the path.
+`writeFiles: false` suppresses physical output, but does not disable `generateTs()`.
+Regeneration refreshes metadata along with the fonts.
+
+```ts
+const result = await generateWebfonts({ files: ['icons/add.svg'], dest: './fonts', ts: true });
+console.log(result.generateTs());
+```
+
 ## Input types and TypeScript inference
 
 `GenerateWebfontsOptions` accepts either `files` for a single design or `variants` for a

@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import { iconBaseSelector, iconClassPrefix, type IconName } from './icons';
+import { iconBaseSelector, iconClassPrefix, type IconName } from 'virtual:typed-icons';
 
 @Component({
     selector: 'app-icon',

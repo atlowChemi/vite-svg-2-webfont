@@ -20,6 +20,13 @@ const config: UserProjectConfigExport = defineProject({
             paths: { 'vite-plus': 'vite' },
         },
         plugins: [
+            {
+                name: 'virtual-declarations',
+                generateBundle() {
+                    this.emitFile({ type: 'asset', fileName: 'virtuals.d.ts', source: '/// <reference path="./generated/index.d.ts" />\n' });
+                    this.emitFile({ type: 'asset', fileName: 'generated/index.d.ts', source: '// Run Vite to generate precise icon module declarations.\n' });
+                },
+            },
             codecovRollupPlugin({
                 enableBundleAnalysis: Boolean(process.env.CODECOV_TOKEN) && process.env.ALLOW_BUNDLE_ANALYSIS === 'true',
                 bundleName: 'vite-svg-2-webfont-bundle',

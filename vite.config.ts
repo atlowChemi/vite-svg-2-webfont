@@ -31,7 +31,7 @@ const config: UserConfig = defineConfig({
             'tests/fixtures/**',
             'packages/webfont-generator/binding{.js,.d.ts}',
             'packages/webfont-browser/generated/**',
-            // Written by the docs type-safe example's HTML template; kept exactly as the plugin writes it.
+            // Displayed example of the engine's fixed TypeScript output.
             'packages/docs/examples/type-safe-component/icons.ts',
             'target',
             '*.hbs',

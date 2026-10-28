@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { iconBaseSelector, iconClassPrefix, type IconName } from './icons';
+    import { iconBaseSelector, iconClassPrefix, type IconName } from 'virtual:typed-icons';
 
     let { name }: { name: IconName } = $props();
 </script>

@@ -370,3 +370,4 @@ Run `vp run test` before committing to ensure the native binding is built. The h
 - Do not commit `package-lock.json` files to the workspace.
 - Use `vp` instead of calling `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly for normal repository workflows.
 - The docs site is driven by Vite+ run tasks in `packages/docs/`, so prefer `vp run @atlowchemi/vite-svg-webfont-docs#dev` over direct `vitepress` commands.
+- The type-safe component example imports `virtual:typed-icons`. After a fresh install or plugin repack, run the docs dev server or docs build before standalone example type-checking: Vite initializes package-local declarations during generation. The docs build task packs the plugin before starting VitePress, so generation precedes component compilation. The Vite config's TypeScript program is not a substitute for the example's `vite-env.d.ts` opt-in.

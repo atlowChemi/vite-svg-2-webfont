@@ -15,7 +15,7 @@ import type {
 } from '@atlowchemi/webfont-generator';
 import type { IndexHtmlTransformContext } from 'vite-plus';
 
-const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts'] as const;
+const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts', 'ts'] as const;
 type FileType = (typeof FILE_TYPE_OPTIONS)[number];
 
 export interface CommonIconPluginOptions<T extends FontType = FontType, IsVariant extends boolean = false> {
@@ -122,6 +122,8 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
      * @default path.join(options.dest, options.fontName + '.html')
      */
     htmlDest?: string;
+    /** TypeScript metadata destination, relative to dest. Defaults to <fontName>.ts. */
+    tsDest?: string;
     /**
      * Path of a custom Handlebars HTML template. The rendering context provides
      * `fontName` `string`, `names` `string[]`, `codepoints` (as numbers), and
@@ -134,7 +136,7 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
     /**
      * Sets the type of files to be saved to system during development.
      *
-     * `true` will generate all, and `false` will generate no files.
+     * `true` generates CSS, HTML and fonts, plus TS only with an explicit tsDest.
      * @default false
      */
     generateFiles?: boolean | FileType | FileType[];
@@ -184,6 +186,10 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
      * @default 'vite-svg-2-webfont.css'
      */
     moduleId?: string;
+    /** Unprefixed TypeScript virtual module ID. Import as virtual:<tsModuleId>.
+     * @default 'vite-svg-2-webfont.ts'
+     */
+    tsModuleId?: string;
     /**
      * Inline font assets in CSS using base64 encoding.
      * @default false
@@ -280,7 +286,7 @@ export function parseFiles({ files, context }: Pick<IconPluginOptions, 'files' |
     return resolvedFiles;
 }
 
-export function resolveFileDest(globalDest: string, fileDest: string | undefined, fontName: string, extension: 'css' | 'html'): string {
+export function resolveFileDest(globalDest: string, fileDest: string | undefined, fontName: string, extension: 'css' | 'html' | 'ts'): string {
     if (!fileDest) {
         return resolve(globalDest, `${fontName.toLowerCase()}.${extension}`);
     }
@@ -290,9 +296,9 @@ export function resolveFileDest(globalDest: string, fileDest: string | undefined
     return resolve(globalDest, fileDest, `${fontName.toLowerCase()}.${extension}`);
 }
 
-export function buildFileTypeList({ generateFiles }: Pick<IconPluginOptions, 'generateFiles'>): readonly FileType[] {
+export function buildFileTypeList({ generateFiles, tsDest }: Pick<IconPluginOptions, 'generateFiles' | 'tsDest'>): readonly FileType[] {
     if (!generateFiles || typeof generateFiles === 'boolean') {
-        return generateFiles ? FILE_TYPE_OPTIONS : [];
+        return generateFiles ? FILE_TYPE_OPTIONS.filter(type => type !== 'ts' || tsDest !== undefined) : [];
     }
     if (!Array.isArray(generateFiles)) {
         generateFiles = [generateFiles];
@@ -304,12 +310,13 @@ export function buildFileTypeList({ generateFiles }: Pick<IconPluginOptions, 'ge
     return generateFiles;
 }
 
-export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'generateFiles'>): Record<'fonts' | 'html' | 'css', boolean> {
+export function parseGenerateFilesOption(options: Pick<IconPluginOptions, 'generateFiles' | 'tsDest'>): Record<FileType, boolean> {
     const fileTypes = new Set(buildFileTypeList(options));
     return {
         fonts: fileTypes.has('fonts'),
         html: fileTypes.has('html'),
         css: fileTypes.has('css'),
+        ts: fileTypes.has('ts'),
     };
 }
 
@@ -318,6 +325,8 @@ type RequiredKeys =
     | 'codepoints'
     | 'templateOptions'
     | 'html'
+    | 'ts'
+    | 'tsDest'
     | 'css'
     | 'ligature'
     | 'formatOptions'
@@ -353,6 +362,7 @@ export function parseOptions<T extends FontType = FontType>(options: IconPluginO
             classPrefix: options.classPrefix ?? 'icon-',
         },
         html: generateFilesOptions.html,
+        ts: generateFilesOptions.ts,
         css: generateFilesOptions.css,
         ligature: options.ligature ?? true,
         formatOptions: {
@@ -374,6 +384,7 @@ export function parseOptions<T extends FontType = FontType>(options: IconPluginO
         writeFiles: generateFilesOptions.fonts,
         cssDest: resolveFileDest(options.dest, options.cssDest, options.fontName, 'css'),
         htmlDest: resolveFileDest(options.dest, options.htmlDest, options.fontName, 'html'),
+        tsDest: resolveFileDest(options.dest, options.tsDest, options.fontName, 'ts'),
         ...(options.cssTemplate && { cssTemplate: resolve(options.dest, options.cssTemplate) }),
         ...(options.cssContext && { cssContext: options.cssContext }),
         ...(options.cssFontsUrl && { cssFontsUrl: resolveCssFontsUrl(options.dest, options.cssFontsUrl) }),

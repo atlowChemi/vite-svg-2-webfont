@@ -60,6 +60,27 @@ describe('generateWebfonts', () => {
         expect(result.svg).toBeNull();
     });
 
+    it('renders and writes fixed TypeScript metadata with the effective context when CSS is disabled', async () => {
+        const dest = await createTempDir('typescript-metadata-');
+        const tsDest = join(dest, 'types/icons.ts');
+        const result = await generateWebfonts({
+            ...renameOptions,
+            files: [renameFiles[0]],
+            dest,
+            ts: true,
+            tsDest,
+            writeFiles: true,
+            cssContext(context) {
+                context.baseSelector = '.custom';
+                context.classPrefix = 'custom-';
+            },
+        });
+        const expected =
+            'export const iconBaseSelector = ".custom" as const;\nexport const iconClassPrefix = "custom-" as const;\nexport const icons = [\n  "plus"\n] as const;\n\nexport type IconName = (typeof icons)[number];\n';
+        expect(result.generateTs()).toBe(expected);
+        expect(await readFile(tsDest, 'utf8')).toBe(expected);
+    });
+
     it('writes multi-face companions and keeps URL render caches independent', async () => {
         const dest = await createTempDir('variant-companions-');
         const result = await generateWebfonts({ ...variantOptions, dest, html: true, writeFiles: true });

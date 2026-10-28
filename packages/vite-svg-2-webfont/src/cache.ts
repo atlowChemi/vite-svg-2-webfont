@@ -20,6 +20,7 @@ export type CacheEntry = {
     css?: string;
     moduleCss?: string;
     html?: string;
+    ts?: string;
 };
 type Manifest = { version: number } & Partial<Record<CacheMode, CacheEntry>>;
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { iconBaseSelector, iconClassPrefix, type IconName } from './icons';
+import { iconBaseSelector, iconClassPrefix, type IconName } from 'virtual:typed-icons';
 
 defineProps<{ name: IconName }>();
 </script>
