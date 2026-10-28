@@ -3,7 +3,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfigFromFile, resolveConfig, type UserConfig } from 'vite-plus';
-import { expect, it } from 'vite-plus/test';
+import { expect, it, vi } from 'vite-plus/test';
+
+// Docs examples need packed workspace artifacts; env-policy validation does not.
+vi.mock('../packages/docs/.vitepress/examples', () => ({ examplePlugins: () => [] }));
+vi.mock('../packages/docs/.vitepress/svgAuthoringFonts', () => ({ svgAuthoringFontPlugins: () => [] }));
 
 it.each([
     ['packages/webfont-browser/vite.config.ts', 'package'],
@@ -16,14 +20,17 @@ it.each([
         writeFileSync(join(root, '.env.production.local'), 'VITE_CACHE_CONTRACT_PROBE=untracked\n');
         const baseline = await resolveConfig({ root, configFile: false, logLevel: 'silent' }, 'build', 'production');
         expect(baseline.env.VITE_CACHE_CONTRACT_PROBE).toBe('untracked');
-        const loaded = await loadConfigFromFile({ command: 'build', mode: 'production' }, fileURLToPath(new URL(`../${file}`, import.meta.url)));
+        const loaded =
+            kind === 'docs'
+                ? { config: (await import('../packages/docs/.vitepress/config')).default }
+                : await loadConfigFromFile({ command: 'build', mode: 'production' }, fileURLToPath(new URL(`../${file}`, import.meta.url)));
         expect(loaded).not.toBeNull();
         const config =
             kind === 'docs'
                 ? (loaded!.config as { vite: UserConfig }).vite
                 : kind === 'test'
                   ? (loaded!.config as { test: { projects: UserConfig[] } }).test.projects[0]!
-                  : loaded!.config;
+                  : (loaded!.config as UserConfig);
         // Resolve the actual env policy without executing unrelated package/docs plugins.
         const resolved = await resolveConfig({ root, configFile: false, envDir: config.envDir, logLevel: 'silent' }, 'build', 'production');
         expect(resolved.env.VITE_CACHE_CONTRACT_PROBE).toBeUndefined();
