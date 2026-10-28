@@ -20,9 +20,11 @@ it.each([
         writeFileSync(join(root, '.env.production.local'), 'VITE_CACHE_CONTRACT_PROBE=untracked\n');
         const baseline = await resolveConfig({ root, configFile: false, logLevel: 'silent' }, 'build', 'production');
         expect(baseline.env.VITE_CACHE_CONTRACT_PROBE).toBe('untracked');
+        // Runtime loading keeps the docs project's types out of unrelated package typechecks.
+        const docsConfig = fileURLToPath(new URL('../packages/docs/.vitepress/config.ts', import.meta.url));
         const loaded =
             kind === 'docs'
-                ? { config: (await import('../packages/docs/.vitepress/config')).default }
+                ? { config: (await import(docsConfig)).default as { vite: UserConfig } }
                 : await loadConfigFromFile({ command: 'build', mode: 'production' }, fileURLToPath(new URL(`../${file}`, import.meta.url)));
         expect(loaded).not.toBeNull();
         const config =
