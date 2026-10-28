@@ -34,7 +34,7 @@ it('rejects an unmapped Vite+ task, including tasks in newly discovered packages
         writeFileSync(
             join(root, 'tasks.yaml'),
             stringify({
-                tasks: Object.fromEntries(Object.keys(scripts).map(name => [name, { cache: false, dependsOn: [] }])),
+                tasks: Object.fromEntries(Object.keys(scripts).map(name => [name, { cache: false, ...(name === 'next:fmt:rust' ? {} : { dependsOn: [] }) }])),
                 pipelines: {
                     'next-check': ['next:fmt:rust'],
                     'next-rust-test': ['next:fmt:rust'],
@@ -68,8 +68,11 @@ it('rejects an unmapped Vite+ task, including tasks in newly discovered packages
             runner,
             `#!${process.execPath}\n` +
                 `import {spawnSync} from 'node:child_process';\n` +
+                `import {unlinkSync} from 'node:fs';\n` +
                 `if(process.argv[2]==='pipeline'){console.log(process.argv.slice(2).join(' '));process.exit(process.argv[3]===process.env.FAIL_PIPELINE?1:0)}\n` +
-                `const r=spawnSync(${JSON.stringify(pnpm)},process.argv.slice(2),{stdio:'inherit'});process.exit(r.status??1);\n`,
+                `const r=spawnSync(${JSON.stringify(pnpm)},process.argv.slice(2),{stdio:'inherit',env:{...process.env,PATH:${JSON.stringify(process.env.PATH)}}});\n` +
+                `if(process.env.REMOVE_PIPELINE_RUNNER && process.argv[4]==='pipelines')unlinkSync(process.argv[1]);\n` +
+                `process.exit(r.status??1);\n`,
         );
         chmodSync(runner, 0o755);
         const env = { ...process.env, PATH: `${bin}:${process.env.PATH}` };
@@ -84,6 +87,9 @@ it('rejects an unmapped Vite+ task, including tasks in newly discovered packages
         expect(result.status).toBe(1);
         expect(result.stderr).toContain('Pipeline failures; see');
         expect(JSON.parse(readFileSync(summary, 'utf8'))).toContainEqual(expect.objectContaining({ pipeline: 'next-docs', exitCode: 1 }));
+        result = spawnSync(process.execPath, [...args, '--run'], { encoding: 'utf8', env: { ...env, PATH: bin, REMOVE_PIPELINE_RUNNER: '1' } });
+        expect(result.status).toBe(1);
+        expect(result.stderr).toContain('spawnSync pnpm ENOENT');
     } finally {
         rmSync(root, { recursive: true, force: true });
     }
