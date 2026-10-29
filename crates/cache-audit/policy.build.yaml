@@ -1,0 +1,148 @@
+# Reviewed build-tool probes. File reads/writes still need task declarations;
+# directory metadata and producer-owned cleanup do not waive artifact coverage.
+version: 1
+tasks:
+    '.#next:docs:svg':
+        missingInputs: &file-probes
+            - pattern: '**/{package.json,package.json5,package.yaml,deno.json,deno.jsonc,lerna.json,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml,.pnp.cjs}'
+              reason: 'Package, workspace, and toolchain regular-file discovery'
+            - pattern: '**/{.npmrc,.pnpmfile.cjs,.pnpmfile.mjs,.env,.env.*,.postcssrc,.postcssrc.*}'
+              reason: 'Optional build configuration files; appearance must affect the effective key'
+            - pattern: '**/{postcss,vite,svgo}.config.*'
+              reason: 'Optional bundler and optimizer configuration files'
+            - pattern: '**/{Cargo.toml,*.rs}'
+              reason: 'Cargo manifest, target, and Rust module file discovery'
+            - pattern: '**/.cargo/{config,config.toml}'
+              reason: 'Optional Cargo configuration files'
+            - pattern: 'packages/docs/.vitepress/{config.*,config/index.*}'
+              reason: 'VitePress configuration file alternatives'
+            - pattern: 'packages/docs/**/*.md.{js,js.js,js.json,js.node}'
+              reason: 'VitePress virtual Markdown module resolution alternatives'
+            - pattern: 'packages/{docs,example}/public/**/*.{svg,png,js,ts,json,node,woff,woff2,ttf,eot,wasm,hbs}'
+              reason: 'Vite public-file fallback probes before resolving source and virtual assets'
+        ignore:
+            - &external
+              pattern: '/**'
+              reason: 'External installed toolchain/system files; upgrades require task-cache invalidation, dependency installs must remain immutable'
+            - &directories
+              pattern: '**'
+              kinds: [read]
+              directory: true
+              reason: 'Build-tool directory metadata; this cannot exempt regular-file contents'
+            - &discovery
+              pattern: '{packages,crates}/**'
+              kinds: [read_dir]
+              reason: 'Reviewed package/asset/source discovery; discovered regular-file accesses are validated independently'
+            - &output-directories
+              pattern: 'packages/{docs/.vitepress,webfont-browser,vite-svg-2-webfont,example}/dist/**'
+              kinds: [write]
+              directory: true
+              reason: 'Recreated output directories; artifact file writes still require output declarations'
+            - &cargo-shim
+              pattern: '.cargo/config.toml'
+              kinds: [read]
+              reason: 'Fixed pnpm installation shim, verified before and after execution'
+              contents: |
+                  # >>> pnpm-managed cargo sources >>>
+                  [[include]]
+                  path = "../.pnpm/crates/config.toml"
+                  optional = true
+                  # <<< pnpm-managed cargo sources <<<
+        neverCache: &intermediates
+            - pattern: '**/node_modules/**'
+              reason: 'Installed dependencies represented by the lockfile, never task artifacts'
+            - pattern: '.pnpm/**'
+              reason: 'pnpm installation state'
+            - pattern: '.git/**'
+              reason: 'Repository metadata, not a build artifact'
+            - pattern: 'target/**'
+              reason: 'Compiler and tool-install intermediates; final artifacts are copied to package output trees'
+            - pattern: 'packages/docs/.vitepress/cache/**'
+              reason: 'VitePress/plugin content-keyed intermediate caches, not published site artifacts'
+            - pattern: 'packages/docs/.vitepress/.temp/**'
+              reason: 'VitePress temporary SSR modules, removed during the build'
+        cleanupOutputs: &retired
+            - pattern: 'packages/{docs/.vitepress,webfont-browser,vite-svg-2-webfont,example}/dist/**'
+              reason: 'Retired build files; exemption requires a prior declared output that is absent afterward'
+
+    '.#next:wasm':
+        missingInputs: *file-probes
+        ignore:
+            - *external
+            - *directories
+            - *discovery
+            - *cargo-shim
+            - pattern: 'packages/webfont-browser/generated/**'
+              kinds: [read]
+              reason: 'wasm-bindgen replaces generated files from freshly compiled WASM; writes remain checked'
+        neverCache: *intermediates
+
+    '.#next:browser:pack':
+        missingInputs: *file-probes
+        ignore:
+            - *external
+            - *directories
+            - *discovery
+            - *output-directories
+            - pattern: 'packages/webfont-browser/dist/**'
+              kinds: [read]
+              reason: 'Bundler output discovery/cleanup before regeneration; writes remain checked'
+        neverCache: *intermediates
+        cleanupOutputs: *retired
+
+    '.#next:plugin:pack':
+        missingInputs: *file-probes
+        ignore:
+            - *external
+            - *directories
+            - *discovery
+            - *output-directories
+            - pattern: 'packages/vite-svg-2-webfont/dist/**'
+              kinds: [read]
+              reason: 'Bundler output discovery/cleanup before regeneration; writes remain checked'
+        neverCache: *intermediates
+        cleanupOutputs: *retired
+
+    '.#next:docs:social':
+        missingInputs: *file-probes
+        ignore: [*external, *directories, *discovery]
+        neverCache: *intermediates
+
+    '.#next:docs':
+        missingInputs: *file-probes
+        ignore:
+            - *external
+            - *directories
+            - *discovery
+            - *output-directories
+            - pattern: 'packages/docs/.vitepress/dist/**'
+              kinds: [read]
+              reason: 'VitePress discovers and replaces site artifacts; writes remain checked'
+            - pattern: 'packages/docs/examples/write-files/generated/**'
+              kinds: [read]
+              reason: 'Example outputs are regenerated from keyed icons/templates; writes remain checked'
+        neverCache: *intermediates
+        cleanupOutputs: *retired
+
+    '.#next:example':
+        requiresUncached: true
+        missingInputs: *file-probes
+        ignore:
+            - pattern: 'packages/example/.env.local'
+              kinds: [read]
+              reason: 'Ignored local configuration; this policy requires task caching to stay disabled'
+            - pattern: 'packages/example/.env.production.local'
+              kinds: [read]
+              reason: 'Ignored production configuration; this policy requires task caching to stay disabled'
+            - *external
+            - *directories
+            - *discovery
+            - *output-directories
+            - pattern: 'packages/example/dist/**'
+              kinds: [read]
+              reason: 'Vite discovers and replaces application artifacts; writes remain checked'
+            - pattern: 'packages/example/public'
+              kinds: [read]
+              reason: 'Optional public-directory lookup; files beneath it are independently keyed'
+        neverCache: *intermediates
+        cleanupOutputs: *retired

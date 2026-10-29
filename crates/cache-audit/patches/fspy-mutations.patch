@@ -1,0 +1,382 @@
+diff --git a/crates/fspy/src/unix/syscall_handler/link.rs b/crates/fspy/src/unix/syscall_handler/link.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..4df55c5bd90adec0d82add9529032f5e23f3a939
+--- /dev/null
++++ b/crates/fspy/src/unix/syscall_handler/link.rs
+@@ -0,0 +1,25 @@
++use std::io;
++
++use fspy_seccomp_unotify::supervisor::handler::arg::{CStrPtr, Caller, Fd};
++
++use super::SyscallHandler;
++
++impl SyscallHandler {
++    #[cfg(target_arch = "x86_64")]
++    pub(super) fn link(
++        &mut self,
++        caller: Caller,
++        (old_path, new_path): (CStrPtr, CStrPtr),
++    ) -> io::Result<()> {
++        self.linkat(caller, (Fd::cwd(), old_path, Fd::cwd(), new_path))
++    }
++
++    pub(super) fn linkat(
++        &mut self,
++        caller: Caller,
++        (old_dir, old_path, new_dir, new_path): (Fd, CStrPtr, Fd, CStrPtr),
++    ) -> io::Result<()> {
++        self.handle_open(caller, old_dir, old_path, libc::O_RDONLY)?;
++        self.handle_open(caller, new_dir, new_path, libc::O_WRONLY)
++    }
++}
+diff --git a/crates/fspy/src/unix/syscall_handler/mod.rs b/crates/fspy/src/unix/syscall_handler/mod.rs
+index f3c4661e03838dc3b93bebecc518d743dd136e6b..42096abab83851530488b2665809c4f6bd80b000 100644
+--- a/crates/fspy/src/unix/syscall_handler/mod.rs
++++ b/crates/fspy/src/unix/syscall_handler/mod.rs
+@@ -1,5 +1,7 @@
+ mod execve;
+ mod getdents;
++mod link;
++mod mutation;
+ mod open;
+ mod stat;
+ 
+@@ -81,6 +83,15 @@ impl_handler!(
+     openat,
+     openat2,
+ 
++    #[cfg(target_arch = "x86_64")] link,
++    linkat,
++    #[cfg(target_arch = "x86_64")] rename,
++    renameat,
++    renameat2,
++    #[cfg(target_arch = "x86_64")] unlink,
++    unlinkat,
++    #[cfg(target_arch = "x86_64")] rmdir,
++
+     #[cfg(target_arch = "x86_64")] getdents,
+     getdents64,
+ 
+diff --git a/crates/fspy/src/unix/syscall_handler/mutation.rs b/crates/fspy/src/unix/syscall_handler/mutation.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..6d04be2f2b99ca45448cc506f1f74442ea24a5bd
+--- /dev/null
++++ b/crates/fspy/src/unix/syscall_handler/mutation.rs
+@@ -0,0 +1,45 @@
++use super::SyscallHandler;
++use fspy_seccomp_unotify::supervisor::handler::arg::{CStrPtr, Caller, Fd};
++use std::{ffi::c_uint, io};
++
++impl SyscallHandler {
++    pub(super) fn renameat2(
++        &mut self,
++        caller: Caller,
++        (old_fd, old, new_fd, new, flags): (Fd, CStrPtr, Fd, CStrPtr, c_uint),
++    ) -> io::Result<()> {
++        self.handle_open(caller, old_fd, old, libc::O_RDWR)?;
++        self.handle_open(
++            caller,
++            new_fd,
++            new,
++            if flags & libc::RENAME_EXCHANGE != 0 { libc::O_RDWR } else { libc::O_WRONLY },
++        )
++    }
++    pub(super) fn renameat(
++        &mut self,
++        caller: Caller,
++        (old_fd, old, new_fd, new): (Fd, CStrPtr, Fd, CStrPtr),
++    ) -> io::Result<()> {
++        self.renameat2(caller, (old_fd, old, new_fd, new, 0))
++    }
++    #[cfg(target_arch = "x86_64")]
++    pub(super) fn rename(
++        &mut self,
++        caller: Caller,
++        (old, new): (CStrPtr, CStrPtr),
++    ) -> io::Result<()> {
++        self.renameat(caller, (Fd::cwd(), old, Fd::cwd(), new))
++    }
++    pub(super) fn unlinkat(&mut self, caller: Caller, (fd, path): (Fd, CStrPtr)) -> io::Result<()> {
++        self.handle_open(caller, fd, path, libc::O_WRONLY)
++    }
++    #[cfg(target_arch = "x86_64")]
++    pub(super) fn unlink(&mut self, caller: Caller, (path,): (CStrPtr,)) -> io::Result<()> {
++        self.unlinkat(caller, (Fd::cwd(), path))
++    }
++    #[cfg(target_arch = "x86_64")]
++    pub(super) fn rmdir(&mut self, caller: Caller, (path,): (CStrPtr,)) -> io::Result<()> {
++        self.unlinkat(caller, (Fd::cwd(), path))
++    }
++}
+diff --git a/crates/fspy_preload_unix/src/interceptions/link.rs b/crates/fspy_preload_unix/src/interceptions/link.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..8566af0a0789036af2c76e485b97f776aed67bd4
+--- /dev/null
++++ b/crates/fspy_preload_unix/src/interceptions/link.rs
+@@ -0,0 +1,46 @@
++use fspy_shared::ipc::AccessMode;
++use libc::{c_char, c_int};
++
++use crate::{
++    client::{convert::PathAt, handle_open},
++    macros::intercept,
++};
++
++// Follow fspy's existing attempted-access semantics: report before forwarding.
++pub(super) unsafe fn report_linkat(
++    old_dir: c_int,
++    old_path: *const c_char,
++    new_dir: c_int,
++    new_path: *const c_char,
++) {
++    // SAFETY: valid pathname/descriptor arguments from the intercepted call.
++    unsafe {
++        handle_open(PathAt::borrow_raw(old_dir, old_path), AccessMode::Read);
++        handle_open(PathAt::borrow_raw(new_dir, new_path), AccessMode::Write);
++    }
++}
++
++intercept!(link: unsafe extern "C" fn(*const c_char, *const c_char) -> c_int);
++unsafe extern "C" fn link(old_path: *const c_char, new_path: *const c_char) -> c_int {
++    // SAFETY: forward the caller's valid arguments unchanged.
++    unsafe {
++        report_linkat(libc::AT_FDCWD, old_path, libc::AT_FDCWD, new_path);
++        link::original()(old_path, new_path)
++    }
++}
++
++intercept!(linkat: unsafe extern "C" fn(c_int, *const c_char, c_int, *const c_char, c_int) -> c_int);
++unsafe extern "C" fn linkat(
++    old_dir: c_int,
++    old_path: *const c_char,
++    new_dir: c_int,
++    new_path: *const c_char,
++    flags: c_int,
++) -> c_int {
++    // SAFETY: forward the caller's valid arguments unchanged. PathAt also resolves
++    // an empty source pathname through its fd (Linux AT_EMPTY_PATH).
++    unsafe {
++        report_linkat(old_dir, old_path, new_dir, new_path);
++        linkat::original()(old_dir, old_path, new_dir, new_path, flags)
++    }
++}
+diff --git a/crates/fspy_preload_unix/src/interceptions/linux_syscall.rs b/crates/fspy_preload_unix/src/interceptions/linux_syscall.rs
+index f351ca1fa4c73ef0b3b8e49544a115f0cbd4126c..786939725756d83dfd6ad370f6ea167c8aa3d8ae 100644
+--- a/crates/fspy_preload_unix/src/interceptions/linux_syscall.rs
++++ b/crates/fspy_preload_unix/src/interceptions/linux_syscall.rs
+@@ -23,6 +23,62 @@ unsafe extern "C" fn syscall(syscall_no: c_long, mut args: ...) -> c_long {
+     // SAFETY: extracting variadic arguments matching the syscall ABI
+     let a5 = unsafe { args.next_arg::<c_long>() };
+ 
++    if syscall_no == libc::SYS_linkat {
++        // SAFETY: these are the linkat ABI arguments supplied by the caller.
++        unsafe {
++            super::link::report_linkat(
++                a0 as c_int,
++                a1 as *const c_char,
++                a2 as c_int,
++                a3 as *const c_char,
++            );
++        }
++    }
++    #[cfg(target_arch = "x86_64")]
++    if syscall_no == libc::SYS_link {
++        // SAFETY: these are the link ABI arguments supplied by the caller.
++        unsafe {
++            super::link::report_linkat(
++                libc::AT_FDCWD,
++                a0 as *const c_char,
++                libc::AT_FDCWD,
++                a1 as *const c_char,
++            );
++        }
++    }
++
++    // C ABI arguments are intentionally narrowed to their declared fd/flag types.
++    #[allow(clippy::cast_possible_truncation)]
++    // SAFETY: syscall arguments have the respective kernel ABI signatures.
++    unsafe {
++        if syscall_no == libc::SYS_renameat || syscall_no == libc::SYS_renameat2 {
++            super::mutation::report_rename(
++                a0 as c_int,
++                a1 as *const c_char,
++                a2 as c_int,
++                a3 as *const c_char,
++                syscall_no == libc::SYS_renameat2
++                    && a4 as libc::c_uint & libc::RENAME_EXCHANGE != 0,
++            );
++        } else if syscall_no == libc::SYS_unlinkat {
++            super::mutation::report_write(a0 as c_int, a1 as *const c_char);
++        }
++        #[cfg(target_arch = "x86_64")]
++        {
++            if syscall_no == libc::SYS_rename {
++                super::mutation::report_rename(
++                    libc::AT_FDCWD,
++                    a0 as *const c_char,
++                    libc::AT_FDCWD,
++                    a1 as *const c_char,
++                    false,
++                );
++            } else if syscall_no == libc::SYS_unlink || syscall_no == libc::SYS_rmdir {
++                super::mutation::report_write(libc::AT_FDCWD, a0 as *const c_char);
++            }
++        }
++    }
++
+     if syscall_no == libc::SYS_statx {
+         // C-style conversions are expected for the variadic syscall arguments.
+         #[expect(
+diff --git a/crates/fspy_preload_unix/src/interceptions/mod.rs b/crates/fspy_preload_unix/src/interceptions/mod.rs
+index 4d9712dd1e5443242a842529c85226b8e9e4b918..63c385f055d5161df4a42e9ead946d691b7e7a96 100644
+--- a/crates/fspy_preload_unix/src/interceptions/mod.rs
++++ b/crates/fspy_preload_unix/src/interceptions/mod.rs
+@@ -2,6 +2,8 @@ mod access;
+ mod dirent;
+ #[cfg(target_os = "macos")]
+ mod dyld;
++mod link;
++mod mutation;
+ mod open;
+ mod spawn;
+ mod stat;
+diff --git a/crates/fspy_preload_unix/src/interceptions/mutation.rs b/crates/fspy_preload_unix/src/interceptions/mutation.rs
+new file mode 100644
+index 0000000000000000000000000000000000000000..f1a09516535296e4625de301c79d8e383ae8b111
+--- /dev/null
++++ b/crates/fspy_preload_unix/src/interceptions/mutation.rs
+@@ -0,0 +1,97 @@
++use crate::{
++    client::{convert::PathAt, handle_open},
++    macros::intercept,
++};
++use fspy_shared::ipc::AccessMode;
++use libc::{c_char, c_int, c_uint};
++
++pub(super) unsafe fn report_rename(
++    old_fd: c_int,
++    old: *const c_char,
++    new_fd: c_int,
++    new: *const c_char,
++    exchange: bool,
++) {
++    // SAFETY: borrowed path and fd arguments from the intercepted function.
++    unsafe {
++        handle_open(PathAt::borrow_raw(old_fd, old), AccessMode::ReadWrite);
++        handle_open(
++            PathAt::borrow_raw(new_fd, new),
++            if exchange { AccessMode::ReadWrite } else { AccessMode::Write },
++        );
++    }
++}
++
++pub(super) unsafe fn report_write(fd: c_int, path: *const c_char) {
++    // SAFETY: borrowed path and fd arguments from the intercepted function.
++    unsafe {
++        handle_open(PathAt::borrow_raw(fd, path), AccessMode::Write);
++    }
++}
++
++intercept!(rename: unsafe extern "C" fn(*const c_char, *const c_char) -> c_int);
++unsafe extern "C" fn rename(old: *const c_char, new: *const c_char) -> c_int {
++    // SAFETY: report and forward the caller's arguments unchanged.
++    unsafe {
++        report_rename(libc::AT_FDCWD, old, libc::AT_FDCWD, new, false);
++        rename::original()(old, new)
++    }
++}
++
++intercept!(renameat: unsafe extern "C" fn(c_int, *const c_char, c_int, *const c_char) -> c_int);
++unsafe extern "C" fn renameat(
++    old_fd: c_int,
++    old: *const c_char,
++    new_fd: c_int,
++    new: *const c_char,
++) -> c_int {
++    // SAFETY: report and forward the caller's arguments unchanged.
++    unsafe {
++        report_rename(old_fd, old, new_fd, new, false);
++        renameat::original()(old_fd, old, new_fd, new)
++    }
++}
++
++#[cfg(target_os = "linux")]
++intercept!(renameat2: unsafe extern "C" fn(c_int, *const c_char, c_int, *const c_char, c_uint) -> c_int);
++#[cfg(target_os = "linux")]
++unsafe extern "C" fn renameat2(
++    old_fd: c_int,
++    old: *const c_char,
++    new_fd: c_int,
++    new: *const c_char,
++    flags: c_uint,
++) -> c_int {
++    // SAFETY: report and forward the caller's arguments unchanged.
++    unsafe {
++        report_rename(old_fd, old, new_fd, new, flags & libc::RENAME_EXCHANGE != 0);
++        renameat2::original()(old_fd, old, new_fd, new, flags)
++    }
++}
++
++intercept!(unlink: unsafe extern "C" fn(*const c_char) -> c_int);
++unsafe extern "C" fn unlink(path: *const c_char) -> c_int {
++    // SAFETY: report and forward the caller's arguments unchanged.
++    unsafe {
++        report_write(libc::AT_FDCWD, path);
++        unlink::original()(path)
++    }
++}
++
++intercept!(unlinkat: unsafe extern "C" fn(c_int, *const c_char, c_int) -> c_int);
++unsafe extern "C" fn unlinkat(fd: c_int, path: *const c_char, flags: c_int) -> c_int {
++    // SAFETY: report and forward the caller's arguments unchanged.
++    unsafe {
++        report_write(fd, path);
++        unlinkat::original()(fd, path, flags)
++    }
++}
++
++intercept!(rmdir: unsafe extern "C" fn(*const c_char) -> c_int);
++unsafe extern "C" fn rmdir(path: *const c_char) -> c_int {
++    // SAFETY: report and forward the caller's arguments unchanged.
++    unsafe {
++        report_write(libc::AT_FDCWD, path);
++        rmdir::original()(path)
++    }
++}
+diff --git a/crates/fspy_seccomp_unotify/src/supervisor/handler/arg.rs b/crates/fspy_seccomp_unotify/src/supervisor/handler/arg.rs
+index fa9dc305d2b1e4ab17b6c633fd1e41d78b7a1f3f..0b84ce1a54b5775f8cdc04ccf7837d2b92992004 100644
+--- a/crates/fspy_seccomp_unotify/src/supervisor/handler/arg.rs
++++ b/crates/fspy_seccomp_unotify/src/supervisor/handler/arg.rs
+@@ -193,6 +193,32 @@ pub trait FromNotify: Sized {
+     fn from_notify(notif: &seccomp_notif) -> io::Result<Self>;
+ }
+ 
++impl FromSyscallArg for libc::c_uint {
++    #[expect(clippy::cast_possible_truncation, reason = "syscall arg represents a c_uint value")]
++    fn from_syscall_arg(arg: u64) -> io::Result<Self> {
++        Ok(arg as Self)
++    }
++}
++
++impl<
++    T1: FromSyscallArg,
++    T2: FromSyscallArg,
++    T3: FromSyscallArg,
++    T4: FromSyscallArg,
++    T5: FromSyscallArg,
++> FromNotify for (T1, T2, T3, T4, T5)
++{
++    fn from_notify(notif: &seccomp_notif) -> io::Result<Self> {
++        Ok((
++            T1::from_syscall_arg(notif.data.args[0])?,
++            T2::from_syscall_arg(notif.data.args[1])?,
++            T3::from_syscall_arg(notif.data.args[2])?,
++            T4::from_syscall_arg(notif.data.args[3])?,
++            T5::from_syscall_arg(notif.data.args[4])?,
++        ))
++    }
++}
++
+ impl<T: FromSyscallArg> FromNotify for (T,) {
+     fn from_notify(notif: &seccomp_notif) -> io::Result<Self> {
+         Ok((T::from_syscall_arg(notif.data.args[0])?,))
