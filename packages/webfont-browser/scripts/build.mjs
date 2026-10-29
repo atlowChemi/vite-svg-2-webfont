@@ -4,7 +4,7 @@ import { cli, setup } from './setup.mjs';
 
 setup();
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const target = `${root}/target/webfont-browser`;
+const target = process.env.CARGO_TARGET_DIR || `${root}/target/webfont-browser`;
 execFileSync('cargo', ['build', '-p', 'webfont-browser', '--target', 'wasm32-unknown-unknown', '--release', '--locked'], {
     cwd: root,
     stdio: 'inherit',

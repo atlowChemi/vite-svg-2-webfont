@@ -4,6 +4,7 @@ import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { pathToFileURL } from 'node:url';
 
 export const packageNames = {
+    audit: '@atlowchemi/cache-audit',
     engine: '@atlowchemi/webfont-engine',
     adapter: '@atlowchemi/webfont-generator',
     browser: '@atlowchemi/webfont-browser-generator',
