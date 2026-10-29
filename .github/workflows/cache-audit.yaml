@@ -80,3 +80,52 @@ jobs:
                   name: dormant-pipelines-linux-x64
                   path: artifacts/cache-audit/pipelines/
                   if-no-files-found: warn
+    build-audits:
+        name: Cache auditor and pnpm compatibility
+        runs-on: ubuntu-latest
+        timeout-minutes: 45
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  targets: wasm32-unknown-unknown
+            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              with:
+                  node-version-file: .node-version
+                  run-install: |
+                      args: [--frozen-lockfile]
+                  cache: true
+            - name: Verify installation preserved the lockfile
+              run: git diff --exit-code HEAD -- pnpm-lock.yaml
+            - name: Record external toolchain for audit diagnostics
+              run: |
+                  mkdir -p artifacts/cache-audit
+                  {
+                    vp exec pnpm --version
+                    node --version
+                    rustc -vV
+                    cargo --version
+                    cc --version
+                    uname -a
+                  } > artifacts/cache-audit/toolchain.txt
+            - name: Install isolated auditor toolchain
+              run: rustup toolchain install nightly-2026-08-02 --profile minimal --component clippy --component rustfmt
+            - name: Build and test observer
+              env:
+                  CARGO_TARGET_DIR: ${{ runner.temp }}/cache-audit-build
+              run: |
+                  vp run @atlowchemi/cache-audit#build
+                  vp run @atlowchemi/cache-audit#test
+                  vp run @atlowchemi/cache-audit#check
+            - name: Compare Rust graphs with installed pnpm
+              run: ${{ runner.temp }}/cache-audit-build/debug/cache-audit graph --all --verify-pnpm > artifacts/cache-audit/graphs.json
+            - name: Verify installed pnpm cache semantics
+              env:
+                  CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
+              run: vp run @atlowchemi/cache-audit#test:compat
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              if: always()
+              with:
+                  name: cache-audit-linux-x64
+                  path: artifacts/cache-audit/
+                  if-no-files-found: warn
