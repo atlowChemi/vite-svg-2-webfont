@@ -4,6 +4,7 @@ import llmstxt from 'vitepress-plugin-llms';
 import { codeThemes } from './codeThemes';
 import { examplePlugins } from './examples';
 import { svgAuthoringFontPlugins } from './svgAuthoringFonts';
+import { iconCss } from './icon-css';
 
 const repoName = 'vite-svg-2-webfont';
 const repo = `https://github.com/atlowChemi/${repoName}`;
@@ -94,6 +95,7 @@ export default defineConfig({
     ],
     markdown,
     vite: {
+        css: { postcss: iconCss },
         plugins: [
             groupIconVitePlugin({
                 customIcon: {
