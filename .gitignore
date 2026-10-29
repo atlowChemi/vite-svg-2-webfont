@@ -30,6 +30,9 @@ node_modules/
 .idea
 
 dist
+# Public source assets can contain dist segments; Vite probes these paths too.
+!packages/docs/public/**/dist/
+!packages/docs/public/**/dist/**
 target/
 # pnpm Cargo source materialization; Cargo.lock remains tracked.
 /.pnpm/

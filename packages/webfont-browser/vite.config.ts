@@ -1,6 +1,8 @@
 import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 
 const config: UserProjectConfigExport = defineProject({
+    // Package artifacts have no dotenv inputs; ignored local files must not affect cached builds.
+    envDir: false,
     pack: {
         entry: ['src/index.ts', 'src/worker.ts'],
         format: ['esm'],
