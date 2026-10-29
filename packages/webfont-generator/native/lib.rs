@@ -101,6 +101,8 @@ impl napi::Task for ClearCacheTask {
 /// Remove every file the generation cache created in `cacheLocation` (see the `cacheLocation`
 /// option), including leftovers from interrupted writes. Other files are left untouched, and a
 /// missing directory resolves with zero counts.
+/// Stop incremental updates and await each active lineage's flushCache() before clearing;
+/// outstanding background writes can otherwise recreate cache files.
 #[napi(ts_return_type = "Promise<ClearCacheReport>")]
 pub fn clear_cache(cache_location: String) -> napi::bindgen_prelude::AsyncTask<ClearCacheTask> {
     napi::bindgen_prelude::AsyncTask::new(ClearCacheTask(cache_location))

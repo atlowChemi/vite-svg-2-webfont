@@ -99,7 +99,7 @@ pub(crate) fn prepare_variant_svg_family<Files: AsRef<[LoadedSvgSource]>>(
     prepare_variant_svg_family_cached(options, family, None)
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub(crate) struct VariantGlyphCache {
     pub(crate) parsed: Vec<types::GlyphCache>,
     pub(crate) processed:

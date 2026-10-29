@@ -6,6 +6,7 @@ use std::thread::sleep;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use super::*;
+mod incremental;
 use crate::test_helpers::resolve_options;
 use crate::{
     ColorGlyphSelection, FontVariant, FormatOptions, GenerateWebfontsOptions,
@@ -536,6 +537,7 @@ fn a_fully_cached_incremental_result_regenerates_correctly() {
         )
         .unwrap();
     assert_eq!(fonts(&result), fonts(&run(project.options(None))));
+    result.flush_cache().unwrap();
 }
 
 #[test]
@@ -963,9 +965,19 @@ fn variant_families_stay_byte_identical_through_warm_edited_and_regenerated_runs
     one_shot.incremental = Some(false);
     assert_eq!(variant_fonts(&run(one_shot.clone())), uncached);
 
+    // Preserve a stale disk cache independently of the automatically persisted lineage.
+    let stale = project.root.join("stale-cache");
+    fs::create_dir(&stale).unwrap();
+    for file in cache_files(&cache) {
+        fs::copy(cache.join(&file), stale.join(file)).unwrap();
+    }
+
     let edited = project.root.join("light/add.svg");
     fs::write(&edited, svg(13)).unwrap();
     let expected = variant_fonts(&run(project.variant_options(None)));
+    let partial_hit = run(project.variant_options(Some(&stale)));
+    assert_eq!(variant_fonts(&partial_hit), expected);
+    assert_eq!(variant_work(&partial_hit), (1, 1));
     // An incremental result that took every font from the cache regenerates from hydrated glyphs.
     let sets = VARIANTS.map(|variant| VariantFileSet {
         variant: variant.to_owned(),
@@ -980,9 +992,10 @@ fn variant_families_stay_byte_identical_through_warm_edited_and_regenerated_runs
     assert_eq!(variant_fonts(&warm), expected);
     assert_eq!(variant_work(&warm), (1, 1));
 
+    warm.flush_cache().unwrap();
     let after_edit = run(project.variant_options(Some(&cache)));
     assert_eq!(variant_fonts(&after_edit), expected);
-    assert_eq!(variant_work(&after_edit), (1, 1));
+    assert_eq!(variant_work(&after_edit), (0, 0));
     assert_eq!(variant_fonts(&run(one_shot)), expected);
 }
 

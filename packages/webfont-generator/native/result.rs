@@ -14,6 +14,14 @@ pub struct GenerateWebfontsResult(pub(crate) webfont_generator::GenerateWebfonts
 
 #[napi]
 impl GenerateWebfontsResult {
+    /// Wait for automatic incremental cache writes, retrying a failed write once.
+    /// Call after awaiting rebuilds and before shutdown. Rejects only for persistence failures;
+    /// generated output is unaffected. No-op without an incremental cacheLocation.
+    #[napi]
+    pub async fn flush_cache(&self) -> napi::Result<()> {
+        self.0.flush_cache_async().await.map_err(to_napi_err)
+    }
+
     /// Append a new file and regenerate. Families require a target variant. Requires incremental generation.
     #[napi]
     pub fn add(

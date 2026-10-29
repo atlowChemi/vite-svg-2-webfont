@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { afterEach, describe, expect, it } from 'vite-plus/test';
+import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
 import { clearCache, generateWebfonts, type FontType, type MultiVariantFontType } from '../index.js';
 
 const fixtures = join(import.meta.dirname, '..', '..', '..', 'crates', 'webfont-generator', 'src', 'svg', 'fixtures', 'icons');
@@ -41,6 +41,44 @@ async function variantFonts(cacheLocation?: string) {
 }
 
 describe('cacheLocation', () => {
+    it('automatically persists incremental updates and restores TypeScript output on cache hits', { timeout: 15_000 }, async () => {
+        const dir = await tempDir();
+        const icon = join(dir, 'star.svg');
+        await writeFile(icon, coloredStar('#ff9900'));
+        const options = {
+            dest: dir,
+            files: [icon],
+            types,
+            css: false,
+            incremental: true as const,
+            cacheLocation: join(dir, 'cache'),
+            ts: true,
+            tsDest: join(dir, 'custom.ts'),
+            formatOptions: { ttf: { ts: 0 } },
+        };
+        const original = await generateWebfonts(options);
+        const cache = join(options.cacheLocation, (await readdir(options.cacheLocation))[0]);
+        const before = await readFile(cache);
+        await writeFile(icon, coloredStar('#00cc66').replace('H18', 'H16'));
+        const replacement = await original.regenerateAsync({ files: [icon] });
+        const extra = join(dir, 'extra.svg');
+        await writeFile(extra, coloredStar('#000000'));
+        const latest = await replacement.addAsync(extra);
+        await vi.waitFor(async () => expect(await readFile(cache)).not.toEqual(before), { timeout: 10_000 });
+        await original.flushCache(); // An old snapshot waits for the lineage; it cannot save stale fonts.
+        expect(await readFile(cache)).not.toEqual(before);
+        const identity = await stat(cache);
+        await rm(options.tsDest);
+        const warm = await generateWebfonts({ ...options, files: [icon, extra] });
+        expect((await stat(cache)).ino).toBe(identity.ino);
+        expect(await readFile(options.tsDest, 'utf8')).toBe(latest.generateTs());
+        expect(warm.generateTs()).toContain('"extra"');
+        const uncached = await generateWebfonts({ ...options, files: [icon, extra], cacheLocation: undefined });
+        for (const type of types) expect(warm[type]).toEqual(uncached[type]);
+        expect(warm.generateTs()).toBe(uncached.generateTs());
+        await expect(uncached.flushCache()).resolves.toBeUndefined();
+    });
+
     it('produces the same fonts cold and warm', async () => {
         const cacheLocation = await tempDir();
         const uncached = await fonts();

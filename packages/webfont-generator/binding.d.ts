@@ -15,6 +15,12 @@ export declare const __napiBindingTarget: 'native' | 'wasm32-wasi' | 'wasm32-was
  * render the CSS and HTML preview.
  */
 export declare class GenerateWebfontsResult {
+  /**
+   * Wait for automatic incremental cache writes, retrying a failed write once.
+   * Call after awaiting rebuilds and before shutdown. Rejects only for persistence failures;
+   * generated output is unaffected. No-op without an incremental cacheLocation.
+   */
+  flushCache(): Promise<void>
   /** Append a new file and regenerate. Families require a target variant. Requires incremental generation. */
   add(path: string, name?: string | undefined | null, variant?: string | undefined | null): void
   /** Re-read an existing file in every consuming design, preserving order and the name unless replaced. */
@@ -84,6 +90,8 @@ export declare class GenerateWebfontsResult {
  * Remove every file the generation cache created in `cacheLocation` (see the `cacheLocation`
  * option), including leftovers from interrupted writes. Other files are left untouched, and a
  * missing directory resolves with zero counts.
+ * Stop incremental updates and await each active lineage's flushCache() before clearing;
+ * outstanding background writes can otherwise recreate cache files.
  */
 export declare function clearCache(cacheLocation: string): Promise<ClearCacheReport>
 

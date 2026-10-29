@@ -255,6 +255,10 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         if (ac.signal.aborted) {
             return;
         }
+        // Drain the old lineage before a full generation writes the same engine cache file.
+        // Waiting only before assigning the replacement would still allow a stale overwrite.
+        await generatedFonts?.flushCache().catch(() => undefined);
+        if (ac.signal.aborted) return;
         if (hit?.entry.ts !== undefined) {
             generatedFonts = undefined;
             outputs = hit.entry;
@@ -466,6 +470,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             ac.abort();
             await watcherTask;
             await generationQueue.idle();
+            if (!isBuild) await generatedFonts?.flushCache().catch(() => undefined);
             watcherTask = undefined;
             rmDir(tmpDir);
             generatedFonts = undefined;

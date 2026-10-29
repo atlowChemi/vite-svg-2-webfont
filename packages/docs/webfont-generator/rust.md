@@ -379,6 +379,22 @@ can carry different timestamps; set `ts` for reproducible output. See [`cacheLoc
 [caching across builds](./node#caching-across-builds) for CI and Docker setups, and
 [performance](./under-the-hood#persistent-cache) for measured speedups.
 
+With `incremental: Some(true)`, committed updates automatically queue background cache writes,
+including single-file helpers and async replacements. A single writer per result lineage
+coalesces pending updates; encoding and disk I/O run independently of rebuilding. Failed rebuilds
+that roll back do not publish cache snapshots. Synchronous variant output-write errors retain the
+new in-memory generation and its cache update, matching their existing commit semantics.
+
+Call `result.flush_cache()?` (blocking) or `result.flush_cache_async().await?` after outstanding
+rebuilds and before shutdown. Both wait for queued writes and retry a previous failed write once;
+errors affect only persistence. Without an incremental filesystem cache they are no-ops. Replaced
+snapshots flush the shared lineage without publishing old output. Dropping a result does not wait;
+abrupt process termination can lose pending writes. Initial generation still saves synchronously.
+
+TypeScript output remains derived metadata rather than a font-cache section: cache hits still
+render/write requested `.ts` files (including `ts_dest`), and incremental membership changes
+refresh their names while geometry-only edits reuse the rendered module.
+
 ::: warning Only restore trusted caches
 Cached fonts are reused as-is, so treat the directory as trusted build output: don't restore it
 from a less-trusted source, and clear it if in doubt.
@@ -403,6 +419,8 @@ println!("{} files, {} bytes", report.files_removed, report.bytes_removed);
 `clear_cache(cache_location)` requires the `fs` feature. It removes only files the cache created
 (plus leftovers from interrupted writes), leaves other files alone, and returns
 `ClearCacheReport { files_removed, bytes_removed }`. A missing directory is not an error.
+Stop incremental updates and flush every active result lineage before clearing or deleting the
+cache directory; outstanding background writes can otherwise recreate removed files.
 
 ## Color glyphs
 

@@ -161,7 +161,7 @@ pub(crate) fn generate_webfonts_sync(
     source_files: Vec<LoadedSvgSource>,
 ) -> std::io::Result<GenerateWebfontsResult> {
     let svg_options = svg_options_from_options(&options);
-    let disk = options
+    let mut disk = options
         .cache_location
         .as_deref()
         .map(|dir| DiskCache::open(dir, &options, &source_files));
@@ -170,12 +170,12 @@ pub(crate) fn generate_webfonts_sync(
     // glyphs whose source didn't change. Otherwise the geometry is dropped as soon as the font
     // is built, so one-shot builds carry no extra memory.
     let mut ttf_cache = options.incremental.then(TtfGlyphCache::default);
-    let (fonts, glyph_cache) = if let Some(disk) = disk {
+    let (fonts, glyph_cache) = if let Some(disk) = disk.as_mut() {
         let outcome = build_with_cache(
             &options,
             &svg_options,
             &source_files,
-            &disk,
+            disk,
             ttf_cache.as_mut(),
         );
         let (fonts, glyph_cache, built) = outcome?;
@@ -204,7 +204,11 @@ pub(crate) fn generate_webfonts_sync(
         written_outputs: std::collections::HashMap::new(),
     });
 
-    Ok(GenerateWebfontsResult {
+    let result = GenerateWebfontsResult {
+        persistence: disk
+            .filter(|_| options.incremental)
+            .map(crate::cache::persistence::Persistence::new),
+        defer_cache: false,
         ts: Default::default(),
         cached: std::sync::OnceLock::new(),
         carried_render: None,
@@ -214,7 +218,9 @@ pub(crate) fn generate_webfonts_sync(
         options: std::sync::Arc::new(options),
         regeneration_state: std::sync::Arc::new(std::sync::Mutex::new(regeneration_state)),
         source_files: std::sync::Arc::new(source_files),
-    })
+    };
+    result.retain_initial_cache_retry();
+    Ok(result)
 }
 
 /// Generate with a persistent cache: reuse every cached format, seed glyph work from cached
@@ -301,6 +307,7 @@ pub(crate) fn generate_variant_webfonts_sync(
     mut options: ResolvedFileGenerationOptions,
     source_files: Vec<Vec<LoadedSvgSource>>,
 ) -> std::io::Result<GenerateWebfontsResult> {
+    let mut retained_disk = None;
     let (fonts, cache, source_files) = if let Some(dir) = options.cache_location.clone() {
         let variants = options
             .variants
@@ -311,7 +318,7 @@ pub(crate) fn generate_variant_webfonts_sync(
             variants,
             source_files.iter().map(Vec::as_slice).collect(),
         )?;
-        let disk = DiskCache::open_variant(&dir, &options, variants, &family);
+        let mut disk = DiskCache::open_variant(&dir, &options, variants, &family);
         let svg_options = svg_options_from_options(&options);
         let outcome = build_variant_with_cache(&options, variants, &svg_options, &family, &disk);
         let (fonts, glyph_cache, built) = outcome?;
@@ -319,6 +326,7 @@ pub(crate) fn generate_variant_webfonts_sync(
             disk.store_variants(&family.variants, glyph_cache, &fonts, &options.types);
         }
         let glyph_cache = glyph_cache.filter(|_| options.incremental);
+        retained_disk = Some(disk);
         (
             fonts,
             glyph_cache,
@@ -344,7 +352,11 @@ pub(crate) fn generate_variant_webfonts_sync(
     } else {
         None
     };
-    Ok(GenerateWebfontsResult {
+    let result = GenerateWebfontsResult {
+        persistence: retained_disk
+            .filter(|_| options.incremental)
+            .map(crate::cache::persistence::Persistence::new),
+        defer_cache: false,
         ts: Default::default(),
         cached: std::sync::OnceLock::new(),
         carried_render: None,
@@ -354,7 +366,9 @@ pub(crate) fn generate_variant_webfonts_sync(
         options: Arc::new(options),
         regeneration_state: Arc::new(std::sync::Mutex::new(regeneration_state)),
         source_files: Arc::new(source_files),
-    })
+    };
+    result.retain_initial_cache_retry();
+    Ok(result)
 }
 
 /// Build every requested output format from an already-prepared glyph set.

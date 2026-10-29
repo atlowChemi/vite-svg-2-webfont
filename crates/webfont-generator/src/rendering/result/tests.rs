@@ -54,6 +54,8 @@ fn build_result_with_templates(
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
 
     GenerateWebfontsResult {
+        persistence: None,
+        defer_cache: false,
         ts: Default::default(),
         cached: std::sync::OnceLock::new(),
         carried_render: None,
@@ -444,6 +446,8 @@ fn build_multi_type_result() -> GenerateWebfontsResult {
     finalize_generate_webfonts_options(&mut resolved, &source_files).unwrap();
 
     GenerateWebfontsResult {
+        persistence: None,
+        defer_cache: false,
         ts: Default::default(),
         cached: std::sync::OnceLock::new(),
         carried_render: None,

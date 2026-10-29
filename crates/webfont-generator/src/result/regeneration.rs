@@ -51,7 +51,14 @@ impl GenerateWebfontsResult {
                 *original_state.lock().unwrap() = state;
             }
             match result {
-                Ok(Ok(())) => Ok(replacement),
+                Ok(Ok(())) => {
+                    replacement.defer_cache = false;
+                    if !Arc::ptr_eq(&original_sources, &replacement.source_files) {
+                        let state = replacement.regeneration_state.lock().unwrap();
+                        replacement.schedule_cache(state.as_ref().unwrap());
+                    }
+                    Ok(replacement)
+                }
                 Ok(Err(error)) => Err(error),
                 Err(payload) => std::panic::resume_unwind(payload),
             }

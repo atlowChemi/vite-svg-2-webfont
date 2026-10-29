@@ -1,6 +1,6 @@
 import { constants } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { access, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join as pathJoin } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
@@ -1111,6 +1111,8 @@ describe('serve - falls back to full regenerate when incremental is unavailable'
 
 describe('serve - falls back when regenerate throws', () => {
     const reloadedIds: string[] = [];
+    const flushStarted = Promise.withResolvers<void>();
+    const finishFlush = Promise.withResolvers<void>();
     const { promise: waitForCssReload, resolve: markCssReloaded } = Promise.withResolvers<void>();
     let watcherHandler: Parameters<typeof setupWatcherMock>[2];
     let server: ViteDevServer;
@@ -1123,6 +1125,12 @@ describe('serve - falls back when regenerate throws', () => {
         generateWebfontsMock.mockImplementationOnce(async options => {
             const result = await realGen(options);
             result.regenerateAsync = async () => Promise.reject(new Error('intentional regenerate failure'));
+            const flush = result.flushCache.bind(result);
+            result.flushCache = async () => {
+                flushStarted.resolve();
+                await finishFlush.promise;
+                await flush();
+            };
             return result;
         });
         const created = await createObservedServer(
@@ -1150,9 +1158,16 @@ describe('serve - falls back when regenerate throws', () => {
         await server.close();
     });
 
-    it('full-regenerates and skips the normal incremental reload path', async () => {
+    it('drains the previous writer before full regeneration and skips the incremental reload path', async () => {
         const callsBefore = generateWebfontsMock.mock.calls.length;
-        await watcherHandler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
+        const rebuild = watcherHandler([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
+        try {
+            await flushStarted.promise;
+            expect(generateWebfontsMock).toHaveBeenCalledTimes(callsBefore);
+        } finally {
+            finishFlush.resolve();
+            await rebuild;
+        }
         await waitForCssReload;
 
         expect(generateWebfontsMock).toHaveBeenCalledTimes(callsBefore + 1);
@@ -1293,10 +1308,13 @@ describe('serve - releases retained watch state on close', () => {
         expect(rmDirMock.mock.calls.length).toBe(rmDirCallsBefore + 1);
     });
 
-    it('waits for an in-flight watch rebuild before releasing state', async () => {
+    it('waits for an in-flight replacement and flushes its lineage through the old result on close', { timeout: 15_000 }, async () => {
+        const cacheDir = await mkdtemp(pathJoin(tmpdir(), 'vsw-close-cache-'));
         const startFlush = Promise.withResolvers<void>();
         const regenerationStarted = Promise.withResolvers<void>();
         const finishRegeneration = Promise.withResolvers<void>();
+        const persistenceStarted = Promise.withResolvers<void>();
+        const finishPersistence = Promise.withResolvers<void>();
         let watchSignal: AbortSignal | undefined;
         setupWatcherMock.mockImplementationOnce(async (_path, signal, handler) => {
             watchSignal = signal;
@@ -1307,10 +1325,16 @@ describe('serve - releases retained watch state on close', () => {
         generateWebfontsMock.mockImplementationOnce(async options => {
             const result = await realGen(options);
             const regenerateAsync = result.regenerateAsync.bind(result);
-            result.regenerateAsync = async (...args) => {
+            result.regenerateAsync = async files => {
                 regenerationStarted.resolve();
                 await finishRegeneration.promise;
-                return regenerateAsync(...args);
+                return regenerateAsync(files, [{ path: pathJoin(webfontFolder, 'add.svg'), changeType: 'changed', name: 'shutdown-renamed' }]);
+            };
+            const flush = result.flushCache.bind(result);
+            result.flushCache = async () => {
+                persistenceStarted.resolve();
+                await finishPersistence.promise;
+                await flush();
             };
             return result;
         });
@@ -1318,10 +1342,17 @@ describe('serve - releases retained watch state on close', () => {
             logLevel: 'silent',
             root: fileURLToNormalizedPath(root),
             configFile: false,
+            cacheDir,
             plugins: [viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] })],
         });
         const server = await created.listen();
 
+        const engine = pathJoin(cacheDir, 'vite-svg-2-webfont', 'engine');
+        const cacheFile = pathJoin(
+            engine,
+            (await readdir(engine)).find(name => name.endsWith('.wfcache'))!,
+        );
+        const before = await readFile(cacheFile);
         startFlush.resolve();
         await regenerationStarted.promise;
         let closed = false;
@@ -1329,12 +1360,22 @@ describe('serve - releases retained watch state on close', () => {
             closed = true;
             return undefined;
         });
-        await vi.waitFor(() => expect(watchSignal?.aborted).toBe(true));
-        expect(closed).toBe(false);
-
-        finishRegeneration.resolve();
-        await close;
-        expect(closed).toBe(true);
+        try {
+            await vi.waitFor(() => expect(watchSignal?.aborted).toBe(true), { timeout: 10_000 });
+            expect(closed).toBe(false);
+            finishRegeneration.resolve();
+            await persistenceStarted.promise;
+            expect(closed).toBe(false);
+            finishPersistence.resolve();
+            await close;
+            expect(closed).toBe(true);
+            expect(await readFile(cacheFile)).not.toEqual(before);
+        } finally {
+            finishRegeneration.resolve();
+            finishPersistence.resolve();
+            await close;
+            await rm(cacheDir, { recursive: true, force: true });
+        }
     });
 
     it('does not fail server startup when watcher setup rejects', async () => {

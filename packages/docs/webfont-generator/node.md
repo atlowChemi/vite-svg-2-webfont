@@ -387,6 +387,8 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 - Type: `string`
 - Description: Directory for a persistent generation cache. A run saves per-icon work (parsed and processed glyph outlines) and finished font bytes there; later runs reuse them for icons and formats that didn't change, so a fresh process starts warm. Output is byte-identical to an uncached run (this wrapper always sets `formatOptions.ttf.ts`; see the timestamp note below for the Rust API and CLI). See [caching across builds](#caching-across-builds) for CI and Docker setups and [performance](./under-the-hood#persistent-cache) for measured speedups.
     - An edited icon is reprocessed alone; the others reuse their saved work.
+    - Incremental updates (`regenerate`, `add`, `update`, `remove`, and their async variants) automatically schedule background persistence. One writer per result lineage coalesces pending updates to the latest committed generation; encoding and disk I/O do not block rebuilding.
+    - TypeScript companion output is rendered from current icon names and selector settings even when all fonts hit the cache. Membership changes refresh it; geometry-only changes reuse it.
     - When only CSS/HTML options change (templates, `cssFontsUrl`, `templateOptions`, …), every font comes from the cache.
     - Formats are cached separately, so builds that differ only in a format option (for example WOFF2 compression quality between dev and production) share the rest. Each format keeps its latest entry plus one for the same icons with different format options.
     - Builds that request different `types` (for example WOFF2 only in dev, all five in production) still share fonts and parsed glyphs, but processed outlines are kept for the latest `types` only, so alternating between them reprocesses paths.
@@ -397,13 +399,20 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
     - Read or write failures (missing permissions, corrupt or truncated files) never fail generation; the run recomputes, replaces corrupt or truncated files, and leaves an unwritable location uncached. Saved fonts and saved per-icon work carry separate checksums, so accidental corruption is detected rather than reused. Runs whose fonts all come from the cache don't read the per-icon work, so damage limited to it is detected and repaired by the next run that needs it (one with a format to rebuild, or an incremental one). A directory where the cache file belongs is never removed; generation prints a warning and stays uncached until you remove it.
     - Cached fonts are reused as-is, so only restore trusted caches; see the [warning under caching across builds](#caching-across-builds).
 
+### `result.flushCache()`
+
+- Returns: `Promise<void>`
+- Waits for automatic cache writes and retries a previously failed write once. Await outstanding incremental calls first, then call this before shutdown. Dropping a result does not wait, and abrupt process termination can lose pending writes.
+- Rejects on persistence failure without affecting generated output. No-op without an incremental `cacheLocation`. Old results returned before `regenerateAsync` share the same writer: flushing one waits for the lineage and never saves its stale fonts.
+- Initial generation still saves synchronously. No explicit save call is required after edits.
+
 ### `threads`
 
 - Type: `number` (a positive integer)
 - Default: one per CPU core
 - Description: How many threads read SVG files and do glyph work at once, including in later [`regenerate()`](#regenerate-files-changes) calls on the result. Set it when several generations run side by side (for example in a monorepo build) or to leave cores free for other work. Output is identical for every value.
     - Glyph work never uses more threads than CPU cores: it keeps every thread busy, so more would only add switching. Reads can go higher, which can help on slow or network storage.
-    - Not counted: WOFF2's Brotli compressor runs one extra worker thread, output files are written concurrently, and the async runtime keeps its own threads.
+    - Not counted: WOFF2's Brotli compressor runs one extra worker thread, output files are written concurrently, the async runtime keeps its own threads, and each incremental cache lineage runs at most one background writer while saves are pending.
     - Unset, files are read with up to one task per core, and glyph work runs on [Rayon](https://github.com/rayon-rs/rayon)'s shared thread pool, so the `RAYON_NUM_THREADS` environment variable still applies.
     - Each value gets its own thread pool, kept for the life of the process so later generations and rebuilds reuse its threads. If the system refuses to start them, generation prints a warning and runs on the shared pool instead.
 
@@ -791,6 +800,8 @@ Use `{ variants: [...] }` for families as shown above. A bare array is no longer
 ## `clearCache(cacheLocation)`
 
 Remove the files the generation cache created in `cacheLocation`, including leftovers from interrupted writes. Other files in the directory are left untouched, and a missing directory resolves with zero counts.
+
+Stop incremental updates and await `flushCache()` on each active result lineage before clearing. Otherwise an outstanding background write can recreate a removed cache file. Follow the same ordering before deleting the cache directory yourself.
 
 ```ts
 import { clearCache } from '@atlowchemi/webfont-generator';
