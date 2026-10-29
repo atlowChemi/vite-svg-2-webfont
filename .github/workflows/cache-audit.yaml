@@ -52,7 +52,7 @@ jobs:
                   path: artifacts/cache-audit/pipelines/
                   if-no-files-found: warn
     build-audits:
-        name: Cache auditor and pnpm compatibility
+        name: Build cache declarations (report only)
         runs-on: ubuntu-latest
         timeout-minutes: 45
         steps:
@@ -94,6 +94,23 @@ jobs:
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
               run: vp run @atlowchemi/cache-audit#test:compat
+            - name: Audit all build tasks with fresh compiler state
+              id: audit
+              continue-on-error: true
+              env:
+                  CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
+              run: vp run @atlowchemi/cache-audit#audit -- --all
+            - name: Verify deliberately missing native declarations fail
+              if: steps.audit.outcome == 'success'
+              env:
+                  CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
+              run: vp run @atlowchemi/cache-audit#audit:negative
+            - name: Report audit status
+              if: always()
+              env:
+                  AUDIT_OUTCOME: ${{ steps.audit.outcome }}
+              run: |
+                  echo "Build filesystem audits: ${AUDIT_OUTCOME}. This rollout is report-only; normal CI still uses Vite+." >> "$GITHUB_STEP_SUMMARY"
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               if: always()
               with:
