@@ -1,5 +1,32 @@
 # Changelog
 
+## [0.11.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.10.0...webfont-engine-v0.11.0) (2026-10-28)
+
+### ⚠ BREAKING CHANGES
+
+- **webfont-generator:** CLI inputs must be explicit paths. Bare names such as `icons`, `icons/` or `plus.svg` are rejected; write `./icons`, `./icons/` or `./plus.svg` instead. `clear-cache` and `help` are subcommands.
+
+### Features
+
+- **webfont-generator:** add a threads option ([#633](https://github.com/atlowChemi/vite-svg-2-webfont/issues/633)) ([a1264c3](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a1264c31917dea40623aa9ff8d40bd2674af9aa6))
+- **webfont-generator:** add clear-cache CLI subcommand ([#610](https://github.com/atlowChemi/vite-svg-2-webfont/issues/610)) ([c6ca79a](https://github.com/atlowChemi/vite-svg-2-webfont/commit/c6ca79a8ff0565f4f2d72973b4e4884809196103))
+- **webfont-generator:** add fixed TypeScript output to the engine and CLI ([#640](https://github.com/atlowChemi/vite-svg-2-webfont/issues/640)) ([689530e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/689530ed524f083e9303d0b84f43a42d718a4771))
+- **webfont-generator:** add persistent generation cache ([#609](https://github.com/atlowChemi/vite-svg-2-webfont/issues/609)) ([17837c2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/17837c247a524500c22d32d8176e14ba07ea2fd2))
+- **webfont-generator:** cache color glyphs ([#618](https://github.com/atlowChemi/vite-svg-2-webfont/issues/618)) ([565d9f1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/565d9f159a34c6461afb9f4dedd13a95ce1fb3c9))
+- **webfont-generator:** cache variant families ([#614](https://github.com/atlowChemi/vite-svg-2-webfont/issues/614)) ([8b813a2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/8b813a2dca51ed78df1be9d4c13c0d72d09f6504))
+- **webfont-generator:** reuse cache bytes in in-memory and browser generation ([#612](https://github.com/atlowChemi/vite-svg-2-webfont/issues/612)) ([327b1a8](https://github.com/atlowChemi/vite-svg-2-webfont/commit/327b1a86a3a719e73063ad23b6354528c4f0de13))
+
+### Bug Fixes
+
+- **webfont-generator:** update font dependencies ([#628](https://github.com/atlowChemi/vite-svg-2-webfont/issues/628)) ([173074e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/173074ef3e383ae0b0bfa194c233e72080d9c675))
+
+### Performance Improvements
+
+- **webfont-generator:** read SVG files in bounded chunks ([#631](https://github.com/atlowChemi/vite-svg-2-webfont/issues/631)) ([89c8b59](https://github.com/atlowChemi/vite-svg-2-webfont/commit/89c8b59483f7f87dad539e07d5aa70fccaeea453))
+- **webfont-generator:** reduce optimized glyph finalization time by 15-21% in CI benchmarks ([edf8a5f](https://github.com/atlowChemi/vite-svg-2-webfont/commit/edf8a5f786b23f8b760690c3594f6b95522c3a46))
+- **webfont-generator:** speed up warm cache runs by decoding saved glyphs lazily ([#619](https://github.com/atlowChemi/vite-svg-2-webfont/issues/619)) ([190e9e2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/190e9e29ec1a183c3c59d6d26eee8222f37ffc2b))
+- **webfont-generator:** use zlib-rs for WOFF compression ([#639](https://github.com/atlowChemi/vite-svg-2-webfont/issues/639)) ([e1c5046](https://github.com/atlowChemi/vite-svg-2-webfont/commit/e1c50469e1ec36b5e4bf85ea6dd77d659b3c660c))
+
 ## [0.10.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.9.0...webfont-engine-v0.10.0) (2026-10-18)
 
 ### Features

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.2.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-browser-generator-v0.1.0...webfont-browser-generator-v0.2.0) (2026-10-28)
+
+### Features
+
+- **webfont-browser:** expose TypeScript metadata and playground output ([#641](https://github.com/atlowChemi/vite-svg-2-webfont/issues/641)) ([4a8d8b2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/4a8d8b2af61bd1ea6b5df4dc8b537133091b5612))
+- **webfont-generator:** add fixed TypeScript output to the engine and CLI ([#640](https://github.com/atlowChemi/vite-svg-2-webfont/issues/640)) ([689530e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/689530ed524f083e9303d0b84f43a42d718a4771))
+- **webfont-generator:** cache color glyphs ([#618](https://github.com/atlowChemi/vite-svg-2-webfont/issues/618)) ([565d9f1](https://github.com/atlowChemi/vite-svg-2-webfont/commit/565d9f159a34c6461afb9f4dedd13a95ce1fb3c9))
+- **webfont-generator:** cache variant families ([#614](https://github.com/atlowChemi/vite-svg-2-webfont/issues/614)) ([8b813a2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/8b813a2dca51ed78df1be9d4c13c0d72d09f6504))
+- **webfont-generator:** reuse cache bytes in in-memory and browser generation ([#612](https://github.com/atlowChemi/vite-svg-2-webfont/issues/612)) ([327b1a8](https://github.com/atlowChemi/vite-svg-2-webfont/commit/327b1a86a3a719e73063ad23b6354528c4f0de13))
+
 ## 0.1.0 (2026-10-18)
 
 ### Features

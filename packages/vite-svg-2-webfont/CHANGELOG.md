@@ -1,5 +1,18 @@
 # Changelog
 
+## [8.6.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.5.0...vite-svg-2-webfont-v8.6.0) (2026-10-28)
+
+### Features
+
+- expose TypeScript metadata through Node and Vite ([#642](https://github.com/atlowChemi/vite-svg-2-webfont/issues/642)) ([679fee4](https://github.com/atlowChemi/vite-svg-2-webfont/commit/679fee4ffaff4b5f539f76e70bb52befc24aa989))
+- **vite-svg-2-webfont:** use the engine's persistent cache ([#621](https://github.com/atlowChemi/vite-svg-2-webfont/issues/621)) ([7811c14](https://github.com/atlowChemi/vite-svg-2-webfont/commit/7811c14117a220f2ce6cea860e990816141df2c2))
+
+### Dependencies
+
+- The following workspace dependencies were updated
+    - dependencies
+        - @atlowchemi/webfont-generator bumped to 0.11.0
+
 ## [8.5.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.4.0...vite-svg-2-webfont-v8.5.0) (2026-10-18)
 
 ### Features
