@@ -251,6 +251,14 @@ jobs:
                   key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
                   restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
             - run: vp run @atlowchemi/vite-svg-webfont-docs#build
+            # Picked up by docs-preview.yaml, which deploys it with Cloudflare credentials this run never sees.
+            - name: Upload docs site
+              uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: docs-site
+                  path: packages/docs/.vitepress/dist
+                  if-no-files-found: error
+                  retention-days: 3
 
     test-browser:
         name: test browser font compatibility

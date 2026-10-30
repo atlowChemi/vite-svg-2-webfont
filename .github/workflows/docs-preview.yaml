@@ -1,0 +1,245 @@
+name: Docs preview
+
+# CI builds the docs without secrets and uploads them as the `docs-site` artifact.
+# This workflow runs from the default branch, so the Cloudflare credentials only ever meet trusted workflow code:
+# - pushes to main deploy the Worker behind next.fonte.atlow.dev;
+# - same-repository pull requests get a `pr-<number>` preview alias, a GitHub deployment, and a sticky comment;
+# - closing a pull request replaces its preview with a "torn down" page.
+on:
+    workflow_run:
+        workflows: [CI]
+        types: [completed]
+    pull_request_target:
+        types: [closed]
+
+permissions:
+    contents: read
+
+env:
+    WRANGLER: wrangler@4.151.0
+    WRANGLER_SEND_METRICS: 'false'
+    MARKER: '<!-- docs-preview -->'
+    PREVIEW_ENVIRONMENT: docs-preview
+
+jobs:
+    find-main-site:
+        name: find main docs build
+        if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event == 'push' && github.event.workflow_run.head_branch == 'main' }}
+        runs-on: ubuntu-latest
+        permissions:
+            actions: read
+        outputs:
+            found: ${{ steps.site.outputs.found }}
+        steps:
+            - id: site
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  RUN_ID: ${{ github.event.workflow_run.id }}
+              run: |
+                  id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "docs-site") | .id')
+                  echo "found=$([ -n "$id" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+    deploy-main:
+        name: deploy next.fonte.atlow.dev
+        needs: [find-main-site]
+        if: ${{ needs.find-main-site.outputs.found == 'true' }}
+        runs-on: ubuntu-latest
+        concurrency:
+            group: docs-preview-main
+            cancel-in-progress: true
+        environment:
+            name: fonte-next
+            url: https://next.fonte.atlow.dev
+        permissions:
+            actions: read
+            contents: read
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - name: Download docs site
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  RUN_ID: ${{ github.event.workflow_run.id }}
+              run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name docs-site --dir packages/docs/.vitepress/dist
+            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              with:
+                  node-version-file: .node-version
+                  run-install: false
+                  cache: false
+            - name: Deploy Worker
+              working-directory: packages/docs
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+                  SHA: ${{ github.event.workflow_run.head_sha }}
+              run: vpx "$WRANGLER" deploy --message "main at ${SHA:0:7}"
+
+    preview:
+        name: deploy pull request preview
+        # Fork pull requests have no entry in `pull_requests` and never reach the credentials.
+        if: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.head_repository.full_name == github.repository && github.event.workflow_run.pull_requests[0] != null }}
+        runs-on: ubuntu-latest
+        concurrency:
+            group: docs-preview-pr-${{ github.event.workflow_run.pull_requests[0].number }}
+        # Secrets only: each preview gets its own transient deployment below instead.
+        environment:
+            name: fonte-next
+            deployment: false
+        permissions:
+            actions: read
+            contents: read
+            deployments: write
+            pull-requests: write
+        env:
+            GH_TOKEN: ${{ github.token }}
+            PR: ${{ github.event.workflow_run.pull_requests[0].number }}
+            SHA: ${{ github.event.workflow_run.head_sha }}
+            RUN_ID: ${{ github.event.workflow_run.id }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - name: Download docs site
+              id: site
+              run: |
+                  id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "docs-site") | .id')
+                  if [ -z "$id" ]; then
+                      echo "::notice title=No docs preview::CI did not build the docs for this commit."
+                      echo found=false >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  # A late CI run must not revive a closed pull request's preview or replace a newer commit's.
+                  state=$(gh pr view "$PR" --repo "$GITHUB_REPOSITORY" --json state,headRefOid --jq '.state + " " + .headRefOid')
+                  if [ "$state" != "OPEN $SHA" ]; then
+                      echo "::notice title=No docs preview::#$PR is closed or has newer commits."
+                      echo found=false >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
+                  gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name docs-site --dir packages/docs/.vitepress/dist
+                  echo found=true >> "$GITHUB_OUTPUT"
+            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              if: ${{ steps.site.outputs.found == 'true' }}
+              with:
+                  node-version-file: .node-version
+                  run-install: false
+                  cache: false
+            - name: Upload preview version
+              id: upload
+              if: ${{ steps.site.outputs.found == 'true' }}
+              working-directory: packages/docs
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+              run: |
+                  out=$(vpx "$WRANGLER" versions upload --preview-alias "pr-$PR" --message "#$PR at ${SHA:0:7}" 2>&1) || { echo "$out"; exit 1; }
+                  echo "$out"
+                  url=$(grep -oE "https://pr-$PR-fonte-next\.[a-z0-9-]+\.workers\.dev" <<< "$out" | head -n 1)
+                  if [ -z "$url" ]; then
+                      echo "::error::wrangler printed no preview alias URL"
+                      exit 1
+                  fi
+                  echo "url=$url" >> "$GITHUB_OUTPUT"
+            - name: Record GitHub deployment
+              if: ${{ steps.site.outputs.found == 'true' }}
+              env:
+                  URL: ${{ steps.upload.outputs.url }}
+              run: |
+                  task="docs-preview:pr-$PR"
+                  for id in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=$PREVIEW_ENVIRONMENT&task=$task" --jq '.[].id'); do
+                      gh api -X POST "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=inactive > /dev/null
+                  done
+                  # Transient deployments survive other pull requests' previews; this PR's older ones were retired above.
+                  id=$(jq -n --arg ref "$SHA" --arg task "$task" --arg environment "$PREVIEW_ENVIRONMENT" --arg description "Docs preview for #$PR" \
+                      '{ref: $ref, task: $task, environment: $environment, description: $description, auto_merge: false, required_contexts: [], transient_environment: true, production_environment: false}' |
+                      gh api -X POST "repos/$GITHUB_REPOSITORY/deployments" --input - --jq .id)
+                  gh api -X POST "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" \
+                      -f state=success -f environment_url="$URL" -f log_url="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" -F auto_inactive=false > /dev/null
+            - name: Update pull request comment
+              if: ${{ steps.site.outputs.found == 'true' }}
+              env:
+                  URL: ${{ steps.upload.outputs.url }}
+              run: |
+                  body=$(printf '%s\n' "$MARKER" "**Docs preview:** $URL" "" "Built from ${SHA:0:7}. It's torn down when this pull request is merged or closed.")
+                  comment=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id' | head -n 1)
+                  if [ -n "$comment" ]; then
+                      gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment" -f body="$body" > /dev/null
+                  else
+                      gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -f body="$body" > /dev/null
+                  fi
+
+    teardown:
+        name: tear down pull request preview
+        # Runs base-branch code only; the pull request's own code is never checked out.
+        if: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository }}
+        runs-on: ubuntu-latest
+        concurrency:
+            group: docs-preview-pr-${{ github.event.pull_request.number }}
+        environment:
+            name: fonte-next
+            deployment: false
+        permissions:
+            contents: read
+            deployments: write
+            pull-requests: write
+        env:
+            GH_TOKEN: ${{ github.token }}
+            PR: ${{ github.event.pull_request.number }}
+            MERGED: ${{ github.event.pull_request.merged }}
+            MERGE_SHA: ${{ github.event.pull_request.merge_commit_sha }}
+            HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        steps:
+            - name: Find preview comment
+              id: comment
+              run: |
+                  comment=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id' | head -n 1)
+                  if [ -z "$comment" ]; then
+                      echo "::notice title=No docs preview::#$PR never had a preview."
+                  fi
+                  echo "id=$comment" >> "$GITHUB_OUTPUT"
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              if: ${{ steps.comment.outputs.id != '' }}
+            - name: Write torn-down page
+              if: ${{ steps.comment.outputs.id != '' }}
+              run: |
+                  if [ "$MERGED" = true ]; then outcome="merged"; else outcome="closed"; fi
+                  dist=packages/docs/.vitepress/dist
+                  mkdir -p "$dist"
+                  cat > "$dist/index.html" << EOF
+                  <!doctype html>
+                  <html lang="en">
+                  <meta charset="utf-8">
+                  <meta name="viewport" content="width=device-width, initial-scale=1">
+                  <meta name="robots" content="noindex">
+                  <title>Preview closed</title>
+                  <style>body{margin:0;min-height:100vh;display:grid;place-content:center;gap:8px;padding:16px;background:#1c1a1f;color:#f3ece2;font:17px/1.5 Georgia,serif;text-align:center}a{color:#ff6a13}</style>
+                  <h1>This preview was torn down</h1>
+                  <p>Pull request <a href="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$PR">#$PR</a> was $outcome.</p>
+                  <p><a href="https://next.fonte.atlow.dev/">See the latest docs from main</a></p>
+                  </html>
+                  EOF
+                  cp "$dist/index.html" "$dist/404.html"
+            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              if: ${{ steps.comment.outputs.id != '' }}
+              with:
+                  node-version-file: .node-version
+                  run-install: false
+                  cache: false
+            # Cloudflare keeps an alias's latest version, so the alias is pointed at the page above instead.
+            - name: Replace preview version
+              if: ${{ steps.comment.outputs.id != '' }}
+              working-directory: packages/docs
+              env:
+                  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+                  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+              run: vpx "$WRANGLER" versions upload --preview-alias "pr-$PR" --message "#$PR torn down"
+            - name: Retire GitHub deployments
+              if: ${{ steps.comment.outputs.id != '' }}
+              run: |
+                  for id in $(gh api "repos/$GITHUB_REPOSITORY/deployments?environment=$PREVIEW_ENVIRONMENT&task=docs-preview:pr-$PR" --jq '.[].id'); do
+                      gh api -X POST "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" -f state=inactive > /dev/null
+                  done
+            - name: Update pull request comment
+              if: ${{ steps.comment.outputs.id != '' }}
+              env:
+                  COMMENT: ${{ steps.comment.outputs.id }}
+              run: |
+                  if [ "$MERGED" = true ]; then outcome="merged at ${MERGE_SHA:0:7}"; else outcome="closed at ${HEAD_SHA:0:7}"; fi
+                  body=$(printf '%s\n' "$MARKER" "**Docs preview:** torn down when this pull request was $outcome.")
+                  gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT" -f body="$body" > /dev/null
