@@ -945,6 +945,121 @@ fn bench_memory(c: &mut Criterion) {
     group.finish();
 }
 
+// Paired edit timings: disk cache off/on, with flush either outside or inside timing.
+// Fixture writes and initial generation are excluded; every edit changes SVG content.
+fn bench_persistence(c: &mut Criterion) {
+    use std::time::{Duration, Instant};
+    use webfont_generator::{FontVariant, RegenerationFiles, VariantFileSet};
+
+    let mut group = c.benchmark_group("persistence");
+    group.sample_size(20);
+    group.warm_up_time(Duration::from_secs(1));
+    group.measurement_time(Duration::from_secs(2));
+    for size in [100, 600] {
+        for designs in [1, 3] {
+            let fixture = fixtures(size);
+            let mut files = vec![fixture.paths.clone()];
+            for design in 1..designs {
+                let directory = fixture.dir.join(format!("design-{design}"));
+                std::fs::create_dir(&directory).unwrap();
+                files.push(fixture.paths.iter().map(|source| {
+                    let path = directory.join(Path::new(source).file_name().unwrap());
+                    let original = std::fs::read_to_string(source).unwrap();
+                    let content = format!("<svg xmlns=\"http://www.w3.org/2000/svg\" viewBox=\"0 0 24 24\"><g transform=\"scale({})\">{original}</g></svg>", 1.0 - design as f64 * 0.1);
+                    std::fs::write(&path, content).unwrap();
+                    path.to_string_lossy().into_owned()
+                }).collect());
+            }
+            let membership = if designs == 1 {
+                RegenerationFiles::Single(files[0].clone())
+            } else {
+                RegenerationFiles::Variants(
+                    files
+                        .iter()
+                        .enumerate()
+                        .map(|(index, files)| VariantFileSet {
+                            variant: format!("design-{index}"),
+                            files: files.clone(),
+                        })
+                        .collect(),
+                )
+            };
+            let changed = &files[0][size / 2];
+            let original = std::fs::read_to_string(changed).unwrap();
+            let edited = svg(&changed_path_data());
+            let changes = [(changed.clone(), GlyphChange::Changed { name: None })];
+            for cached in [true, false] {
+                let mut opts = options_with_types(files[0].clone(), true, vec![FontType::Ttf]);
+                if designs > 1 {
+                    opts.files.clear();
+                    opts.variants = Some(
+                        files
+                            .iter()
+                            .enumerate()
+                            .map(|(index, files)| FontVariant {
+                                name: format!("design-{index}"),
+                                files: files.clone(),
+                                weight: Some(300 + index as u16 * 200),
+                                default: Some(index == 0),
+                            })
+                            .collect(),
+                    );
+                }
+                if cached {
+                    opts.cache_location =
+                        Some(fixture.dir.join("cache").to_string_lossy().into_owned());
+                }
+                std::fs::write(changed, &original).unwrap();
+                let mut result = webfont_generator::generate_sync(opts.clone(), None).unwrap();
+                let mut alternate = false;
+                if cached {
+                    group.bench_function(format!("{size}/{designs}design/snapshot"), |b| {
+                        b.iter(|| result.persistence_snapshot_for_bench());
+                    });
+                }
+                for burst in [1, 10] {
+                    for drained in [false, true] {
+                        let mode = if drained { "drained" } else { "latency" };
+                        group.bench_function(
+                            format!("{size}/{designs}design/cache-{cached}/burst-{burst}/{mode}"),
+                            |b| {
+                                b.iter_custom(|iterations| {
+                                    let mut elapsed = Duration::ZERO;
+                                    for _ in 0..iterations {
+                                        for _ in 0..burst {
+                                            alternate = !alternate;
+                                            std::fs::write(
+                                                changed,
+                                                if alternate { &edited } else { &original },
+                                            )
+                                            .unwrap();
+                                            let start = Instant::now();
+                                            result.regenerate(&membership, &changes).unwrap();
+                                            elapsed += start.elapsed();
+                                        }
+                                        let start = Instant::now();
+                                        result.flush_cache().unwrap();
+                                        if drained {
+                                            elapsed += start.elapsed();
+                                        }
+                                    }
+                                    elapsed
+                                });
+                            },
+                        );
+                    }
+                }
+                // Check the measured updates still agree with a fresh build, outside timing.
+                result.flush_cache().unwrap();
+                opts.cache_location = None;
+                let fresh = webfont_generator::generate_sync(opts, None).unwrap();
+                assert_eq!(result.ttf_bytes(), fresh.ttf_bytes());
+            }
+        }
+    }
+    group.finish();
+}
+
 criterion_group!(
     benches,
     bench_svg_prepare,
@@ -955,6 +1070,7 @@ criterion_group!(
     bench_render_cache_after_regenerate,
     bench_incremental_write_content_edit,
     bench_specialized_incremental_paths,
-    bench_memory
+    bench_memory,
+    bench_persistence
 );
 criterion_main!(benches);

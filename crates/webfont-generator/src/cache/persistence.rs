@@ -101,15 +101,24 @@ impl Persistence {
     }
 
     fn start(self: &Arc<Self>, queue: &mut Queue) {
+        self.start_with(queue, |worker| {
+            std::thread::Builder::new()
+                .name("webfont-cache".into())
+                .spawn(move || worker.run())
+                .map(|_| ())
+        });
+    }
+
+    fn start_with(
+        self: &Arc<Self>,
+        queue: &mut Queue,
+        spawn: impl FnOnce(Arc<Self>) -> Result<()>,
+    ) {
         if queue.running {
             return;
         }
         queue.running = true;
-        let worker = Arc::clone(self);
-        if let Err(error) = std::thread::Builder::new()
-            .name("webfont-cache".into())
-            .spawn(move || worker.run())
-        {
+        if let Err(error) = spawn(Arc::clone(self)) {
             queue.running = false;
             queue.retry = queue.pending.take();
             queue.error = Some((error.kind(), error.to_string()));
@@ -220,6 +229,14 @@ impl GenerateWebfontsResult {
         }
     }
 
+    /// Measure snapshot ownership separately from encoding, scheduling, and disk I/O.
+    #[doc(hidden)]
+    #[cfg(feature = "bench")]
+    pub fn persistence_snapshot_for_bench(&self) -> impl Sized {
+        let state = self.regeneration_state.lock().unwrap();
+        self.cache_snapshot(state.as_ref().unwrap())
+    }
+
     pub(crate) fn schedule_cache(&self, state: &RegenerationState) {
         if self.defer_cache {
             return;
@@ -282,6 +299,55 @@ mod tests {
 
     fn snapshot(result: &GenerateWebfontsResult) -> Snapshot {
         result.cache_snapshot(result.regeneration_state.lock().unwrap().as_ref().unwrap())
+    }
+
+    #[test]
+    fn refused_worker_start_retains_snapshot_for_flush_retry() {
+        let (result, directory) = incremental_result();
+        let cache = result.persistence.as_ref().unwrap();
+        {
+            let mut queue = cache.lock();
+            queue.pending = Some(snapshot(&result));
+            cache.start_with(&mut queue, |_| Err(Error::other("thread limit")));
+            assert!(!queue.running);
+            assert!(queue.pending.is_none());
+            assert!(queue.retry.is_some());
+            assert_eq!(queue.error.as_ref().unwrap().1, "thread limit");
+        }
+        cache.flush().unwrap();
+        assert!(cache.lock().error.is_none());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
+    fn save_panic_invalidates_identity_and_flush_retries_the_snapshot() {
+        let (result, directory) = incremental_result();
+        let cache = result.persistence.as_ref().unwrap();
+        let file = {
+            let mut queue = cache.lock();
+            let disk = queue.disk.as_ref().unwrap();
+            let file = disk.dir.join(&disk.file_name);
+            queue.pending = Some(snapshot(&result));
+            queue.running = true;
+            file
+        };
+        let before = std::fs::read(&file).unwrap();
+        cache.run_with(|_, _| panic!("injected encode panic"));
+        {
+            let queue = cache.lock();
+            assert!(!queue.running);
+            assert!(queue.retry.is_some());
+            assert!(queue.disk.as_ref().unwrap().state.loaded.is_none());
+            assert!(queue.error.as_ref().unwrap().1.contains("writer panicked"));
+        }
+        // Rewriting identical bytes must still be attempted after a panic.
+        std::fs::remove_file(&file).unwrap();
+        std::fs::create_dir(&file).unwrap();
+        assert!(cache.flush().is_err());
+        std::fs::remove_dir(&file).unwrap();
+        cache.flush().unwrap();
+        assert_eq!(std::fs::read(file).unwrap(), before);
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]

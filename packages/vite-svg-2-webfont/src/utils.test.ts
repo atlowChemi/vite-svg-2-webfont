@@ -23,6 +23,7 @@ describe('utils', () => {
         afterEach(async () => {
             vi.useRealTimers();
             vi.restoreAllMocks();
+            vi.unstubAllGlobals();
             await Promise.all(folders.splice(0).map(directory => fs.rm(directory, { recursive: true, force: true })));
         });
 
@@ -66,6 +67,28 @@ describe('utils', () => {
             await expect(utils.createLock(directory)).rejects.toThrow('disk full');
             await expect(handle.stat()).rejects.toMatchObject({ code: 'EBADF' });
             await expect(fs.stat(path)).rejects.toMatchObject({ code: 'ENOENT' });
+        });
+
+        it('retries Windows delete-pending and sharing errors without stealing the lock', async () => {
+            const directory = await temporary();
+            vi.stubGlobal('process', { ...process, platform: 'win32' });
+            const open = vi
+                .spyOn(fs, 'open')
+                .mockRejectedValueOnce(Object.assign(new Error('delete pending'), { code: 'EPERM' }))
+                .mockRejectedValueOnce(Object.assign(new Error('sharing violation'), { code: 'EBUSY' }));
+            await using _lock = await utils.createLock(directory);
+            expect(open).toHaveBeenCalledTimes(3);
+            expect(JSON.parse(await fs.readFile(pathJoin(directory, '.lock'), 'utf8')).pid).toBe(process.pid);
+        });
+
+        it('bounds Windows access-denied retries and preserves the original error', async () => {
+            const directory = await temporary();
+            vi.stubGlobal('process', { ...process, platform: 'win32' });
+            const error = Object.assign(new Error('access denied'), { code: 'EPERM' });
+            vi.spyOn(fs, 'open').mockRejectedValue(error);
+            vi.spyOn(Date, 'now').mockReturnValueOnce(0).mockReturnValue(10_001);
+            await expect(utils.createLock(directory)).rejects.toMatchObject({ cause: error });
+            await expect(fs.stat(pathJoin(directory, '.lock'))).rejects.toMatchObject({ code: 'ENOENT' });
         });
 
         it('times out without deleting another writer and propagates filesystem failures', async () => {

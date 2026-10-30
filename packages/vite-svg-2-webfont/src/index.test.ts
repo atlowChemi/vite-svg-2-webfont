@@ -1233,6 +1233,44 @@ describe('build - throws when generator omits a requested font type', () => {
 });
 
 describe('output cache guards', () => {
+    it('cancels fallback generation when shutdown interrupts a failed cache flush', async () => {
+        const flushing = Promise.withResolvers<void>();
+        const release = Promise.withResolvers<void>();
+        const cacheDir = await mkdtemp(pathJoin(tmpdir(), 'vsw-abort-flush-'));
+        let watcherHandler: Parameters<typeof setupWatcherMock>[2];
+        setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
+            watcherHandler = handler;
+        });
+        const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            const result = await realGen(options);
+            result.regenerateAsync = async () => {
+                throw new Error('rebuild failed');
+            };
+            result.flushCache = async () => {
+                flushing.resolve();
+                await release.promise;
+                throw new Error('cache unavailable');
+            };
+            return result;
+        });
+        const plugin = viteSvgToWebfont({ context: webfontFolder, types: ['woff2'] });
+        const hook = (name: 'configResolved' | 'buildStart' | 'buildEnd') => (plugin[name] as (this: unknown, ...args: unknown[]) => Promise<void>).bind({});
+        await hook('configResolved')({ command: 'serve', root: fileURLToNormalizedPath(root), cacheDir });
+        await hook('buildStart')();
+        const calls = generateWebfontsMock.mock.calls.length;
+        const rebuild = watcherHandler!([{ path: pathJoin(webfontFolder, 'add.svg'), kind: 'changed' }]);
+        await flushing.promise;
+        const close = hook('buildEnd')();
+        release.resolve();
+        try {
+            await Promise.all([rebuild, close]);
+            expect(generateWebfontsMock).toHaveBeenCalledTimes(calls);
+        } finally {
+            await rm(cacheDir, { recursive: true, force: true });
+        }
+    });
+
     it('leaves unreadable inputs to the engine instead of failing the cache key', async () => {
         const lookupsBefore = readCacheEntryMock.mock.calls.length;
         const generateCallsBefore = generateWebfontsMock.mock.calls.length;

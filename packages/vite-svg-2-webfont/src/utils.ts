@@ -177,7 +177,10 @@ export async function createLock(directory: string): Promise<AsyncDisposable> {
             file = await open(path, 'wx');
             break;
         } catch (error) {
-            if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+            const code = (error as NodeJS.ErrnoException).code;
+            // Windows can report access/sharing errors while another writer deletes the lock.
+            const deleting = process.platform === 'win32' && (code === 'EPERM' || code === 'EBUSY');
+            if (code !== 'EEXIST' && !deleting) throw error;
             if (Date.now() >= deadline) throw new Error(`Timed out acquiring lock ${path}. If no generator is running, remove stale lock ${path}.`, { cause: error });
             await setTimeout(20);
         }

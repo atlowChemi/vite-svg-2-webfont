@@ -669,11 +669,19 @@ fn clear_cache_reports_unreadable_or_locked_locations() {
         .join(cache_files(&project.cache()).pop().unwrap());
     assert!(clear_cache(&file).is_err());
 
+    let original = fs::read(&file).unwrap();
     fs::set_permissions(project.cache(), fs::Permissions::from_mode(0o555)).unwrap();
     let result = clear_cache(project.cache());
+    let write_result = write(
+        &project.cache(),
+        file.file_name().unwrap().to_str().unwrap(),
+        b"replacement",
+    );
     fs::set_permissions(project.cache(), fs::Permissions::from_mode(0o755)).unwrap();
     assert!(result.is_err());
-    assert!(file.exists());
+    assert!(write_result.is_err());
+    assert_eq!(fs::read(file).unwrap(), original);
+    assert_eq!(fs::read_dir(project.cache()).unwrap().count(), 1);
 }
 
 #[test]
