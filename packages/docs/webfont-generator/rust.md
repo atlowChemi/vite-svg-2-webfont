@@ -691,6 +691,15 @@ disk files. Retry to complete output writes. The consuming async methods take `s
 with `RegenerateError::into_result` on failure. Dropping the future does not cancel started
 blocking work or its writes. Results created through Node context callbacks reject regeneration.
 
+### Persistent cache writes
+
+| Method                | Return type      | Description                                                                  |
+| --------------------- | ---------------- | ---------------------------------------------------------------------------- |
+| `flush_cache()`       | `io::Result<()>` | Block until background cache writes finish, retrying a previous failure once |
+| `flush_cache_async()` | `io::Result<()>` | Await the same flush on Tokio's blocking pool                                |
+
+Await outstanding rebuilds before flushing. Both methods are no-ops without an incremental filesystem cache; persistence errors do not invalidate generated outputs.
+
 ### Incremental rebuild
 
 | Method                                      | Return type                     | Description                                                                 |

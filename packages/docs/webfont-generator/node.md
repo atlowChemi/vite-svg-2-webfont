@@ -399,12 +399,7 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
     - Read or write failures (missing permissions, corrupt or truncated files) never fail generation; the run recomputes, replaces corrupt or truncated files, and leaves an unwritable location uncached. Saved fonts and saved per-icon work carry separate checksums, so accidental corruption is detected rather than reused. Runs whose fonts all come from the cache don't read the per-icon work, so damage limited to it is detected and repaired by the next run that needs it (one with a format to rebuild, or an incremental one). A directory where the cache file belongs is never removed; generation prints a warning and stays uncached until you remove it.
     - Cached fonts are reused as-is, so only restore trusted caches; see the [warning under caching across builds](#caching-across-builds).
 
-### `result.flushCache()`
-
-- Returns: `Promise<void>`
-- Waits for automatic cache writes and retries a previously failed write once. Await outstanding incremental calls first, then call this before shutdown. Dropping a result does not wait, and abrupt process termination can lose pending writes.
-- Rejects on persistence failure without affecting generated output. No-op without an incremental `cacheLocation`. Old results returned before `regenerateAsync` share the same writer: flushing one waits for the lineage and never saves its stale fonts.
-- Initial generation still saves synchronously. No explicit save call is required after edits.
+Await [`result.flushCache()`](#result-flushcache) before shutdown to finish pending incremental cache writes.
 
 ### `threads`
 
@@ -632,6 +627,13 @@ Each font format is available as a property on the result. Formats that were not
 | `eot`    | `Uint8Array \| null` | EOT font binary      |
 | `woff`   | `Uint8Array \| null` | WOFF font binary     |
 | `woff2`  | `Uint8Array \| null` | WOFF2 font binary    |
+
+### `result.flushCache()`
+
+- Type: `() => Promise<void>`
+- Waits for automatic cache writes and retries a previously failed write once. Await outstanding incremental calls first, then call this before shutdown. Dropping a result does not wait, and abrupt process termination can lose pending writes.
+- Rejects on persistence failure without affecting generated output. No-op without an incremental `cacheLocation`. Old results returned before `regenerateAsync` share the same writer: flushing one waits for the lineage and never saves its stale fonts.
+- Initial generation still saves synchronously. No explicit save call is required after edits.
 
 ### `generateCss(urls?)`
 
