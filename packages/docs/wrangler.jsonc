@@ -1,0 +1,13 @@
+// Cloudflare Worker serving the built docs as static assets.
+// `main` deploys to next.fonte.atlow.dev; pull requests upload preview versions (see .github/workflows/docs-preview.yaml).
+{
+    "name": "fonte-next",
+    "compatibility_date": "2026-10-01",
+    "assets": {
+        "directory": "./.vitepress/dist",
+        "not_found_handling": "404-page",
+    },
+    "routes": [{ "pattern": "next.fonte.atlow.dev", "custom_domain": true }],
+    "workers_dev": true,
+    "preview_urls": true,
+}
