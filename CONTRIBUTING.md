@@ -201,7 +201,7 @@ under `target/wasm-bindgen-tools`; Rust/rustup are prerequisites. `WASM_BINDGEN`
 an existing CLI of the exact required version. WASM generation uses only the engine's
 `in_memory` feature. `#build` compiles the WASM binding; `#pack` builds the complete `dist/`
 distribution, and `#pack:tgz` creates an installable tarball. Workspace consumers must run
-`#pack` first. See the [browser API documentation](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/browser) for usage and worker ownership.
+`#pack` first. See the [browser API documentation](https://fonte.atlow.dev/webfont-generator/browser) for usage and worker ownership.
 
 Browser coverage writes `coverage/browser-js/lcov.info` and `coverage/browser-rust/lcov.info`.
 JavaScript coverage combines Chromium client tests with worker protocol tests running real WASM

@@ -22,7 +22,6 @@ const config: UserProjectConfigExport = defineProject({
             build: {
                 command: 'vitepress build .',
                 dependsOn: ['social-card', 'vite-svg-2-webfont#pack', '@atlowchemi/webfont-browser-generator#pack'],
-                cache: { env: ['GITHUB_ACTIONS'] },
             },
             preview: {
                 cache: false,

@@ -134,7 +134,7 @@
 
     Family CSS selects exact design weights and disables synthetic weights. CSS, HTML preview, and SCSS templates expose family metadata. Sparse icon sets can reject missing glyphs, leave blanks, or use a configured fallback design. CLI JSON manifests support complete variant configurations and manifest-relative input paths.
 
-    See the [Node reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/node), [Rust reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/rust), [CLI reference](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/cli), and [template guide](https://atlowchemi.github.io/vite-svg-2-webfont/webfont-generator/templates) for details.
+    See the [Node reference](https://fonte.atlow.dev/webfont-generator/node), [Rust reference](https://fonte.atlow.dev/webfont-generator/rust), [CLI reference](https://fonte.atlow.dev/webfont-generator/cli), and [template guide](https://fonte.atlow.dev/webfont-generator/templates) for details.
 
 ### Features
 
