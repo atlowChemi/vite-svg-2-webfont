@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/vite-svg-2-webfont"><img src="https://img.shields.io/npm/v/vite-svg-2-webfont.svg?style=flat-square" alt="npm" /></a>
-  <a href="https://atlowChemi.github.io/vite-svg-2-webfont/"><img src="https://img.shields.io/badge/docs-online-646cff?style=flat-square" alt="docs" /></a>
+  <a href="https://fonte.atlow.dev/"><img src="https://img.shields.io/badge/docs-online-646cff?style=flat-square" alt="docs" /></a>
   <a href="https://github.com/atlowChemi/vite-svg-2-webfont/blob/master/LICENSE"><img src="https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square" alt="license" /></a>
 </p>
 
@@ -25,7 +25,7 @@
 
 ## Documentation
 
-Full documentation is available at [atlowChemi.github.io/vite-svg-2-webfont](https://atlowChemi.github.io/vite-svg-2-webfont/).
+Full documentation is available at [fonte.atlow.dev](https://fonte.atlow.dev/).
 
 ## License
 

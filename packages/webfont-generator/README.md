@@ -17,12 +17,12 @@ addon; npm consumers use the file-based JavaScript API documented here.
 WOFF compression uses the engine's pure-Rust zlib-rs backend.
 
 For the underlying engine and command-line APIs, see the
-[Rust reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust) and
-[CLI reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/cli).
+[Rust reference](https://fonte.atlow.dev/webfont-generator/rust) and
+[CLI reference](https://fonte.atlow.dev/webfont-generator/cli).
 
 Incremental results also support single-file `add`, `update`, and `remove` helpers without
 resending membership, plus `addAsync`/`updateAsync`/`removeAsync` returning replacement results.
-See [single-file actions](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#single-file-actions).
+See [single-file actions](https://fonte.atlow.dev/webfont-generator/node#single-file-actions).
 For browser applications, use `@atlowchemi/webfont-browser-generator`, which ships precompiled
 WASM and runs SVG-text generation in workers.
 
@@ -35,12 +35,12 @@ The API is largely compatible with `@vusion/webfonts-generator`, with a few diff
 - A new `optimizeOutput` option runs an SVG path optimizer over each glyph before assembling the font. Defaults to `false`; optimization may reduce SVG path data, but does not guarantee smaller binary font output, so compare the generated sizes for your input set. Also available as `formatOptions.svg.optimizeOutput`.
 - `formatOptions.woff2.compressionQuality` sets the Brotli compression quality (0–11) for WOFF2 output. Defaults to `11` (smallest output); lower it (e.g. to `10`) for faster encoding at a marginal size cost.
 - A new `incremental` option (default `false`) retains parsed glyph data on the result so `result.regenerateAsync(files, changes?)` can rebuild after file changes without re-parsing the glyphs that didn't change or blocking the Node.js event loop. It refreshes the outputs in memory and, when the result was generated with `writeFiles`, writes refreshed fonts to disk too while skipping unchanged CSS/HTML companion files. You pass the full file set (in the order a fresh build would use) plus what changed, or omit `changes` to re-read/hash the full set and infer changes; the result is byte-identical to a fresh `generateWebfonts()` of that set, additions included.
-- An optional [persistent cache](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#cachelocation) (`cacheLocation`) lets later runs reuse unchanged work.
+- An optional [persistent cache](https://fonte.atlow.dev/webfont-generator/node#cachelocation) (`cacheLocation`) lets later runs reuse unchanged work.
 - Generated font binaries (TTF, WOFF, etc.) may differ at the byte level because a different encoder is used, but the fonts are equally valid.
 - CSS, HTML, and template output is identical.
 - A new `variants` option supports multi-weight families with discrete designs.
-- A new [`colorGlyphs`](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#color-selection) option preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
-- [`colorSlots`](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#colorslots), for example `{ secondary: '#ff9900' }`, reserves named palette entries for CSS light/dark themes. Requires active `colorGlyphs`; slots use distinct `#RRGGBB` colors and ASCII alphanumeric/hyphen/underscore names. Indices follow ASCII name order and are exposed in the CSS context's `colorSlots` map. See the [live example](https://atlowChemi.github.io/vite-svg-2-webfont/examples#theme-colors-in-one-glyph).
+- A new [`colorGlyphs`](https://fonte.atlow.dev/webfont-generator/node#color-selection) option preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
+- [`colorSlots`](https://fonte.atlow.dev/webfont-generator/node#colorslots), for example `{ secondary: '#ff9900' }`, reserves named palette entries for CSS light/dark themes. Requires active `colorGlyphs`; slots use distinct `#RRGGBB` colors and ASCII alphanumeric/hyphen/underscore names. Indices follow ASCII name order and are exposed in the CSS context's `colorSlots` map. See the [live example](https://fonte.atlow.dev/examples#theme-colors-in-one-glyph).
 
 Performance scales better with glyph count — for larger icon sets the native pipeline is significantly faster.
 
@@ -79,7 +79,7 @@ const html = result.generateHtml();
 Multi-weight families also support incremental builds. Set `incremental: true`, then use
 `regenerateAsync({ variants: [{ variant: 'bold', files: [...] }, ...] }, changes)`
 with every configured design's complete file list. Omit `changes` to re-diff every design. See the
-[variant regeneration reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node#variant-regeneration)
+[variant regeneration reference](https://fonte.atlow.dev/webfont-generator/node#variant-regeneration)
 for input shapes, synchronous alternatives, and failure semantics.
 
 ```js
@@ -110,7 +110,7 @@ console.log(templates.html); // path to default HTML template
 
 ## Documentation
 
-See the [Node.js reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/node) for the complete API. For direct Rust or command-line use, see the separate [engine crate](../../crates/webfont-generator).
+See the [Node.js reference](https://fonte.atlow.dev/webfont-generator/node) for the complete API. For direct Rust or command-line use, see the separate [engine crate](../../crates/webfont-generator).
 
 ## License
 

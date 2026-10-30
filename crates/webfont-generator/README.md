@@ -73,11 +73,11 @@ regeneration's validation and failure semantics; full regeneration remains avail
 Supply `SourceChange` entries only for changed sources and complete `SourceMembership`
 for the final order. Settings and templates stay fixed. Failed synchronous updates leave
 the previous result usable; async failures expose it through `SourceRegenerateError::into_result`
-unless the worker itself failed. See the [text-input reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html#svg-text-api).
+unless the worker itself failed. See the [text-input reference](https://fonte.atlow.dev/webfont-generator/rust.html#svg-text-api).
 
-An optional [persistent cache](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust#persistent-cache) (`cache_location`) lets later runs reuse unchanged work.
+An optional [persistent cache](https://fonte.atlow.dev/webfont-generator/rust#persistent-cache) (`cache_location`) lets later runs reuse unchanged work.
 
-For color glyphs and named theme palettes, see the [color documentation](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust#color-glyphs).
+For color glyphs and named theme palettes, see the [color documentation](https://fonte.atlow.dev/webfont-generator/rust#color-glyphs).
 
 ## TypeScript output
 
@@ -128,4 +128,4 @@ Templates live in `packages/webfont-generator/templates/` and ship with the npm 
 The Rust engine renders defaults directly. Adapter tests verify parity with the shipped
 templates; engine tests use engine-owned inputs without reading npm package assets.
 
-[Full Rust reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/rust.html) · [CLI reference](https://atlowChemi.github.io/vite-svg-2-webfont/webfont-generator/cli)
+[Full Rust reference](https://fonte.atlow.dev/webfont-generator/rust.html) · [CLI reference](https://fonte.atlow.dev/webfont-generator/cli)

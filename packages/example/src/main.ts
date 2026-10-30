@@ -13,7 +13,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
             return `<div class="card"><i class="${className}"></i></div>`;
         })
         .join('\n')}</div>
-    <a class="read-the-docs" href="https://github.com/ChemiAtlow/vite-svg-2-webfont#readme">
+    <a class="read-the-docs" href="https://fonte.atlow.dev/">
       Read the docs
     </a>
   </div>

@@ -8,8 +8,7 @@ import { iconCss } from './icon-css';
 
 const repoName = 'vite-svg-2-webfont';
 const repo = `https://github.com/atlowChemi/${repoName}`;
-const base = process.env.GITHUB_ACTIONS ? `/${repoName}/` : '/';
-const docsUrl = `https://atlowChemi.github.io/${repoName}/`;
+const docsUrl = 'https://fonte.atlow.dev/';
 const socialImage = `${docsUrl}social-card.png`;
 
 const markdown: MarkdownOptions = {
@@ -58,10 +57,9 @@ const guidesSidebar = {
 export default defineConfig({
     title: repoName,
     description: 'A Vite plugin that generates webfonts from SVG icons.',
-    base,
     cleanUrls: true,
     head: [
-        ['link', { rel: 'icon', href: `${base}logo.svg` }],
+        ['link', { rel: 'icon', href: '/logo.svg' }],
         ['meta', { name: 'theme-color', content: '#646cff' }],
         ['meta', { property: 'og:type', content: 'website' }],
         ['meta', { property: 'og:site_name', content: repoName }],
