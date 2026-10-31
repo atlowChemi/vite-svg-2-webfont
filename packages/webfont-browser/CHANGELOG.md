@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-browser-generator-v0.2.0...webfont-browser-generator-v0.2.1) (2026-10-31)
+
+### Bug Fixes
+
+- **docs:** serve the docs site from fonte.atlow.dev ([#663](https://github.com/atlowChemi/vite-svg-2-webfont/issues/663)) ([3e565f0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3e565f04c8f49c3879e6eebb39916276c36c2c1e))
+
 ## [0.2.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-browser-generator-v0.1.0...webfont-browser-generator-v0.2.0) (2026-10-28)
 
 ### Features

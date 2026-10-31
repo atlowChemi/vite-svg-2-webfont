@@ -1,5 +1,21 @@
 # Changelog
 
+## [8.7.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.6.0...vite-svg-2-webfont-v8.7.0) (2026-10-31)
+
+### Features
+
+- **webfont-generator:** persist incremental cache updates automatically ([#658](https://github.com/atlowChemi/vite-svg-2-webfont/issues/658)) ([ccec5e2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/ccec5e26db59780fc474bfad8166f1979ce09f29))
+
+### Bug Fixes
+
+- **docs:** serve the docs site from fonte.atlow.dev ([#663](https://github.com/atlowChemi/vite-svg-2-webfont/issues/663)) ([3e565f0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3e565f04c8f49c3879e6eebb39916276c36c2c1e))
+
+### Dependencies
+
+- The following workspace dependencies were updated
+    - dependencies
+        - @atlowchemi/webfont-generator bumped to 0.12.0
+
 ## [8.6.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/vite-svg-2-webfont-v8.5.0...vite-svg-2-webfont-v8.6.0) (2026-10-28)
 
 ### Features
