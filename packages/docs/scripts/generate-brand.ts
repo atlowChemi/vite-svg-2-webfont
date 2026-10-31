@@ -4,24 +4,21 @@ import { resolve } from 'node:path';
 import type { Path } from 'opentype.js';
 
 /**
- * Brand assets, all derived from one layout:
- * - `assets/svg/` (copied to `public/` by `optimize-svg`): the T mark used as favicon, and the `fonTe` wordmark for
- *   light and dark backgrounds, for places without CSS such as READMEs;
- * - `.vitepress/theme/wordmark.ts`: the same shapes for the in-page `FonteWordmark` component, which follows the theme.
+ * Brand assets:
+ * - `assets/svg/logo.svg` (copied to `public/` by `optimize-svg`): the T mark, used as the favicon;
+ * - `.vitepress/theme/wordmark.ts`: the `fonTe` wordmark's shapes for the in-page `FonteWordmark` component, which
+ *   colors them from the site theme.
  *
  * The wordmark's `fon` and `e` are Zilla Slab SemiBold outlines, so it renders identically without the web font.
  * Re-run after changing the palette or the mark: `node ./scripts/generate-brand.ts`.
  */
 const docsDir = resolve(import.meta.dirname, '..');
-const outDir = resolve(docsDir, 'assets', 'svg');
 const require = createRequire(import.meta.url);
 // opentype.js is CommonJS without named-export hints, so Node's ESM loader only sees a default export.
 const { parse } = require('opentype.js') as typeof import('opentype.js');
 const fontPath = require.resolve('@fontsource/zilla-slab/files/zilla-slab-latin-600-normal.woff');
 
 const palette = {
-    iron: '#1c1a1f',
-    ash: '#f3ece2',
     molten: '#ff6a13',
     ember: '#ffb02e',
     mold: { light: '#5a5258', dark: '#b3abba' },
@@ -88,15 +85,6 @@ function layoutWordmark() {
 
 const layout = layoutWordmark();
 
-function wordmark(ink: string, mold: string): string {
-    return [
-        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${layout.viewBox}" role="img" aria-label="fonte">`,
-        `<path fill="${ink}" d="${layout.letters}"/>`,
-        `<g transform="${layout.tTransform}">${mark('t', mold, 2.4)}</g>`,
-        '</svg>\n',
-    ].join('');
-}
-
 // Lines past the repository's 180-column print width break after `=`, exactly as `vp fmt` would write them.
 const exportString = (name: string, value: string) => {
     const line = `export const ${name} = '${value}';`;
@@ -121,9 +109,7 @@ const logo = [
 ].join('');
 
 const files = {
-    [resolve(outDir, 'logo.svg')]: logo,
-    [resolve(outDir, 'wordmark-light.svg')]: wordmark(palette.iron, palette.mold.light),
-    [resolve(outDir, 'wordmark-dark.svg')]: wordmark(palette.ash, palette.mold.dark),
+    [resolve(docsDir, 'assets', 'svg', 'logo.svg')]: logo,
     [resolve(docsDir, '.vitepress', 'theme', 'wordmark.ts')]: component,
 };
 await Promise.all(
