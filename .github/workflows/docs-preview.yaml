@@ -209,7 +209,16 @@ jobs:
               env:
                   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
                   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-              run: vpx "$WRANGLER" preview delete --name "pr-$PR" --skip-confirmation
+              # A pull request whose preview predates Worker Previews (a version alias) has no Preview to delete;
+              # still retire its deployments and update its comment.
+              run: |
+                  out=$(vpx "$WRANGLER" preview delete --name "pr-$PR" --skip-confirmation 2>&1) && { echo "$out"; exit 0; }
+                  echo "$out"
+                  if grep -q 'Preview not found. \[code: 10025\]' <<< "$out"; then
+                      echo "::notice title=No Worker Preview::pr-$PR has no Worker Preview to delete."
+                      exit 0
+                  fi
+                  exit 1
             - name: Retire GitHub deployments
               if: ${{ steps.comment.outputs.id != '' }}
               run: |
