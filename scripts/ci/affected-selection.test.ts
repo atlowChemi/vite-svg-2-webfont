@@ -239,6 +239,10 @@ describe('validation scope policy', () => {
         expect(determineValidationScope([file], new Set(affected)).full).toBe(false);
         expect(scenario([file], affected).rustSuites).toEqual(['adapter']);
     });
+    it('recognizes auditor workspace changes as shared tooling', () => {
+        expect(scenario(['packages/cache-audit/package.json'], [packageNames.audit]).full).toBe(true);
+    });
+
     it.each([{ names: [] }, { names: [packageNames.root] }])('broadens changed files with an incomplete selection: $names', ({ names }) => {
         expect(determineValidationScope(['packages/docs/a.md'], new Set(names)).full).toBe(true);
     });
