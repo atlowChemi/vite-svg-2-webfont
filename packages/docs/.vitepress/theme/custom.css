@@ -78,16 +78,23 @@
     letter-spacing: 0;
 }
 
+/* The subtitle sits under the wordmark: side by side, it overflows the sidebar-wide title slot. */
 .VPNavBarTitle .title {
-    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 3px;
+    line-height: 1;
     font-family: var(--fonte-font-display);
     font-weight: 600;
-    font-size: 15px;
+    font-size: 12px;
+    white-space: nowrap;
     color: var(--vp-c-text-2);
 }
 
 .VPNavBarTitle .logo {
-    height: 26px;
+    height: 24px;
+    margin-right: 0;
 }
 
 @media (max-width: 767px) {
