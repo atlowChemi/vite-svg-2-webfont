@@ -10,6 +10,9 @@ const repoName = 'vite-svg-2-webfont';
 const repo = `https://github.com/atlowChemi/${repoName}`;
 const docsUrl = 'https://fonte.atlow.dev/';
 const socialImage = `${docsUrl}social-card.png`;
+const siteName = 'fonte';
+const siteSubtitle = 'SVG icons, cast into fonts';
+const siteDescription = 'A Rust engine that casts SVG icons into fonts, with a CLI, Node and browser bindings, and a Vite plugin.';
 
 const markdown: MarkdownOptions = {
     theme: codeThemes,
@@ -55,22 +58,17 @@ const guidesSidebar = {
 };
 
 export default defineConfig({
-    title: repoName,
-    description: 'A Vite plugin that generates webfonts from SVG icons.',
+    title: siteName,
+    description: siteDescription,
     cleanUrls: true,
     head: [
         ['link', { rel: 'icon', href: '/logo.svg' }],
-        ['meta', { name: 'theme-color', content: '#646cff' }],
+        ['meta', { name: 'theme-color', content: '#faf7f2', media: '(prefers-color-scheme: light)' }],
+        ['meta', { name: 'theme-color', content: '#1c1a1f', media: '(prefers-color-scheme: dark)' }],
         ['meta', { property: 'og:type', content: 'website' }],
-        ['meta', { property: 'og:site_name', content: repoName }],
-        ['meta', { property: 'og:title', content: repoName }],
-        [
-            'meta',
-            {
-                property: 'og:description',
-                content: 'A Vite plugin that generates webfonts from SVG icons.',
-            },
-        ],
+        ['meta', { property: 'og:site_name', content: siteName }],
+        ['meta', { property: 'og:title', content: siteName }],
+        ['meta', { property: 'og:description', content: siteDescription }],
         ['meta', { property: 'og:url', content: docsUrl }],
         ['meta', { property: 'og:image', content: socialImage }],
         [
@@ -81,14 +79,8 @@ export default defineConfig({
             },
         ],
         ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-        ['meta', { name: 'twitter:title', content: repoName }],
-        [
-            'meta',
-            {
-                name: 'twitter:description',
-                content: 'A Vite plugin that generates webfonts from SVG icons.',
-            },
-        ],
+        ['meta', { name: 'twitter:title', content: siteName }],
+        ['meta', { name: 'twitter:description', content: siteDescription }],
         ['meta', { name: 'twitter:image', content: socialImage }],
     ],
     markdown,
@@ -120,8 +112,7 @@ export default defineConfig({
         },
     },
     themeConfig: {
-        logo: '/logo.svg',
-        siteTitle: repoName,
+        siteTitle: siteSubtitle,
         nav: [
             { text: 'Guide', link: '/getting-started' },
             { text: 'Which Package?', link: '/which-package' },
