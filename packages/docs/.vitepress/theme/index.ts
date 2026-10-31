@@ -2,6 +2,7 @@ import { h } from 'vue';
 import type { Theme } from 'vitepress';
 import DefaultTheme from 'vitepress/theme';
 import FonteWordmark from './FonteWordmark.vue';
+import FonteLanding from './landing/FonteLanding.vue';
 import Mermaid from './Mermaid.vue';
 import '@fontsource/zilla-slab/600.css';
 import '@fontsource/jetbrains-mono/400.css';
@@ -16,6 +17,7 @@ const theme: Theme = {
 
     enhanceApp({ app }) {
         app.component('Mermaid', Mermaid);
+        app.component('FonteLanding', FonteLanding);
     },
 };
 
