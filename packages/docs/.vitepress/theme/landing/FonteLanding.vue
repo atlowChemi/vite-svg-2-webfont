@@ -418,6 +418,9 @@ html.fonte-landing-docked:has(.VPNavBarHamburger[aria-expanded='true']) .VPNavBa
     --acc: var(--fonte-molten);
     --rail-top: calc(var(--vp-nav-height) + 28px);
     --hero-wordmark-height: clamp(56px, 12vw, 140px);
+    /* One centered block on wide screens: the 120px rail plus the content column. Section rules stay full width. */
+    --column: 880px;
+    --gutter: max(32px, calc((100% - 120px - var(--column)) / 2));
     font-family: var(--fonte-font-display);
     font-size: 17px;
     line-height: 1.5;
@@ -486,7 +489,7 @@ html.fonte-landing-docked:has(.VPNavBarHamburger[aria-expanded='true']) .VPNavBa
 .sec {
     display: grid;
     grid-template-columns: 120px minmax(0, 1fr);
-    padding: 0 32px;
+    padding: 0 var(--gutter);
     border-top: 1px solid var(--vp-c-divider);
 }
 
@@ -525,7 +528,7 @@ html.fonte-landing-docked:has(.VPNavBarHamburger[aria-expanded='true']) .VPNavBa
 }
 
 .body {
-    max-width: 880px;
+    max-width: var(--column);
     padding: 56px 0 72px;
 }
 
@@ -586,7 +589,10 @@ h2 {
     padding-top: 56px;
 }
 
+/* Same width as the content column, so the hero centers on the sections below it, not on the window. */
 .stage {
+    width: 100%;
+    max-width: var(--column);
     position: sticky;
     top: var(--vp-nav-height);
     height: calc(100vh - var(--vp-nav-height));
@@ -912,7 +918,7 @@ h2 {
     flex-wrap: wrap;
     align-items: baseline;
     gap: 22px;
-    padding: 22px 32px 26px;
+    padding: 22px var(--gutter) 26px;
     border-top: 1px solid var(--vp-c-divider);
     background: var(--vp-c-bg-alt);
 }
