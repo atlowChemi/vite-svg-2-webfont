@@ -1,61 +1,119 @@
+/*
+ * fonte palette: iron (dark) and ash (light) surfaces, with molten metal as the accent.
+ * Molten (#ff6a13) is too light for text on ash, so light mode links use a deeper, cooled shade.
+ */
 :root {
-    --vp-c-brand-1: #646cff;
-    --vp-c-brand-2: #7b82ff;
-    --vp-c-brand-3: #5259db;
-    --vp-c-brand-soft: rgb(100 108 255 / 0.16);
+    --fonte-iron: #1c1a1f;
+    --fonte-ash: #f3ece2;
+    --fonte-molten: #ff6a13;
+    --fonte-ember: #ffb02e;
+    --fonte-mold: #5a5258;
 
-    --vp-c-indigo-1: #646cff;
-    --vp-c-indigo-2: #7b82ff;
-    --vp-c-indigo-3: #5259db;
-    --vp-c-indigo-soft: rgb(100 108 255 / 0.16);
+    --vp-c-bg: #faf7f2;
+    --vp-c-bg-alt: var(--fonte-ash);
+    --vp-c-bg-soft: #efe7db;
+    --vp-c-bg-elv: #fffdf9;
 
-    --vp-c-default-soft: rgb(100 108 255 / 0.08);
-    --vp-c-tip-1: #646cff;
-    --vp-c-tip-2: #7b82ff;
-    --vp-c-tip-3: #5259db;
-    --vp-c-tip-soft: rgb(100 108 255 / 0.14);
+    --vp-c-text-1: var(--fonte-iron);
+    --vp-c-text-2: #5a5258;
+    --vp-c-text-3: #7d7582;
 
-    --vp-home-hero-name-color: transparent;
-    --vp-home-hero-name-background: linear-gradient(120deg, #646cff 0%, #8a68ff 50%, #ffb339 100%);
-    --vp-home-hero-image-background-image: radial-gradient(circle at center, rgb(100 108 255 / 0.18) 0%, rgb(255 179 57 / 0.14) 45%, transparent 72%);
-    --vp-home-hero-image-filter: drop-shadow(0 22px 48px rgb(100 108 255 / 0.16)) drop-shadow(0 10px 24px rgb(255 179 57 / 0.18));
+    --vp-c-border: #d6cab9;
+    --vp-c-divider: #e3d9cb;
+    --vp-c-gutter: #e9e0d3;
 
-    --vp-custom-block-tip-border: rgb(100 108 255 / 0.32);
-    --vp-custom-block-tip-bg: linear-gradient(135deg, rgb(100 108 255 / 0.1), rgb(255 179 57 / 0.08));
-    --vp-custom-block-tip-text: var(--vp-c-text-1);
+    --vp-c-brand-1: #b4410a;
+    --vp-c-brand-2: #d0520e;
+    --vp-c-brand-3: var(--fonte-molten);
+    --vp-c-brand-soft: rgb(255 106 19 / 0.14);
+
+    --vp-c-default-soft: rgb(90 82 88 / 0.08);
+    --vp-c-tip-1: var(--vp-c-brand-1);
+    --vp-c-tip-2: var(--vp-c-brand-2);
+    --vp-c-tip-3: var(--vp-c-brand-3);
+    --vp-c-tip-soft: var(--vp-c-brand-soft);
+
+    --vp-button-brand-bg: var(--fonte-molten);
+    --vp-button-brand-hover-bg: #ff7f33;
+    --vp-button-brand-active-bg: #e85d0c;
+    --vp-button-brand-text: var(--fonte-iron);
+    --vp-button-brand-hover-text: var(--fonte-iron);
+    --vp-button-brand-active-text: var(--fonte-iron);
+
+    --vp-font-family-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+    --fonte-font-display: 'Zilla Slab', Georgia, serif;
+
+    --vp-home-hero-name-color: var(--vp-c-brand-1);
 }
 
 .dark {
-    --vp-c-brand-1: #7f85ff;
-    --vp-c-brand-2: #98a0ff;
-    --vp-c-brand-3: #646cff;
-    --vp-c-brand-soft: rgb(127 133 255 / 0.2);
+    --fonte-mold: #b3abba;
 
-    --vp-c-indigo-1: #7f85ff;
-    --vp-c-indigo-2: #98a0ff;
-    --vp-c-indigo-3: #646cff;
-    --vp-c-indigo-soft: rgb(127 133 255 / 0.2);
+    --vp-c-bg: var(--fonte-iron);
+    --vp-c-bg-alt: #161418;
+    --vp-c-bg-soft: #26232a;
+    --vp-c-bg-elv: #232026;
 
-    --vp-c-default-soft: rgb(127 133 255 / 0.12);
-    --vp-c-tip-1: #8c91ff;
-    --vp-c-tip-2: #a4abff;
-    --vp-c-tip-3: #6a71f2;
-    --vp-c-tip-soft: rgb(127 133 255 / 0.18);
+    --vp-c-text-1: var(--fonte-ash);
+    --vp-c-text-2: #b3abba;
+    --vp-c-text-3: #8a8290;
 
-    --vp-home-hero-image-background-image: radial-gradient(circle at center, rgb(100 108 255 / 0.24) 0%, rgb(255 179 57 / 0.14) 48%, transparent 74%);
-    --vp-home-hero-image-filter: drop-shadow(0 22px 56px rgb(100 108 255 / 0.24)) drop-shadow(0 10px 28px rgb(255 179 57 / 0.14));
+    --vp-c-border: #4a444f;
+    --vp-c-divider: #3a353f;
+    --vp-c-gutter: #141216;
 
-    --vp-custom-block-tip-border: rgb(127 133 255 / 0.34);
-    --vp-custom-block-tip-bg: linear-gradient(135deg, rgb(100 108 255 / 0.14), rgb(255 179 57 / 0.08));
+    --vp-c-brand-1: #ff8a4c;
+    --vp-c-brand-2: var(--fonte-molten);
+    --vp-c-brand-3: var(--fonte-molten);
+    --vp-c-brand-soft: rgb(255 106 19 / 0.18);
+
+    --vp-c-default-soft: rgb(179 171 186 / 0.1);
+
+    --vp-home-hero-name-color: var(--fonte-molten);
+}
+
+/* Zilla Slab carries the brand: headings, the hero, and the nav subtitle. Body copy stays in the theme's sans. */
+.vp-doc :is(h1, h2, h3),
+.VPHero :is(.name, .text),
+.VPFeature .title {
+    font-family: var(--fonte-font-display);
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+/* The subtitle sits under the wordmark: side by side, it overflows the sidebar-wide title slot. */
+.VPNavBarTitle .title {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 3px;
+    line-height: 1;
+    font-family: var(--fonte-font-display);
+    font-weight: 600;
+    font-size: 12px;
+    white-space: nowrap;
+    color: var(--vp-c-text-2);
+}
+
+.VPNavBarTitle .fonte-wordmark {
+    height: 24px;
+    width: auto;
+}
+
+@media (max-width: 767px) {
+    /* The wordmark alone fits next to the mobile menu; the subtitle returns from tablet width up. */
+    .VPNavBarTitle .title > span {
+        display: none;
+    }
 }
 
 a {
-    text-decoration-color: rgb(255 179 57 / 0.45);
+    text-decoration-color: rgb(255 106 19 / 0.45);
     text-underline-offset: 0.18em;
 }
 
 a:hover {
-    text-decoration-color: rgb(255 179 57 / 0.8);
+    text-decoration-color: rgb(255 106 19 / 0.85);
 }
 
 .VPNavBarMenuLink.active,
@@ -67,23 +125,8 @@ a:hover {
     color: var(--vp-c-brand-1);
 }
 
-.VPNavBarMenuLink.active::after,
 .VPSidebarItem.is-active > .item > .indicator {
-    background: linear-gradient(90deg, #646cff, #ffb339);
-}
-
-.VPButton.brand {
-    box-shadow: 0 10px 24px rgb(100 108 255 / 0.18);
-}
-
-.VPButton.brand:hover {
-    box-shadow: 0 14px 30px rgb(100 108 255 / 0.22);
-}
-
-.VPButton.alt:hover {
-    border-color: rgb(255 179 57 / 0.55);
-    color: var(--vp-c-text-1);
-    background: linear-gradient(135deg, rgb(100 108 255 / 0.08), rgb(255 179 57 / 0.12));
+    background: var(--fonte-molten);
 }
 
 .vp-doc :is(h2, h3) {
@@ -94,14 +137,9 @@ a:hover {
     color: var(--vp-c-brand-1);
 }
 
-.vp-doc :not(pre) > code {
-    border-color: rgb(100 108 255 / 0.12);
-    background: linear-gradient(135deg, rgb(100 108 255 / 0.08), rgb(255 179 57 / 0.08));
-}
-
 .vp-doc ::selection,
 .VPContent ::selection {
-    background: rgb(255 179 57 / 0.22);
+    background: rgb(255 176 46 / 0.3);
 }
 
 .vp-code-group .tabs label {
@@ -117,16 +155,11 @@ a:hover {
 
 .vp-code-group .tabs input:checked + label {
     color: var(--vp-c-brand-1);
-    border-bottom-color: #ffb339;
-}
-
-.VPFeature {
-    border-color: rgb(100 108 255 / 0.12);
+    border-bottom-color: var(--fonte-molten);
 }
 
 .VPFeature:hover {
-    border-color: rgb(100 108 255 / 0.2);
-    background: linear-gradient(180deg, rgb(100 108 255 / 0.04), rgb(255 179 57 / 0.05));
+    border-color: rgb(255 106 19 / 0.35);
 }
 
 /* Live example output; markdown slot content needs these unscoped. */

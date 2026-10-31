@@ -9,7 +9,7 @@ hero:
     tagline: A Vite plugin that turns SVG icon folders into font assets, CSS classes, and a virtual stylesheet you can import into your app.
     image:
         src: /logo.svg
-        alt: vite-svg-2-webfont logo
+        alt: fonte logo
     actions:
         - theme: brand
           text: Get Started
