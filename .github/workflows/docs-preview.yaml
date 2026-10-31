@@ -15,6 +15,7 @@ on:
 permissions:
     contents: read
 
+# Artifact lookups filter by name: a full CI run uploads more artifacts than one page of the listing holds.
 env:
     WRANGLER: wrangler@4.151.0
     WRANGLER_SEND_METRICS: 'false'
@@ -36,7 +37,7 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
                   RUN_ID: ${{ github.event.workflow_run.id }}
               run: |
-                  id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "docs-site") | .id')
+                  id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?name=docs-site" --jq '.artifacts[0].id // empty')
                   echo "found=$([ -n "$id" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
     deploy-main:
@@ -99,7 +100,7 @@ jobs:
             - name: Download docs site
               id: site
               run: |
-                  id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts" --jq '.artifacts[] | select(.name == "docs-site") | .id')
+                  id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?name=docs-site" --jq '.artifacts[0].id // empty')
                   if [ -z "$id" ]; then
                       echo "::notice title=No docs preview::CI did not build the docs for this commit."
                       echo found=false >> "$GITHUB_OUTPUT"
