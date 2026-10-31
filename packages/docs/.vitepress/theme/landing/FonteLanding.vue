@@ -211,14 +211,18 @@ onMounted(() => {
     frame();
 });
 
-watch(ready, value => document.documentElement.classList.toggle('fonte-landing-docked', value));
+watch(ready, value => {
+    document.documentElement.classList.toggle('fonte-landing-docked', value);
+    // Two frames: the hidden nav wordmark must be painted before its fade transition is switched on.
+    requestAnimationFrame(() => requestAnimationFrame(() => document.documentElement.classList.toggle('fonte-landing-fades', value)));
+});
 watch(isDark, update);
 
 onBeforeUnmount(() => {
     cancelAnimationFrame(raf);
     removeEventListener('scroll', update);
     removeEventListener('resize', relayout);
-    document.documentElement.classList.remove('fonte-landing', 'fonte-landing-docked');
+    document.documentElement.classList.remove('fonte-landing', 'fonte-landing-docked', 'fonte-landing-fades');
 });
 </script>
 
@@ -378,7 +382,8 @@ onBeforeUnmount(() => {
 }
 
 /* The landing page owns the nav wordmark: the hero's flyer docks into its slot. */
-html.fonte-landing .VPNavBarTitle .fonte-wordmark {
+/* Fades start once the page has settled, so the nav wordmark doesn't visibly fade out on load. */
+html.fonte-landing-fades .VPNavBarTitle .fonte-wordmark {
     transition: opacity 0.25s;
 }
 

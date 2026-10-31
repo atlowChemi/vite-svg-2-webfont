@@ -53,6 +53,33 @@ export default { plugins: [viteSvgToWebfont({ context: './icons' })] };
 <i class="icon icon-star"></i>
 ```
 
+<!-- prettier-ignore -->
+```css [my-icons.css]
+@font-face {
+	font-family: "my-icons";
+	font-display: block;
+	src: url("my-icons.woff2?…") format("woff2");
+}
+
+.icon {
+	line-height: 1;
+}
+
+.icon:before {
+	font-family: my-icons !important;
+	font-style: normal;
+	font-weight: normal !important;
+	vertical-align: top;
+}
+
+.icon-star:before {
+	content: "\f101";
+}
+.icon-bell:before {
+	content: "\f102";
+}
+```
+
 ```ts [my-icons.ts]
 export const icons = ['star', 'bell'] as const;
 export type IconName = (typeof icons)[number];
