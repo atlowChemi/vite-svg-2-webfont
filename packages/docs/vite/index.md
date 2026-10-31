@@ -56,7 +56,7 @@ import 'virtual:vite-svg-2-webfont.css';
 
 ## Use generated icon classes
 
-SVG file names become icon class names. With the default settings, `add.svg` becomes `icon-add`, the class prefix comes from [`classPrefix`](/configuration#classprefix), and the base font selector comes from [`baseSelector`](/configuration#baseselector).
+SVG file names become icon class names. With the default settings, `add.svg` becomes `icon-add`, the class prefix comes from [`classPrefix`](/vite/configuration#classprefix), and the base font selector comes from [`baseSelector`](/vite/configuration#baseselector).
 
 ```html [index.html]
 <i class="icon icon-add"></i>
@@ -64,6 +64,6 @@ SVG file names become icon class names. With the default settings, `add.svg` bec
 
 ## Next steps
 
-- Continue to [Usage](/usage) for the full flow
-- Review [Configuration](/configuration) for all available options
-- Review [Public API](/public-api) if you want to consume generated font metadata from another plugin
+- Continue to [Usage](/vite/usage) for the full flow
+- Review [Configuration](/vite/configuration) for all available options
+- Review [Public API](/vite/public-api) if you want to consume generated font metadata from another plugin

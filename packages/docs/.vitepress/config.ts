@@ -48,14 +48,28 @@ const markdown: MarkdownOptions = {
     },
 };
 
-const guidesSidebar = {
-    text: 'Guides',
+const guideSidebar = {
+    text: 'Guide',
     items: [
-        { text: 'Which Package Do I Need?', link: '/which-package' },
-        { text: 'SVG Authoring & Troubleshooting', link: '/svg-authoring' },
-        { text: 'Glossary', link: '/glossary' },
+        { text: 'Choosing a Tool', link: '/guide/' },
+        { text: 'The Engine', link: '/guide/engine' },
+        { text: 'Under the Hood', link: '/guide/under-the-hood' },
+        { text: 'Templates', link: '/guide/templates' },
+        { text: 'SVG Authoring & Troubleshooting', link: '/guide/svg-authoring' },
+        { text: 'Glossary', link: '/guide/glossary' },
     ],
 };
+
+const tools = [
+    { text: 'Vite Plugin', link: '/vite/' },
+    { text: 'Node.js', link: '/node/' },
+    { text: 'Browser', link: '/browser/' },
+    { text: 'CLI', link: '/cli/' },
+    { text: 'Rust', link: '/rust/' },
+];
+
+// Every tool section lists its own pages first, then the shared guide and the other tools.
+const toolSidebar = (text: string, items: { text: string; link: string }[]) => [{ text, items }, guideSidebar, { text: 'Tools', items: tools }];
 
 export default defineConfig({
     title: siteName,
@@ -114,57 +128,47 @@ export default defineConfig({
     themeConfig: {
         siteTitle: siteSubtitle,
         nav: [
-            { text: 'Guide', link: '/getting-started' },
-            { text: 'Which Package?', link: '/which-package' },
+            { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
+            { text: 'Tools', items: tools },
             { text: 'Playground', link: '/playground' },
             {
-                text: 'Webfont Generator',
+                text: 'Changelogs',
                 items: [
-                    { text: 'Overview', link: '/webfont-generator/' },
-                    { text: 'Node.js', link: '/webfont-generator/node' },
-                    { text: 'Rust', link: '/webfont-generator/rust' },
-                    { text: 'Browser', link: '/webfont-generator/browser' },
-                    { text: 'CLI', link: '/webfont-generator/cli' },
-                    { text: 'Under the Hood', link: '/webfont-generator/under-the-hood' },
-                    { text: 'npm Adapter Changelog', link: '/webfont-generator/changelog' },
-                    { text: 'Rust Engine Changelog', link: '/webfont-generator/engine-changelog' },
+                    { text: 'Vite Plugin', link: '/vite/changelog' },
+                    { text: 'Node.js', link: '/node/changelog' },
+                    { text: 'Browser', link: '/browser/changelog' },
+                    { text: 'Rust Engine & CLI', link: '/rust/changelog' },
                 ],
             },
-            { text: 'Changelog', link: '/changelog' },
         ],
         sidebar: {
-            '/': [
-                {
-                    text: 'Vite Plugin',
-                    items: [
-                        { text: 'Getting Started', link: '/getting-started' },
-                        { text: 'Usage', link: '/usage' },
-                        { text: 'Examples', link: '/examples' },
-                        { text: 'How It Works', link: '/how-it-works' },
-                        { text: 'Configuration', link: '/configuration' },
-                        { text: 'Public API', link: '/public-api' },
-                        { text: 'Migration', link: '/migration' },
-                    ],
-                },
-                guidesSidebar,
-            ],
-            '/webfont-generator/': [
-                {
-                    text: 'Webfont Generator',
-                    items: [
-                        { text: 'Overview', link: '/webfont-generator/' },
-                        { text: 'Node.js', link: '/webfont-generator/node' },
-                        { text: 'Rust', link: '/webfont-generator/rust' },
-                        { text: 'Browser', link: '/webfont-generator/browser' },
-                        { text: 'CLI', link: '/webfont-generator/cli' },
-                        { text: 'Templates', link: '/webfont-generator/templates' },
-                        { text: 'Under the Hood', link: '/webfont-generator/under-the-hood' },
-                        { text: 'npm Adapter Changelog', link: '/webfont-generator/changelog' },
-                        { text: 'Rust Engine Changelog', link: '/webfont-generator/engine-changelog' },
-                    ],
-                },
-                guidesSidebar,
-            ],
+            '/guide/': [guideSidebar, { text: 'Tools', items: tools }],
+            '/vite/': toolSidebar('Vite Plugin', [
+                { text: 'Getting Started', link: '/vite/' },
+                { text: 'Usage', link: '/vite/usage' },
+                { text: 'Examples', link: '/vite/examples' },
+                { text: 'How It Works', link: '/vite/how-it-works' },
+                { text: 'Configuration', link: '/vite/configuration' },
+                { text: 'Public API', link: '/vite/public-api' },
+                { text: 'Migration', link: '/vite/migration' },
+                { text: 'Changelog', link: '/vite/changelog' },
+            ]),
+            '/node/': toolSidebar('Node.js', [
+                { text: 'Usage', link: '/node/' },
+                { text: 'Changelog', link: '/node/changelog' },
+            ]),
+            '/browser/': toolSidebar('Browser', [
+                { text: 'Usage', link: '/browser/' },
+                { text: 'Changelog', link: '/browser/changelog' },
+            ]),
+            '/cli/': toolSidebar('CLI', [
+                { text: 'Usage', link: '/cli/' },
+                { text: 'Changelog', link: '/rust/changelog' },
+            ]),
+            '/rust/': toolSidebar('Rust', [
+                { text: 'Usage', link: '/rust/' },
+                { text: 'Changelog', link: '/rust/changelog' },
+            ]),
         },
         search: {
             provider: 'local',

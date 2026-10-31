@@ -20,21 +20,21 @@ description: Overview of webfont-generator, the Rust engine behind vite-svg-2-we
 | Rust library                | [`webfont-generator`](https://crates.io/crates/webfont-generator)                              | `cargo add webfont-generator`                       | Rust; no Node.js dependency                   |
 | Standalone command          | [`webfont-generator`](https://crates.io/crates/webfont-generator)                              | `cargo install webfont-generator --features cli`    | Native CLI; no Node.js dependency             |
 
-Not sure which one fits? See [Which package do I need?](/which-package). Usage for each interface: [Node.js](./node), [Browser](./browser), [Rust](./rust), [CLI](./cli).
+Not sure which one fits? See [Which package do I need?](/guide/). Usage for each interface: [Node.js](/node/), [Browser](/browser/), [Rust](/rust/), [CLI](/cli/).
 
 ## Highlights
 
 - **Every common format:** SVG, TTF, EOT, WOFF, and WOFF2 from one set of SVG icons, plus CSS, SCSS, and HTML preview templates.
-- **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [multi-variant fonts](./node#multi-variant-fonts).
+- **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [multi-variant fonts](/node/#multi-variant-fonts).
 - **Color glyphs:** optionally keep solid SVG colors. See [color glyphs](#color-glyphs).
-- **Fast rebuilds:** [incremental generation](./node#incremental) reuses work from the previous build when only a few icons change.
-- **Warm starts:** an opt-in [persistent cache](./node#cachelocation) lets a new process reuse work from earlier runs for unchanged icons and formats.
-- **No filesystem required:** generate from SVG text in memory, which is what the [browser package](./browser) uses.
-- **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads without caching. With a warm [persistent cache](./under-the-hood#persistent-cache), unchanged rebuilds are 43× (macOS) and 113× (Linux) faster than Vusion. See [performance](./under-the-hood#performance).
+- **Fast rebuilds:** [incremental generation](/node/#incremental) reuses work from the previous build when only a few icons change.
+- **Warm starts:** an opt-in [persistent cache](/node/#cachelocation) lets a new process reuse work from earlier runs for unchanged icons and formats.
+- **No filesystem required:** generate from SVG text in memory, which is what the [browser package](/browser/) uses.
+- **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads without caching. With a warm [persistent cache](/guide/under-the-hood#persistent-cache), unchanged rebuilds are 43× (macOS) and 113× (Linux) faster than Vusion. See [performance](/guide/under-the-hood#performance).
 
 ## Why a new engine
 
-The JavaScript lineage started with [`webfonts-generator`](https://github.com/sunflowerdeath/webfonts-generator) by sunflowerdeath, which the Vusion team forked as [`@vusion/webfonts-generator`](https://github.com/vusion/webfonts-generator). Neither project has received updates in years, and both rely on a JavaScript pipeline spanning several separate packages. `webfont-generator` is a ground-up rewrite in Rust that keeps the familiar API while delivering better performance and long-term maintainability. [Under the hood](./under-the-hood) describes the architecture and benchmarks.
+The JavaScript lineage started with [`webfonts-generator`](https://github.com/sunflowerdeath/webfonts-generator) by sunflowerdeath, which the Vusion team forked as [`@vusion/webfonts-generator`](https://github.com/vusion/webfonts-generator). Neither project has received updates in years, and both rely on a JavaScript pipeline spanning several separate packages. `webfont-generator` is a ground-up rewrite in Rust that keeps the familiar API while delivering better performance and long-term maintainability. [Under the hood](/guide/under-the-hood) describes the architecture and benchmarks.
 
 ::: tip Attribution
 The API design and Handlebars template system build on sunflowerdeath's original `webfonts-generator` and the Vusion team's `@vusion/webfonts-generator` fork. Credit to sunflowerdeath, the Vusion team, and the contributors to both projects for that foundation.
@@ -46,24 +46,24 @@ The API is largely compatible with upstream `@vusion/webfonts-generator`, with a
 
 - The `cssContext` and `htmlContext` callbacks receive only the context object; the additional `options` and Handlebars instance arguments are no longer available.
 - `formatOptions` is strictly typed, and the `eot` key is no longer accepted; EOT is derived from the TTF output.
-- [`optimizeOutput`](./node#optimizeoutput) adds optional SVG path optimization, disabled by default.
-- [`formatOptions.woff2.compressionQuality`](./node#formatoptions) controls WOFF2 compression quality from 0–11 (default 11), allowing faster encoding at the cost of slightly larger output.
-- [`incremental`](./node#incremental) enables regeneration that reuses work from the previous build, disabled by default.
-- [`cacheLocation`](./node#cachelocation) enables a persistent cache shared across runs, disabled by default.
+- [`optimizeOutput`](/node/#optimizeoutput) adds optional SVG path optimization, disabled by default.
+- [`formatOptions.woff2.compressionQuality`](/node/#formatoptions) controls WOFF2 compression quality from 0–11 (default 11), allowing faster encoding at the cost of slightly larger output.
+- [`incremental`](/node/#incremental) enables regeneration that reuses work from the previous build, disabled by default.
+- [`cacheLocation`](/node/#cachelocation) enables a persistent cache shared across runs, disabled by default.
 - Font binaries differ at the byte level (different TTF compiler, different path normalization) but are valid and render identically
 - CSS, HTML, and template output is identical.
-- [`variants`](./node#multi-variant-fonts) adds multi-weight families with discrete designs.
-- [`colorGlyphs`](./node#colorglyphs) preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
+- [`variants`](/node/#multi-variant-fonts) adds multi-weight families with discrete designs.
+- [`colorGlyphs`](/node/#colorglyphs) preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
 
-Like upstream, the npm package always writes the same fixed creation timestamp into TTF output and ignores `formatOptions.ttf.ts`, so repeated builds produce identical bytes. The [Rust crate](./rust) and the [browser package](./browser) honor `ts`.
+Like upstream, the npm package always writes the same fixed creation timestamp into TTF output and ignores `formatOptions.ttf.ts`, so repeated builds produce identical bytes. The [Rust crate](/rust/) and the [browser package](/browser/) honor `ts`.
 
 ::: warning
-If you are migrating from `@vusion/webfonts-generator`, review the [Node.js usage](./node) page for the full options reference.
+If you are migrating from `@vusion/webfonts-generator`, review the [Node.js usage](/node/) page for the full options reference.
 :::
 
 ## Color glyphs
 
-Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](./node#color-selection), [Rust API](./rust#color-glyphs), and [CLI manifest](./cli#json-manifest).
+Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](/node/#color-selection), [Rust API](/rust/#color-glyphs), and [CLI manifest](/cli/#json-manifest).
 
 Active color supports **TTF, WOFF, and WOFF2**. SVG-font and EOT output are rejected during option resolution. Ordinary defaults include EOT, so ordinary color callers must specify compatible `types`. Variant defaults are already WOFF and WOFF2.
 
@@ -83,7 +83,7 @@ Advanced input is **best-effort**: gradients, strokes as color paint, text, imag
 
 ### Theme colors
 
-Fixed SVG fills can be overridden at runtime with CSS `@font-palette-values` and `font-palette`. Configure [`colorSlots`](./node#colorslots) to reserve named palette indices, while `currentColor` paths keep following the element's text color. One glyph can serve both light and dark themes; see the [live example](../examples#theme-colors-in-one-glyph).
+Fixed SVG fills can be overridden at runtime with CSS `@font-palette-values` and `font-palette`. Configure [`colorSlots`](/node/#colorslots) to reserve named palette indices, while `currentColor` paths keep following the element's text color. One glyph can serve both light and dark themes; see the [live example](/vite/examples#theme-colors-in-one-glyph).
 
 ### Browser and platform compatibility
 
@@ -102,9 +102,9 @@ Color layers add physical glyphs and increase font size. Fonts must fit the 65,5
 
 ## Next steps
 
-- [Node.js usage](./node) -- npm package API reference
-- [Browser usage](./browser) -- WebAssembly package API reference
-- [Rust usage](./rust) -- crate API reference
-- [CLI usage](./cli) -- command-line interface
-- [Under the hood](./under-the-hood) -- architecture and performance
-- [Changelog](./changelog) -- release history
+- [Node.js usage](/node/) -- npm package API reference
+- [Browser usage](/browser/) -- WebAssembly package API reference
+- [Rust usage](/rust/) -- crate API reference
+- [CLI usage](/cli/) -- command-line interface
+- [Under the hood](/guide/under-the-hood) -- architecture and performance
+- [Changelog](/node/changelog) -- release history

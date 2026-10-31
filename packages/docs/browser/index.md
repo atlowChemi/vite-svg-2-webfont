@@ -58,7 +58,7 @@ const bytes = await result.font('woff2');
 const css = await result.generateCss();
 ```
 
-Options follow the [Rust SVG text API](./rust#svg-text-api) in camelCase, including variants,
+Options follow the [Rust SVG text API](/rust/#svg-text-api) in camelCase, including variants,
 color selection, missing-glyph policies, format options and inline templates. Unknown fields,
 including file input/output options, are rejected. There are no JavaScript callbacks.
 Variant families support TTF, WOFF and WOFF2; ordinary fonts additionally support SVG and EOT.

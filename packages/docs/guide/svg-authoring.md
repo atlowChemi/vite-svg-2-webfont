@@ -3,7 +3,7 @@ description: Prepare SVG icons for webfont generation and fix common problems �
 ---
 
 <script setup>
-import SvgAuthoringCompare from './.vitepress/theme/components/SvgAuthoringCompare.vue';
+import SvgAuthoringCompare from '../.vitepress/theme/components/SvgAuthoringCompare.vue';
 </script>
 
 # SVG Authoring & Troubleshooting
@@ -12,7 +12,7 @@ Each SVG becomes one single-color glyph in the font. Most icons exported from a 
 
 Every comparison below is live: the docs site builds real fonts from the SVGs shown, using `vite-svg-2-webfont`. In each card, the white chip on the left is the SVG as a browser draws it, and the glyph on the right is what the generated font renders. The dashed outline is the glyph's box.
 
-These rules come from the [engine](/webfont-generator/), so they apply to every package: the Vite plugin, Node.js, the browser, Rust, and the CLI.
+These rules come from the [engine](/guide/engine), so they apply to every package: the Vite plugin, Node.js, the browser, Rust, and the CLI.
 
 ## What works automatically
 
@@ -51,7 +51,7 @@ This turns white details into cutouts, but it causes two common surprises:
 
 - Delete background rectangles and any other shape that exists only to fill the artboard.
 - If a detail should stay solid, merge it into the shape around it (for example with "Union" in your design tool) instead of stacking it on top.
-- If the icon really needs two colors, enable [`colorGlyphs`](/configuration#colorglyphs) for it. Color glyphs require TTF, WOFF, or WOFF2 output, and some platforms show the monochrome version instead.
+- If the icon really needs two colors, enable [`colorGlyphs`](/vite/configuration#colorglyphs) for it. Color glyphs require TTF, WOFF, or WOFF2 output, and some platforms show the monochrome version instead.
 
 ## Clip paths, masks, and opacity are ignored
 
@@ -70,7 +70,7 @@ The engine reads the shapes themselves. It doesn't apply `clip-path` or `mask`, 
 - **Illustrator:** use _Object › Expand_ and _Object › Clipping Mask › Release_, then combine the shapes with the _Pathfinder_.
 - **Inkscape:** use _Path › Object to Path_, then _Path › Intersection_ or _Difference_.
 
-Remove faded shapes or draw them as separate icons. With [`colorGlyphs`](/configuration#colorglyphs), solid fills with `fill-opacity` keep their opacity.
+Remove faded shapes or draw them as separate icons. With [`colorGlyphs`](/vite/configuration#colorglyphs), solid fills with `fill-opacity` keep their opacity.
 
 ## Convert text to outlines
 
@@ -100,9 +100,9 @@ A glyph's size comes from the SVG's `viewBox`, not from the drawing inside it. A
 
 When icons have different `viewBox` sizes or sit at different heights, these options control how they line up. The comparisons show the same four icons next to text: a square, a low bar, a 16×16 square, and a wide arrow.
 
-- **[`normalize`](/configuration#normalize)** (on by default) scales every icon to the same height, so a 16×16 icon matches 24×24 ones. When it is off, icons keep their size relative to the tallest `viewBox`.
-- **[`centerVertically`](/configuration#centervertically)** centers each glyph's shape vertically, ignoring where it sat on its artboard.
-- **[`fixedWidth`](/configuration#fixedwidth)** gives every glyph the width of the widest one. The dashed boxes show each glyph's width.
+- **[`normalize`](/vite/configuration#normalize)** (on by default) scales every icon to the same height, so a 16×16 icon matches 24×24 ones. When it is off, icons keep their size relative to the tallest `viewBox`.
+- **[`centerVertically`](/vite/configuration#centervertically)** centers each glyph's shape vertically, ignoring where it sat on its artboard.
+- **[`fixedWidth`](/vite/configuration#fixedwidth)** gives every glyph the width of the widest one. The dashed boxes show each glyph's width.
 
 <SvgAuthoringCompare
     :text="['Save', 'now']"
@@ -114,7 +114,7 @@ When icons have different `viewBox` sizes or sit at different heights, these opt
     ]"
 />
 
-To move every icon up or down relative to the text baseline, adjust [`descent`](/configuration#descent). A positive value moves glyphs down.
+To move every icon up or down relative to the text baseline, adjust [`descent`](/vite/configuration#descent). A positive value moves glyphs down.
 
 ## Jagged curves outside the Vite plugin
 
@@ -128,7 +128,7 @@ The engine stores each glyph on a grid of whole units. By default the grid is as
     ]"
 />
 
-**Fix:** the Vite plugin already uses [`fontHeight: 1000`](/configuration#fontheight). With the [Node.js](/webfont-generator/node#fontheight), [Rust](/webfont-generator/rust#generatewebfontsoptions), or [CLI](/webfont-generator/cli#font-options) interfaces, set `fontHeight` to `1000` or more.
+**Fix:** the Vite plugin already uses [`fontHeight: 1000`](/vite/configuration#fontheight). With the [Node.js](/node/#fontheight), [Rust](/rust/#generatewebfontsoptions), or [CLI](/cli/#font-options) interfaces, set `fontHeight` to `1000` or more.
 
 ## File names become class names
 
@@ -144,7 +144,7 @@ Each file name, without `.svg`, becomes the icon's name and CSS class. File-base
     ]"
 />
 
-**Fix:** name files with letters, digits, hyphens, and underscores only. Class names are case-sensitive, so `Add.svg` and `add.svg` produce different classes. With the [Node.js API](/webfont-generator/node#rename), a `rename` callback can turn paths into safe names. The [browser](/webfont-generator/browser) and in-memory [Rust](/webfont-generator/rust#text-options-and-identity) APIs reject unsafe names.
+**Fix:** name files with letters, digits, hyphens, and underscores only. Class names are case-sensitive, so `Add.svg` and `add.svg` produce different classes. With the [Node.js API](/node/#rename), a `rename` callback can turn paths into safe names. The [browser](/browser/) and in-memory [Rust](/rust/#text-options-and-identity) APIs reject unsafe names.
 
 ## Pin codepoints for stable output
 
@@ -161,7 +161,7 @@ The comparison renders the raw codepoints `U+F101`–`U+F103` in three fonts. Af
     ]"
 />
 
-**Fix:** pin the codepoints of icons you publish with [`codepoints`](/configuration#codepoints). New icons continue from the start codepoint, skipping pinned values.
+**Fix:** pin the codepoints of icons you publish with [`codepoints`](/vite/configuration#codepoints). New icons continue from the start codepoint, skipping pinned values.
 
 ```ts [vite.config.ts]
 viteSvgToWebfont({
@@ -172,15 +172,15 @@ viteSvgToWebfont({
 
 ## Troubleshooting checklist
 
-| Symptom                                          | Likely cause                                         | Fix                                                                                                                   |
-| ------------------------------------------------ | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Icon is a solid square with the artwork cut out  | A background rectangle                               | [Remove backgrounds](#colors-are-ignored-nested-shapes-become-holes)                                                  |
-| A detail is a hole instead of a solid shape      | The detail is nested inside another shape            | [Merge it, or use `colorGlyphs`](#colors-are-ignored-nested-shapes-become-holes)                                      |
-| Parts that should be hidden or faded are visible | `clip-path`, `mask`, or `opacity`                    | [Flatten the effect](#clip-paths-masks-and-opacity-are-ignored)                                                       |
-| Icon is empty                                    | Text, or every shape is hidden                       | [Convert text to outlines](#convert-text-to-outlines)                                                                 |
-| Icons look different sizes                       | Different artboard padding or `viewBox` sizes        | [Keep artboards consistent](#keep-artboards-consistent), [`normalize`](#mixed-sizes-and-alignment)                    |
-| Icons sit too high or low next to text           | Artwork placement on the artboard                    | [`centerVertically` or `descent`](#mixed-sizes-and-alignment)                                                         |
-| Curves look faceted                              | Low `fontHeight` outside the plugin                  | [Set `fontHeight`](#jagged-curves-outside-the-vite-plugin)                                                            |
-| A class has no effect                            | The file name contains `.`, spaces, or other symbols | [Rename the file](#file-names-become-class-names)                                                                     |
-| Wrong icon after adding new ones                 | Codepoints shifted                                   | [Pin codepoints](#pin-codepoints-for-stable-output)                                                                   |
-| No icon at all, or a placeholder box             | The CSS isn't loaded, or the base class is missing   | Import the [virtual stylesheet](/getting-started#import-the-virtual-stylesheet) and use both classes: `icon icon-add` |
+| Symptom                                          | Likely cause                                         | Fix                                                                                                         |
+| ------------------------------------------------ | ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| Icon is a solid square with the artwork cut out  | A background rectangle                               | [Remove backgrounds](#colors-are-ignored-nested-shapes-become-holes)                                        |
+| A detail is a hole instead of a solid shape      | The detail is nested inside another shape            | [Merge it, or use `colorGlyphs`](#colors-are-ignored-nested-shapes-become-holes)                            |
+| Parts that should be hidden or faded are visible | `clip-path`, `mask`, or `opacity`                    | [Flatten the effect](#clip-paths-masks-and-opacity-are-ignored)                                             |
+| Icon is empty                                    | Text, or every shape is hidden                       | [Convert text to outlines](#convert-text-to-outlines)                                                       |
+| Icons look different sizes                       | Different artboard padding or `viewBox` sizes        | [Keep artboards consistent](#keep-artboards-consistent), [`normalize`](#mixed-sizes-and-alignment)          |
+| Icons sit too high or low next to text           | Artwork placement on the artboard                    | [`centerVertically` or `descent`](#mixed-sizes-and-alignment)                                               |
+| Curves look faceted                              | Low `fontHeight` outside the plugin                  | [Set `fontHeight`](#jagged-curves-outside-the-vite-plugin)                                                  |
+| A class has no effect                            | The file name contains `.`, spaces, or other symbols | [Rename the file](#file-names-become-class-names)                                                           |
+| Wrong icon after adding new ones                 | Codepoints shifted                                   | [Pin codepoints](#pin-codepoints-for-stable-output)                                                         |
+| No icon at all, or a placeholder box             | The CSS isn't loaded, or the base class is missing   | Import the [virtual stylesheet](/vite/#import-the-virtual-stylesheet) and use both classes: `icon icon-add` |

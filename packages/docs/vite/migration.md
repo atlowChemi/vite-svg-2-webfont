@@ -8,15 +8,15 @@ This page collects the breaking changes between major versions of `vite-svg-2-we
 
 ## v6 → v7
 
-v7 swaps the unmaintained [`@vusion/webfonts-generator`](https://www.npmjs.com/package/@vusion/webfonts-generator) JS dependency for a native Rust engine, [`@atlowchemi/webfont-generator`](/webfont-generator/). The plugin's surface is mostly unchanged — the same options, the same virtual CSS module, the same generated assets — but a small number of advanced touchpoints have moved. See the [Webfont Generator overview](/webfont-generator/) for background on the new engine.
+v7 swaps the unmaintained [`@vusion/webfonts-generator`](https://www.npmjs.com/package/@vusion/webfonts-generator) JS dependency for a native Rust engine, [`@atlowchemi/webfont-generator`](/guide/engine). The plugin's surface is mostly unchanged — the same options, the same virtual CSS module, the same generated assets — but a small number of advanced touchpoints have moved. See the [Webfont Generator overview](/guide/engine) for background on the new engine.
 
 ### What's new
 
-- [`optimizeOutput`](/configuration#optimizeoutput) — a new top-level plugin option that runs an SVG path optimizer over each glyph before assembling the font. Defaults to `false`; optimization may reduce SVG path data, but does not guarantee smaller binary font output, so compare the generated sizes for your input set.
+- [`optimizeOutput`](/vite/configuration#optimizeoutput) — a new top-level plugin option that runs an SVG path optimizer over each glyph before assembling the font. Defaults to `false`; optimization may reduce SVG path data, but does not guarantee smaller binary font output, so compare the generated sizes for your input set.
 
 ### Do you need to migrate?
 
-If your config only uses the documented [plugin options](/configuration) and you don't pass a `cssContext` callback, **you don't need to change anything**. Bump the version and reinstall.
+If your config only uses the documented [plugin options](/vite/configuration) and you don't pass a `cssContext` callback, **you don't need to change anything**. Bump the version and reinstall.
 
 If you do any of the following, read on:
 
@@ -55,11 +55,11 @@ viteSvgToWebfont({
 
 If you relied on the removed parameters, please reach out on GitHub, by opening an issue, so we can find a solution that works for your use case.
 
-The `context` parameter is typed as [`CssContext`](/webfont-generator/node#csscontext), which exposes the named fields the engine guarantees (`fontName`, `src`, `codepoints`) plus an open-ended index signature for the keys forwarded from `baseSelector` and `classPrefix`.
+The `context` parameter is typed as [`CssContext`](/node/#csscontext), which exposes the named fields the engine guarantees (`fontName`, `src`, `codepoints`) plus an open-ended index signature for the keys forwarded from `baseSelector` and `classPrefix`.
 
 ### `formatOptions` is now typed
 
-`formatOptions` was previously `{ [format]?: unknown }` — any key, any shape. v7 narrows it to [`FormatOptions`](/webfont-generator/node#formatoptions), which accepts `svg`, `ttf`, `woff`, and `woff2` keys, each with its own typed per-format options ([`SvgFormatOptions`, `TtfFormatOptions`, `WoffFormatOptions`, and `Woff2FormatOptions`](/webfont-generator/node#formatoptions)). Two practical consequences:
+`formatOptions` was previously `{ [format]?: unknown }` — any key, any shape. v7 narrows it to [`FormatOptions`](/node/#formatoptions), which accepts `svg`, `ttf`, `woff`, and `woff2` keys, each with its own typed per-format options ([`SvgFormatOptions`, `TtfFormatOptions`, `WoffFormatOptions`, and `Woff2FormatOptions`](/node/#formatoptions)). Two practical consequences:
 
 - `formatOptions.eot` is no longer accepted — EOT is derived from the TTF output.
 - Free-form keys on `formatOptions.svg` / `.ttf` / `.woff` / `.woff2` will fail to typecheck. Replace them with the documented fields, or drop them if they were no-ops in v6. The only `woff2` field is `compressionQuality`.
