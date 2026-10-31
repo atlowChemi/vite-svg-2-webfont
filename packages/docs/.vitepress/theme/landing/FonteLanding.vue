@@ -378,17 +378,25 @@ onBeforeUnmount(() => {
 }
 
 /* The landing page owns the nav wordmark: the hero's flyer docks into its slot. */
+html.fonte-landing .VPNavBarTitle .fonte-wordmark {
+    transition: opacity 0.25s;
+}
+
 html.fonte-landing-docked .VPNavBarTitle .fonte-wordmark {
-    visibility: hidden;
+    opacity: 0;
 }
 
-/* The mobile menu covers the page but not the fixed flyer: hide the flyer and let the nav show its own wordmark. */
-html.fonte-landing:has(.VPNavScreen) .flyer {
-    visibility: hidden;
+/*
+ * The mobile menu covers the page but not the fixed flyer. While the menu button is pressed, cross-fade to the nav's
+ * own wordmark, timed like VitePress's 0.25s menu fade. Keying on the button, not the menu element, starts the fade
+ * on click instead of after the menu's leave transition.
+ */
+html.fonte-landing:has(.VPNavBarHamburger[aria-expanded='true']) .flyer {
+    opacity: 0;
 }
 
-html.fonte-landing-docked:has(.VPNavScreen) .VPNavBarTitle .fonte-wordmark {
-    visibility: visible;
+html.fonte-landing-docked:has(.VPNavBarHamburger[aria-expanded='true']) .VPNavBarTitle .fonte-wordmark {
+    opacity: 1;
 }
 
 /* Below 960px VitePress lets the nav scroll away; keep it pinned so the wordmark has a slot to dock into. */
@@ -427,6 +435,8 @@ html.fonte-landing-docked:has(.VPNavScreen) .VPNavBarTitle .fonte-wordmark {
 
 .flyer {
     position: fixed;
+    pointer-events: none;
+    transition: opacity 0.25s;
     top: 0;
     left: 0;
     z-index: 40;
@@ -798,9 +808,27 @@ h2 {
     margin-top: 14px;
 }
 
+.snippet {
+    font-family: var(--vp-font-family-base);
+}
+
+/* Undo the docs' phone-width bleed (negative margins, square corners): here the samples sit inside a column. */
 .snippet :deep(div[class*='language-']),
-.snippet :deep(.vp-code-group) {
+.snippet :deep(.vp-code-group),
+.snippet :deep(.vp-code-group .tabs) {
     margin: 0;
+}
+
+.snippet :deep(div[class*='language-']) {
+    border-radius: 8px;
+}
+
+.snippet :deep(.vp-code-group .tabs) {
+    border-radius: 8px 8px 0 0;
+}
+
+.snippet :deep(.vp-code-group div[class*='language-']) {
+    border-radius: 0 0 8px 8px;
 }
 
 .more {

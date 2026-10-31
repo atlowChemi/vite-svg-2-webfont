@@ -47,8 +47,10 @@ export default { plugins: [viteSvgToWebfont({ context: './icons' })] };
 
 ::: code-group
 
+<!-- prettier-ignore -->
 ```html [index.html]
-<link rel="stylesheet" href="my-icons.css" /> <i class="icon icon-star"></i>
+<link rel="stylesheet" href="my-icons.css" />
+<i class="icon icon-star"></i>
 ```
 
 ```ts [my-icons.ts]
