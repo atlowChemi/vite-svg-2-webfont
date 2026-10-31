@@ -7,6 +7,7 @@
     --fonte-ash: #f3ece2;
     --fonte-molten: #ff6a13;
     --fonte-ember: #ffb02e;
+    --fonte-mold: #5a5258;
 
     --vp-c-bg: #faf7f2;
     --vp-c-bg-alt: var(--fonte-ash);
@@ -46,6 +47,8 @@
 }
 
 .dark {
+    --fonte-mold: #b3abba;
+
     --vp-c-bg: var(--fonte-iron);
     --vp-c-bg-alt: #161418;
     --vp-c-bg-soft: #26232a;
@@ -92,9 +95,9 @@
     color: var(--vp-c-text-2);
 }
 
-.VPNavBarTitle .logo {
+.VPNavBarTitle .fonte-wordmark {
     height: 24px;
-    margin-right: 0;
+    width: auto;
 }
 
 @media (max-width: 767px) {

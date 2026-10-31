@@ -112,7 +112,6 @@ export default defineConfig({
         },
     },
     themeConfig: {
-        logo: { light: '/wordmark-light.svg', dark: '/wordmark-dark.svg', alt: siteName },
         siteTitle: siteSubtitle,
         nav: [
             { text: 'Guide', link: '/getting-started' },
