@@ -53,6 +53,89 @@ Run tasks that build or restore the native binding sequentially within a checkou
 For example, `vp run test` and `vp run vite-svg-2-webfont#pack` both use the same
 generated binding files; separate invocations should not write them concurrently.
 
+### Dormant pnpm task graph
+
+`pnpm-workspace.yaml` delegates `tasks` and `pipelines` to `pnpm-tasks.yaml`
+using pnpm 12.15's native `include`. Edit task declarations in that file;
+workspace discovery and installation settings remain in the root configuration.
+
+Normal development still uses the `vp` commands above. The `next:*` scripts and
+`next-*` pipelines are the replacement graph under validation, not the active
+workflow. This foundation declares commands and prerequisites with every task
+cache disabled. Cache auditing and activation are separate review layers.
+
+```mermaid
+flowchart LR
+    active["vp run package#task (active)"] --> vite["Vite+ task configuration"]
+    vite --> tools["Vite+, Cargo, NAPI, and package tools"]
+    next["pnpm pipeline PIPELINE --full (dormant)"] --> pipeline["pnpm-tasks.yaml: next-* pipeline"]
+    pipeline --> tasks["Root next:* tasks and prerequisite edges"]
+    tasks --> scripts["Package package.json: next:* raw commands"]
+    scripts --> tools
+```
+
+The main artifact dependencies below apply to both graphs. Arrows point from a
+prerequisite to its consumer. Pipeline names label the dormant entry points;
+task names appear inside their nodes.
+
+```mermaid
+flowchart TD
+    engine["engine check → feature tests → tests"] --> adapter["adapter check → tests"]
+    adapter --> release["next-native-release: next:native:release"]
+    release --> bench["next-bench: next:bench:vitest"]
+    native["next-native: next:native"] --> plugin["next-build: next:plugin:pack"]
+    wasm["next:wasm"] --> browser["next-build: next:browser:pack"]
+    svg["next:docs:svg"] --> social["next-assets: next:docs:social"]
+    native --> tests["next-test: next:test:js"]
+    browser --> tests
+    adapter --> rusttests["next-rust-test"]
+    browser --> browsertests["next-browser-test: check + tests"]
+    plugin --> docs["next-docs: next:docs"]
+    browser --> docs
+    social --> docs
+    plugin --> example["next-example: next:example"]
+    svg --> example
+    plugin --> docsdev["next-docs-dev: next:docs:dev"]
+    browser --> docsdev
+    social --> docsdev
+    plugin --> exampledev["next-example-dev: next:example:dev"]
+    svg --> exampledev
+    docs --> docspreview["next-docs-preview: next:docs:preview"]
+    example --> examplepreview["next-example-preview: next:example:preview"]
+    plugin --> plugintar["next-plugin-tarball: next:plugin:tgz"]
+    browser --> browsertar["next-browser-tarball: next:browser:tgz"]
+    browsertar --> browserpublish["next-browser-publish: next:browser:publish"]
+    supplied["Native artifacts supplied by release CI"] --> pluginpublish["next-plugin-publish: raw pack → raw tarball → publish"]
+```
+
+The inventory covers every task in the existing `vite.config.ts` files:
+
+| Owner                                   | Existing tasks (use `vp run owner#task`)                                                                                                              | Dormant pipeline entry points                                                                                                                                                                                              |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Root (omit `owner#`)                    | `test`, `test:compat`, `coverage`, `coverage:scripts`, `bench:vitest`                                                                                 | `next-test`, `next-compat`, `next-coverage`, `next-scripts-coverage`, `next-bench`                                                                                                                                         |
+| `@atlowchemi/webfont-engine`            | `check`, `test`, `test:features`, `bench`, `test:coverage`, `test:coverage:cli`, `test:doctests`, `test:color-proof`                                  | `next-check` / `next-rust-test` include checks and feature tests; `next-engine-bench`, `next-engine-coverage`, `next-cli-coverage`, `next-doctests`, `next-engine-color-proof`                                             |
+| `@atlowchemi/webfont-generator`         | `check`, `test`, `build`, `build:release`, `bench`, `test:browser`, `test:color-proof`, `test:coverage`, `test:coverage:native`, `binding:regenerate` | `next-check`, `next-rust-test`, `next-native`, `next-native-release`, `next-adapter-bench`, `next-adapter-browser`, `next-adapter-color-proof`, `next-adapter-coverage`, `next-native-coverage`, `next-binding-regenerate` |
+| `@atlowchemi/webfont-browser-generator` | `build`, `pack`, `check`, `test`, `pack:tgz`, `test:coverage`, `publish`                                                                              | `next-build` includes WASM and pack; `next-check`, `next-browser-test`, `next-browser-tarball`, `next-browser-coverage`, `next-browser-publish`                                                                            |
+| `vite-svg-2-webfont`                    | `dev`, `pack`, `pack:tgz`, `test`, `test:browser`, `test:fixtures:refresh`, `publish`                                                                 | `next-plugin-dev`, `next-build`, `next-plugin-tarball`, `next-plugin-test`, `next-plugin-browser`, `next-fixtures-refresh`, `next-plugin-publish`                                                                          |
+| `@atlowchemi/vite-svg-webfont-example`  | `dev`, `build`, `preview`                                                                                                                             | `next-example-dev`, `next-example`, `next-example-preview`                                                                                                                                                                 |
+| `@atlowchemi/vite-svg-webfont-docs`     | `optimize-svg`, `social-card`, `dev`, `build`, `preview`                                                                                              | `next-assets` includes SVG and social cards; `next-docs-dev`, `next-docs`, `next-docs-preview`                                                                                                                             |
+
+The package-local `next:TASK` script contains the raw command. Root aliases such
+as `next:native` and `next:wasm` own cross-package cache declarations. Use native
+`pnpm pipeline NAME --full` to prepare prerequisites; a raw package script does not.
+`next-test` preserves the original JS test scope; Rust suites are separate pipelines.
+Keep `--full`: native affected selection currently skips required root-owned tasks
+for docs-only edits.
+
+Lifecycle hooks (`prepare`, native `prepublishOnly`) retain their existing names
+and automatic package-manager behavior.
+
+The dormant-pipeline CI job executes a finite validation suite including builds,
+tests, coverage, and tarballs. Dev/preview,
+publishing, benchmarks, fixture regeneration, and specialized coverage commands
+are invoked explicitly, not automatically by that suite. Rust formatting is a
+separate `next:fmt:rust` pipeline task to keep engine-only cache dependencies narrow.
+
 ### Build caches and generated files
 
 Dependency caches, Cargo build outputs, and Vite+ task outputs serve different purposes:
