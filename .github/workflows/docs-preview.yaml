@@ -3,8 +3,8 @@ name: Docs preview
 # CI builds the docs without secrets and uploads them as the `docs-site` artifact.
 # This workflow runs from the default branch, so the Cloudflare credentials only ever meet trusted workflow code:
 # - pushes to main deploy the Worker behind next.fonte.atlow.dev;
-# - same-repository pull requests get a `pr-<number>` preview alias, a GitHub deployment, and a sticky comment;
-# - closing a pull request replaces its preview with a "torn down" page.
+# - same-repository pull requests get a `pr-<number>` Worker Preview, a GitHub deployment, and a sticky comment;
+# - closing a pull request deletes its Preview.
 on:
     workflow_run:
         workflows: [CI]
@@ -121,7 +121,7 @@ jobs:
                   node-version-file: .node-version
                   run-install: false
                   cache: false
-            - name: Upload preview version
+            - name: Deploy Preview
               id: upload
               if: ${{ steps.site.outputs.found == 'true' }}
               working-directory: packages/docs
@@ -129,11 +129,12 @@ jobs:
                   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
                   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
               run: |
-                  out=$(vpx "$WRANGLER" versions upload --preview-alias "pr-$PR" --message "#$PR at ${SHA:0:7}" 2>&1) || { echo "$out"; exit 1; }
+                  out=$(vpx "$WRANGLER" preview --name "pr-$PR" --message "#$PR at ${SHA:0:7}" --json 2>&1) || { echo "$out"; exit 1; }
                   echo "$out"
+                  # The Preview URL always serves the latest deployment; per-deployment URLs carry an extra prefix.
                   url=$(grep -oE "https://pr-$PR-fonte-next\.[a-z0-9-]+\.workers\.dev" <<< "$out" | head -n 1)
                   if [ -z "$url" ]; then
-                      echo "::error::wrangler printed no preview alias URL"
+                      echo "::error::wrangler printed no Preview URL"
                       exit 1
                   fi
                   echo "url=$url" >> "$GITHUB_OUTPUT"
@@ -157,7 +158,7 @@ jobs:
               env:
                   URL: ${{ steps.upload.outputs.url }}
               run: |
-                  body=$(printf '%s\n' "$MARKER" "**Docs preview:** $URL" "" "Built from ${SHA:0:7}. It's torn down when this pull request is merged or closed.")
+                  body=$(printf '%s\n' "$MARKER" "**Docs preview:** $URL" "" "Built from ${SHA:0:7}. It's deleted when this pull request is merged or closed.")
                   comment=$(gh api --paginate "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --jq '.[] | select(.user.login == "github-actions[bot]" and (.body | startswith(env.MARKER))) | .id' | head -n 1)
                   if [ -n "$comment" ]; then
                       gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$comment" -f body="$body" > /dev/null
@@ -196,40 +197,19 @@ jobs:
                   echo "id=$comment" >> "$GITHUB_OUTPUT"
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               if: ${{ steps.comment.outputs.id != '' }}
-            - name: Write torn-down page
-              if: ${{ steps.comment.outputs.id != '' }}
-              run: |
-                  if [ "$MERGED" = true ]; then outcome="merged"; else outcome="closed"; fi
-                  dist=packages/docs/.vitepress/dist
-                  mkdir -p "$dist"
-                  cat > "$dist/index.html" << EOF
-                  <!doctype html>
-                  <html lang="en">
-                  <meta charset="utf-8">
-                  <meta name="viewport" content="width=device-width, initial-scale=1">
-                  <meta name="robots" content="noindex">
-                  <title>Preview closed</title>
-                  <style>body{margin:0;min-height:100vh;display:grid;place-content:center;gap:8px;padding:16px;background:#1c1a1f;color:#f3ece2;font:17px/1.5 Georgia,serif;text-align:center}a{color:#ff6a13}</style>
-                  <h1>This preview was torn down</h1>
-                  <p>Pull request <a href="$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/pull/$PR">#$PR</a> was $outcome.</p>
-                  <p><a href="https://next.fonte.atlow.dev/">See the latest docs from main</a></p>
-                  </html>
-                  EOF
-                  cp "$dist/index.html" "$dist/404.html"
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               if: ${{ steps.comment.outputs.id != '' }}
               with:
                   node-version-file: .node-version
                   run-install: false
                   cache: false
-            # Cloudflare keeps an alias's latest version, so the alias is pointed at the page above instead.
-            - name: Replace preview version
+            - name: Delete Preview
               if: ${{ steps.comment.outputs.id != '' }}
               working-directory: packages/docs
               env:
                   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
                   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-              run: vpx "$WRANGLER" versions upload --preview-alias "pr-$PR" --message "#$PR torn down"
+              run: vpx "$WRANGLER" preview delete --name "pr-$PR" --skip-confirmation
             - name: Retire GitHub deployments
               if: ${{ steps.comment.outputs.id != '' }}
               run: |
@@ -242,5 +222,5 @@ jobs:
                   COMMENT: ${{ steps.comment.outputs.id }}
               run: |
                   if [ "$MERGED" = true ]; then outcome="merged at ${MERGE_SHA:0:7}"; else outcome="closed at ${HEAD_SHA:0:7}"; fi
-                  body=$(printf '%s\n' "$MARKER" "**Docs preview:** torn down when this pull request was $outcome.")
+                  body=$(printf '%s\n' "$MARKER" "**Docs preview:** deleted when this pull request was $outcome.")
                   gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$COMMENT" -f body="$body" > /dev/null
