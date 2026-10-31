@@ -61,9 +61,10 @@ workspace discovery and installation settings remain in the root configuration.
 
 Normal development still uses the `vp` commands above. The `next:*` scripts and
 `next-*` pipelines are the replacement graph under validation, not the active
-workflow. All task caches remain disabled at this review layer. The auditor and
-its fixture-based checks are available; workspace cache declarations, activation,
-and filesystem-audit CI arrive together in the next layer.
+workflow. Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter
+checks and tests, browser Clippy, plugin-local tests, doctests, tarballs, and SVG/social assets enable
+task caches. Remaining exceptions and fresh Codecov bundle-analysis commands are
+documented in the auditor README.
 
 ```mermaid
 flowchart LR

@@ -3,12 +3,6 @@
 Private Linux tooling for observing a command and checking its filesystem accesses
 against pnpm's effective task inputs and outputs. Normal builds still use Vite+.
 
-This review layer introduces the auditor, policies, and isolated compatibility
-tests. Workspace cache declarations and activation arrive in the next layer;
-until then all workspace tasks are uncached. The workspace audit commands and
-activation contracts below describe that next layer, not enabled behavior here.
-CI currently builds/tests the auditor and checks graph/fixture compatibility.
-
 ## Build and test
 
 Install Node, Git, and Rust `nightly-2026-08-02` (with rustfmt and Clippy).
@@ -169,8 +163,8 @@ A read-only literal-path rule can specify `environment: VARIABLE`. The variable
 must appear explicitly in the task's or a dependency's `env` inputs and equal the
 file's SHA-256 (or `missing`) before and after execution. This is supported for
 callers that supply a verified pre-key stamp; native pipelines do not generate one.
-The example remains uncached because it can read ignored env files; the activation
-layer disables dotenv loading for docs before enabling its cache.
+The example remains uncached because it can read ignored env files; docs disable
+dotenv loading before enabling their cache.
 The example policy sets `requiresUncached: true`: its narrowly exempted local env
 reads are accepted only while the task explicitly declares `cache: false`. Enabling
 or defaulting its cache makes policy preparation fail. This is an uncached-command
