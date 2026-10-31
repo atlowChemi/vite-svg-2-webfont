@@ -931,6 +931,12 @@ h2 {
 .footer a {
     color: var(--acc);
     text-decoration: none;
+    transition: color 0.25s;
+}
+
+/* Footer links sit at the coldest point of the page; hovering heats them back up. */
+.footer a:hover {
+    color: var(--vp-c-brand-1);
 }
 
 .license {
