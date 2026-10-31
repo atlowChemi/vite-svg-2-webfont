@@ -1,10 +1,28 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
-import { useData } from 'vitepress';
+import { useData, withBase } from 'vitepress';
 import FonteWordmark from '../FonteWordmark.vue';
 import { arrowDown, packageMarks, trayIcons } from './icons';
 
 const repo = 'https://github.com/atlowChemi/vite-svg-2-webfont';
+
+const features = [
+    {
+        icon: '/native-workflow.svg',
+        title: 'Native speed',
+        details: 'A ground-up Rust rewrite of the webfont pipeline, with parallel font conversion and native path normalization.',
+    },
+    {
+        icon: '/configurable.svg',
+        title: 'Every detail configurable',
+        details: 'File globs, destinations, selectors, class prefixes, codepoints, font formats, and your own templates.',
+    },
+    {
+        icon: '/in-browser.svg',
+        title: 'Right in the browser',
+        details: 'The same engine compiled to WebAssembly casts fonts in a web worker, with no server and no build step.',
+    },
+];
 const icons = Object.entries(trayIcons);
 
 const drawers = [
@@ -250,8 +268,13 @@ onBeforeUnmount(() => {
                 <span class="no">No.</span><span class="num">02</span><span class="name">Setting</span><span class="deg">{{ degrees }}</span>
             </div>
             <div class="body">
-                <h2>What are you casting into?</h2>
-                <p class="lede">One engine, four drawers in the type case.</p>
+                <div class="heading">
+                    <img class="illustration" :src="withBase('/engine-anywhere.svg')" alt="" />
+                    <div>
+                        <h2>What are you casting into?</h2>
+                        <p class="lede">One engine, four drawers in the type case.</p>
+                    </div>
+                </div>
                 <div class="drawers">
                     <button v-for="drawer in drawers" :key="drawer.key" class="drawer" type="button" :aria-pressed="drawer.key === activeKey" @click="activeKey = drawer.key">
                         <span class="drawer-top">
@@ -270,11 +293,33 @@ onBeforeUnmount(() => {
 
         <section class="sec">
             <div class="rail mono">
-                <span class="no">No.</span><span class="num">03</span><span class="name">Proof</span><span class="deg">{{ degrees }}</span>
+                <span class="no">No.</span><span class="num">03</span><span class="name">Foundry</span><span class="deg">{{ degrees }}</span>
             </div>
             <div class="body">
-                <h2>What comes out of the mold</h2>
-                <p class="lede">A folder of SVGs in, a font family and everything around it out.</p>
+                <h2>Why cast with fonte</h2>
+                <p class="lede">A foundry built for icon sets.</p>
+                <div class="features">
+                    <div v-for="feature in features" :key="feature.title" class="feature">
+                        <img class="illustration" :src="withBase(feature.icon)" alt="" />
+                        <h3>{{ feature.title }}</h3>
+                        <p>{{ feature.details }}</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="sec">
+            <div class="rail mono">
+                <span class="no">No.</span><span class="num">04</span><span class="name">Proof</span><span class="deg">{{ degrees }}</span>
+            </div>
+            <div class="body">
+                <div class="heading">
+                    <img class="illustration" :src="withBase('/flexible-output.svg')" alt="" />
+                    <div>
+                        <h2>What comes out of the mold</h2>
+                        <p class="lede">A folder of SVGs in, a font family and everything around it out.</p>
+                    </div>
+                </div>
                 <div class="files">
                     <div>
                         <div class="file">
@@ -294,7 +339,7 @@ onBeforeUnmount(() => {
 
         <section class="sec colophon">
             <div class="rail mono">
-                <span class="no">No.</span><span class="num">04</span><span class="name">Colophon</span><span class="deg">{{ degrees }}</span>
+                <span class="no">No.</span><span class="num">05</span><span class="name">Colophon</span><span class="deg">{{ degrees }}</span>
             </div>
             <div class="body">
                 <h2>Colophon</h2>
@@ -478,6 +523,40 @@ h2 {
 
 .lede {
     margin: 6px 0 28px;
+    color: var(--vp-c-text-2);
+}
+
+.illustration {
+    width: 64px;
+    height: 64px;
+}
+
+.heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.heading .illustration {
+    flex: none;
+}
+
+.features {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.feature h3 {
+    margin: 12px 0 4px;
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.feature p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.45;
     color: var(--vp-c-text-2);
 }
 
@@ -867,8 +946,14 @@ h2 {
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     }
 
-    .files {
+    .files,
+    .features {
         grid-template-columns: minmax(0, 1fr);
+    }
+
+    .illustration {
+        width: 48px;
+        height: 48px;
     }
 
     .cells {
