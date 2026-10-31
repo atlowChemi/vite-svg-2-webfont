@@ -15,7 +15,6 @@ const drawers = [
         title: 'CLI',
         use: 'CI jobs or one-off local runs, from any language',
         link: '/webfont-generator/cli',
-        code: 'cargo install webfont-generator\nwebfont-generator --dest ./dist/fonts ./icons/',
     },
     {
         key: 'node',
@@ -24,7 +23,6 @@ const drawers = [
         title: 'Build scripts',
         use: 'Your own tooling, at native speed',
         link: '/webfont-generator/node',
-        code: "import { generateWebfonts } from '@atlowchemi/webfont-generator';\n\nawait generateWebfonts({ files, dest: './dist/fonts', fontName: 'my-icons' });",
     },
     {
         key: 'wasm',
@@ -33,7 +31,6 @@ const drawers = [
         title: 'Browser',
         use: 'Casts from in-memory files, no file system needed',
         link: '/webfont-generator/browser',
-        code: "import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';\n\nconst { woff2 } = await generateWebfonts({ files, fontName: 'my-icons' });",
     },
     {
         key: 'vite',
@@ -42,7 +39,6 @@ const drawers = [
         title: 'Plugin',
         use: 'Runs inside the dev server, icon edits hot-reload on save',
         link: '/getting-started',
-        code: "import viteSvgToWebfont from 'vite-svg-2-webfont';\n\nexport default { plugins: [viteSvgToWebfont({ context: './icons' })] };",
     },
 ];
 const activeKey = ref('cli');
@@ -266,7 +262,8 @@ onBeforeUnmount(() => {
                         <span class="use">{{ drawer.use }}</span>
                     </button>
                 </div>
-                <pre class="snippet" aria-live="polite">{{ activeDrawer.code }}</pre>
+                <!-- Snippets come from index.md as slots, so Shiki highlights them like any other docs code block. -->
+                <div class="snippet vp-doc" aria-live="polite"><slot :name="activeDrawer.key" /></div>
                 <a class="more" :href="activeDrawer.link">Read the {{ activeDrawer.title }} guide →</a>
             </div>
         </section>
@@ -290,13 +287,7 @@ onBeforeUnmount(() => {
                         <div class="file"><span class="ext mono">.html</span><span class="what">A preview page of the whole set</span></div>
                         <div class="file"><span class="ext mono">.ts</span><span class="what">Icon names and a union type, for type-safe components</span></div>
                     </div>
-                    <pre class="snippet"><span class="comment">&lt;!-- index.html --&gt;</span>
-&lt;link rel="stylesheet" href="my-icons.css"&gt;
-&lt;i class="icon icon-star"&gt;&lt;/i&gt;
-
-<span class="comment">// my-icons.ts</span>
-export const icons = ["star", "bell"] as const;
-export type IconName = (typeof icons)[number];</pre>
+                    <div class="snippet vp-doc"><slot name="outputs" /></div>
                 </div>
             </div>
         </section>
@@ -344,6 +335,15 @@ export type IconName = (typeof icons)[number];</pre>
 /* The landing page owns the nav wordmark: the hero's flyer docks into its slot. */
 html.fonte-landing-docked .VPNavBarTitle .fonte-wordmark {
     visibility: hidden;
+}
+
+/* The mobile menu covers the page but not the fixed flyer: hide the flyer and let the nav show its own wordmark. */
+html.fonte-landing:has(.VPNavScreen) .flyer {
+    visibility: hidden;
+}
+
+html.fonte-landing-docked:has(.VPNavScreen) .VPNavBarTitle .fonte-wordmark {
+    visibility: visible;
 }
 
 /* Below 960px VitePress lets the nav scroll away; keep it pinned so the wordmark has a slot to dock into. */
@@ -716,20 +716,12 @@ h2 {
 }
 
 .snippet {
-    margin: 14px 0 0;
-    padding: 16px 18px;
-    border-radius: 4px;
-    background: var(--vp-code-block-bg);
-    color: var(--vp-c-text-1);
-    font-family: var(--vp-font-family-mono);
-    font-size: 13px;
-    line-height: 1.7;
-    white-space: pre-wrap;
-    overflow-wrap: anywhere;
+    margin-top: 14px;
 }
 
-.snippet .comment {
-    color: var(--vp-c-text-3);
+.snippet :deep(div[class*='language-']),
+.snippet :deep(.vp-code-group) {
+    margin: 0;
 }
 
 .more {
@@ -748,7 +740,7 @@ h2 {
 }
 
 .files .snippet {
-    margin: 0;
+    margin-top: 0;
 }
 
 .file {
