@@ -125,6 +125,19 @@ a:hover {
     color: var(--vp-c-brand-1);
 }
 
+/*
+ * Dropdown menus (Tools, Changelogs) and the social icons hover in grey by default, unlike plain nav links.
+ * The extra ancestor outranks the theme's scoped selectors.
+ */
+.VPNavBar .VPFlyout:hover .button .text,
+.VPNavBar .VPFlyout .button[aria-expanded='true'] .text {
+    color: var(--vp-c-brand-1);
+}
+
+.VPSocialLinks .VPSocialLink:hover {
+    color: var(--vp-c-brand-1);
+}
+
 .VPSidebarItem.is-active > .item > .indicator {
     background: var(--fonte-molten);
 }
