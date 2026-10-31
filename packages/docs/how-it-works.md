@@ -125,7 +125,7 @@ Whenever the plugin does call the engine, the engine reuses its own persistent c
 
 See [`cacheLocation`](/webfont-generator/node#cachelocation) for the engine's details and [performance](/webfont-generator/under-the-hood#persistent-cache) for measured speedups.
 
-In development, rebuilds triggered by file changes normally use the engine's in-memory [incremental generation](#development) instead, which doesn't update the engine cache: icons edited during a session are reprocessed once on the next start. A rebuild calls the engine with its cache, like the first generation, when incremental generation isn't available: with [`cssContext`](/configuration#csscontext), for the first change after an output cache hit, or after an incremental rebuild fails.
+In development, rebuilds triggered by file changes normally use the engine's in-memory [incremental generation](#development). Each committed update automatically queues a background engine-cache write; pending updates are coalesced, and the plugin waits for persistence when the dev server closes. TypeScript output stays consistent with the current icon names on both cache hits and incremental updates. A rebuild calls the engine with its cache, like the first generation, when incremental generation isn't available: with [`cssContext`](/configuration#csscontext), for the first change after an output cache hit, or after an incremental rebuild fails.
 
 ### Failures and clearing
 

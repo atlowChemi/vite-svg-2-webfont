@@ -177,6 +177,7 @@ impl GenerateWebfontsResult {
             // The cache now matches committed sources. A later write failure retains this
             // usable generation; only failures before this point discard dirty caches.
             state.caches_dirty = false;
+            self.schedule_cache(state);
         }
         if self.options.write_files && state.variant_write_pending {
             crate::output::write_generate_webfonts_result_sync(self, &mut state.written_outputs)?;

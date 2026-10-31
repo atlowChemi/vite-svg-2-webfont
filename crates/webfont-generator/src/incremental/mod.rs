@@ -110,6 +110,8 @@ impl GenerateWebfontsResult {
     /// Membership-only changes need no hint; newly assigned paths are loaded automatically.
     /// Invalid batches and font-build failures preserve the previous result. Variant writes
     /// occur after the new state commits, so write errors leave retryable new in-memory output.
+    /// With `cache_location`, committed changes automatically queue a background cache write.
+    /// Use [`Self::flush_cache`] or [`Self::flush_cache_async`] before shutdown to wait for it.
     ///
     /// ```rust,no_run
     /// use webfont_generator::{
@@ -300,6 +302,7 @@ impl GenerateWebfontsResult {
             self.ts = previous_ts;
             return Err(error);
         }
+        self.schedule_cache(state);
         Ok(())
     }
 

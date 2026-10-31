@@ -92,6 +92,8 @@ impl std::error::Error for RegenerateError {
 /// render the CSS and HTML preview.
 #[cfg(feature = "fs")]
 pub struct GenerateWebfontsResult {
+    pub(crate) persistence: Option<Arc<crate::cache::persistence::Persistence>>,
+    pub(crate) defer_cache: bool,
     pub(crate) ts: OnceLock<Arc<String>>,
     pub(crate) cached: OnceLock<Result<CachedTemplateData, String>>,
     /// Render-cache entries carried across an incremental `regenerate` to seed the rebuilt
@@ -110,6 +112,8 @@ pub struct GenerateWebfontsResult {
 impl GenerateWebfontsResult {
     pub(crate) fn snapshot_for_regeneration(&self, state: RegenerationState) -> Self {
         Self {
+            persistence: self.persistence.clone(),
+            defer_cache: true,
             cached: OnceLock::new(),
             ts: self.ts.clone(),
             carried_render: self.render_cache_source(),
@@ -172,7 +176,14 @@ impl GenerateWebfontsResult {
         let state = self.take_regeneration_state()?;
         let mut replacement = self.snapshot_for_regeneration(state);
         match replacement.regenerate(files, changes) {
-            Ok(()) => Ok(replacement),
+            Ok(()) => {
+                replacement.defer_cache = false;
+                if !Arc::ptr_eq(&self.source_files, &replacement.source_files) {
+                    let state = replacement.regeneration_state.lock().unwrap();
+                    replacement.schedule_cache(state.as_ref().unwrap());
+                }
+                Ok(replacement)
+            }
             Err(error) => {
                 if let Ok(state) = replacement.take_regeneration_state() {
                     self.restore_regeneration_state(state);

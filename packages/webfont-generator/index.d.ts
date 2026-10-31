@@ -136,7 +136,7 @@ type GuaranteedFormats<Formats extends readonly FontType[]> = {
  */
 export type GenerateWebfontsResult<T extends FontType = FontType, Guaranteed extends T = T> = {
     [F in FontType]: F extends Guaranteed ? FontValue<F> : F extends T ? FontValue<F> | null : null;
-} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml' | 'generateTs'> & {
+} & Pick<RawGenerateWebfontsResult, 'generateCss' | 'generateHtml' | 'generateTs' | 'flushCache'> & {
         regenerate(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null): void;
         regenerateAsync(files: RegenerationFiles, changes?: GlyphChangeEntry[] | null): Promise<GenerateWebfontsResult<T, Guaranteed>>;
         /** Append a new file. Families require a target variant. Requires incremental generation. */
@@ -196,6 +196,8 @@ export declare function generateWebfonts<T extends FontType = FontType>(
  * Remove every file the generation cache created in `cacheLocation` (see the
  * `cacheLocation` option), including leftovers from interrupted writes. Other
  * files are left untouched; a missing directory resolves with zero counts.
+ * Stop incremental updates and await each active lineage's flushCache() before clearing;
+ * outstanding background writes can otherwise recreate cache files.
  */
 export declare function clearCache(cacheLocation: string): Promise<ClearCacheReport>;
 

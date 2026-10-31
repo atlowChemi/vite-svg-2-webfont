@@ -76,6 +76,7 @@ the previous result usable; async failures expose it through `SourceRegenerateEr
 unless the worker itself failed. See the [text-input reference](https://fonte.atlow.dev/webfont-generator/rust.html#svg-text-api).
 
 An optional [persistent cache](https://fonte.atlow.dev/webfont-generator/rust#persistent-cache) (`cache_location`) lets later runs reuse unchanged work.
+Incremental updates automatically persist committed fonts and glyphs in the background, coalescing pending updates. After awaiting rebuilds, call `result.flush_cache()` or `result.flush_cache_async().await` before shutdown; persistence failures never fail generation. TypeScript companions are rendered from current metadata on cache hits and refreshed after membership changes.
 
 For color glyphs and named theme palettes, see the [color documentation](https://fonte.atlow.dev/webfont-generator/rust#color-glyphs).
 

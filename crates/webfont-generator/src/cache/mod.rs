@@ -13,6 +13,8 @@
 //! fail it or change its output.
 
 mod codec;
+#[cfg(feature = "fs")]
+pub(crate) mod persistence;
 #[cfg(all(test, feature = "fs"))]
 mod tests;
 
@@ -157,6 +159,8 @@ pub struct ClearCacheReport {
 /// Remove every file the generation cache created in `cache_location`, including temporary
 /// files left by interrupted writes. Other files in the directory are left untouched, and a
 /// missing directory is not an error.
+/// Stop incremental updates and flush each active result lineage before clearing: outstanding
+/// background writes can otherwise recreate cache files after removal.
 #[cfg(feature = "fs")]
 pub fn clear_cache(cache_location: impl AsRef<Path>) -> Result<ClearCacheReport> {
     let entries = match fs::read_dir(cache_location) {
@@ -212,7 +216,6 @@ pub(crate) struct CacheState {
     glyph_set: [u8; 16],
     /// Digest of the settings each format depends on, in `FONT_TYPES` order, kept so keys can be
     /// recomputed when the glyphs change.
-    #[cfg(feature = "in_memory")]
     settings_digests: [[u8; 16]; 5],
     /// Level 1 key per format, in `FONT_TYPES` order.
     font_keys: [[u8; 16]; 5],
@@ -270,13 +273,11 @@ impl CacheState {
             glyphs: OnceLock::new(),
             fonts: Vec::new(),
             glyph_set,
-            #[cfg(feature = "in_memory")]
             settings_digests,
             font_keys: font_keys(&settings_digests, &glyph_set),
         }
     }
 
-    #[cfg(feature = "in_memory")]
     /// Re-identify the glyphs (from [`glyph_set`] or [`variant_glyph_set`]) after a membership
     /// or content change that kept the settings.
     pub(crate) fn refresh_glyph_set(&mut self, glyph_set: [u8; 16]) {
@@ -323,7 +324,6 @@ impl CacheState {
 
     /// Free the decoded glyphs once they seeded a glyph cache: `update` and `update_variants`
     /// rebuild them from it.
-    #[cfg(feature = "in_memory")]
     pub(crate) fn release_glyphs(&mut self) {
         self.replace_glyphs(Glyphs::default());
     }
@@ -794,19 +794,19 @@ impl DiskCache {
     /// Persist the updated cache. Best effort: an unwritable location only costs the next run its
     /// warm start.
     pub(crate) fn store(
-        mut self,
+        &mut self,
         sources: &[LoadedSvgSource],
         glyph_cache: &GlyphCache,
         outputs: &FontOutputs,
         types: &[FontType],
     ) {
         let bytes = self.state.update(sources, glyph_cache, outputs, types);
-        self.save(bytes);
+        let _ = self.save(bytes);
     }
 
     /// Variant counterpart of [`Self::store`].
     pub(crate) fn store_variants<Files: AsRef<[LoadedSvgSource]>>(
-        mut self,
+        &mut self,
         variants: &[Files],
         glyph_cache: &VariantGlyphCache,
         outputs: &FontOutputs,
@@ -815,29 +815,36 @@ impl DiskCache {
         let bytes = self
             .state
             .update_variants(variants, glyph_cache, outputs, types);
-        self.save(bytes);
+        let _ = self.save(bytes);
     }
 
-    fn save(self, bytes: Option<Vec<u8>>) {
+    fn save(&mut self, bytes: Option<Vec<u8>>) -> Result<()> {
         let Self {
             dir,
             file_name,
             font_prefix,
             ..
-        } = self;
+        } = &*self;
         if let Some(bytes) = bytes {
-            let path = dir.join(&file_name);
-            match write(&dir, &file_name, &bytes) {
-                Ok(()) => prune_siblings(&dir, &file_name, &font_prefix),
+            let path = dir.join(file_name);
+            match write(dir, file_name, &bytes) {
+                Ok(()) => prune_siblings(dir, file_name, font_prefix),
                 // The cache never removes what it didn't create, so this stays cold until the user
                 // removes the directory; say so instead of failing silently on every run.
-                Err(_) if path.is_dir() => eprintln!(
-                    "warning: webfont-generator: {} is a directory, so the generation cache can't be saved there; remove it to re-enable caching",
-                    path.display()
-                ),
-                Err(_) => {}
+                Err(error) => {
+                    if path.is_dir() {
+                        eprintln!(
+                            "warning: webfont-generator: {} is a directory, so the generation cache can't be saved there; remove it to re-enable caching",
+                            path.display()
+                        );
+                    }
+                    // `update` records encoded bytes, not a successful disk write. Retry failures.
+                    self.state.loaded = None;
+                    return Err(error);
+                }
             }
         }
+        Ok(())
     }
 }
 
@@ -848,7 +855,9 @@ fn write(dir: &Path, file_name: &str, bytes: &[u8]) -> Result<()> {
     static WRITES: AtomicU64 = AtomicU64::new(0);
     let write = WRITES.fetch_add(1, Relaxed);
     let tmp = dir.join(format!("{}.{}-{write}.tmp", file_name, process::id()));
-    fs::write(&tmp, bytes)?;
+    fs::write(&tmp, bytes).inspect_err(|_| {
+        let _ = fs::remove_file(&tmp);
+    })?;
     fs::rename(&tmp, dir.join(file_name)).inspect_err(|_| {
         let _ = fs::remove_file(&tmp);
     })

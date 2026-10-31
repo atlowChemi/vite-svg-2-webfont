@@ -217,6 +217,49 @@ describe('cache option', () => {
 });
 
 describe('cache parity', () => {
+    it('flushes watch rebuilds on close and restarts warm with current TypeScript output', { timeout: 15_000 }, async () => {
+        await using p = await project();
+        const tsDest = join(p.root, 'icons.ts');
+        const overrides = { generateFiles: 'ts', tsDest } as const;
+        const server = await createServer({ ...p.config(overrides), server: { port: 0 } });
+        let edited: Buffer;
+        await server.listen();
+        try {
+            const { port } = server.httpServer!.address() as { port: number };
+            const font = async () => Buffer.from(await (await fetch(`http://localhost:${port}/iconfont.ttf`)).arrayBuffer());
+            const original = await font();
+            await writeFile(join(p.icons, 'new.svg'), svg(12));
+            await vi.waitFor(
+                async () => {
+                    expect(await readFile(tsDest, 'utf8')).toContain('"new"');
+                    expect(await font()).not.toEqual(original);
+                },
+                { timeout: 10_000 },
+            );
+            edited = await font();
+        } finally {
+            await server.close();
+        }
+        const engine = join(p.cacheFolder, 'engine');
+        const file = join(
+            engine,
+            (await readdir(engine)).find(name => name.endsWith('.wfcache'))!,
+        );
+        const { ino } = await stat(file);
+        await rm(join(p.cacheFolder, 'iconfont.json'));
+        await rm(tsDest);
+        const restart = await createServer({ ...p.config(overrides), server: { port: 0 } });
+        await restart.listen();
+        try {
+            expect((await stat(file)).ino).toBe(ino);
+            expect(await readFile(tsDest, 'utf8')).toContain('"new"');
+            const { port } = restart.httpServer!.address() as { port: number };
+            expect(Buffer.from(await (await fetch(`http://localhost:${port}/iconfont.ttf`)).arrayBuffer())).toEqual(edited!);
+        } finally {
+            await restart.close();
+        }
+    });
+
     it('builds the same output with the cache off, cold and warm', async () => {
         await using p = await project();
         const off = await p.run({ cache: false });
