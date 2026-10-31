@@ -10,6 +10,10 @@ const config: UserProjectConfigExport = defineProject({
             'optimize-svg': {
                 command: 'svgo -r -f assets/svg -o public',
             },
+            // Regenerates the committed logo and wordmark SVGs in assets/svg; run by hand after brand changes.
+            brand: {
+                command: 'node ./scripts/generate-brand.ts',
+            },
             'social-card': {
                 command: 'node ./scripts/generate-social-card.ts',
                 dependsOn: ['optimize-svg'],
