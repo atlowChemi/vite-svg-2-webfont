@@ -347,7 +347,7 @@ onBeforeUnmount(() => {
             </div>
             <div class="body">
                 <h2>Colophon</h2>
-                <p class="lede">The notes a type specimen ends with.</p>
+                <p class="lede">Where the name comes from.</p>
                 <p>
                     <b>The name.</b> In French, <span class="fonte">fonte</span> is a casting: metal melted and poured into a mold. The same word means melting, as in
                     <i>la fonte des neiges</i>, the snowmelt, and cast iron itself.
