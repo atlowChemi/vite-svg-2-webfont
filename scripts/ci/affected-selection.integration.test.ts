@@ -127,6 +127,7 @@ describe('real Git/pnpm affected selection', () => {
         ['packages/webfont-generator/index.js', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.docs, packageNames.root], true],
         ['packages/vite-svg-2-webfont/src/index.ts', [packageNames.plugin, packageNames.example, packageNames.docs], false],
         ['packages/docs/getting-started.md', [packageNames.docs], false],
+        ['packages/docs/wrangler.jsonc', [], false],
         ['packages/vite-svg-2-webfont/CHANGELOG.md', [packageNames.plugin, packageNames.example, packageNames.docs], false],
         ['packages/webfont-generator/templates/css.hbs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.docs, packageNames.root], true],
         ['packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/add.svg', [packageNames.plugin, packageNames.example, packageNames.docs], false],
