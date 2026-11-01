@@ -1,4 +1,4 @@
-import type { CollectedOutputs, WebfontResult } from '@atlowchemi/webfont-browser-generator';
+import type { CollectedOutputs, WebfontGenerator, WebfontResult } from '@atlowchemi/webfont-browser-generator';
 import { onBeforeUnmount, shallowRef, watch, type Ref } from 'vue';
 import { loadEngineCache, saveEngineCache } from './engineCache';
 import { toGenerateOptions, type PlaygroundIcon, type PlaygroundSettings } from './options';
@@ -20,26 +20,21 @@ const DEBOUNCE_MS = 200;
 /** Formats a browser can load through the FontFace API, in order of preference. */
 const PREVIEW_FORMATS = ['woff2', 'woff', 'ttf'] as const;
 
-const loadGenerator = () => import('@atlowchemi/webfont-browser-generator');
-
 /**
- * Warm the generator, so the first build doesn't wait for it. A throwaway one-glyph build loads the module, the
- * worker, and the WASM from the exact URLs later builds use, so they come from the HTTP cache (hashed assets are
- * cached as immutable), and lets the browser compile the WASM ahead of time.
+ * Start the generator's worker, which loads and compiles the WASM once for every build. The module and WASM are
+ * hashed assets, cached as immutable, so later visits load them from the HTTP cache.
  */
-async function prefetch() {
-    try {
-        const { generateWebfonts } = await loadGenerator();
-        using _warmup = await generateWebfonts({ sources: [{ id: 'warmup', name: 'warmup', svg: '<svg viewBox="0 0 1 1"><path d="M0 0H1V1Z"/></svg>' }], types: ['woff2'] });
-    } catch {
-        // The first real build loads the generator itself and reports any failure.
-    }
+async function createGenerator(): Promise<WebfontGenerator> {
+    const { createWebfontGenerator } = await import('@atlowchemi/webfont-browser-generator');
+    return createWebfontGenerator();
 }
 
-/** Prefetch while the page is idle, so loading the page itself never waits for the generator. */
-function prefetchGenerator() {
-    if ('requestIdleCallback' in window) requestIdleCallback(() => void prefetch(), { timeout: 2000 });
-    else setTimeout(() => void prefetch(), 200);
+/** Run once the page is idle, so loading the page itself never waits for the generator. */
+function whenIdle(): Promise<void> {
+    const { promise, resolve } = Promise.withResolvers<void>();
+    if ('requestIdleCallback' in window) requestIdleCallback(() => resolve(), { timeout: 2000 });
+    else setTimeout(resolve, 200);
+    return promise;
 }
 
 async function renderText(render: () => Promise<string>): Promise<string> {
@@ -53,8 +48,9 @@ async function renderText(render: () => Promise<string>): Promise<string> {
 /**
  * Rebuild the font whenever the icons or settings change. Option changes need a fresh result, and every icon carries
  * an explicit codepoint option, so every change builds a new result; the last successful build stays visible while a
- * newer one fails. Each build hands its engine cache to the next, so unchanged icons and formats are reused, and the
- * latest cache is kept in IndexedDB for the next visit.
+ * newer one fails. All builds share one generator, so the WASM loads once, while the page is idle. Each build hands
+ * its engine cache to the next, so unchanged icons and formats are reused, and the latest cache is kept in IndexedDB
+ * for the next visit.
  */
 export function useWebfontBuild(icons: Ref<PlaygroundIcon[]>, settings: Ref<PlaygroundSettings>) {
     const build = shallowRef<WebfontBuild>();
@@ -65,7 +61,23 @@ export function useWebfontBuild(icons: Ref<PlaygroundIcon[]>, settings: Ref<Play
     let face: FontFace | undefined;
     let result: WebfontResult | undefined;
     let cache: Promise<Uint8Array> = loadEngineCache();
-    prefetchGenerator();
+    let generator: Promise<WebfontGenerator> | undefined = whenIdle().then(createGenerator);
+    let unmounted = false;
+
+    /** The shared generator, started now if the idle callback hasn't fired yet. */
+    function currentGenerator(): Promise<WebfontGenerator> {
+        return (generator ??= createGenerator());
+    }
+
+    /** A failed build may come from a crashed worker; start a new one, so the next build doesn't fail the same way. */
+    function restartGenerator(failed: Promise<WebfontGenerator>) {
+        if (generator !== failed) return;
+        generator = undefined;
+        void failed.then(
+            stale => stale.dispose(),
+            () => {},
+        );
+    }
 
     function replaceFace(next: FontFace | undefined) {
         if (face) document.fonts.delete(face);
@@ -98,9 +110,10 @@ export function useWebfontBuild(icons: Ref<PlaygroundIcon[]>, settings: Ref<Play
     async function run(current: number) {
         const started = performance.now();
         let next: WebfontResult | undefined;
+        const used = currentGenerator();
         try {
             const options = toGenerateOptions(icons.value, settings.value);
-            const [{ generateWebfonts }, bytes] = await Promise.all([loadGenerator(), cache]);
+            const [{ generateWebfonts }, bytes] = await Promise.all([used, cache]);
             next = await generateWebfonts({ ...options, cache: bytes });
             const [outputs, css, html, ts] = await Promise.all([next.collectOutputs(), renderText(next.generateCss), renderText(next.generateHtml), renderText(next.generateTs)]);
             const previewFormat = PREVIEW_FORMATS.find(format => options.types?.includes(format));
@@ -127,6 +140,7 @@ export function useWebfontBuild(icons: Ref<PlaygroundIcon[]>, settings: Ref<Play
             void keepCache(next);
         } catch (cause) {
             next?.dispose();
+            if (!unmounted) restartGenerator(used);
             if (current === generation) error.value = cause instanceof Error ? cause.message : String(cause);
         } finally {
             if (current === generation) building.value = false;
@@ -150,10 +164,15 @@ export function useWebfontBuild(icons: Ref<PlaygroundIcon[]>, settings: Ref<Play
     );
 
     onBeforeUnmount(() => {
+        unmounted = true;
         generation++;
         clearTimeout(timer);
         result?.dispose();
         replaceFace(undefined);
+        void generator?.then(
+            created => created.dispose(),
+            () => {},
+        );
     });
 
     return { build, error, building };
