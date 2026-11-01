@@ -19,7 +19,7 @@ const changelogFiles = new Set(['crates/webfont-generator/CHANGELOG.md', 'packag
 const scriptTestConfigs = new Set(['pnpm-lock.yaml', 'pnpm-workspace.yaml', 'Cargo.lock', 'codecov.yml', '.node-version', '.npmrc']);
 // Deploy-only files that no build or test reads. docs-preview.yaml takes the Worker config from the default
 // branch, so changing it alone selects nothing.
-export const buildInertFiles = ['packages/docs/wrangler.jsonc'];
+export const buildInertFiles: readonly string[] = ['packages/docs/wrangler.jsonc'];
 
 // Map pnpm's affected packages to the existing CI job groups and prerequisites.
 export function selectJobs(packages: string[], files: string[], unknownChanges = false): Record<string, boolean> {
