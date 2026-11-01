@@ -30,32 +30,151 @@ This writes `dist/fonts/app-icons.woff2`, `dist/fonts/app-icons.woff`, and `dist
 
 ## Serve fonts from memory
 
-Set `writeFiles: false` to keep everything on the result, for example to serve the fonts from your own server. `generateCss()` takes the URLs the fonts are served at.
+Set `writeFiles: false` to keep everything on the result, and serve it from your own server. This server builds the font on the first request instead of at startup, keeps the result in memory, and rebuilds it when the icons change:
+
+- **Lazy:** the first request for the CSS or the font starts generation. Requests that arrive while it runs wait for the same build, instead of starting their own.
+- **Cached:** responses carry an `ETag`, so browsers revalidate with a `304 Not Modified` instead of downloading the font again.
+- **Fresh:** a watcher marks the result stale, and the next request [updates it incrementally](/guide/features/incremental), processing only the changed icons. A failed update keeps serving the last good font.
 
 ```ts [server.ts]
+import { createHash } from 'node:crypto';
+import { glob, watch } from 'node:fs/promises';
+import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { generateWebfonts } from '@atlowchemi/webfont-generator';
+
+const listIcons = async () => ({ files: (await Array.fromAsync(glob('icons/*.svg'))).sort() });
+
+const build = async () =>
+    generateWebfonts({
+        ...(await listIcons()),
+        dest: 'unused', // Required, but nothing is written to it.
+        fontName: 'icons',
+        types: ['woff2'],
+        writeFiles: false,
+        incremental: true,
+        cssFontsUrl: '/fonts/',
+    });
+
+let current: ReturnType<typeof build> | undefined;
+let stale = false;
+
+function icons() {
+    if (!current) {
+        current = build();
+        // A failed first build is retried by the next request.
+        current.catch(() => (current = undefined));
+    } else if (stale) {
+        stale = false;
+        current = current.then(async result => {
+            try {
+                return await result.regenerateAsync(await listIcons());
+            } catch (error) {
+                console.error(error);
+                return result; // Keep serving the last good font.
+            }
+        });
+    }
+    return current;
+}
+
+function send(request: IncomingMessage, response: ServerResponse, type: string, body: string | Uint8Array) {
+    const etag = `"${createHash('sha256').update(body).digest('base64url')}"`;
+    if (request.headers['if-none-match'] === etag) {
+        response.writeHead(304, { ETag: etag }).end();
+    } else {
+        response.writeHead(200, { 'Content-Type': type, 'Cache-Control': 'no-cache', ETag: etag }).end(body);
+    }
+}
+
+createServer(async (request, response) => {
+    const { pathname } = new URL(request.url ?? '/', 'http://localhost');
+    if (pathname !== '/icons.css' && pathname !== '/fonts/icons.woff2') {
+        response.writeHead(404).end();
+        return;
+    }
+    try {
+        const result = await icons();
+        if (pathname === '/icons.css') {
+            send(request, response, 'text/css', result.generateCss());
+        } else {
+            send(request, response, 'font/woff2', result.woff2);
+        }
+    } catch (error) {
+        console.error(error);
+        response.writeHead(500).end();
+    }
+}).listen(3000);
+
+for await (const event of watch('icons')) {
+    if (event.filename?.endsWith('.svg')) stale = true;
+}
+```
+
+The generated CSS points at `/fonts/icons.woff2` through [`cssFontsUrl`](/node/configuration#cssfontsurl), with a content hash in the query, which the server ignores. The engine has no streaming output: a result holds each font as one complete `Uint8Array`, which is small enough to send in one response.
+
+### On-demand subsets
+
+Generation is fast enough to run per request. This variant builds a font with only the icons a page asks for, such as `/icons.css?set=add,search`, and keeps the most recent subsets in memory:
+
+```ts [server.ts]
+import { readdir } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { generateWebfonts } from '@atlowchemi/webfont-generator';
 
-const result = await generateWebfonts({
-    files: ['icons/add.svg', 'icons/remove.svg'],
-    dest: 'unused',
-    types: ['woff2'],
-    writeFiles: false,
-});
-const css = result.generateCss({ woff2: '/icons.woff2' });
+// Only icons that exist can be requested, so a name never reaches the file system unchecked.
+const available = new Set((await readdir('icons')).filter(file => file.endsWith('.svg')).map(file => file.slice(0, -4)));
+const subsets = new Map<string, ReturnType<typeof buildSubset>>();
+const MAX_SUBSETS = 100;
 
-createServer((request, response) => {
-    if (request.url === '/icons.woff2') {
-        response.writeHead(200, { 'Content-Type': 'font/woff2' }).end(result.woff2);
-    } else if (request.url === '/icons.css') {
-        response.writeHead(200, { 'Content-Type': 'text/css' }).end(css);
-    } else {
+const buildSubset = (names: string[]) =>
+    generateWebfonts({
+        files: names.map(name => `icons/${name}.svg`),
+        dest: 'unused',
+        fontName: 'icons',
+        types: ['woff2'],
+        writeFiles: false,
+    });
+
+function subset(set: string) {
+    const names = [...new Set(set.split(','))].filter(name => available.has(name)).sort();
+    const key = names.join(',');
+    let font = subsets.get(key);
+    if (!font) {
+        if (subsets.size >= MAX_SUBSETS) subsets.delete(subsets.keys().next().value!); // Evict the oldest.
+        font = buildSubset(names);
+        font.catch(() => subsets.delete(key));
+        subsets.set(key, font);
+    }
+    return { key, font };
+}
+
+createServer(async (request, response) => {
+    const url = new URL(request.url ?? '/', 'http://localhost');
+    const { key, font } = subset(url.searchParams.get('set') ?? '');
+    if (!key) {
         response.writeHead(404).end();
+        return;
+    }
+    try {
+        const result = await font;
+        if (url.pathname === '/icons.css') {
+            const css = result.generateCss({ woff2: `/icons.woff2?set=${key}` });
+            response.writeHead(200, { 'Content-Type': 'text/css' }).end(css);
+        } else if (url.pathname === '/icons.woff2') {
+            response.writeHead(200, { 'Content-Type': 'font/woff2', 'Cache-Control': 'public, max-age=31536000, immutable' }).end(result.woff2);
+        } else {
+            response.writeHead(404).end();
+        }
+    } catch (error) {
+        console.error(error);
+        response.writeHead(500).end();
     }
 }).listen(3000);
 ```
 
-`dest` is still required, but nothing is written to it.
+- The subset's sorted names are both the cache key and the font URL, so the same set always maps to the same bytes, and the font can be cached as `immutable`.
+- Every subset uses the family name `icons`, so load one subset per page.
+- [Codepoints](/guide/features/codepoints-and-ligatures#how-codepoints-are-assigned) depend on the set, so the CSS and the font must come from the same subset, and codepoints stored elsewhere don't carry over between subsets.
 
 ## Watch mode
 
