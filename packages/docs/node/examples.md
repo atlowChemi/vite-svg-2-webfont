@@ -249,28 +249,75 @@ await generateWebfonts({
 <i class="ui-icon ui-icon-add"></i>
 ```
 
-## Custom template
+## Built-in SCSS template
 
-Start from a built-in template: copy it into your project, edit it, and point `cssTemplate` at the copy.
+Point `cssTemplate` at a built-in template to use it as is. The SCSS template writes a partial with an icon map and a `webfont-icon($name)` mixin, for attaching icons to your own selectors:
 
 ```ts [scripts/build-icons.ts]
-import { copyFile } from 'node:fs/promises';
-import * as templates from '@atlowchemi/webfont-generator/templates';
+import { generateWebfonts } from '@atlowchemi/webfont-generator';
+import { scss } from '@atlowchemi/webfont-generator/templates';
 
-// Once, to start from the built-in SCSS template:
-await copyFile(templates.scss, 'icons.scss.hbs');
-```
-
-```ts
 await generateWebfonts({
     files,
     dest: 'dist/fonts',
-    cssTemplate: 'icons.scss.hbs',
+    cssTemplate: scss,
     cssDest: 'src/styles/_icons.scss',
+    cssFontsUrl: '/fonts/',
 });
 ```
 
-See [Templates](/guide/templates) for the context every template receives.
+See [the SCSS template](/guide/templates#scss) for how to use the mixin.
+
+## Custom template
+
+Write your own Handlebars template when the built-in ones don't fit. This one exposes every icon as a CSS custom property, so any selector can show an icon without the icon classes:
+
+::: code-group
+
+```handlebars [icon-properties.css.hbs]
+@font-face { font-family: "{{fontName}}"; font-display: block; src:
+{{{src}}}; } :root {
+{{#each codepoints}}
+    --icon-{{@key}}: "\\{{this}}";
+{{/each}}
+}
+```
+
+```ts [scripts/build-icons.ts]
+await generateWebfonts({
+    files,
+    dest: 'dist/fonts',
+    fontName: 'app-icons',
+    cssTemplate: 'icon-properties.css.hbs',
+    cssFontsUrl: '/fonts/',
+});
+```
+
+<!-- prettier-ignore -->
+```css [Generated CSS]
+@font-face {
+	font-family: "app-icons";
+	font-display: block;
+	src: url("/fonts/app-icons.woff2?6ade58c459a69395c3837d798baa549a") format("woff2"),
+url("/fonts/app-icons.woff?6ade58c459a69395c3837d798baa549a") format("woff");
+}
+
+:root {
+	--icon-add: "\f101";
+	--icon-bell: "\f102";
+}
+```
+
+```css [Usage]
+.add-button::before {
+    font-family: 'app-icons';
+    content: var(--icon-add);
+}
+```
+
+:::
+
+The template inserts `src` with triple braces, so Handlebars doesn't escape the URLs. See [Templates](/guide/templates#template-context) for every field a template receives.
 
 ## Type-safe icon names
 
