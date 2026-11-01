@@ -251,7 +251,7 @@ Without `ttf.ts`, generation reads the browser clock once and keeps that timesta
 
 ## Performance
 
-Each result runs in its own worker, so generation never blocks the page.
+Generation runs in a worker, so it never blocks the page.
 
 ### `incremental`
 

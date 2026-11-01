@@ -92,6 +92,29 @@ editor.addEventListener('input', () => {
 
 The result stays alive for the editor's lifetime, so it isn't declared with `using`; call `result.dispose()` when the editor closes.
 
+## Rebuild when settings change
+
+Options are fixed for a result's lifetime, so a settings panel needs a new result for each change. Generate them all in one [generator](/browser/usage#reuse-one-worker), so only the first build waits for the WebAssembly to load:
+
+```ts [src/settings.ts]
+import { createWebfontGenerator, type GenerateWebfontsOptions, type SvgSource, type WebfontResult } from '@atlowchemi/webfont-browser-generator';
+import { showFont } from './preview';
+
+declare const sources: SvgSource[];
+
+const generator = createWebfontGenerator();
+let current: WebfontResult | undefined;
+
+export async function applySettings(settings: Omit<GenerateWebfontsOptions, 'sources'>) {
+    const next = await generator.generateWebfonts({ ...settings, sources, types: ['woff2'] });
+    current?.dispose();
+    current = next;
+    await showFont(current);
+}
+```
+
+The previous result is disposed only after the new one is ready, so the preview never goes blank. Builds run one at a time in the generator's queue.
+
 ## Keep the cache in IndexedDB
 
 Store the [engine cache](/guide/features/caching) between visits, so a returning user's unchanged icons aren't processed again. IndexedDB stores `Uint8Array` values as they are.

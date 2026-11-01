@@ -134,12 +134,32 @@ See [updating a result](/browser/api#updating-a-result) for families, batches wi
 
 ## Worker lifetime and hosting
 
-`generateWebfonts(options, { workerUrl })` accepts an optional string or URL for a separately
-hosted worker. By default, bundlers resolve the worker relative to the package entry.
+Each result from `generateWebfonts()` has its own worker and WebAssembly instance, and disposing the result terminates its worker. Keep a result for incremental work, and dispose it when finished. The package needs neither SharedArrayBuffer nor cross-origin isolation.
 
-For separately hosted workers, serve `worker.js` and `webfont_browser_bg.wasm` together from the same origin.
+`generateWebfonts(options, { workerUrl })` accepts an optional string or URL for a separately hosted worker. By default, bundlers resolve the worker relative to the package entry. Serve `worker.js` and `webfont_browser_bg.wasm` together from the same origin; see [self-hosted worker](/browser/examples#self-hosted-worker).
 
-Each result has its own worker and WASM instance. Keep a result for incremental work, and
-dispose it when finished. The package needs neither SharedArrayBuffer nor cross-origin isolation.
-Vite emits the worker and WASM assets. Serve WASM with `application/wasm`, and permit worker
-execution and WASM compilation in your Content Security Policy.
+Vite emits the worker and WebAssembly assets. Serve the WebAssembly file as `application/wasm`, and permit worker execution and WebAssembly compilation in your Content Security Policy.
+
+### Reuse one worker
+
+Starting a worker loads and compiles the WebAssembly, which can take longer than generating a small font. When an app generates repeatedly with changing options, such as an editor that rebuilds on every settings change, create one generator and generate every result in its worker:
+
+```ts
+import { createWebfontGenerator } from '@atlowchemi/webfont-browser-generator';
+
+// The worker starts loading the WebAssembly now, before the first generation.
+using generator = createWebfontGenerator();
+
+let result = await generator.generateWebfonts({ sources, types: ['woff2'] });
+// Later, with other options: the WebAssembly is already loaded.
+const next = await generator.generateWebfonts({ sources, types: ['woff2', 'woff'] });
+result.dispose();
+result = next;
+```
+
+`createWebfontGenerator({ workerUrl })` takes the same optional worker URL, and `generator.generateWebfonts(options)` takes the same options and returns the same result as the top-level function.
+
+- **Several results at once.** A generator can host any number of live results. Disposing one frees its memory and rejects its pending calls; the others keep working.
+- **One queue.** Calls from every result of a generator run one at a time, in submission order, so a long build delays the others. To build in parallel, create one generator per parallel task.
+- **Failures.** A generation with invalid options rejects without affecting the generator. If the WebAssembly fails to load or crashes, every result of that generator rejects; create a new one.
+- **Disposal.** Disposing the generator terminates its worker and rejects the pending and future calls of all its results. Results don't keep the generator alive, so keep it as long as you use them.
