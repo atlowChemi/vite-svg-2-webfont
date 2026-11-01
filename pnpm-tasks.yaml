@@ -367,7 +367,7 @@ tasks:
     next:docs:
         # Config disables dotenv loading; process environment inputs remain explicit.
         cache: true
-        env: [NODE_ENV, GITHUB_ACTIONS]
+        env: [NODE_ENV]
         dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack]
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
