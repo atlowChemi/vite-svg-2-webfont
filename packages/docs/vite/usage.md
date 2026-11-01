@@ -2,7 +2,7 @@
 description: Learn the standard integration flow for vite-svg-2-webfont, including plugin setup, virtual CSS import, and generated icon classes.
 ---
 
-# Usage
+# Vite Plugin Usage
 
 ## Standard setup
 

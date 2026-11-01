@@ -14,17 +14,16 @@ Use it in Rust programs, or anywhere you want font generation without a Node.js 
 cargo add webfont-generator
 ```
 
-The default features cover file and in-memory generation with async APIs; see [feature flags](/rust/usage#feature-flags) for what each one enables.
+The default features cover file and in-memory generation, with sync and async APIs; see [feature flags](/rust/usage#feature-flags) for what each one enables.
 
 ## Your first font
 
-The async API needs a [Tokio](https://tokio.rs/) runtime:
+`generate_sync` writes the font files and returns once they are done:
 
 ```rust
 use webfont_generator::{GenerateWebfontsOptions, FontType};
 
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
+fn main() -> std::io::Result<()> {
     let options = GenerateWebfontsOptions {
         dest: "output".to_owned(),
         files: vec![
@@ -36,7 +35,7 @@ async fn main() -> std::io::Result<()> {
         ..Default::default()
     };
 
-    let result = webfont_generator::generate(options, None).await?;
+    let result = webfont_generator::generate_sync(options, None)?;
 
     if let Some(woff2) = result.woff2_bytes() {
         println!("Generated WOFF2: {} bytes", woff2.len());
@@ -45,6 +44,8 @@ async fn main() -> std::io::Result<()> {
     Ok(())
 }
 ```
+
+In async code, use [`generate`](/rust/usage#async-api) instead; it needs a [Tokio](https://tokio.rs/) runtime.
 
 ## Next steps
 
