@@ -86,6 +86,8 @@ export default defineConfig({
     title: siteName,
     description: siteDescription,
     cleanUrls: true,
+    // Fragments included into other pages, not pages of their own.
+    srcExclude: ['_shared/**'],
     head: [
         ['link', { rel: 'icon', href: '/logo.svg' }],
         ['meta', { name: 'theme-color', content: '#faf7f2', media: '(prefers-color-scheme: light)' }],
@@ -167,6 +169,9 @@ export default defineConfig({
             '/node/': toolSidebar('Node.js', [
                 { text: 'Getting Started', link: '/node/' },
                 { text: 'Usage', link: '/node/usage' },
+                { text: 'Examples', link: '/node/examples' },
+                { text: 'Configuration', link: '/node/configuration' },
+                { text: 'API', link: '/node/api' },
                 { text: 'Changelog', link: '/node/changelog' },
             ]),
             '/browser/': toolSidebar('Browser', [

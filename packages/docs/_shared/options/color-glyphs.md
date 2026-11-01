@@ -1,0 +1,1 @@
+Keep the SVG colors of every icon (`true`) or of the listed icon names, as [color glyphs](/guide/features/color-glyphs). Names are final names, after any renaming, and apply across every design of a family. An empty list keeps every icon single-color. Color needs TTF, WOFF, or WOFF2 output.

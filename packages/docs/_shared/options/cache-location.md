@@ -1,0 +1,1 @@
+Directory for the persistent [engine cache](/guide/features/caching). Later runs reuse per-icon work and finished fonts for icons and formats that didn't change, and the output is the same as without it. Cache failures never fail generation.

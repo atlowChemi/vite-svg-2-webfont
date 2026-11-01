@@ -1,0 +1,1 @@
+Height of the font's design grid, in font units (units per em). Overrides the height computed from the icons. Glyph coordinates are rounded to this grid, so a small value makes curves faceted; see [jagged curves](/guide/svg-authoring#jagged-curves-outside-the-vite-plugin).

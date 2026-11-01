@@ -70,10 +70,13 @@ console.log(result.woff2); // Uint8Array
 const css = result.generateCss();
 ```
 
-`generateWebfonts` writes the generated files to `dest` and returns the font bytes, with methods that render the CSS, the HTML preview, and the [TypeScript metadata](/node/usage#typescript-metadata).
+`generateWebfonts` writes the generated files to `dest` and returns the font bytes, with methods that render the CSS, the HTML preview, and the [TypeScript metadata](/node/api#typescript-metadata).
 
 ## Next steps
 
-- [Usage](/node/usage): color glyphs, multi-weight fonts, caching across builds, and every option.
+- [Usage](/node/usage): color glyphs, multi-weight fonts, updates, and caching.
+- [Examples](/node/examples): build scripts, watch mode, serving from memory, and more.
+- [Configuration](/node/configuration): every option.
+- [API](/node/api): the result, its methods, and the TypeScript types.
 - [Templates](/guide/templates): customize the generated CSS and HTML.
 - [Changelog](/node/changelog)

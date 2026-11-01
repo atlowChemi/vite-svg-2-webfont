@@ -1,0 +1,1 @@
+Codepoints for specific icons, keyed by icon name. Icons without one continue from the start codepoint, skipping pinned values. See [pin codepoints](/guide/features/codepoints-and-ligatures#pin-codepoints).
