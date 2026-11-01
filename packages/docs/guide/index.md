@@ -28,17 +28,17 @@ flowchart TD
 
 ## What each one supports
 
-| Feature                                           | Vite plugin              | Node.js         | Browser            | Rust               | CLI              |
-| ------------------------------------------------- | ------------------------ | --------------- | ------------------ | ------------------ | ---------------- |
-| SVG, TTF, EOT, WOFF, WOFF2                        | ✅                       | ✅              | ✅                 | ✅                 | ✅               |
-| [Multi-weight families](/guide/glossary#variant)  | ✅                       | ✅              | ✅                 | ✅                 | ✅ (JSON config) |
-| [Color glyphs](/guide/engine#color-glyphs)        | ✅                       | ✅              | ✅                 | ✅                 | ✅ (JSON config) |
-| Custom Handlebars templates                       | ✅ (file paths)          | ✅ (file paths) | ✅ (template text) | ✅ (paths or text) | ✅ (file paths)  |
-| Callbacks (`rename`, `cssContext`, `htmlContext`) | `cssContext` only        | ✅              | —                  | ✅ (hooks)         | —                |
-| Incremental rebuilds                              | Automatic in development | ✅              | ✅                 | ✅                 | —                |
-| Live reload while editing SVGs                    | ✅                       | —               | —                  | —                  | —                |
-| Preload tags in built HTML                        | ✅                       | —               | —                  | —                  | —                |
-| Needs Node.js                                     | Yes                      | Yes             | No                 | No                 | No               |
+| Feature                                           | Vite plugin              | Node.js                | Browser                | Rust               | CLI                |
+| ------------------------------------------------- | ------------------------ | ---------------------- | ---------------------- | ------------------ | ------------------ |
+| SVG, TTF, EOT, WOFF, WOFF2                        | ✅                       | ✅                     | ✅                     | ✅                 | ✅                 |
+| [Multi-weight families](/guide/glossary#variant)  | ✅                       | ✅                     | ✅                     | ✅                 | ✅ (JSON config)   |
+| [Color glyphs](/guide/engine#color-glyphs)        | ✅                       | ✅                     | ✅                     | ✅                 | ✅ (JSON config)   |
+| Custom Handlebars templates                       | ✅ (file paths)          | ✅ (file paths)        | ✅ (template text)     | ✅ (paths or text) | ✅ (file paths)    |
+| Callbacks (`rename`, `cssContext`, `htmlContext`) | `cssContext` only        | ✅                     | —                      | ✅ (hooks)         | —                  |
+| Incremental rebuilds                              | Automatic in development | ✅                     | ✅                     | ✅                 | —                  |
+| Live reload while editing SVGs                    | ✅                       | —                      | —                      | —                  | —                  |
+| Preload tags in built HTML                        | ✅                       | —                      | —                      | —                  | —                  |
+| Runs on                                           | Node.js                  | Node.js (native addon) | Browsers (WebAssembly) | Native, no Node.js | Native, no Node.js |
 
 The plugin calls the Node.js package internally, so plugin options map closely to [generator options](/node/#options-reference).
 
