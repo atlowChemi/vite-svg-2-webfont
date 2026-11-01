@@ -10,17 +10,11 @@ description: Overview of webfont-generator, the Rust engine behind vite-svg-2-we
 
 `webfont-generator` is a Rust engine that generates webfonts (SVG, TTF, EOT, WOFF, WOFF2) from SVG icons, together with matching CSS and an HTML preview. It is the engine that powers `vite-svg-2-webfont`, and you can also use it directly from Rust, a terminal, Node.js, or the browser.
 
-## Packages and runtimes
+## Ways to use it
 
-| Use case                    | Package                                                                                        | Install                                             | Runtime                                       |
-| --------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------- | --------------------------------------------- |
-| Vite integration            | [`vite-svg-2-webfont`](https://www.npmjs.com/package/vite-svg-2-webfont)                       | `npm install -D vite-svg-2-webfont`                 | Node.js; uses the npm package below           |
-| JavaScript / TypeScript API | [`@atlowchemi/webfont-generator`](https://www.npmjs.com/package/@atlowchemi/webfont-generator) | `npm install @atlowchemi/webfont-generator`         | Node.js with a platform-specific native addon |
-| Browser API                 | `@atlowchemi/webfont-browser-generator`                                                        | `npm install @atlowchemi/webfont-browser-generator` | Browsers; WebAssembly in a module worker      |
-| Rust library                | [`webfont-generator`](https://crates.io/crates/webfont-generator)                              | `cargo add webfont-generator`                       | Rust; no Node.js dependency                   |
-| Standalone command          | [`webfont-generator`](https://crates.io/crates/webfont-generator)                              | `cargo install webfont-generator --features cli`    | Native CLI; no Node.js dependency             |
+The engine ships as five tools: the [Vite plugin](/vite/), the [Node.js package](/node/), the [browser package](/browser/), the [Rust crate](/rust/), and the [CLI](/cli/). Each tool's page covers installing it.
 
-Not sure which one fits? See [Which package do I need?](/guide/). Usage for each interface: [Node.js](/node/), [Browser](/browser/), [Rust](/rust/), [CLI](/cli/).
+Not sure which one fits? [Which package do I need?](/guide/) compares what each one supports and what it runs on.
 
 ## Highlights
 
