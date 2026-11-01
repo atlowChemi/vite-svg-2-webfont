@@ -36,7 +36,7 @@ _Also: variant._ One complete drawing of an icon set, such as _light_ or _bold_,
 
 ### Engine
 
-The Rust library that turns SVGs into fonts, CSS, and HTML. Every package in this project uses it. See the [Webfont Generator overview](/guide/engine).
+The Rust library that turns SVGs into fonts, CSS, and HTML. Every package in this project uses it. See [The Engine](/guide/engine).
 
 ### Family
 
@@ -45,6 +45,10 @@ _Also: multi-weight family, multi-variant font._ Several [designs](#design) of t
 ### Font height
 
 The size of the font's design grid, in font units. Glyph coordinates are rounded to this grid, so a small value makes curves faceted. The Vite plugin uses `1000`; the engine alone uses the tallest icon's height. See [`fontHeight`](/vite/configuration#fontheight).
+
+### fonte
+
+The name of this project and its family of tools, written in lowercase. In French, _fonte_ is a casting: metal melted and poured into a mold. A set of type cast in one size and style was _une fonte_, which gave English the word _font_. See [where the name comes from](/#colophon).
 
 ### Glyph
 
