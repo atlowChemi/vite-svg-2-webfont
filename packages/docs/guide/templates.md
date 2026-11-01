@@ -189,7 +189,7 @@ visible text, so they use `aria-hidden="true"`.
 
 Set `cssTemplate` or `htmlTemplate` to a Handlebars file. In Rust these options are
 `css_template` and `html_template`; CLI manifests use camelCase names. See the API-specific
-references for [Node.js template paths](/node/api#template-paths), [Rust options](/rust/usage#generatewebfontsoptions),
+references for [Node.js template paths](/node/api#template-paths), [Rust options](/rust/configuration),
 or [CLI configuration](/cli/usage#json-manifest).
 
 For example, this custom HTML template lists the icon names:

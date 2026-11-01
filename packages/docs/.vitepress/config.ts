@@ -192,6 +192,9 @@ export default defineConfig({
             '/rust/': toolSidebar('Rust', [
                 { text: 'Getting Started', link: '/rust/' },
                 { text: 'Usage', link: '/rust/usage' },
+                { text: 'Examples', link: '/rust/examples' },
+                { text: 'Configuration', link: '/rust/configuration' },
+                { text: 'API', link: '/rust/api' },
                 { text: 'Changelog', link: '/rust/changelog' },
             ]),
         },

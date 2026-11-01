@@ -45,10 +45,13 @@ fn main() -> std::io::Result<()> {
 }
 ```
 
-In async code, use [`generate`](/rust/usage#async-api) instead; it needs a [Tokio](https://tokio.rs/) runtime.
+In async code, use [`generate`](/rust/api#generate) instead; it needs a [Tokio](https://tokio.rs/) runtime.
 
 ## Next steps
 
-- [Usage](/rust/usage): the sync and SVG text APIs, persistent caching, incremental rebuilds, and every type.
-- [API reference on docs.rs](https://docs.rs/webfont-generator)
+- [Usage](/rust/usage): feature flags, choosing an API, caching, color glyphs, and families.
+- [Examples](/rust/examples): fonts at build time, from SVG text, watch mode, and more.
+- [Configuration](/rust/configuration): every field of the options.
+- [API](/rust/api): every function, result, and type.
+- [docs.rs](https://docs.rs/webfont-generator): the complete reference.
 - [Changelog](/rust/changelog)
