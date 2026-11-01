@@ -1,0 +1,4 @@
+# Cloudflare static asset headers. VitePress emits only content-hashed files into /assets/, so
+# browsers can keep them without revalidating; everything else keeps Workers' max-age=0 default.
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable
