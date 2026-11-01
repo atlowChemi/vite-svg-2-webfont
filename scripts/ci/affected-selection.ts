@@ -17,6 +17,9 @@ const changelogFiles = new Set(['crates/webfont-generator/CHANGELOG.md', 'packag
 // Script tests read workflows/coverage config and exercise the real workspace graph.
 // Include their toolchain inputs even when pnpm selects only the root package.
 const scriptTestConfigs = new Set(['pnpm-lock.yaml', 'pnpm-workspace.yaml', 'Cargo.lock', 'codecov.yml', '.node-version', '.npmrc']);
+// Deploy-only files that no build or test reads. docs-preview.yaml takes the Worker config from the default
+// branch, so changing it alone selects nothing.
+export const buildInertFiles: readonly string[] = ['packages/docs/wrangler.jsonc'];
 
 // Map pnpm's affected packages to the existing CI job groups and prerequisites.
 export function selectJobs(packages: string[], files: string[], unknownChanges = false): Record<string, boolean> {
@@ -98,13 +101,16 @@ export function resolveSelection(baseSha: string | undefined, run: CommandRunner
             throw new Error('Push rewrote history');
         }
         // Both sides of renames are needed for ownership; NUL preserves unusual paths.
-        files = run('git', ['diff', '--name-only', '--no-renames', '-z', base, 'HEAD', '--']).split('\0').filter(Boolean);
+        files = run('git', ['diff', '--name-only', '--no-renames', '-z', base, 'HEAD', '--'])
+            .split('\0')
+            .filter(file => file && !buildInertFiles.includes(file));
         const filters = [`...[${base}]`];
         // Docs pages include the engine, adapter, and plugin release notes.
         if (files.some(file => changelogFiles.has(file))) {
             filters.push(packageNames.docs);
         }
-        const projects: unknown = JSON.parse(run('vp', ['exec', 'pnpm', 'list', '--depth', '-1', '--json', ...filters.flatMap(filter => ['--filter', filter])]));
+        const ignored = buildInertFiles.flatMap(file => ['--changed-files-ignore-pattern', file]);
+        const projects: unknown = JSON.parse(run('vp', ['exec', 'pnpm', 'list', '--depth', '-1', '--json', ...filters.flatMap(filter => ['--filter', filter]), ...ignored]));
         if (!Array.isArray(projects) || projects.some(project => !project || typeof project.name !== 'string')) {
             throw new Error('Invalid pnpm package list');
         }

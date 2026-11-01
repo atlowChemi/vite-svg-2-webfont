@@ -39,6 +39,23 @@ describe('affected CI', () => {
         ).toEqual(['ci', 'docs']);
         expect(verifyRequiredChecks(results(selection), selection)).toEqual({ coverage: false });
     });
+    it('selects nothing for deploy-only files', () => {
+        let pnpmArgs: string[] = [];
+        const selection = resolveSelection(base, (_command, args) => {
+            if (args[0] === 'merge-base') return base;
+            if (args[0] === 'diff') return 'packages/docs/wrangler.jsonc\0';
+            pnpmArgs = args;
+            return '[]';
+        });
+        expect(pnpmArgs).toEqual(expect.arrayContaining(['--changed-files-ignore-pattern', 'packages/docs/wrangler.jsonc']));
+        expect(selection.files).toEqual([]);
+        expect(selection.full).toBe(false);
+        expect(
+            Object.entries(selection.jobs)
+                .filter(([, value]) => value)
+                .map(([name]) => name),
+        ).toEqual(['ci']);
+    });
     it('runs host platform tests for plugin changes without refreshing Rust coverage', () => {
         const selection = scenario(['packages/vite-svg-2-webfont/src/index.ts'], [packageNames.plugin, packageNames.example]);
         expect(selection.jobs.build).toBe(true);
