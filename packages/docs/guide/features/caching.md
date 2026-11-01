@@ -2,6 +2,10 @@
 description: Reuse the engine's work across processes, CI runs, and browser sessions with the persistent cache, in every fonte tool.
 ---
 
+<script setup>
+import CacheFileLayout from '../../.vitepress/theme/components/CacheFileLayout.vue';
+</script>
+
 # Engine Cache
 
 The engine can save its work and reuse it in a later run, so a fresh process starts warm. The cache keeps two kinds of work:
@@ -59,7 +63,7 @@ Node.js, the CLI, and the Rust crate store the cache in a directory. The browser
 
 ## What gets reused
 
-- Entries are keyed by file contents, not paths, so a moved checkout still hits.
+- Icons are keyed by their SVG contents, not their paths, so moved files and other checkouts still hit. See [share one cache between checkouts](#share-one-cache-between-checkouts).
 - When only CSS, HTML, or TypeScript options change (templates, `cssFontsUrl`, `templateOptions`, …), every font comes from the cache.
 - Formats are cached separately, so builds that differ only in a format option, such as WOFF2 compression quality between development and production, share the rest. Each format keeps its latest entry plus one for the same icons with different format options.
 - Builds that request different `types` (for example WOFF2 only in development, all five in production) still share fonts and parsed glyphs, but processed outlines are kept for the latest `types` only, so alternating between them reprocesses paths.
@@ -70,6 +74,46 @@ Node.js, the CLI, and the Rust crate store the cache in a directory. The browser
 ::: tip Fix the TTF timestamp
 Every TTF records a creation time, which WOFF and WOFF2 carry over. A reused font keeps the timestamp of the run that created it, so without a fixed `formatOptions.ttf.ts`, formats in one output can carry different timestamps. Set `ts` for reproducible output. The Node.js package and the Vite plugin always set it for you.
 :::
+
+## Share one cache between checkouts
+
+Because the cache is keyed by contents, the path to an icon doesn't matter: the same SVG hits wherever it lives. Point every checkout of a project at one cache directory outside them, and each checkout reuses the others' work:
+
+- **Git worktrees and coding agents.** Agents that each work in their own worktree, or your own worktrees for parallel branches, start warm instead of rebuilding every icon. A branch that changes three icons only processes those three.
+- **Fresh clones and CI checkouts** reuse the work of earlier clones on the same machine.
+- **Renamed or moved folders** keep their hits.
+
+```ts [Node.js]
+import { homedir } from 'node:os';
+import { join } from 'node:path';
+
+await generateWebfonts({
+    files,
+    dest: 'dist/fonts',
+    cacheLocation: join(homedir(), '.cache', 'my-app-icons'),
+});
+```
+
+With the CLI, pass the same path to `--cache-location` in every checkout. Several processes can use one directory at the same time: each write goes to its own temporary file and then replaces the cache file in one step, so a reader never sees a half-written file.
+
+A few things still keep checkouts apart:
+
+- **One file per font name and settings.** Two checkouts that build the same `fontName` with different settings that change the glyphs, such as `fontHeight`, replace each other's file, and both run cold. Give them different font names or cache directories. Format options and theme palette slots don't count: they share a file.
+- **Engine versions.** A checkout with another version of the engine ignores the file and replaces it.
+- **The Vite plugin** keeps its cache in Vite's `cacheDir`, inside each checkout's `node_modules` by default.
+
+## Inside the cache file
+
+Each font gets one file in the cache directory, named after `fontName` and a hash of its settings: for example `icons.3f2a9c41d0b7e8a5.wfcache`. A [variant family](/guide/features/variants) gets a separate file from a single-design font. When settings that change the glyphs change, the next run starts a new file and removes the older one for that font name.
+
+It's a compact binary file, not meant for editing. The browser package's `exportCache()` and the Rust in-memory API's `cache_bytes()` return the same format.
+
+<CacheFileLayout />
+
+- **Header:** a `WFGCACHE` signature, the file format version, the engine version, and a fingerprint of the settings that change glyphs. Files from another engine version or with other settings are ignored, so upgrading the engine starts cold once.
+- **Per-icon work:** each SVG's parsed outlines, color layers, and processed glyph, keyed by a hash of the SVG's text. It's only decoded when something must be rebuilt. Entries are sorted, so the same icons always produce the same bytes and an unchanged run skips the write.
+- **Finished fonts:** up to two entries per format, the latest one and one with other format options. Each is keyed by its format options and an identity of the icon set: names, codepoints, and contents.
+- **Checksums:** each section carries a CRC32 and its length. A damaged font section makes the run a miss; a damaged per-icon section is caught and repaired by the next run that needs it.
 
 ## Failures are never fatal
 
