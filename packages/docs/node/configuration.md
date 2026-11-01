@@ -50,9 +50,10 @@ const missingGlyphs = { behavior: MissingGlyphBehavior.Fallback, variant: 'regul
 
 ### `rename`
 
+Derive each icon's name from its file path. Names become [class names](/guide/svg-authoring#file-names-become-class-names), so return letters, digits, hyphens, and underscores.
+
 - Type: `(path: string) => string`
 - Default: the file name without `.svg`
-- Description: Derive each icon's name from its file path. Names become [class names](/guide/svg-authoring#file-names-become-class-names), so return letters, digits, hyphens, and underscores.
 
 ## Output
 
@@ -177,15 +178,17 @@ The built-in templates' paths are exported for use as a starting point; see [tem
 
 ### `cssContext`
 
+Change the template context before the CSS renders. See [context fields and callback typing](/guide/templates#node-callbacks).
+
 - Type: `(context: CssContext) => void`, or `(context: CssContext<true>) => void` for families
-- Description: Change the template context before the CSS renders. See [context fields and callback typing](/guide/templates#node-callbacks).
 
 Results created with this callback can't be [updated incrementally](/guide/features/incremental#restrictions).
 
 ### `htmlContext`
 
+Change the template context before the HTML preview renders. See [context fields and callback typing](/guide/templates#node-callbacks).
+
 - Type: `(context: HtmlContext) => void`, or `(context: HtmlContext<true>) => void` for families
-- Description: Change the template context before the HTML preview renders. See [context fields and callback typing](/guide/templates#node-callbacks).
 
 Results created with this callback can't be [updated incrementally](/guide/features/incremental#restrictions).
 
