@@ -20,7 +20,7 @@ const result = await generateWebfonts({
 });
 ```
 
-## Result
+## `GenerateWebfontsResult`
 
 `generateWebfonts()` returns a `Promise<GenerateWebfontsResult>` with font data and template methods.
 
@@ -53,7 +53,7 @@ for icon selectors and variant modifiers.
 URL overrides follow the same complete-replacement rule as `generateCss`. The built-in preview
 shows one icon grid using the default design. See [HTML previews](/guide/templates#html-previews).
 
-### TypeScript metadata
+### `generateTs()`
 
 `result.generateTs(): string` returns fixed TypeScript source with `icons` as a readonly
 literal tuple, `IconName = (typeof icons)[number]`, and literal `iconBaseSelector` and
@@ -70,7 +70,7 @@ const result = await generateWebfonts({ files: ['icons/add.svg'], dest: './fonts
 console.log(result.generateTs());
 ```
 
-### `result.flushCache()`
+### `flushCache()`
 
 - Type: `() => Promise<void>`
 - Waits for automatic cache writes and retries a previously failed write once. Await outstanding incremental calls first, then call this before shutdown. Dropping a result does not wait, and abrupt process termination can lose pending writes.

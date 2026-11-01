@@ -138,7 +138,7 @@ The result holds every output either way.
 - Type: `boolean`
 - Default: `false`
 
-`result.generateTs()` returns the same source even when this is off; see [TypeScript metadata](/node/api#typescript-metadata).
+`result.generateTs()` returns the same source even when this is off; see [TypeScript metadata](/node/api#generatets).
 
 ### `tsDest`
 
@@ -355,7 +355,7 @@ Update the result with [`regenerate()`, `regenerateAsync()`, or the single-file 
 - Default: omitted (no persistent cache)
 
 - This package always sets `formatOptions.ttf.ts`, so cached fonts never carry another run's timestamp.
-- With [`incremental`](#incremental), every committed update queues a background cache write. Await [`result.flushCache()`](/node/api#result-flushcache) before shutdown.
+- With [`incremental`](#incremental), every committed update queues a background cache write. Await [`result.flushCache()`](/node/api#flushcache) before shutdown.
 - Remove the files the engine created with [`clearCache()`](/node/api#clearcache-cachelocation). Rebuilding the native engine locally without a version change keeps old entries, so clear the cache after such a build.
 - A directory where the cache file belongs is never removed; generation prints a warning and stays uncached until you remove it.
 - Cached fonts are reused as-is, so only restore trusted caches. See [keep it between CI runs](/guide/features/caching#keep-it-between-ci-runs).

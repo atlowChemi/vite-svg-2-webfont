@@ -70,7 +70,7 @@ console.log(result.woff2); // Uint8Array
 const css = result.generateCss();
 ```
 
-`generateWebfonts` writes the generated files to `dest` and returns the font bytes, with methods that render the CSS, the HTML preview, and the [TypeScript metadata](/node/api#typescript-metadata).
+`generateWebfonts` writes the generated files to `dest` and returns the font bytes, with methods that render the CSS, the HTML preview, and the [TypeScript metadata](/node/api#generatets).
 
 ## Next steps
 
