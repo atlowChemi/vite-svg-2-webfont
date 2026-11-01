@@ -72,7 +72,7 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 
 ## Color selection
 
-By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG colors, set `colorGlyphs: true` for all glyphs or `colorGlyphs: ['logo']` for selected final post-rename names. Omission or `[]` keeps monochrome output. See [`colorGlyphs`](#colorglyphs) for validation rules and [color glyphs](./#color-glyphs) for paint semantics and browser/platform limits.
+By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG colors, set `colorGlyphs: true` for all glyphs or `colorGlyphs: ['logo']` for selected final post-rename names. Omission or `[]` keeps monochrome output. See [`colorGlyphs`](#colorglyphs) for validation rules and [color glyphs](/guide/engine#color-glyphs) for paint semantics and browser/platform limits.
 
 ```ts
 const result = await generateWebfonts({
@@ -115,7 +115,7 @@ family.regenerate(
 
 ### Named theme colors
 
-Set `colorSlots: { secondary: '#ff9900' }` alongside `colorGlyphs` to reserve a palette entry for a theme color. Use `fill="currentColor"` for foreground paths and `fill="#ff9900"` for secondary paths. A CSS template or `cssContext` callback receives `colorSlots.secondary`, the numeric index to use in `@font-palette-values`'s `override-colors` descriptor. See the [live light/dark example](../examples#theme-colors-in-one-glyph).
+Set `colorSlots: { secondary: '#ff9900' }` alongside `colorGlyphs` to reserve a palette entry for a theme color. Use `fill="currentColor"` for foreground paths and `fill="#ff9900"` for secondary paths. A CSS template or `cssContext` callback receives `colorSlots.secondary`, the numeric index to use in `@font-palette-values`'s `override-colors` descriptor. See the [live light/dark example](/vite/examples#theme-colors-in-one-glyph).
 
 ### Color regeneration
 
@@ -158,8 +158,8 @@ Multi-variant output supports TTF, WOFF, and WOFF2, defaulting to WOFF/WOFF2. Fo
 appear in only some designs, choose a [missing-glyph policy](#missingglyphs). Incremental
 regeneration is available with `incremental: true`; use the [variant methods](#variant-regeneration).
 
-Custom templates receive extra family metadata; see the [template context comparison](./templates#template-context).
-For stylesheet customization and SCSS, see [Templates](./templates).
+Custom templates receive extra family metadata; see the [template context comparison](/guide/templates#template-context).
+For stylesheet customization and SCSS, see [Templates](/guide/templates).
 
 ## Caching across builds
 
@@ -226,7 +226,7 @@ Slots select CSS font-palette entries, not inherited secondary CSS variables. De
 
 Duplicates are harmless. Unknown names are reported together in first-occurrence input order. A selected logical name applies to every resolved design, including fallback states; blank states have no color record.
 
-Active color requires TTF, WOFF, or WOFF2. Ordinary defaults include EOT, so specify compatible `types`; variant defaults are compatible. Color selection contributes to CSS font-URL hashes; array order and repeated names do not change the hash. See [color selection](#color-selection) for incremental examples and [color glyphs](./#color-glyphs) for SVG semantics and browser/platform compatibility.
+Active color requires TTF, WOFF, or WOFF2. Ordinary defaults include EOT, so specify compatible `types`; variant defaults are compatible. Color selection contributes to CSS font-URL hashes; array order and repeated names do not change the hash. See [color selection](#color-selection) for incremental examples and [color glyphs](/guide/engine#color-glyphs) for SVG semantics and browser/platform compatibility.
 
 ### `files`
 
@@ -385,7 +385,7 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 ### `cacheLocation`
 
 - Type: `string`
-- Description: Directory for a persistent generation cache. A run saves per-icon work (parsed and processed glyph outlines) and finished font bytes there; later runs reuse them for icons and formats that didn't change, so a fresh process starts warm. Output is byte-identical to an uncached run (this wrapper always sets `formatOptions.ttf.ts`; see the timestamp note below for the Rust API and CLI). See [caching across builds](#caching-across-builds) for CI and Docker setups and [performance](./under-the-hood#persistent-cache) for measured speedups.
+- Description: Directory for a persistent generation cache. A run saves per-icon work (parsed and processed glyph outlines) and finished font bytes there; later runs reuse them for icons and formats that didn't change, so a fresh process starts warm. Output is byte-identical to an uncached run (this wrapper always sets `formatOptions.ttf.ts`; see the timestamp note below for the Rust API and CLI). See [caching across builds](#caching-across-builds) for CI and Docker setups and [performance](/guide/under-the-hood#persistent-cache) for measured speedups.
     - An edited icon is reprocessed alone; the others reuse their saved work.
     - Incremental updates (`regenerate`, `add`, `update`, `remove`, and their async variants) automatically schedule background persistence. One writer per result lineage coalesces pending updates to the latest committed generation; encoding and disk I/O do not block rebuilding.
     - TypeScript companion output is rendered from current icon names and selector settings even when all fonts hit the cache. Membership changes refresh it; geometry-only changes reuse it.
@@ -509,12 +509,12 @@ interface Woff2FormatOptions {
 ### `cssContext`
 
 - Type: `(context: CssContext) => void`, or `(context: CssContext<true>) => void` for multi-variant options
-- Description: Callback to mutate the Handlebars template context before CSS rendering. See [context fields and callback typing](./templates#node-callbacks).
+- Description: Callback to mutate the Handlebars template context before CSS rendering. See [context fields and callback typing](/guide/templates#node-callbacks).
 
 ### `htmlContext`
 
 - Type: `(context: HtmlContext) => void`, or `(context: HtmlContext<true>) => void` for multi-variant options
-- Description: Callback to mutate the Handlebars template context before HTML rendering. See [context fields and callback typing](./templates#node-callbacks).
+- Description: Callback to mutate the Handlebars template context before HTML rendering. See [context fields and callback typing](/guide/templates#node-callbacks).
 
 ### `rename`
 
@@ -610,7 +610,7 @@ the second parameter defaults to the first. Async regeneration preserves both se
 
 Callbacks on multi-variant options infer `CssContext<true>` and `HtmlContext<true>`.
 `GenerateWebfontsBaseOptions<true>` can describe shared options with those callback types.
-See [template context and callback typing](./templates#node-callbacks) for a comparison and examples.
+See [template context and callback typing](/guide/templates#node-callbacks) for a comparison and examples.
 
 ## Result type
 
@@ -641,7 +641,7 @@ Each font format is available as a property on the result. Formats that were not
 - Description: Returns the rendered CSS string. Pass `urls` to override the default font URLs in `@font-face src`.
 
 Omit `urls` to use generated URLs. A supplied map replaces all defaults, so omitted entries
-are empty. Multi-variant results reject SVG/EOT URLs. See [generated CSS](./templates#generated-css)
+are empty. Multi-variant results reject SVG/EOT URLs. See [generated CSS](/guide/templates#generated-css)
 for icon selectors and variant modifiers.
 
 ### `generateHtml(urls?)`
@@ -650,7 +650,7 @@ for icon selectors and variant modifiers.
 - Description: Returns the rendered HTML preview string. Pass `urls` to override font URLs in the embedded stylesheet.
 
 URL overrides follow the same complete-replacement rule as `generateCss`. The built-in preview
-shows one icon grid using the default design. See [HTML previews](./templates#html-previews).
+shows one icon grid using the default design. See [HTML previews](/guide/templates#html-previews).
 
 ### `regenerate(files, changes?)`
 
@@ -813,8 +813,8 @@ const { filesRemoved, bytesRemoved } = await clearCache('.webfont-cache');
 
 ## Templates
 
-See the shared [Templates reference](./templates) for [context fields](./templates#template-context),
-[custom templates](./templates#custom-templates), and the [SCSS mixin with examples](./templates#scss).
+See the shared [Templates reference](/guide/templates) for [context fields](/guide/templates#template-context),
+[custom templates](/guide/templates#custom-templates), and the [SCSS mixin with examples](/guide/templates#scss).
 
 The package exports default Handlebars template paths via a subpath export:
 
@@ -838,6 +838,6 @@ console.log(generateWebfonts.templates.css);
 
 ## See also
 
-- [Overview](./) -- architecture and design
-- [Rust usage](./rust) -- crate API reference
-- [CLI usage](./cli) -- command-line interface
+- [Overview](/guide/engine) -- architecture and design
+- [Rust usage](/rust/) -- crate API reference
+- [CLI usage](/cli/) -- command-line interface

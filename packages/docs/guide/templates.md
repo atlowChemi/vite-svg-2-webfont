@@ -127,8 +127,8 @@ to the HTML destination; explicit URL overrides are used as supplied.
 
 Set `cssTemplate` or `htmlTemplate` to a Handlebars file. In Rust these options are
 `css_template` and `html_template`; CLI manifests use camelCase names. See the API-specific
-references for [Node template paths](./node#templates), [Rust options](./rust#generatewebfontsoptions),
-or [CLI configuration](./cli#json-manifest).
+references for [Node template paths](/node/#templates), [Rust options](/rust/#generatewebfontsoptions),
+or [CLI configuration](/cli/#json-manifest).
 
 For example, this custom HTML template lists the icon names:
 
@@ -152,7 +152,7 @@ regardless of the API used to generate the font.
 ### Generate Type Safe Component
 
 Use fixed TypeScript output to export icon names and their union type. No Handlebars template is needed.
-For Vite virtual imports and declaration discovery, see the [component example](../examples.md#type-safe-icon-component).
+For Vite virtual imports and declaration discovery, see the [component example](/vite/examples#type-safe-icon-component).
 
 ::: code-group
 

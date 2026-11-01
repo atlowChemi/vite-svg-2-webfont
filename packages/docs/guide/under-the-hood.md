@@ -4,7 +4,7 @@ description: How the webfont-generator engine is built — pipeline architecture
 
 # Under the Hood
 
-This page explains how the engine works internally. You don't need it to use any of the packages; see the [overview](./) for that.
+This page explains how the engine works internally. You don't need it to use any of the packages; see the [overview](/guide/engine) for that.
 
 ## Adapters
 
@@ -22,7 +22,7 @@ Owning the full pipeline made a new parallel architecture possible. The engine p
 
 For a single-face font, the generation pipeline works as follows:
 
-1. **SVG loading** -- Read and validate source SVG files in parallel, with at most one read task per core (or per [`threads`](./node#threads)) and per 16 files
+1. **SVG loading** -- Read and validate source SVG files in parallel, with at most one read task per core (or per [`threads`](/node/#threads)) and per 16 files
 2. **Glyph preparation** -- Parse glyph paths and optional solid paint with `usvg`, process geometry with `oxvg_path`, and normalize shared layer/fallback geometry. Parsed and processed caches retain paint for selected glyphs.
 3. **Parallel SVG and table assembly** -- Serialize the SVG font if requested and supported by the selected options. Compile paint-aware selectable glyphs and auxiliary layers into shared tables using [`write-fonts`](https://github.com/googlefonts/fontations): `glyf` fallback plus COLR/CPAL for selected glyphs.
 4. **Requested binary outputs** -- Assemble TTF if requested; generate WOFF and WOFF2 from shared tables, and EOT (which embeds TTF) when supported by the selected options.
@@ -66,11 +66,11 @@ flowchart TD
     end
 ```
 
-This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs. See [multi-variant fonts](./node#multi-variant-fonts) and [color selection](./node#color-selection) for usage.
+This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs. See [multi-variant fonts](/node/#multi-variant-fonts) and [color selection](/node/#color-selection) for usage.
 
 ## Performance
 
-The legacy `@vusion/webfonts-generator` engine does not support SVG path optimization. The Rust engine adds it through [`optimizeOutput`](./node#optimizeoutput). The tables compare Vusion with the native Node.js adapter's default settings and with path optimization enabled; enabling optimization performs extra work, so it need not be faster than leaving it disabled.
+The legacy `@vusion/webfonts-generator` engine does not support SVG path optimization. The Rust engine adds it through [`optimizeOutput`](/node/#optimizeoutput). The tables compare Vusion with the native Node.js adapter's default settings and with path optimization enabled; enabling optimization performs extra work, so it need not be faster than leaving it disabled.
 
 ### Wall time on macOS
 
@@ -141,13 +141,13 @@ Both platforms loaded `ttf2woff2` 4.0.5's JavaScript fallback rather than its na
 
 The shared-geometry pipeline avoids reparsing an SVG font to compile binary formats. Requesting only the formats you need also skips unnecessary output work: a WOFF2-only build does not serialize an SVG font or assemble a TTF binary.
 
-For repeated builds—such as a dev server regenerating your icon font whenever you edit an SVG—[incremental generation](./node#incremental) can reuse parsed glyphs, compiled glyphs, font tables, and WOFF compression or transform work from the previous build, giving you faster feedback while developing. In our 100–600-glyph benchmarks, a one-SVG edit rebuilt **1.5–1.8× faster than a full Rust build** and **12–17× faster than Vusion**, which always rebuilds the entire font.
+For repeated builds—such as a dev server regenerating your icon font whenever you edit an SVG—[incremental generation](/node/#incremental) can reuse parsed glyphs, compiled glyphs, font tables, and WOFF compression or transform work from the previous build, giving you faster feedback while developing. In our 100–600-glyph benchmarks, a one-SVG edit rebuilt **1.5–1.8× faster than a full Rust build** and **12–17× faster than Vusion**, which always rebuilds the entire font.
 
-Multi-weight families use a variant compilation path to produce TTF, WOFF, and WOFF2; see [multi-variant fonts](./node#multi-variant-fonts).
+Multi-weight families use a variant compilation path to produce TTF, WOFF, and WOFF2; see [multi-variant fonts](/node/#multi-variant-fonts).
 
 #### Persistent cache
 
-Incremental generation helps within one process. The opt-in [`cacheLocation`](./node#cachelocation) carries saved work across processes—a new dev server, a CLI run, or a CI job with a restored cache. Values are milliseconds with the native default settings from the tables above; **Warm speedup** is the uncached time divided by the warm time.
+Incremental generation helps within one process. The opt-in [`cacheLocation`](/node/#cachelocation) carries saved work across processes—a new dev server, a CLI run, or a CI job with a restored cache. Values are milliseconds with the native default settings from the tables above; **Warm speedup** is the uncached time divided by the warm time.
 
 ##### macOS
 

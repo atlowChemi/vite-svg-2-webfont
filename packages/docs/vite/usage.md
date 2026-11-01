@@ -38,8 +38,8 @@ The typical integration has three parts:
 
 ## How class names are generated
 
-- The default base selector is `.icon`, see [`baseSelector`](./configuration#baseselector)
-- The default class prefix is `icon-`, see [`classPrefix`](./configuration#classprefix)
+- The default base selector is `.icon`, see [`baseSelector`](/vite/configuration#baseselector)
+- The default class prefix is `icon-`, see [`classPrefix`](/vite/configuration#classprefix)
 - SVG file names become icon names (e.g. `add.svg` becomes `{classPrefix}add`)
 
 For example, if `context` contains `add.svg`, the generated CSS class is `icon-add`, and you would use it like this:
@@ -48,11 +48,11 @@ For example, if `context` contains `add.svg`, the generated CSS class is `icon-a
 <i class="icon icon-add"></i>
 ```
 
-If you want different class names, change [`classPrefix`](./configuration#classprefix) and [`baseSelector`](./configuration#baseselector).
+If you want different class names, change [`classPrefix`](/vite/configuration#classprefix) and [`baseSelector`](/vite/configuration#baseselector).
 
 ## Development file output
 
-By default, the plugin does not write generated assets to disk during development. If you want preview artifacts while iterating, use [`generateFiles`](./configuration#generatefiles) to enable file output and specify which files to generate:
+By default, the plugin does not write generated assets to disk during development. If you want preview artifacts while iterating, use [`generateFiles`](/vite/configuration#generatefiles) to enable file output and specify which files to generate:
 
 ```ts{3} [vite.config.ts]
 viteSvgToWebfont({
@@ -63,14 +63,14 @@ viteSvgToWebfont({
 
 ## Build-time behavior
 
-- Preload tags can be injected into built HTML with [`preloadFormats`](./configuration#preloadformats)
-- Preload injection can be limited to selected HTML entrypoints with [`shouldProcessHtml`](./configuration#shouldprocesshtml)
-- When [`inline`](./configuration#inline) is `true`, no preload tags are injected because assets are embedded in the CSS
-- Direct generator file output during build is disabled unless [`allowWriteFilesInBuild`](./configuration#allowwritefilesinbuild) is enabled; Vite still bundles fonts referenced by the virtual CSS import
+- Preload tags can be injected into built HTML with [`preloadFormats`](/vite/configuration#preloadformats)
+- Preload injection can be limited to selected HTML entrypoints with [`shouldProcessHtml`](/vite/configuration#shouldprocesshtml)
+- When [`inline`](/vite/configuration#inline) is `true`, no preload tags are injected because assets are embedded in the CSS
+- Direct generator file output during build is disabled unless [`allowWriteFilesInBuild`](/vite/configuration#allowwritefilesinbuild) is enabled; Vite still bundles fonts referenced by the virtual CSS import
 
 ## Configure production font output
 
-With the [standard setup](#standard-setup), Vite processes the virtual CSS and bundles its referenced fonts. Vite's build settings control their output paths; the plugin's [`dest`](./configuration#dest) option controls [additional generator files](#write-additional-generator-files-during-builds).
+With the [standard setup](#standard-setup), Vite processes the virtual CSS and bundles its referenced fonts. Vite's build settings control their output paths; the plugin's [`dest`](/vite/configuration#dest) option controls [additional generator files](#write-additional-generator-files-during-builds).
 
 To change the directory for all bundled assets, set [`build.assetsDir`](https://vite.dev/config/build-options.html#build-assetsdir):
 
@@ -154,7 +154,7 @@ To use light and bold versions of the same icons, put matching filenames in each
 
 The first icon uses light artwork; the second uses bold artwork. The family produces one shared WOFF and one shared WOFF2 by default. Select `types: ['ttf', 'woff', 'woff2']` (any one of these 3 valid formats) to change the formats. SVG/EOT output is available only in ordinary mode.
 
-For nested input folders, set a design's `files` to `['**/*.svg']`. To use sparse designs (ie. some variants have glyphs which other variants do not), configure [`missingGlyphs`](./configuration#missingglyphs); each design must still contain at least one SVG.
+For nested input folders, set a design's `files` to `['**/*.svg']`. To use sparse designs (ie. some variants have glyphs which other variants do not), configure [`missingGlyphs`](/vite/configuration#missingglyphs); each design must still contain at least one SVG.
 
 Edits across the design roots are batched and regenerated through one serialized queue. The plugin refreshes every design's membership, updates shared font bytes, and reloads virtual CSS, including in inline mode. Invalid edits leave the last successful in-memory output available; the plugin reports the error and retries on subsequent changes. Optional filesystem output remains non-transactional.
 
@@ -166,12 +166,12 @@ See [multi-weight icon families](#multi-weight-icon-families) to configure multi
 
 Common options you may want to adjust early:
 
-- [`fontName`](./configuration#fontname)
-- [`dest`](./configuration#dest)
-- [`cssDest`](./configuration#cssdest)
-- [`classPrefix`](./configuration#classprefix)
-- [`baseSelector`](./configuration#baseselector)
-- [`types`](./configuration#types)
-- [`inline`](./configuration#inline)
+- [`fontName`](/vite/configuration#fontname)
+- [`dest`](/vite/configuration#dest)
+- [`cssDest`](/vite/configuration#cssdest)
+- [`classPrefix`](/vite/configuration#classprefix)
+- [`baseSelector`](/vite/configuration#baseselector)
+- [`types`](/vite/configuration#types)
+- [`inline`](/vite/configuration#inline)
 
-See the full [Configuration](./configuration) reference for details.
+See the full [Configuration](/vite/configuration) reference for details.
