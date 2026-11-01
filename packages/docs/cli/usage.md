@@ -70,9 +70,7 @@ webfont-generator clear-cache --cache-location .webfont-cache
 
 `--config <PATH>` loads a complete JSON configuration using the camelCase [generator options](/node/usage#options-reference). It cannot be combined with positional inputs or any generation flag, even a flag set to its default. The exception is `--threads`, which is machine-specific and overrides the config's `threads`. `--help` and `--version` still work.
 
-The manifest accepts `"colorGlyphs": true` or `"colorGlyphs": ["logo"]`. Omit it or use `[]` for monochrome output; explicit `null`, `false`, strings, and mixed-type arrays are invalid. Select compatible formats explicitly in ordinary mode, for example `"types": ["woff2", "woff"]`; the ordinary default includes incompatible EOT. Names are logical glyph names, and selection applies across all variants, including fallbacks. Duplicates are harmless; unknown names are rejected in first-occurrence input order. There is no separate color CLI flag. See [`colorGlyphs`](/node/usage#colorglyphs) for option details and [color glyphs](/guide/engine#color-glyphs) for the supported SVG subset and browser/platform behavior.
-
-With active `colorGlyphs`, the manifest also accepts `"colorSlots": { "secondary": "#ff9900" }`. Named slots reserve palette indices in ASCII name order, including unused colors, and expose them as `colorSlots` in the CSS template context. Values must be distinct `#RRGGBB` colors; names use ASCII letters, digits, hyphens or underscores. There is no separate slot CLI flag. See [slot semantics](/node/usage#colorslots) and the [live theme example](/vite/examples#theme-colors-in-one-glyph).
+[Color glyphs](/guide/features/color-glyphs) are only available in a manifest: `"colorGlyphs": true` or `"colorGlyphs": ["logo"]`, with compatible formats such as `"types": ["woff2", "woff"]`, and optionally `"colorSlots": { "secondary": "#ff9900" }` for theme palettes. There are no color flags.
 
 ::: code-group
 
@@ -93,7 +91,7 @@ With active `colorGlyphs`, the manifest also accepts `"colorSlots": { "secondary
 
 Run it with `webfont-generator --config icons.webfont.json`.
 
-- `dest` is required. Supply `files` for a single design or ordered `variants` for a [multi-variant family](/node/usage#multi-variant-fonts).
+- `dest` is required. Supply `files` for a single design or ordered `variants` for a [family](/guide/features/variants).
 - Relative input paths, `dest`, `cssDest`, `htmlDest`, `tsDest`, `cssTemplate`, `htmlTemplate`, and `cacheLocation` resolve against the manifest directory, independent of the working directory. URL values such as `cssFontsUrl` are not rebased.
 - `"ts": true` enables fixed TypeScript source output; `"tsDest": "generated/icons.ts"` overrides its destination.
 - Input arrays preserve explicit entry order. Each directory expands at its position into sorted lowercase `.svg` files, non-recursively. JSON paths do not expand wildcards or globs.
@@ -138,9 +136,9 @@ Run it with `webfont-generator --config icons.webfont.json`.
 
 ### Cache options
 
-| Flag                     | Description                                                                                                                                                                                                                                                                                                                             |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--cache-location <DIR>` | Persistent generation cache; see [`cacheLocation`](/node/usage#cachelocation) for how it behaves (the CLI doesn't set `formatOptions.ttf.ts`, so cached formats keep the TTF timestamp of the run that created them unless your config sets it) and [caching across builds](/node/usage#caching-across-builds) for CI and Docker setups |
+| Flag                     | Description                                                                                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `--cache-location <DIR>` | Persistent [engine cache](/guide/features/caching). The CLI doesn't set `formatOptions.ttf.ts`, so cached formats keep the TTF timestamp of the run that created them unless your config sets it |
 
 ### Thread options
 

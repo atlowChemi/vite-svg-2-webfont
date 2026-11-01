@@ -8,7 +8,7 @@ import SvgAuthoringCompare from '../.vitepress/theme/components/SvgAuthoringComp
 
 # SVG Authoring & Troubleshooting
 
-By default, each SVG becomes one single-color glyph in the font. Icons you opt into [color glyphs](/guide/engine#color-glyphs) are the exception: they keep their solid fills, so the [color rules](#colors-are-ignored-nested-shapes-become-holes) below don't apply to them. Most icons exported from a design tool work as they are. This page explains what changes when an SVG becomes a glyph, and how to fix the surprises.
+By default, each SVG becomes one single-color glyph in the font. Icons you opt into [color glyphs](/guide/features/color-glyphs) are the exception: they keep their solid fills, so the [color rules](#colors-are-ignored-nested-shapes-become-holes) below don't apply to them. Most icons exported from a design tool work as they are. This page explains what changes when an SVG becomes a glyph, and how to fix the surprises.
 
 Every comparison below is live: the docs site builds real fonts from the SVGs shown, using `vite-svg-2-webfont`. In each card, the white chip on the left is the SVG as a browser draws it, and the glyph on the right is what the generated font renders. The dashed outline is the glyph's box.
 
@@ -51,7 +51,7 @@ This turns white details into cutouts, but it causes two common surprises:
 
 - Delete background rectangles and any other shape that exists only to fill the artboard.
 - If a detail should stay solid, merge it into the shape around it (for example with "Union" in your design tool) instead of stacking it on top.
-- If the icon really needs more than one color, make it a [color glyph](/guide/engine#color-glyphs). Color glyphs require TTF, WOFF, or WOFF2 output, and some platforms show the monochrome version instead.
+- If the icon really needs more than one color, make it a [color glyph](/guide/features/color-glyphs). Color glyphs require TTF, WOFF, or WOFF2 output, and some platforms show the monochrome version instead.
 
 ## Clip paths, masks, and opacity are ignored
 
@@ -148,27 +148,9 @@ Each file name, without `.svg`, becomes the icon's name and CSS class. File-base
 
 ## Pin codepoints for stable output
 
-Each icon gets a Unicode codepoint, assigned in order starting at `U+F101`. Adding an icon can shift the codepoints of the icons after it. That doesn't matter while CSS and font are always deployed together, but it breaks anything that stores codepoints separately: hand-written `content: "\f102"` rules, cached CSS served with a new font, or exports to design tools.
+Icons get codepoints in input order, so adding an icon can shift the codepoints of the icons after it. That breaks anything that stores codepoints separately, such as hand-written `content` rules or cached CSS served with a new font.
 
-The comparison renders the raw codepoints `U+F101`–`U+F103` in three fonts. After `bell.svg` is added, `U+F102` changes from _remove_ to _bell_, unless codepoints are pinned.
-
-<SvgAuthoringCompare
-    :codepoints="[0xf101, 0xf102, 0xf103]"
-    :cases="[
-        { id: 'codepoints-v1', label: 'add, remove' },
-        { id: 'codepoints-v2', label: 'add, bell, remove' },
-        { id: 'codepoints-v2-pinned', label: 'add, bell, remove; codepoints pinned' },
-    ]"
-/>
-
-**Fix:** pin the codepoints of icons you publish with [`codepoints`](/vite/configuration#codepoints). New icons continue from the start codepoint, skipping pinned values.
-
-```ts [vite.config.ts]
-viteSvgToWebfont({
-    context: './src/icons',
-    codepoints: { add: 0xf101, remove: 0xf102 },
-});
-```
+**Fix:** pin the codepoints of icons you publish. See [pin codepoints](/guide/features/codepoints-and-ligatures#pin-codepoints) for a live comparison and the option in every tool.
 
 ## Troubleshooting checklist
 

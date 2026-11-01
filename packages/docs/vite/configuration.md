@@ -37,13 +37,13 @@ Each variant accepts:
 
 Every design must resolve at least one file. Variant directories are watched recursively, including nested matching directories created during development. Multiple designs can reference the same physical SVG.
 
-See [multi-weight usage](/vite/usage#multi-weight-icon-families) and the [generator's variant reference](/node/usage#multi-variant-fonts).
+See [multi-weight usage](/vite/usage#multi-weight-icon-families) and [variants](/guide/features/variants).
 
 ## `missingGlyphs`
 
 - Type: `{ behavior: 'error' | 'blank' | 'fallback'; variant?: string }`
 - Availability: variant mode only
-- Description: Generator policy for icons missing from a design. See the [generator reference](/node/usage#missingglyphs) for defaults and fallback rules.
+- Description: Generator policy for icons missing from a design. See [icons missing from a design](/guide/features/variants#icons-missing-from-a-design) for the behaviors.
 
 ## `variantClassPrefix`
 
@@ -56,16 +56,13 @@ See [multi-weight usage](/vite/usage#multi-weight-icon-families) and the [genera
 
 - Type: `Record<string, string>`
 - Default: omitted
-- Description: Reserve named palette entries for CSS theme overrides, for example `{ secondary: '#ff9900' }`. Nonempty slots require active `colorGlyphs`. The CSS context exposes a name-to-index `colorSlots` map. See [validation and ordering rules](/node/usage#colorslots) and the [live light/dark example](/vite/examples#theme-colors-in-one-glyph).
+- Description: Reserve named palette entries for CSS theme overrides, for example `{ secondary: '#ff9900' }`. Nonempty slots require active `colorGlyphs`. The CSS context exposes a name-to-index `colorSlots` map. See [theme colors](/guide/features/color-glyphs#theme-colors) and the [live light/dark example](/vite/examples#theme-colors-in-one-glyph).
 
 ## `colorGlyphs`
 
 - Type: `true | string[]`
-- Default: omitted (monochrome)
-
-By default, each SVG icon is flattened into a monochrome glyph. Set `colorGlyphs: true` to preserve solid SVG colors for all icons, or use logical glyph names such as `['logo']` to select icons. An empty array keeps monochrome output. `false`, `null`, and unknown names are rejected.
-
-Color output requires TTF, WOFF, or WOFF2. Set `types` explicitly for ordinary fonts because the plugin defaults include EOT and SVG-font output. Variant defaults are already compatible. Selection applies across all variants, including fallback designs.
+- Default: omitted (single-color)
+- Description: Keep the SVG colors of every icon (`true`) or of the listed icon names. Color output requires TTF, WOFF, or WOFF2; the plugin's default `types` include EOT and SVG fonts, so set `types` explicitly.
 
 ```ts
 viteSvgToWebfont({
@@ -75,9 +72,7 @@ viteSvgToWebfont({
 });
 ```
 
-Paint-only edits update the font and virtual CSS during development, including inline fonts. Production builds emit color fonts through the existing asset pipeline. Removing the last source of a selected name fails validation; the dev server retains the previous font until a valid update succeeds.
-
-See the [generator's color guidance](/guide/engine#color-glyphs) for supported SVG paint, monochrome fallback, and browser limitations.
+Paint-only edits update the font and virtual CSS during development, including inline fonts. Production builds emit color fonts through the existing asset pipeline. See [color glyphs](/guide/features/color-glyphs) for the selection rules, supported SVG paint, and browser support.
 
 ## `fontName`
 
@@ -145,7 +140,7 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
 ## `ligature`
 
 - Type: `boolean`
-- Description: Enable or disable ligatures
+- Description: Enable or disable ligatures. See [classes or ligatures?](/guide/features/codepoints-and-ligatures#classes-or-ligatures)
 - Default: `true`
 - Reference: [`@atlowchemi/webfont-generator#ligature`](/node/usage#ligature)
 
@@ -298,7 +293,7 @@ viteSvgToWebfont({
 ## `codepoints`
 
 - Type: `{ [key: string]: number }`
-- Description: Explicit codepoints for selected icons. Icons without assigned codepoints continue from the generator start codepoint while avoiding duplicates.
+- Description: Explicit codepoints for selected icons. Icons without assigned codepoints continue from the generator start codepoint while avoiding duplicates. See [pin codepoints](/guide/features/codepoints-and-ligatures#pin-codepoints).
 - Reference: [`@atlowchemi/webfont-generator#codepoints`](/node/usage#codepoints)
 
 ## `classPrefix`
@@ -369,4 +364,4 @@ With `generateFiles: true`, font files are written to [`dest`](#dest), and CSS/H
 - Description: Reuse work across Vite runs. The plugin keeps its output cache, and the engine keeps a persistent cache of per-icon work and finished fonts, both inside Vite's [`cacheDir`](https://vite.dev/config/shared-options.html#cachedir). Output is the same with or without it. Set `false` to generate from scratch on every run; the plugin then writes nothing to `cacheDir`.
 - Default: `true`
 
-See [caching](/vite/how-it-works#caching) for what is stored and when each cache is used.
+See [caching](/vite/how-it-works#caching) for what is stored and when each cache is used, and the [engine cache](/guide/features/caching) for what the engine reuses.

@@ -197,7 +197,7 @@ performed.
 
 Set `cache: Some(bytes)` (an empty vector starts cold) to reuse work from an earlier run without
 a filesystem, for example from browser storage. The bytes use the same format as
-[`cache_location`](#persistent-cache) files, and the same rules apply: unchanged icons and formats
+[`cache_location`](#persistent-cache) files, and the same [rules](/guide/features/caching#what-gets-reused) apply: unchanged icons and formats
 are reused, output is byte-identical, and bytes from another engine version or other settings are
 ignored. `result.cache_bytes()` (`&mut self`) encodes the current state, including incremental
 updates, and returns `None` when caching is off, nothing changed since the bytes were loaded or
@@ -367,13 +367,10 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 
 ## Persistent cache
 
-Set `cache_location` to reuse work across processes. Unchanged icons skip parsing and path
-processing, and formats whose inputs didn't change come straight from the cache. Output is
-byte-identical to an uncached run, except that when `format_options.ttf.ts` is unset, each
-cached format keeps the TTF `head` timestamp of the run that created it, so formats in one output
-can carry different timestamps; set `ts` for reproducible output. See [`cacheLocation`](/node/usage#cachelocation) for the full behavior (it is the same option),
-[caching across builds](/node/usage#caching-across-builds) for CI and Docker setups, and
-[performance](/guide/under-the-hood#persistent-cache) for measured speedups.
+Set `cache_location` to reuse work across processes with the [engine cache](/guide/features/caching).
+Unchanged icons skip parsing and path processing, and formats whose inputs didn't change come
+straight from the cache. When `format_options.ttf.ts` is unset, each cached format keeps the TTF
+`head` timestamp of the run that created it; set `ts` for reproducible output.
 
 With `incremental: Some(true)`, committed updates automatically queue background cache writes,
 including single-file helpers and async replacements. A single writer per result lineage
@@ -392,8 +389,8 @@ render/write requested `.ts` files (including `ts_dest`), and incremental member
 refresh their names while geometry-only edits reuse the rendered module.
 
 ::: warning Only restore trusted caches
-Cached fonts are reused as-is, so treat the directory as trusted build output: don't restore it
-from a less-trusted source, and clear it if in doubt.
+Cached fonts are reused as-is, so treat the directory as trusted build output. See
+[keep it between CI runs](/guide/features/caching#keep-it-between-ci-runs).
 :::
 
 ```rust
@@ -420,11 +417,11 @@ cache directory; outstanding background writes can otherwise recreate removed fi
 
 ## Color glyphs
 
-By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG colors, set `color_glyphs: Some(ColorGlyphSelection::All)` for all glyphs or `Some(ColorGlyphSelection::Named(vec!["logo".into()]))` for selected names on `GenerateWebfontsOptions`.
+Set `color_glyphs: Some(ColorGlyphSelection::All)` to keep the SVG colors of every icon, or `Some(ColorGlyphSelection::Named(vec!["logo".into()]))` for selected icons. `None` or an empty list keeps single-color output. Set `types` to TTF, WOFF, and/or WOFF2.
 
-Named selection uses final post-rename logical names across every variant, including fallback states; blank states have no color record. `None` or an empty named list keeps monochrome output. Duplicates are harmless; unknown names are reported together in first-occurrence input order. Set `types` to TTF, WOFF, and/or WOFF2; ordinary defaults include incompatible EOT. See [color glyphs](/guide/engine#color-glyphs) for SVG semantics and platform compatibility.
+Both file and SVG-text options accept `color_slots: Option<HashMap<String, String>>` to reserve theme palette entries, for example `Some(HashMap::from([("secondary".into(), "#ff9900".into())]))`.
 
-Both file and SVG-text options accept `color_slots: Option<HashMap<String, String>>`, for example `Some(HashMap::from([("secondary".into(), "#ff9900".into())]))`. Nonempty slots require active `color_glyphs`. Colors must be distinct `#RRGGBB` values; names use ASCII letters, digits, hyphens or underscores. Slots reserve palette indices in ASCII name order, including unused colors. The CSS template context exposes `colorSlots` as name-to-index numbers for `@font-palette-values`. Matching uses resolved RGB and preserves layer opacity. See [slot semantics](/node/usage#colorslots) and the [theme example](/vite/examples#theme-colors-in-one-glyph).
+See [color glyphs](/guide/features/color-glyphs) for the selection rules, theme palettes, supported SVG paint, and browser support.
 
 ```rust
 use webfont_generator::{generate_sync, ColorGlyphSelection, FontType, GenerateWebfontsOptions};
@@ -439,9 +436,7 @@ let result = generate_sync(GenerateWebfontsOptions {
 }, None)?;
 ```
 
-The same option works with `variants` and the existing sync/async generation and regeneration APIs. Paint-only edits propagate to fallback consumers. Fresh and incremental builds of the same final inputs produce matching output. Paint and selection changes affect CSS font-URL hashes; name order and duplicates do not, and an empty list retains the omitted-selection hash.
-
-Regeneration validates selected names after rename and membership changes. Removing the last source for a selected name fails. Selection, parsing, and font-build failures preserve the previous output for retry. Ordinary regeneration restores the previous in-memory result after a write failure; retry the changes or perform a full re-diff. Variant regeneration retains the newly committed in-memory result and pending writes; a no-op retry completes them. See [`GenerateWebfontsResult`](#generatewebfontsresult) for regeneration methods.
+The same option works with `variants` and the existing generation and [regeneration](#incremental-rebuild) APIs.
 
 ## Multi-variant fonts
 
@@ -475,9 +470,9 @@ let result = webfont_generator::generate_sync(GenerateWebfontsOptions {
 
 This generates `my-icons.woff` and `my-icons.woff2`, plus `my-icons.css`. With that CSS loaded,
 `class="icon icon-add"` uses the light design and `class="icon icon-add icon--bold"` uses bold.
-TTF is also supported; SVG and EOT are not available for multi-variant families.
-For sparse designs, set [`missing_glyphs`](#missingglyphoptions). Incremental regeneration is
-available with `incremental: Some(true)` through the [variant methods](#variant-regeneration).
+See [variants](/guide/features/variants) for the rules on designs and weights, supported formats,
+and icons missing from a design ([`missing_glyphs`](#missingglyphoptions)). To update a family,
+use the [variant methods](#variant-regeneration).
 
 See [Templates](/guide/templates) for CSS customization, SCSS, and the
 [additional template context fields](/guide/templates#template-context).
@@ -504,9 +499,7 @@ pub struct FontVariant {
 | `weight`  | Optional weight from 1–1000. Explicit weights must increase in variant order.        |
 | `default` | Whether this design is used without a modifier class.                                |
 
-With `weight: None`, the default resolves to 400. Other automatic weights are assigned outward
-in steps of 100, or evenly within crowded explicit-weight intervals. All resolved weights must
-be unique and increasing. Variant names do not change output filenames.
+With `weight: None`, weights are assigned automatically; see [the rules](/guide/features/variants#rules).
 
 ## `MissingGlyphBehavior`
 

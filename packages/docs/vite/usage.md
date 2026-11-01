@@ -152,7 +152,7 @@ To use light and bold versions of the same icons, put matching filenames in each
     <span class="icon icon-add" aria-hidden="true"></span> <span class="icon icon-add icon--bold" aria-hidden="true"></span>
     ```
 
-The first icon uses light artwork; the second uses bold artwork. The family produces one shared WOFF and one shared WOFF2 by default. Select `types: ['ttf', 'woff', 'woff2']` (any one of these 3 valid formats) to change the formats. SVG/EOT output is available only in ordinary mode.
+The first icon uses light artwork; the second uses bold artwork. See [variants](/guide/features/variants) for the rules on designs and weights. The family produces one shared WOFF and one shared WOFF2 by default. Select `types: ['ttf', 'woff', 'woff2']` (any one of these 3 valid formats) to change the formats. SVG/EOT output is available only in ordinary mode.
 
 For nested input folders, set a design's `files` to `['**/*.svg']`. To use sparse designs (ie. some variants have glyphs which other variants do not), configure [`missingGlyphs`](/vite/configuration#missingglyphs); each design must still contain at least one SVG.
 
