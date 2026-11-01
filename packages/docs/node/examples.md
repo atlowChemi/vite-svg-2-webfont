@@ -135,8 +135,10 @@ const buildSubset = (names: string[]) =>
         writeFiles: false,
     });
 
+/** The subset for a comma-separated list of icon names, or `undefined` when the list is empty or names an unknown icon. */
 function subset(set: string) {
-    const names = [...new Set(set.split(','))].filter(name => available.has(name)).sort();
+    const names = [...new Set(set.split(','))].sort();
+    if (!names.every(name => available.has(name))) return undefined;
     const key = names.join(',');
     let font = subsets.get(key);
     if (!font) {
@@ -150,20 +152,22 @@ function subset(set: string) {
 
 createServer(async (request, response) => {
     const url = new URL(request.url ?? '/', 'http://localhost');
-    const { key, font } = subset(url.searchParams.get('set') ?? '');
-    if (!key) {
+    if (url.pathname !== '/icons.css' && url.pathname !== '/icons.woff2') {
         response.writeHead(404).end();
         return;
     }
+    const requested = subset(url.searchParams.get('set') ?? '');
+    if (!requested) {
+        response.writeHead(400, { 'Content-Type': 'text/plain' }).end('`set` must list existing icons, separated by commas.');
+        return;
+    }
     try {
-        const result = await font;
+        const result = await requested.font;
         if (url.pathname === '/icons.css') {
-            const css = result.generateCss({ woff2: `/icons.woff2?set=${key}` });
+            const css = result.generateCss({ woff2: `/icons.woff2?set=${requested.key}` });
             response.writeHead(200, { 'Content-Type': 'text/css' }).end(css);
-        } else if (url.pathname === '/icons.woff2') {
-            response.writeHead(200, { 'Content-Type': 'font/woff2', 'Cache-Control': 'public, max-age=31536000, immutable' }).end(result.woff2);
         } else {
-            response.writeHead(404).end();
+            response.writeHead(200, { 'Content-Type': 'font/woff2', 'Cache-Control': 'public, max-age=31536000, immutable' }).end(result.woff2);
         }
     } catch (error) {
         console.error(error);
