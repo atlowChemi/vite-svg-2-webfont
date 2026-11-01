@@ -154,19 +154,23 @@ export default defineConfig({
                 { text: 'Changelog', link: '/vite/changelog' },
             ]),
             '/node/': toolSidebar('Node.js', [
-                { text: 'Usage', link: '/node/' },
+                { text: 'Getting Started', link: '/node/' },
+                { text: 'Usage', link: '/node/usage' },
                 { text: 'Changelog', link: '/node/changelog' },
             ]),
             '/browser/': toolSidebar('Browser', [
-                { text: 'Usage', link: '/browser/' },
+                { text: 'Getting Started', link: '/browser/' },
+                { text: 'Usage', link: '/browser/usage' },
                 { text: 'Changelog', link: '/browser/changelog' },
             ]),
             '/cli/': toolSidebar('CLI', [
-                { text: 'Usage', link: '/cli/' },
+                { text: 'Getting Started', link: '/cli/' },
+                { text: 'Usage', link: '/cli/usage' },
                 { text: 'Changelog', link: '/rust/changelog' },
             ]),
             '/rust/': toolSidebar('Rust', [
-                { text: 'Usage', link: '/rust/' },
+                { text: 'Getting Started', link: '/rust/' },
+                { text: 'Usage', link: '/rust/usage' },
                 { text: 'Changelog', link: '/rust/changelog' },
             ]),
         },
