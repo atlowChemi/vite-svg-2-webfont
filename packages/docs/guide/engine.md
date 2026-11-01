@@ -24,7 +24,7 @@ Not sure which one fits? See [Which package do I need?](/guide/). Usage for each
 
 ## Highlights
 
-- **Every common format:** SVG, TTF, EOT, WOFF, and WOFF2 from one set of SVG icons, plus CSS, SCSS, and HTML preview templates.
+- **Every common format:** SVG, TTF, EOT, WOFF, and WOFF2 from one set of SVG icons, plus CSS, SCSS, and an HTML preview from templates, and [TypeScript](/guide/templates#generate-type-safe-component) with the icon names and their union type.
 - **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [multi-variant fonts](/node/#multi-variant-fonts).
 - **Color glyphs:** optionally keep solid SVG colors. See [color glyphs](#color-glyphs).
 - **Fast rebuilds:** [incremental generation](/node/#incremental) reuses work from the previous build when only a few icons change.

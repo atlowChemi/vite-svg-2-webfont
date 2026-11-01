@@ -26,7 +26,7 @@ For a single-face font, the generation pipeline works as follows:
 2. **Glyph preparation** -- Parse glyph paths and optional solid paint with `usvg`, process geometry with `oxvg_path`, and normalize shared layer/fallback geometry. Parsed and processed caches retain paint for selected glyphs.
 3. **Parallel SVG and table assembly** -- Serialize the SVG font if requested and supported by the selected options. Compile paint-aware selectable glyphs and auxiliary layers into shared tables using [`write-fonts`](https://github.com/googlefonts/fontations): `glyf` fallback plus COLR/CPAL for selected glyphs.
 4. **Requested binary outputs** -- Assemble TTF if requested; generate WOFF and WOFF2 from shared tables, and EOT (which embeds TTF) when supported by the selected options.
-5. **Template rendering** -- Render CSS and HTML previews via Handlebars when writing those files or calling the result's rendering methods
+5. **Template rendering** -- Render CSS and HTML previews via Handlebars, and TypeScript metadata with a fixed renderer, when writing those files or calling the result's rendering methods
 
 ```mermaid
 flowchart TD
