@@ -51,7 +51,7 @@ This turns white details into cutouts, but it causes two common surprises:
 
 - Delete background rectangles and any other shape that exists only to fill the artboard.
 - If a detail should stay solid, merge it into the shape around it (for example with "Union" in your design tool) instead of stacking it on top.
-- If the icon really needs two colors, make it a [color glyph](/guide/engine#color-glyphs). Color glyphs require TTF, WOFF, or WOFF2 output, and some platforms show the monochrome version instead.
+- If the icon really needs more than one color, make it a [color glyph](/guide/engine#color-glyphs). Color glyphs require TTF, WOFF, or WOFF2 output, and some platforms show the monochrome version instead.
 
 ## Clip paths, masks, and opacity are ignored
 
