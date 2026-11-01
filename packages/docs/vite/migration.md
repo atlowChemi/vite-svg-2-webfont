@@ -55,11 +55,11 @@ viteSvgToWebfont({
 
 If you relied on the removed parameters, please reach out on GitHub, by opening an issue, so we can find a solution that works for your use case.
 
-The `context` parameter is typed as [`CssContext`](/node/#csscontext), which exposes the named fields the engine guarantees (`fontName`, `src`, `codepoints`) plus an open-ended index signature for the keys forwarded from `baseSelector` and `classPrefix`.
+The `context` parameter is typed as [`CssContext`](/node/usage#csscontext), which exposes the named fields the engine guarantees (`fontName`, `src`, `codepoints`) plus an open-ended index signature for the keys forwarded from `baseSelector` and `classPrefix`.
 
 ### `formatOptions` is now typed
 
-`formatOptions` was previously `{ [format]?: unknown }` — any key, any shape. v7 narrows it to [`FormatOptions`](/node/#formatoptions), which accepts `svg`, `ttf`, `woff`, and `woff2` keys, each with its own typed per-format options ([`SvgFormatOptions`, `TtfFormatOptions`, `WoffFormatOptions`, and `Woff2FormatOptions`](/node/#formatoptions)). Two practical consequences:
+`formatOptions` was previously `{ [format]?: unknown }` — any key, any shape. v7 narrows it to [`FormatOptions`](/node/usage#formatoptions), which accepts `svg`, `ttf`, `woff`, and `woff2` keys, each with its own typed per-format options ([`SvgFormatOptions`, `TtfFormatOptions`, `WoffFormatOptions`, and `Woff2FormatOptions`](/node/usage#formatoptions)). Two practical consequences:
 
 - `formatOptions.eot` is no longer accepted — EOT is derived from the TTF output.
 - Free-form keys on `formatOptions.svg` / `.ttf` / `.woff` / `.woff2` will fail to typecheck. Replace them with the documented fields, or drop them if they were no-ops in v6. The only `woff2` field is `compressionQuality`.

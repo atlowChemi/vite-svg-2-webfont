@@ -127,8 +127,8 @@ to the HTML destination; explicit URL overrides are used as supplied.
 
 Set `cssTemplate` or `htmlTemplate` to a Handlebars file. In Rust these options are
 `css_template` and `html_template`; CLI manifests use camelCase names. See the API-specific
-references for [Node template paths](/node/#templates), [Rust options](/rust/#generatewebfontsoptions),
-or [CLI configuration](/cli/#json-manifest).
+references for [Node template paths](/node/usage#templates), [Rust options](/rust/usage#generatewebfontsoptions),
+or [CLI configuration](/cli/usage#json-manifest).
 
 For example, this custom HTML template lists the icon names:
 

@@ -52,7 +52,7 @@ One drawing inside a font. Each SVG icon becomes one glyph (or, with a [family](
 
 ### Incremental generation
 
-Rebuilding a font while reusing work from the previous build, so that only changed icons are processed again. The Vite plugin uses it automatically during development. See [`incremental`](/node/#incremental).
+Rebuilding a font while reusing work from the previous build, so that only changed icons are processed again. The Vite plugin uses it automatically during development. See [`incremental`](/node/usage#incremental).
 
 ### Inline mode
 

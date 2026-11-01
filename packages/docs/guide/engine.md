@@ -1,28 +1,24 @@
 ---
-description: Overview of webfont-generator, the Rust engine behind vite-svg-2-webfont, available as a Rust crate, CLI, Node.js package, and browser package.
+description: The Rust engine behind every fonte tool, what it supports, and why it was written.
 ---
 
-<p align="center">
-  <img src="/webfont-generator-logo.png" alt="webfont-generator logo" width="200" />
-</p>
+# The Engine
 
-# Webfont Generator
-
-`webfont-generator` is a Rust engine that generates webfonts (SVG, TTF, EOT, WOFF, WOFF2) from SVG icons, together with matching CSS and an HTML preview. It is the engine that powers `vite-svg-2-webfont`, and you can also use it directly from Rust, a terminal, Node.js, or the browser.
+Every fonte tool runs the same engine: `webfont-generator`, written in Rust. It generates webfonts (SVG, TTF, EOT, WOFF, WOFF2) from SVG icons, together with matching CSS, an HTML preview, and TypeScript metadata.
 
 ## Ways to use it
 
 The engine ships as five tools: the [Vite plugin](/vite/), the [Node.js package](/node/), the [browser package](/browser/), the [Rust crate](/rust/), and the [CLI](/cli/). Each tool's page covers installing it.
 
-Not sure which one fits? [Which package do I need?](/guide/) compares what each one supports and what it runs on.
+Not sure which one fits? [Choosing a tool](/guide/) compares what each one supports and what it runs on.
 
 ## Highlights
 
 - **Every common format:** SVG, TTF, EOT, WOFF, and WOFF2 from one set of SVG icons, plus CSS, SCSS, and an HTML preview from templates, and [TypeScript](/guide/templates#generate-type-safe-component) with the icon names and their union type.
-- **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [multi-variant fonts](/node/#multi-variant-fonts).
+- **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [multi-variant fonts](/node/usage#multi-variant-fonts).
 - **Color glyphs:** optionally keep solid SVG colors. See [color glyphs](#color-glyphs).
-- **Fast rebuilds:** [incremental generation](/node/#incremental) reuses work from the previous build when only a few icons change.
-- **Warm starts:** an opt-in [persistent cache](/node/#cachelocation) lets a new process reuse work from earlier runs for unchanged icons and formats.
+- **Fast rebuilds:** [incremental generation](/node/usage#incremental) reuses work from the previous build when only a few icons change.
+- **Warm starts:** an opt-in [persistent cache](/node/usage#cachelocation) lets a new process reuse work from earlier runs for unchanged icons and formats.
 - **No filesystem required:** generate from SVG text in memory, which is what the [browser package](/browser/) uses.
 - **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads without caching. With a warm [persistent cache](/guide/under-the-hood#persistent-cache), unchanged rebuilds are 43× (macOS) and 113× (Linux) faster than Vusion. See [performance](/guide/under-the-hood#performance).
 
@@ -40,14 +36,14 @@ The API is largely compatible with upstream `@vusion/webfonts-generator`, with a
 
 - The `cssContext` and `htmlContext` callbacks receive only the context object; the additional `options` and Handlebars instance arguments are no longer available.
 - `formatOptions` is strictly typed, and the `eot` key is no longer accepted; EOT is derived from the TTF output.
-- [`optimizeOutput`](/node/#optimizeoutput) adds optional SVG path optimization, disabled by default.
-- [`formatOptions.woff2.compressionQuality`](/node/#formatoptions) controls WOFF2 compression quality from 0–11 (default 11), allowing faster encoding at the cost of slightly larger output.
-- [`incremental`](/node/#incremental) enables regeneration that reuses work from the previous build, disabled by default.
-- [`cacheLocation`](/node/#cachelocation) enables a persistent cache shared across runs, disabled by default.
+- [`optimizeOutput`](/node/usage#optimizeoutput) adds optional SVG path optimization, disabled by default.
+- [`formatOptions.woff2.compressionQuality`](/node/usage#formatoptions) controls WOFF2 compression quality from 0–11 (default 11), allowing faster encoding at the cost of slightly larger output.
+- [`incremental`](/node/usage#incremental) enables regeneration that reuses work from the previous build, disabled by default.
+- [`cacheLocation`](/node/usage#cachelocation) enables a persistent cache shared across runs, disabled by default.
 - Font binaries differ at the byte level (different TTF compiler, different path normalization) but are valid and render identically
 - CSS, HTML, and template output is identical.
-- [`variants`](/node/#multi-variant-fonts) adds multi-weight families with discrete designs.
-- [`colorGlyphs`](/node/#colorglyphs) preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
+- [`variants`](/node/usage#multi-variant-fonts) adds multi-weight families with discrete designs.
+- [`colorGlyphs`](/node/usage#colorglyphs) preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
 
 Like upstream, the npm package always writes the same fixed creation timestamp into TTF output and ignores `formatOptions.ttf.ts`, so repeated builds produce identical bytes. The [Rust crate](/rust/) and the [browser package](/browser/) honor `ts`.
 
@@ -57,7 +53,7 @@ If you are migrating from `@vusion/webfonts-generator`, review the [Node.js usag
 
 ## Color glyphs
 
-Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](/node/#color-selection), [Rust API](/rust/#color-glyphs), and [CLI manifest](/cli/#json-manifest).
+Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](/node/usage#color-selection), [Rust API](/rust/usage#color-glyphs), and [CLI manifest](/cli/usage#json-manifest).
 
 Active color supports **TTF, WOFF, and WOFF2**. SVG-font and EOT output are rejected during option resolution. Ordinary defaults include EOT, so ordinary color callers must specify compatible `types`. Variant defaults are already WOFF and WOFF2.
 
@@ -77,7 +73,7 @@ Advanced input is **best-effort**: gradients, strokes as color paint, text, imag
 
 ### Theme colors
 
-Fixed SVG fills can be overridden at runtime with CSS `@font-palette-values` and `font-palette`. Configure [`colorSlots`](/node/#colorslots) to reserve named palette indices, while `currentColor` paths keep following the element's text color. One glyph can serve both light and dark themes; see the [live example](/vite/examples#theme-colors-in-one-glyph).
+Fixed SVG fills can be overridden at runtime with CSS `@font-palette-values` and `font-palette`. Configure [`colorSlots`](/node/usage#colorslots) to reserve named palette indices, while `currentColor` paths keep following the element's text color. One glyph can serve both light and dark themes; see the [live example](/vite/examples#theme-colors-in-one-glyph).
 
 ### Browser and platform compatibility
 
