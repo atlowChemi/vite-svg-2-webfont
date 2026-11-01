@@ -36,8 +36,8 @@ The API is largely compatible with upstream `@vusion/webfonts-generator`, with a
 
 - The `cssContext` and `htmlContext` callbacks receive only the context object; the additional `options` and Handlebars instance arguments are no longer available.
 - `formatOptions` is strictly typed, and the `eot` key is no longer accepted; EOT is derived from the TTF output.
-- [`optimizeOutput`](/node/usage#optimizeoutput) adds optional SVG path optimization, disabled by default.
-- [`formatOptions.woff2.compressionQuality`](/node/usage#formatoptions) controls WOFF2 compression quality from 0–11 (default 11), allowing faster encoding at the cost of slightly larger output.
+- [`optimizeOutput`](/node/configuration#optimizeoutput) adds optional SVG path optimization, disabled by default.
+- [`formatOptions.woff2.compressionQuality`](/node/configuration#formatoptions) controls WOFF2 compression quality from 0–11 (default 11), allowing faster encoding at the cost of slightly larger output.
 - [`incremental`](/guide/features/incremental) enables regeneration that reuses work from the previous build, disabled by default.
 - [`cacheLocation`](/guide/features/caching) enables a persistent cache shared across runs, disabled by default.
 - Font binaries differ at the byte level (different TTF compiler, different path normalization) but are valid and render identically

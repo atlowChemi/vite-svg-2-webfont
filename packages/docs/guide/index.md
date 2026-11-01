@@ -31,7 +31,7 @@ flowchart TD
 | Feature                                           | Vite plugin              | Node.js                | Browser                | Rust               | CLI                |
 | ------------------------------------------------- | ------------------------ | ---------------------- | ---------------------- | ------------------ | ------------------ |
 | SVG, TTF, EOT, WOFF, WOFF2                        | ✅                       | ✅                     | ✅                     | ✅                 | ✅                 |
-| [Multi-weight families](/guide/glossary#variant)  | ✅                       | ✅                     | ✅                     | ✅                 | ✅ (JSON config)   |
+| [Multi-weight families](/guide/glossary#design)   | ✅                       | ✅                     | ✅                     | ✅                 | ✅ (JSON config)   |
 | [Color glyphs](/guide/features/color-glyphs)      | ✅                       | ✅                     | ✅                     | ✅                 | ✅ (JSON config)   |
 | Custom Handlebars templates                       | ✅ (file paths)          | ✅ (file paths)        | ✅ (template text)     | ✅ (paths or text) | ✅ (file paths)    |
 | Callbacks (`rename`, `cssContext`, `htmlContext`) | `cssContext` only        | ✅                     | —                      | ✅ (hooks)         | —                  |
@@ -40,7 +40,7 @@ flowchart TD
 | Preload tags in built HTML                        | ✅                       | —                      | —                      | —                  | —                  |
 | Runs on                                           | Node.js                  | Node.js (native addon) | Browsers (WebAssembly) | Native, no Node.js | Native, no Node.js |
 
-The plugin calls the Node.js package internally, so plugin options map closely to [generator options](/node/usage#options-reference).
+The plugin calls the Node.js package internally, so plugin options map closely to [generator options](/node/configuration).
 
 ## Icon font or SVG sprite?
 

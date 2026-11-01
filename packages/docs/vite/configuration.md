@@ -2,28 +2,31 @@
 description: Reference for all vite-svg-2-webfont options, including file discovery, output paths, codepoints, preload behavior, and font generation controls.
 ---
 
-# Configuration
+# Vite Plugin Configuration
 
 The plugin API consists of one required option and multiple optional options for controlling file discovery, font generation, CSS generation, output paths, and build-time behavior.
 
 ## `context`
 
+A path that resolves to a directory in which the glob pattern for matching SVG files runs. Matching SVG files are used to generate the icon font.
+
 - **Required**
 - Type: `string`
-- Description: A path that resolves to a directory in which the glob pattern for matching SVG files runs. Matching SVG files are used to generate the icon font.
 
 ## `files`
 
+Glob or array of globs for SVG files inside [`context`](#context).
+
 - Type: `string | string[]`
-- Description: Glob or array of globs for SVG files inside [`context`](#context).
 - Default: `['*.svg']`
 - Mutually exclusive with [`variants`](#variants).
 
 ## `variants`
 
+<!--@include: @/_shared/options/variants.md-->
+
 - Type: `IconPluginVariant[]`
 - Default: omitted (ordinary single-design mode)
-- Description: Ordered SVG designs forming one shared font per format. Match SVG filenames across designs to identify the same logical icon. Cannot be combined with top-level `files`.
 
 Each variant accepts:
 
@@ -41,28 +44,32 @@ See [multi-weight usage](/vite/usage#multi-weight-icon-families) and [variants](
 
 ## `missingGlyphs`
 
+<!--@include: @/_shared/options/missing-glyphs.md-->
+
 - Type: `{ behavior: 'error' | 'blank' | 'fallback'; variant?: string }`
 - Availability: variant mode only
-- Description: Generator policy for icons missing from a design. See [icons missing from a design](/guide/features/variants#icons-missing-from-a-design) for the behaviors.
 
 ## `variantClassPrefix`
+
+<!--@include: @/_shared/options/variant-class-prefix.md-->
 
 - Type: `string`
 - Availability: variant mode only
 - Default: Derived by the generator from `classPrefix` (normally `icon--`).
-- Description: Prefix for design modifier classes, such as `icon--bold`. A modifier accompanies the base and icon classes; it does not emit an icon by itself.
 
 ## `colorSlots`
 
+<!--@include: @/_shared/options/color-slots.md-->
+
 - Type: `Record<string, string>`
 - Default: omitted
-- Description: Reserve named palette entries for CSS theme overrides, for example `{ secondary: '#ff9900' }`. Nonempty slots require active `colorGlyphs`. The CSS context exposes a name-to-index `colorSlots` map. See [theme colors](/guide/features/color-glyphs#theme-colors) and the [live light/dark example](/vite/examples#theme-colors-in-one-glyph).
 
 ## `colorGlyphs`
 
+Keep the SVG colors of every icon (`true`) or of the listed icon names. Color output requires TTF, WOFF, or WOFF2; the plugin's default `types` include EOT and SVG fonts, so set `types` explicitly.
+
 - Type: `true | string[]`
 - Default: omitted (single-color)
-- Description: Keep the SVG colors of every icon (`true`) or of the listed icon names. Color output requires TTF, WOFF, or WOFF2; the plugin's default `types` include EOT and SVG fonts, so set `types` explicitly.
 
 ```ts
 viteSvgToWebfont({
@@ -76,152 +83,155 @@ Paint-only edits update the font and virtual CSS during development, including i
 
 ## `fontName`
 
+<!--@include: @/_shared/options/font-name.md-->
+
 - Type: `string`
-- Description: Name of the generated font and base name of font files
 - Default: `'iconfont'`
 
 ## `dest`
 
+Directory for font files written directly by the generator when [`generateFiles`](#generatefiles) includes fonts.
+
 - Type: `string`
-- Description: Directory for font files written directly by the generator when [`generateFiles`](#generatefiles) includes fonts
 - Default: `path.resolve(context, '..', 'artifacts')`
 - Build behavior: Direct file output also requires [`allowWriteFilesInBuild`](#allowwritefilesinbuild). Fonts bundled through the virtual CSS import use Vite's output settings instead of `dest`; see [production font output](/vite/usage#configure-production-font-output).
-- Reference: [`@atlowchemi/webfont-generator#dest`](/node/usage#dest)
+- Reference: [`@atlowchemi/webfont-generator#dest`](/node/configuration#dest)
 
 ## `cssDest`
 
+Output path for generated CSS.
+
 - Type: `string`
-- Description: Output path for generated CSS
 - Default: `path.join(dest, fontName + '.css')`
 - Scope: Applies to directly generated CSS files. Vite controls the output path of bundled CSS.
-- Reference: [`@atlowchemi/webfont-generator#cssDest`](/node/usage#cssdest)
+- Reference: [`@atlowchemi/webfont-generator#cssDest`](/node/configuration#cssdest)
 
 ## `cssTemplate`
 
+<!--@include: @/_shared/options/css-template.md-->
+
 - Type: `string`
-- Description: Path to a custom Handlebars CSS template
 - Template context also includes:
     - `fontName`
     - `src`
     - `codepoints`
-- Reference: [`@atlowchemi/webfont-generator#cssTemplate`](/node/usage#csstemplate) and [`templates`](/node/usage#templates)
 
 ## `cssContext`
 
+Hook for mutating the rendering context passed to the CSS template before the CSS file is generated. The `context` argument carries the named fields documented on [`CssContext`](/node/configuration#csscontext) (`fontName`, `src`, `codepoints`) plus the [`baseSelector`](#baseselector) and [`classPrefix`](#classprefix) keys the plugin forwards to the underlying generator.
+
 - Type: `(context: CssContext) => void`
 - Variant configurations infer `CssContext<true>`, including named designs, default weight, and family rendering metadata. Context callbacks use full generation on watch updates rather than incremental regeneration.
-- Description: Hook for mutating the rendering context passed to the CSS template before the CSS file is generated. The `context` argument carries the named fields documented on [`CssContext`](/node/usage#csscontext) (`fontName`, `src`, `codepoints`) plus the [`baseSelector`](#baseselector) and [`classPrefix`](#classprefix) keys the plugin forwards to the underlying generator.
-- Reference: [`@atlowchemi/webfont-generator#cssContext`](/node/usage#csscontext)
+- Reference: [`@atlowchemi/webfont-generator#cssContext`](/node/configuration#csscontext)
 
 ## `cssFontsUrl`
 
+<!--@include: @/_shared/options/css-fonts-url.md-->
+
 - Type: `string`
-- Description: Fonts path used in the generated CSS file
 - Default: value derived from `cssDest`
 - Build behavior: Does not override font URLs in the bundled virtual CSS. Vite resolves those URLs from its emitted assets and public `base` path.
 
 ## `htmlDest`
 
+Output path for generated HTML preview.
+
 - Type: `string`
-- Description: Output path for generated HTML preview
 - Default: `path.join(dest, fontName + '.html')`
-- Reference: [`@atlowchemi/webfont-generator#htmlDest`](/node/usage#htmldest)
+- Reference: [`@atlowchemi/webfont-generator#htmlDest`](/node/configuration#htmldest)
 
 ## `htmlTemplate`
 
+<!--@include: @/_shared/options/html-template.md-->
+
 - Type: `string`
-- Description: Path to a custom Handlebars HTML template
 - Template context also includes:
     - `fontName`
     - `styles`
     - `names`
-- Reference: [`@atlowchemi/webfont-generator#htmlTemplate`](/node/usage#htmltemplate)
 
 ## `ligature`
 
+<!--@include: @/_shared/options/ligature.md-->
+
 - Type: `boolean`
-- Description: Enable or disable ligatures. See [classes or ligatures?](/guide/features/codepoints-and-ligatures#classes-or-ligatures)
 - Default: `true`
-- Reference: [`@atlowchemi/webfont-generator#ligature`](/node/usage#ligature)
 
 ## `normalize`
 
+<!--@include: @/_shared/options/normalize.md-->
+
 - Type: `boolean`
-- Description: Scale icons to the height of the tallest icon
 - Default: `true` (the generator default; the plugin forwards the option only when you set it)
-- Reference: [`@atlowchemi/webfont-generator#normalize`](/node/usage#normalize)
 
 ## `round`
 
+<!--@include: @/_shared/options/round.md-->
+
 - Type: `number`
-- Description: SVG path rounding precision
 - Default: `10e12`
-- Reference: [`@atlowchemi/webfont-generator#round`](/node/usage#round)
 
 ## `descent`
 
+<!--@include: @/_shared/options/descent.md-->
+
 - Type: `number`
-- Description: Font descent, useful when you want to tune baseline alignment manually
 - Default: `0`
-- Reference: [`@atlowchemi/webfont-generator#descent`](/node/usage#descent)
 
 ## `fixedWidth`
 
+<!--@include: @/_shared/options/fixed-width.md-->
+
 - Type: `boolean`
-- Description: Create a monospace font based on the widest icon
 - Default: `false`
-- Reference: [`@atlowchemi/webfont-generator#fixedWidth`](/node/usage#fixedwidth)
 
 ## `fontHeight`
 
+<!--@include: @/_shared/options/font-height.md-->
+
 - Type: `number`
-- Description: Explicit output font height
 - Default: `1000` (the plugin's default; the generator alone defaults to the tallest icon's height)
-- Reference: [`@atlowchemi/webfont-generator#fontHeight`](/node/usage#fontheight)
 
 ## `centerHorizontally`
 
+<!--@include: @/_shared/options/center-horizontally.md-->
+
 - Type: `boolean`
-- Description: Center glyphs horizontally based on their bounds
 - Default: `false`
-- Reference: [`@atlowchemi/webfont-generator#centerHorizontally`](/node/usage#centerhorizontally)
 
 ## `centerVertically`
 
+<!--@include: @/_shared/options/center-vertically.md-->
+
 - Type: `boolean`
-- Description: Center glyphs vertically based on their bounds
 - Default: `false`
-- Notes:
-    - This option is a convenience alias for `formatOptions.svg.centerVertically`
-    - If both `centerVertically` and `formatOptions.svg.centerVertically` are defined, `formatOptions.svg.centerVertically` takes precedence
-    - Any other properties inside `formatOptions.svg` are preserved
-- Reference: [`@atlowchemi/webfont-generator#centerVertically`](/node/usage#centervertically)
+- Other properties inside `formatOptions.svg` are preserved.
 
 ## `optimizeOutput`
 
+<!--@include: @/_shared/options/optimize-output.md-->
+
 - Type: `boolean`
-- Description: Run an SVG path optimizer over each glyph before assembling the font
 - Default: `false`
-- Notes:
-    - Available since v7 — exposes the underlying [`@atlowchemi/webfont-generator#optimizeOutput`](/node/usage#optimizeoutput) option through the plugin
-    - Convenience alias for `formatOptions.svg.optimizeOutput`; the format-level option takes precedence when both are set
-    - Optimization may reduce SVG path data, but does not guarantee smaller binary font output; compare the generated sizes for your input set
+- Available since v7.
 
 ## `woff2CompressionQuality`
 
+Brotli compression quality for WOFF2 output. Higher is smaller but slower to encode; every level decodes to an identical font.
+
 - Type: `number` (`0`–`11`)
-- Description: Brotli compression quality for WOFF2 output. Higher is smaller but slower to encode; every level decodes to an identical font.
 - Default: `undefined`
 - Notes:
     - Convenience alias for `formatOptions.woff2.compressionQuality`; the format-level option takes precedence when both are set
     - When left unset, the plugin uses a faster quality (`10`) during development (`serve`) so font rebuilds on icon changes are quicker, while production builds use the engine default (`11`) for the smallest output. The dev-served font renders identically to production — only its bytes differ.
     - Set this to pin a single quality across both dev and build (e.g. `11` to make dev byte-for-byte match production)
-- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/node/usage#formatoptions)
+- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/node/configuration#formatoptions)
 
 ## `generateFiles`
 
+Controls which generated files are written directly to disk during development, and during builds when [`allowWriteFilesInBuild`](#allowwritefilesinbuild) is enabled.
+
 - Type: `boolean | string | string[]`
-- Description: Controls which generated files are written directly to disk during development, and during builds when [`allowWriteFilesInBuild`](#allowwritefilesinbuild) is enabled
 - Valid values:
     - `true` for CSS, HTML and fonts, plus TS only when `tsDest` is explicitly supplied
     - `false` for no generated files
@@ -235,30 +245,25 @@ These files use [`dest`](#dest), [`cssDest`](#cssdest), [`htmlDest`](#htmldest),
 
 ## `tsDest`
 
+Destination for fixed TypeScript metadata source. Relative paths resolve against [`dest`](#dest); directory paths have `<fontName>.ts` appended, like [`cssDest`](#cssdest).
+
 - Type: `string`
 - Default: `<dest>/<fontName>.ts`
-- Description: Destination for fixed TypeScript metadata source. Relative paths resolve against [`dest`](#dest); directory paths have `<fontName>.ts` appended, like [`cssDest`](#cssdest).
 
 Enable writing with [`generateFiles`](#generatefiles). With `generateFiles: true`, TS is written only if `tsDest` is explicit. Builds additionally require [`allowWriteFilesInBuild: true`](#allowwritefilesinbuild).
 
 ## `types`
 
+<!--@include: @/_shared/options/types.md-->
+
 - Type: `string | string[]`
-- Description: Font file types to generate
-- Supported values:
-    - `svg`
-    - `ttf`
-    - `woff`
-    - `woff2`
-    - `eot`
-- Default: `['eot', 'woff', 'woff2', 'ttf', 'svg']`
-- Variant mode: only `ttf`, `woff`, and `woff2` are supported; default is `['woff', 'woff2']`.
-- Reference: [`@atlowchemi/webfont-generator#types`](/node/usage#types)
+- Default: `['eot', 'woff', 'woff2', 'ttf', 'svg']`, or `['woff', 'woff2']` for families
 
 ## `preloadFormats`
 
+Font formats to preload in production HTML output.
+
 - Type: `string | string[]`
-- Description: Font formats to preload in production HTML output
 - Notes:
     - Only affects build HTML output
     - Values outside `types` are ignored
@@ -274,8 +279,9 @@ viteSvgToWebfont({
 
 ## `shouldProcessHtml`
 
+Conditionally skip preload injection for selected HTML entrypoints (See [`preloadFormats`](/vite/configuration#preloadformats) for preload injection controls).
+
 - Type: `(context: IndexHtmlTransformContext) => boolean`
-- Description: Conditionally skip preload injection for selected HTML entrypoints (See [`preloadFormats`](/vite/configuration#preloadformats) for preload injection controls)
 - Notes:
     - Only affects preload injection
     - Returning `false` skips preload tag injection for the current HTML file
@@ -292,35 +298,38 @@ viteSvgToWebfont({
 
 ## `codepoints`
 
+<!--@include: @/_shared/options/codepoints.md-->
+
 - Type: `{ [key: string]: number }`
-- Description: Explicit codepoints for selected icons. Icons without assigned codepoints continue from the generator start codepoint while avoiding duplicates. See [pin codepoints](/guide/features/codepoints-and-ligatures#pin-codepoints).
-- Reference: [`@atlowchemi/webfont-generator#codepoints`](/node/usage#codepoints)
 
 ## `classPrefix`
 
+Class prefix for generated icon classes.
+
 - Type: `string`
-- Description: Class prefix for generated icon classes
 - Default: `'icon-'`
-- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/node/usage#templateoptions)
+- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/node/configuration#templateoptions)
 
 ## `baseSelector`
 
+Base selector to which the font styles are applied.
+
 - Type: `string`
-- Description: Base selector to which the font styles are applied
 - Default: `'.icon'`
-- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/node/usage#templateoptions)
+- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/node/configuration#templateoptions)
 
 ## `formatOptions`
 
+<!--@include: @/_shared/options/format-options.md-->
+
 - Type: `FormatOptions`
-- Description: Per-format options forwarded to the underlying [`@atlowchemi/webfont-generator`](/guide/engine). The shape is `{ svg?: SvgFormatOptions; ttf?: TtfFormatOptions; woff?: WoffFormatOptions; woff2?: Woff2FormatOptions }` — see the engine docs for the fields available on each.
-- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/node/usage#formatoptions)
 - Note: `formatOptions.ttf.ts` is ignored. Like upstream `@vusion/webfonts-generator`, the generator always writes a fixed TTF timestamp, so builds are reproducible.
 
 ## `moduleId`
 
+Virtual module id used when importing generated plugin artifacts.
+
 - Type: `string`
-- Description: Virtual module id used when importing generated plugin artifacts
 - Default: `'vite-svg-2-webfont.css'`
 
 With the default value, import the module like this:
@@ -331,9 +340,10 @@ import 'virtual:vite-svg-2-webfont.css';
 
 ## `tsModuleId`
 
+Unprefixed virtual metadata module ID, independent of `generateFiles` and `tsDest`.
+
 - Type: `string`
 - Default: `'vite-svg-2-webfont.ts'`
-- Description: Unprefixed virtual metadata module ID, independent of `generateFiles` and `tsDest`.
 
 ```ts
 import { icons, iconBaseSelector, iconClassPrefix, type IconName } from 'virtual:vite-svg-2-webfont.ts';
@@ -345,14 +355,16 @@ Declarations share the installed package instance: distinct IDs avoid overwrites
 
 ## `inline`
 
+Inline font assets inside CSS using base64 encoding.
+
 - Type: `boolean`
-- Description: Inline font assets inside CSS using base64 encoding
 - Default: `false`
 
 ## `allowWriteFilesInBuild`
 
+Allow the generator to write the files selected by [`generateFiles`](#generatefiles) directly during a build.
+
 - Type: `boolean`
-- Description: Allow the generator to write the files selected by [`generateFiles`](#generatefiles) directly during a build
 - Default: `false`
 - Reference: [issue discussion](https://github.com/atlowChemi/vite-svg-2-webfont/issues/32#issuecomment-2203187501)
 
@@ -360,8 +372,9 @@ With `generateFiles: true`, font files are written to [`dest`](#dest), and CSS/H
 
 ## `cache`
 
+Reuse work across Vite runs. The plugin keeps its output cache, and the engine keeps a persistent cache of per-icon work and finished fonts, both inside Vite's [`cacheDir`](https://vite.dev/config/shared-options.html#cachedir). Output is the same with or without it. Set `false` to generate from scratch on every run; the plugin then writes nothing to `cacheDir`.
+
 - Type: `boolean`
-- Description: Reuse work across Vite runs. The plugin keeps its output cache, and the engine keeps a persistent cache of per-icon work and finished fonts, both inside Vite's [`cacheDir`](https://vite.dev/config/shared-options.html#cachedir). Output is the same with or without it. Set `false` to generate from scratch on every run; the plugin then writes nothing to `cacheDir`.
 - Default: `true`
 
 See [caching](/vite/how-it-works#caching) for what is stored and when each cache is used, and the [engine cache](/guide/features/caching) for what the engine reuses.
