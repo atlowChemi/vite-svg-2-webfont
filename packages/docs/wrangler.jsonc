@@ -10,4 +10,6 @@
     "routes": [{ "pattern": "next.fonte.atlow.dev", "custom_domain": true }],
     "workers_dev": true,
     "preview_urls": true,
+    // Pull request Previews use the top-level settings; `wrangler preview` requires the block even when it is empty.
+    "previews": {},
 }
