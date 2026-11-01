@@ -2,16 +2,14 @@
 
 ## [0.12.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.11.0...webfont-engine-v0.12.0) (2026-11-01)
 
-
 ### Features
 
-* **webfont-generator:** persist incremental cache updates automatically ([#658](https://github.com/atlowChemi/vite-svg-2-webfont/issues/658)) ([ccec5e2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/ccec5e26db59780fc474bfad8166f1979ce09f29))
-
+- **webfont-generator:** persist incremental cache updates automatically ([#658](https://github.com/atlowChemi/vite-svg-2-webfont/issues/658)) ([ccec5e2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/ccec5e26db59780fc474bfad8166f1979ce09f29))
 
 ### Bug Fixes
 
-* **deps:** update rust crate brotli to v9.1.1 ([#651](https://github.com/atlowChemi/vite-svg-2-webfont/issues/651)) ([a7bb626](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a7bb62652d06b7f238678dfcc6e53003b47ef9ef))
-* **docs:** serve the docs site from fonte.atlow.dev ([#663](https://github.com/atlowChemi/vite-svg-2-webfont/issues/663)) ([3e565f0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3e565f04c8f49c3879e6eebb39916276c36c2c1e))
+- **deps:** update rust crate brotli to v9.1.1 ([#651](https://github.com/atlowChemi/vite-svg-2-webfont/issues/651)) ([a7bb626](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a7bb62652d06b7f238678dfcc6e53003b47ef9ef))
+- **docs:** serve the docs site from fonte.atlow.dev ([#663](https://github.com/atlowChemi/vite-svg-2-webfont/issues/663)) ([3e565f0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3e565f04c8f49c3879e6eebb39916276c36c2c1e))
 
 ## [0.11.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.10.0...webfont-engine-v0.11.0) (2026-10-28)
 
