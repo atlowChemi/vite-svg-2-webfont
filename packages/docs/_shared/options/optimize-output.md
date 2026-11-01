@@ -1,0 +1,1 @@
+Optimize SVG paths before assembling the font. This can shrink path data but doesn't guarantee smaller binary fonts; compare the sizes for your icons. Shorthand for `formatOptions.svg.optimizeOutput`, which wins when both are set.

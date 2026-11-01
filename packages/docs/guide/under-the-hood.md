@@ -22,7 +22,7 @@ Owning the full pipeline made a new parallel architecture possible. The engine p
 
 For a single-face font, the generation pipeline works as follows:
 
-1. **SVG loading** -- Read and validate source SVG files in parallel, with at most one read task per core (or per [`threads`](/node/usage#threads)) and per 16 files
+1. **SVG loading** -- Read and validate source SVG files in parallel, with at most one read task per core (or per [`threads`](/node/configuration#threads)) and per 16 files
 2. **Glyph preparation** -- Parse glyph paths and optional solid paint with `usvg`, process geometry with `oxvg_path`, and normalize shared layer/fallback geometry. Parsed and processed caches retain paint for selected glyphs.
 3. **Parallel SVG and table assembly** -- Serialize the SVG font if requested and supported by the selected options. Compile paint-aware selectable glyphs and auxiliary layers into shared tables using [`write-fonts`](https://github.com/googlefonts/fontations): `glyf` fallback plus COLR/CPAL for selected glyphs.
 4. **Requested binary outputs** -- Assemble TTF if requested; generate WOFF and WOFF2 from shared tables, and EOT (which embeds TTF) when supported by the selected options.
@@ -70,7 +70,7 @@ This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for co
 
 ## Performance
 
-The legacy `@vusion/webfonts-generator` engine does not support SVG path optimization. The Rust engine adds it through [`optimizeOutput`](/node/usage#optimizeoutput). The tables compare Vusion with the native Node.js adapter's default settings and with path optimization enabled; enabling optimization performs extra work, so it need not be faster than leaving it disabled.
+The legacy `@vusion/webfonts-generator` engine does not support SVG path optimization. The Rust engine adds it through [`optimizeOutput`](/node/configuration#optimizeoutput). The tables compare Vusion with the native Node.js adapter's default settings and with path optimization enabled; enabling optimization performs extra work, so it need not be faster than leaving it disabled.
 
 ### Wall time on macOS
 

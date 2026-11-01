@@ -59,7 +59,7 @@ let options = GenerateWebfontsOptions {
 
 :::
 
-Node.js, the CLI, and the Rust crate store the cache in a directory. The browser package has no filesystem, so it hands you the bytes to keep in IndexedDB or elsewhere; the Rust in-memory API works the same way. See each tool for the details: [Vite](/vite/how-it-works#caching), [Node.js](/node/usage#cachelocation), [browser](/browser/usage#persistent-cache), [CLI](/cli/usage#cache-options), and [Rust](/rust/usage#persistent-cache).
+Node.js, the CLI, and the Rust crate store the cache in a directory. The browser package has no filesystem, so it hands you the bytes to keep in IndexedDB or elsewhere; the Rust in-memory API works the same way. See each tool for the details: [Vite](/vite/how-it-works#caching), [Node.js](/node/configuration#cachelocation), [browser](/browser/usage#persistent-cache), [CLI](/cli/usage#cache-options), and [Rust](/rust/usage#persistent-cache).
 
 ## What gets reused
 

@@ -68,7 +68,7 @@ webfont-generator clear-cache --cache-location .webfont-cache
 
 ### JSON manifest
 
-`--config <PATH>` loads a complete JSON configuration using the camelCase [generator options](/node/usage#options-reference). It cannot be combined with positional inputs or any generation flag, even a flag set to its default. The exception is `--threads`, which is machine-specific and overrides the config's `threads`. `--help` and `--version` still work.
+`--config <PATH>` loads a complete JSON configuration using the camelCase [generator options](/node/configuration). It cannot be combined with positional inputs or any generation flag, even a flag set to its default. The exception is `--threads`, which is machine-specific and overrides the config's `threads`. `--help` and `--version` still work.
 
 [Color glyphs](/guide/features/color-glyphs) are only available in a manifest: `"colorGlyphs": true` or `"colorGlyphs": ["logo"]`, with compatible formats such as `"types": ["woff2", "woff"]`, and optionally `"colorSlots": { "secondary": "#ff9900" }` for theme palettes. There are no color flags.
 
@@ -142,9 +142,9 @@ Run it with `webfont-generator --config icons.webfont.json`.
 
 ### Thread options
 
-| Flag            | Default      | Description                                                                                                                                                                                                                                 |
-| --------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--threads <N>` | One per core | Threads reading SVG files and doing glyph work at once (glyph work stops at the core count); see [`threads`](/node/usage#threads). Also allowed with `--config`, where it overrides the config's value. Output is identical for every value |
+| Flag            | Default      | Description                                                                                                                                                                                                                                         |
+| --------------- | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--threads <N>` | One per core | Threads reading SVG files and doing glyph work at once (glyph work stops at the core count); see [`threads`](/node/configuration#threads). Also allowed with `--config`, where it overrides the config's value. Output is identical for every value |
 
 ### Subcommands
 
