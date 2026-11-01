@@ -1,7 +1,7 @@
 # webfont-generator
 
 <p align="center">
-  <img src="https://fonte.atlow.dev/logo.svg" alt="fonte" width="120" />
+  <img src="../../packages/docs/assets/brand/rust.svg" alt="fonte for Rust" width="160" />
 </p>
 
 [![crates.io](https://img.shields.io/crates/v/webfont-generator.svg?style=flat-square)](https://crates.io/crates/webfont-generator)

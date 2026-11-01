@@ -1,8 +1,6 @@
 <p align="center">
-  <img src="https://fonte.atlow.dev/logo.svg" alt="fonte" width="120" />
+  <img src="./packages/docs/assets/brand/fonte.svg" alt="fonte" height="96" />
 </p>
-
-<h1 align="center">fonte</h1>
 
 <p align="center">SVG icons, cast into fonts.</p>
 

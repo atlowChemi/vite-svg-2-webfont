@@ -1,7 +1,7 @@
 # vite-svg-2-webfont
 
 <p align="center">
-  <img src="https://fonte.atlow.dev/logo.svg" alt="fonte" width="120" />
+  <img src="../docs/assets/brand/vite.svg" alt="fonte for Vite" width="160" />
 </p>
 
 [![npm](https://img.shields.io/npm/v/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
@@ -11,6 +11,7 @@
 [![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE)
 [![npm bundle size](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)](https://bundlephobia.com/package/vite-svg-2-webfont)
 [![node engine](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
+[![Package Quality](https://packagequality.com/shield/vite-svg-2-webfont.svg)](https://packagequality.com/#?package=vite-svg-2-webfont)
 
 The [fonte](https://fonte.atlow.dev/) Vite plugin. It turns a folder of SVG icons into an icon font as part of your Vite dev server and build, and serves it through a virtual stylesheet. Editing an icon reloads it in the dev server.
 

@@ -1,7 +1,7 @@
 # @atlowchemi/webfont-generator
 
 <p align="center">
-  <img src="https://fonte.atlow.dev/logo.svg" alt="fonte" width="120" />
+  <img src="../docs/assets/brand/node.svg" alt="fonte for Node.js" width="160" />
 </p>
 
 <p align="center">

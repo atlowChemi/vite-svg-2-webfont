@@ -1,7 +1,7 @@
 # @atlowchemi/webfont-browser-generator
 
 <p align="center">
-  <img src="https://fonte.atlow.dev/logo.svg" alt="fonte" width="120" />
+  <img src="../docs/assets/brand/browser.svg" alt="fonte for the browser" width="160" />
 </p>
 
 [![npm](https://img.shields.io/npm/v/@atlowchemi/webfont-browser-generator.svg?style=flat-square)](https://www.npmjs.com/package/@atlowchemi/webfont-browser-generator)
