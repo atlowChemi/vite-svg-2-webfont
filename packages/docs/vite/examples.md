@@ -257,7 +257,7 @@ The custom template reads `colorSlots.secondary`, the generated palette index. S
 </template>
 </ExampleTabs>
 
-Palette overrides use explicit colors, not per-element `var(--secondary-color)` or `currentColor`. Select predefined palettes for your themes; only the foreground follows an inherited CSS variable here. Identical resolved RGB fills share a slot across selected icons and variants, with their layer opacity retained. Slots do not affect monochrome icons. Platforms using the monochrome fallback lose the secondary color; see [color compatibility](/guide/engine#browser-and-platform-compatibility).
+Palette overrides use explicit colors, not per-element `var(--secondary-color)` or `currentColor`. Select predefined palettes for your themes; only the foreground follows an inherited CSS variable here. Identical resolved RGB fills share a slot across selected icons and variants, with their layer opacity retained. Slots do not affect monochrome icons. Platforms using the monochrome fallback lose the secondary color; see [color compatibility](/guide/features/color-glyphs#browser-and-platform-support).
 
 ## Pinned codepoints
 

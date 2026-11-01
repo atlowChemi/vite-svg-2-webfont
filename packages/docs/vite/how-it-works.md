@@ -123,7 +123,7 @@ Whenever the plugin does call the engine, the engine reuses its own persistent c
 - formats whose inputs didn't change, such as every font after a CSS-only option change, come straight from the cache
 - it also applies with [`cssContext`](/vite/configuration#csscontext), where the output cache can't
 
-See [`cacheLocation`](/node/usage#cachelocation) for the engine's details and [performance](/guide/under-the-hood#persistent-cache) for measured speedups.
+See the [engine cache](/guide/features/caching) for what it reuses.
 
 In development, rebuilds triggered by file changes normally use the engine's in-memory [incremental generation](#development). Each committed update automatically queues a background engine-cache write; pending updates are coalesced, and the plugin waits for persistence when the dev server closes. TypeScript output stays consistent with the current icon names on both cache hits and incremental updates. A rebuild calls the engine with its cache, like the first generation, when incremental generation isn't available: with [`cssContext`](/vite/configuration#csscontext), for the first change after an output cache hit, or after an incremental rebuild fails.
 

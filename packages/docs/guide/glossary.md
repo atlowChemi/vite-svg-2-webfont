@@ -20,11 +20,11 @@ The prefix added to each icon's name to form its CSS class, `icon-` by default, 
 
 ### Codepoint
 
-The Unicode number that identifies a glyph in the font, such as `U+F101`. The generated CSS maps each icon class to its codepoint. Codepoints are assigned automatically from `U+F101` unless you [pin them](/guide/svg-authoring#pin-codepoints-for-stable-output).
+The Unicode number that identifies a glyph in the font, such as `U+F101`. The generated CSS maps each icon class to its codepoint. Codepoints are assigned automatically from `U+F101` unless you [pin them](/guide/features/codepoints-and-ligatures#pin-codepoints).
 
 ### Color glyph
 
-A glyph that keeps the solid colors from its SVG, stored in the font's COLR/CPAL tables, instead of following the text color. Each color glyph also has a [monochrome fallback](#monochrome-fallback). See [color glyphs](/guide/engine#color-glyphs).
+A glyph that keeps the solid colors from its SVG, stored in the font's COLR/CPAL tables, instead of following the text color. Each color glyph also has a [monochrome fallback](#monochrome-fallback). See [color glyphs](/guide/features/color-glyphs).
 
 ### Default design
 
@@ -40,7 +40,7 @@ The Rust library that turns SVGs into fonts, CSS, and HTML. Every package in thi
 
 ### Family
 
-_Also: multi-weight family, multi-variant font._ Several [designs](#design) of the same icons combined into one font file per format, with each design mapped to a font weight. See [multi-weight icon families](/vite/usage#multi-weight-icon-families).
+_Also: multi-weight family, multi-variant font._ Several [designs](#design) of the same icons combined into one font file per format, with each design mapped to a font weight. See [variants](/guide/features/variants).
 
 ### Font height
 
@@ -56,7 +56,7 @@ One drawing inside a font. Each SVG icon becomes one glyph (or, with a [family](
 
 ### Incremental generation
 
-Rebuilding a font while reusing work from the previous build, so that only changed icons are processed again. The Vite plugin uses it automatically during development. See [`incremental`](/node/usage#incremental).
+Rebuilding a font while reusing work from the previous build, so that only changed icons are processed again. The Vite plugin uses it automatically during development. See [`incremental`](/guide/features/incremental).
 
 ### Inline mode
 
@@ -64,11 +64,11 @@ Embedding fonts in the CSS as base64 data URLs instead of separate files. See [`
 
 ### Ligature
 
-A rule in the font that replaces a word with a glyph, so typing `add` inside an icon element can render the _add_ icon. Enabled by default. See [`ligature`](/vite/configuration#ligature).
+A rule in the font that replaces a word with a glyph, so typing `add` inside an icon element can render the _add_ icon. Enabled by default. See [codepoints and ligatures](/guide/features/codepoints-and-ligatures).
 
 ### Missing glyph policy
 
-What a [family](#family) does when a design doesn't have an icon that other designs have: fail, leave it blank, or borrow it from another design. See [`missingGlyphs`](/vite/configuration#missingglyphs).
+What a [family](#family) does when a design doesn't have an icon that other designs have: fail, leave it blank, or borrow it from another design. See [icons missing from a design](/guide/features/variants#icons-missing-from-a-design).
 
 ### Modifier class
 

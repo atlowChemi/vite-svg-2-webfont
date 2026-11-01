@@ -15,10 +15,10 @@ Not sure which one fits? [Choosing a tool](/guide/) compares what each one suppo
 ## Highlights
 
 - **Every common format:** SVG, TTF, EOT, WOFF, and WOFF2 from one set of SVG icons, plus CSS, SCSS, and an HTML preview from templates, and [TypeScript](/guide/templates#typescript) with the icon names and their union type.
-- **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [multi-variant fonts](/node/usage#multi-variant-fonts).
+- **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [variants](/guide/features/variants).
 - **Color glyphs:** optionally keep solid SVG colors. See [color glyphs](#color-glyphs).
-- **Fast rebuilds:** [incremental generation](/node/usage#incremental) reuses work from the previous build when only a few icons change.
-- **Warm starts:** an opt-in [persistent cache](/node/usage#cachelocation) lets a new process reuse work from earlier runs for unchanged icons and formats.
+- **Fast rebuilds:** [incremental generation](/guide/features/incremental) reuses work from the previous build when only a few icons change.
+- **Warm starts:** an opt-in [persistent cache](/guide/features/caching) lets a new process reuse work from earlier runs for unchanged icons and formats.
 - **No filesystem required:** generate from SVG text in memory, which is what the [browser package](/browser/) uses.
 - **Fast:** average speedups of 6.5× on macOS and 7.6× on Linux over `@vusion/webfonts-generator` in our measured default-setting workloads without caching. With a warm [persistent cache](/guide/under-the-hood#persistent-cache), unchanged rebuilds are 43× (macOS) and 113× (Linux) faster than Vusion. See [performance](/guide/under-the-hood#performance).
 
@@ -38,12 +38,12 @@ The API is largely compatible with upstream `@vusion/webfonts-generator`, with a
 - `formatOptions` is strictly typed, and the `eot` key is no longer accepted; EOT is derived from the TTF output.
 - [`optimizeOutput`](/node/usage#optimizeoutput) adds optional SVG path optimization, disabled by default.
 - [`formatOptions.woff2.compressionQuality`](/node/usage#formatoptions) controls WOFF2 compression quality from 0–11 (default 11), allowing faster encoding at the cost of slightly larger output.
-- [`incremental`](/node/usage#incremental) enables regeneration that reuses work from the previous build, disabled by default.
-- [`cacheLocation`](/node/usage#cachelocation) enables a persistent cache shared across runs, disabled by default.
+- [`incremental`](/guide/features/incremental) enables regeneration that reuses work from the previous build, disabled by default.
+- [`cacheLocation`](/guide/features/caching) enables a persistent cache shared across runs, disabled by default.
 - Font binaries differ at the byte level (different TTF compiler, different path normalization) but are valid and render identically
 - CSS, HTML, and template output is identical.
-- [`variants`](/node/usage#multi-variant-fonts) adds multi-weight families with discrete designs.
-- [`colorGlyphs`](/node/usage#colorglyphs) preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
+- [`variants`](/guide/features/variants) adds multi-weight families with discrete designs.
+- [`colorGlyphs`](/guide/features/color-glyphs) preserves solid SVG colors for selected glyphs in TTF, WOFF, and WOFF2, disabled by default.
 
 Like upstream, the npm package always writes the same fixed creation timestamp into TTF output and ignores `formatOptions.ttf.ts`, so repeated builds produce identical bytes. The [Rust crate](/rust/) and the [browser package](/browser/) honor `ts`.
 
@@ -53,35 +53,7 @@ If you are migrating from `@vusion/webfonts-generator`, review the [Node.js usag
 
 ## Color glyphs
 
-Color generation is opt-in. It preserves solid SVG fills in COLR v1/CPAL tables and retains a monochrome `glyf` fallback in the same font. It supports ordinary fonts and discrete multi-weight families. This option is available in the [Node API](/node/usage#color-selection), [Rust API](/rust/usage#color-glyphs), and [CLI manifest](/cli/usage#json-manifest).
-
-Active color supports **TTF, WOFF, and WOFF2**. SVG-font and EOT output are rejected during option resolution. Ordinary defaults include EOT, so ordinary color callers must specify compatible `types`. Variant defaults are already WOFF and WOFF2.
-
-### SVG paint
-
-| SVG source                                               | Color glyph paint                         |
-| -------------------------------------------------------- | ----------------------------------------- |
-| No authored effective fill                               | Host text color                           |
-| Authored solid fill, including inherited root/group fill | Fixed SVG color                           |
-| `fill="currentColor"` without effective authored `color` | Host text color                           |
-| `fill="currentColor"` with effective authored `color`    | Fixed resolved SVG color                  |
-| Solid fill with `fill-opacity`                           | That paint with independent layer opacity |
-
-Source paint order, curves, nonzero winding, and ordinary nested evenodd holes are supported. Color layers and monochrome fallback share positioning and normalization. Authored inline styles and internal stylesheets use the SVG parser's cascade.
-
-Advanced input is **best-effort**: gradients, strokes as color paint, text, images, clipping, masks, filters, paint-dependent selectors, CSS resets/invalid declarations, and intersecting evenodd contours can produce incomplete or incorrect results. There is no dedicated unsupported-input detection, warning, or rejection. Please report a minimal SVG reproduction when a supported case renders incorrectly.
-
-### Theme colors
-
-Fixed SVG fills can be overridden at runtime with CSS `@font-palette-values` and `font-palette`. Configure [`colorSlots`](/node/usage#colorslots) to reserve named palette indices, while `currentColor` paths keep following the element's text color. One glyph can serve both light and dark themes; see the [live example](/vite/examples#theme-colors-in-one-glyph).
-
-### Browser and platform compatibility
-
-Chromium and Firefox render fixed colors, host foreground colors, and per-layer opacity. Linux WebKit also renders color; tested macOS WebKit uses the monochrome fallback.
-
-WebKit behavior depends on the operating system and platform text-rendering libraries. In the tested macOS configuration, the font still loads: the fallback retains host text color, selected weight, ligatures, and advances, but loses fixed colors and independent per-layer opacity. It uses the same font URL; no separate API or alternate resource is needed. These observations do not imply a permanent limitation in future Safari, WebKit, or macOS versions. See [WebKit issue 233496](https://bugs.webkit.org/show_bug.cgi?id=233496).
-
-Color layers add physical glyphs and increase font size. Fonts must fit the 65,535-glyph limit and the `post` table's 65,278 unique custom-name limit; exceeding either returns a build error.
+The engine can keep the solid colors of selected icons as COLR/CPAL color glyphs, with a single-color fallback in the same font. See [color glyphs](/guide/features/color-glyphs) for selecting icons, theme palettes, and browser support.
 
 ## Links
 

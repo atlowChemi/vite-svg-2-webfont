@@ -60,6 +60,17 @@ const guideSidebar = {
     ],
 };
 
+const featuresSidebar = {
+    text: 'Features',
+    items: [
+        { text: 'Engine Cache', link: '/guide/features/caching' },
+        { text: 'Variants', link: '/guide/features/variants' },
+        { text: 'Color Glyphs', link: '/guide/features/color-glyphs' },
+        { text: 'Incremental Updates', link: '/guide/features/incremental' },
+        { text: 'Codepoints and Ligatures', link: '/guide/features/codepoints-and-ligatures' },
+    ],
+};
+
 const tools = [
     { text: 'Vite Plugin', link: '/vite/' },
     { text: 'Node.js', link: '/node/' },
@@ -69,7 +80,7 @@ const tools = [
 ];
 
 // Every tool section lists its own pages first, then the shared guide and the other tools.
-const toolSidebar = (text: string, items: { text: string; link: string }[]) => [{ text, items }, guideSidebar, { text: 'Tools', items: tools }];
+const toolSidebar = (text: string, items: { text: string; link: string }[]) => [{ text, items }, guideSidebar, featuresSidebar, { text: 'Tools', items: tools }];
 
 export default defineConfig({
     title: siteName,
@@ -142,7 +153,7 @@ export default defineConfig({
             },
         ],
         sidebar: {
-            '/guide/': [guideSidebar, { text: 'Tools', items: tools }],
+            '/guide/': [guideSidebar, featuresSidebar, { text: 'Tools', items: tools }],
             '/vite/': toolSidebar('Vite Plugin', [
                 { text: 'Getting Started', link: '/vite/' },
                 { text: 'Usage', link: '/vite/usage' },
