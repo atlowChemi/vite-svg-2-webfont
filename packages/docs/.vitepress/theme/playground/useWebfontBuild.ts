@@ -30,8 +30,7 @@ const loadGenerator = () => import('@atlowchemi/webfont-browser-generator');
 async function prefetch() {
     try {
         const { generateWebfonts } = await loadGenerator();
-        const warmup = await generateWebfonts({ sources: [{ id: 'warmup', name: 'warmup', svg: '<svg viewBox="0 0 1 1"><path d="M0 0H1V1Z"/></svg>' }], types: ['woff2'] });
-        warmup.dispose();
+        using _warmup = await generateWebfonts({ sources: [{ id: 'warmup', name: 'warmup', svg: '<svg viewBox="0 0 1 1"><path d="M0 0H1V1Z"/></svg>' }], types: ['woff2'] });
     } catch {
         // The first real build loads the generator itself and reports any failure.
     }
