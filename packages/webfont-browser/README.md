@@ -4,10 +4,12 @@
   <img src="../docs/assets/brand/browser.svg" alt="fonte for the browser" width="160" />
 </p>
 
-[![npm](https://img.shields.io/npm/v/@atlowchemi/webfont-browser-generator.svg?style=flat-square)](https://www.npmjs.com/package/@atlowchemi/webfont-browser-generator)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/atlowChemi/vite-svg-2-webfont/main.yaml?branch=main&style=flat-square)
-[![docs](https://img.shields.io/badge/docs-fonte.atlow.dev-ff6a13?style=flat-square)](https://fonte.atlow.dev/browser/)
-[![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE)
+<p align="center">
+  <a href="https://www.npmjs.com/package/@atlowchemi/webfont-browser-generator"><img src="https://img.shields.io/npm/v/@atlowchemi/webfont-browser-generator.svg?style=flat-square" alt="npm" /></a>
+  <a href="https://github.com/atlowChemi/vite-svg-2-webfont/actions/workflows/main.yaml"><img src="https://img.shields.io/github/actions/workflow/status/atlowChemi/vite-svg-2-webfont/main.yaml?branch=main&amp;style=flat-square" alt="build" /></a>
+  <a href="https://fonte.atlow.dev/browser/"><img src="https://img.shields.io/badge/docs-fonte.atlow.dev-ff6a13?style=flat-square" alt="docs" /></a>
+  <a href="https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE"><img src="https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square" alt="license" /></a>
+</p>
 
 The [fonte](https://fonte.atlow.dev/) engine in the browser. It generates icon fonts from SVG text in dedicated module workers, powered by precompiled WebAssembly, so applications need no Rust tools or install-time compilation.
 

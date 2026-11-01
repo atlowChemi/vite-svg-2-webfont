@@ -4,10 +4,12 @@
   <img src="../../packages/docs/assets/brand/rust.svg" alt="fonte for Rust" width="160" />
 </p>
 
-[![crates.io](https://img.shields.io/crates/v/webfont-generator.svg?style=flat-square)](https://crates.io/crates/webfont-generator)
-[![docs.rs](https://img.shields.io/docsrs/webfont-generator?style=flat-square)](https://docs.rs/webfont-generator)
-[![docs](https://img.shields.io/badge/docs-fonte.atlow.dev-ff6a13?style=flat-square)](https://fonte.atlow.dev/rust/)
-[![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE)
+<p align="center">
+  <a href="https://crates.io/crates/webfont-generator"><img src="https://img.shields.io/crates/v/webfont-generator.svg?style=flat-square" alt="crates.io" /></a>
+  <a href="https://docs.rs/webfont-generator"><img src="https://img.shields.io/docsrs/webfont-generator?style=flat-square" alt="docs.rs" /></a>
+  <a href="https://fonte.atlow.dev/rust/"><img src="https://img.shields.io/badge/docs-fonte.atlow.dev-ff6a13?style=flat-square" alt="docs" /></a>
+  <a href="https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE"><img src="https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square" alt="license" /></a>
+</p>
 
 The [fonte](https://fonte.atlow.dev/) engine as a Rust crate, with an optional CLI. It generates SVG, TTF, EOT, WOFF, and WOFF2 fonts, and their CSS, HTML preview, and TypeScript names, from SVG files or SVG text. Every other fonte tool runs it: the Node.js package and the Vite plugin through a native addon, and the browser package as WebAssembly.
 

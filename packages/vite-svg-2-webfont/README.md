@@ -4,14 +4,16 @@
   <img src="../docs/assets/brand/vite.svg" alt="fonte for Vite" width="160" />
 </p>
 
-[![npm](https://img.shields.io/npm/v/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
-![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/atlowChemi/vite-svg-2-webfont/main.yaml?branch=main&style=flat-square)
-[![docs](https://img.shields.io/badge/docs-fonte.atlow.dev-ff6a13?style=flat-square)](https://fonte.atlow.dev/vite/)
-[![npm](https://img.shields.io/npm/dm/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
-[![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE)
-[![npm bundle size](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)](https://bundlephobia.com/package/vite-svg-2-webfont)
-[![node engine](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
-[![Package Quality](https://packagequality.com/shield/vite-svg-2-webfont.svg)](https://packagequality.com/#?package=vite-svg-2-webfont)
+<p align="center">
+  <a href="https://www.npmjs.com/package/vite-svg-2-webfont"><img src="https://img.shields.io/npm/v/vite-svg-2-webfont.svg?style=flat-square" alt="npm" /></a>
+  <a href="https://github.com/atlowChemi/vite-svg-2-webfont/actions/workflows/main.yaml"><img src="https://img.shields.io/github/actions/workflow/status/atlowChemi/vite-svg-2-webfont/main.yaml?branch=main&amp;style=flat-square" alt="build" /></a>
+  <a href="https://fonte.atlow.dev/vite/"><img src="https://img.shields.io/badge/docs-fonte.atlow.dev-ff6a13?style=flat-square" alt="docs" /></a>
+  <a href="https://www.npmjs.com/package/vite-svg-2-webfont"><img src="https://img.shields.io/npm/dm/vite-svg-2-webfont.svg?style=flat-square" alt="downloads" /></a>
+  <a href="https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE"><img src="https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square" alt="license" /></a>
+  <a href="https://bundlephobia.com/package/vite-svg-2-webfont"><img src="https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square" alt="npm bundle size" /></a>
+  <a href="https://www.npmjs.com/package/vite-svg-2-webfont"><img src="https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square" alt="node engine" /></a>
+  <a href="https://packagequality.com/#?package=vite-svg-2-webfont"><img src="https://packagequality.com/shield/vite-svg-2-webfont.svg" alt="Package Quality" /></a>
+</p>
 
 The [fonte](https://fonte.atlow.dev/) Vite plugin. It turns a folder of SVG icons into an icon font as part of your Vite dev server and build, and serves it through a virtual stylesheet. Editing an icon reloads it in the dev server.
 
