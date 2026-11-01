@@ -14,7 +14,7 @@ Not sure which one fits? [Choosing a tool](/guide/) compares what each one suppo
 
 ## Highlights
 
-- **Every common format:** SVG, TTF, EOT, WOFF, and WOFF2 from one set of SVG icons, plus CSS, SCSS, and an HTML preview from templates, and [TypeScript](/guide/templates#generate-type-safe-component) with the icon names and their union type.
+- **Every common format:** SVG, TTF, EOT, WOFF, and WOFF2 from one set of SVG icons, plus CSS, SCSS, and an HTML preview from templates, and [TypeScript](/guide/templates#typescript) with the icon names and their union type.
 - **Multi-weight families:** light, regular, and bold designs of the same icons combined into one font per format. See [multi-variant fonts](/node/usage#multi-variant-fonts).
 - **Color glyphs:** optionally keep solid SVG colors. See [color glyphs](#color-glyphs).
 - **Fast rebuilds:** [incremental generation](/node/usage#incremental) reuses work from the previous build when only a few icons change.

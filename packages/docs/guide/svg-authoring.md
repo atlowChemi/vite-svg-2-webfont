@@ -8,7 +8,7 @@ import SvgAuthoringCompare from '../.vitepress/theme/components/SvgAuthoringComp
 
 # SVG Authoring & Troubleshooting
 
-Each SVG becomes one single-color glyph in the font. Most icons exported from a design tool work as they are. This page explains what changes when an SVG becomes a glyph, and how to fix the surprises.
+By default, each SVG becomes one single-color glyph in the font. Icons you opt into [color glyphs](/guide/engine#color-glyphs) are the exception: they keep their solid fills, so the [color rules](#colors-are-ignored-nested-shapes-become-holes) below don't apply to them. Most icons exported from a design tool work as they are. This page explains what changes when an SVG becomes a glyph, and how to fix the surprises.
 
 Every comparison below is live: the docs site builds real fonts from the SVGs shown, using `vite-svg-2-webfont`. In each card, the white chip on the left is the SVG as a browser draws it, and the glyph on the right is what the generated font renders. The dashed outline is the glyph's box.
 
@@ -29,7 +29,7 @@ You don't need to prepare these. The engine converts them as drawn:
 
 ## Colors are ignored; nested shapes become holes
 
-A glyph has a single color: wherever there is a shape, the text color shows. The engine ignores fill colors and decides what is filled by nesting:
+An ordinary glyph has a single color: wherever there is a shape, the text color shows. The engine ignores fill colors and decides what is filled by nesting:
 
 - A shape drawn **inside** another shape becomes a **hole**.
 - A shape inside that hole is filled again, and so on, alternating with each level.
@@ -51,7 +51,7 @@ This turns white details into cutouts, but it causes two common surprises:
 
 - Delete background rectangles and any other shape that exists only to fill the artboard.
 - If a detail should stay solid, merge it into the shape around it (for example with "Union" in your design tool) instead of stacking it on top.
-- If the icon really needs two colors, enable [`colorGlyphs`](/vite/configuration#colorglyphs) for it. Color glyphs require TTF, WOFF, or WOFF2 output, and some platforms show the monochrome version instead.
+- If the icon really needs more than one color, make it a [color glyph](/guide/engine#color-glyphs). Color glyphs require TTF, WOFF, or WOFF2 output, and some platforms show the monochrome version instead.
 
 ## Clip paths, masks, and opacity are ignored
 
@@ -128,7 +128,7 @@ The engine stores each glyph on a grid of whole units. By default the grid is as
     ]"
 />
 
-**Fix:** the Vite plugin already uses [`fontHeight: 1000`](/vite/configuration#fontheight). With the [Node.js](/node/usage#fontheight), [Rust](/rust/usage#generatewebfontsoptions), or [CLI](/cli/usage#font-options) interfaces, set `fontHeight` to `1000` or more.
+**Fix:** the Vite plugin already uses [`fontHeight: 1000`](/vite/configuration#fontheight). With the [Node.js](/node/usage#fontheight), [browser](/browser/usage#how-to-use), [Rust](/rust/usage#generatewebfontsoptions), or [CLI](/cli/usage#font-options) interfaces, set `fontHeight` to `1000` or more.
 
 ## File names become class names
 

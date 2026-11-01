@@ -160,7 +160,38 @@ Edits across the design roots are batched and regenerated through one serialized
 
 Custom CSS callbacks are invoked again through full generation. Existing CSS/SCSS/HTML templates, selectors, optional disk output, and preload controls also apply to families. Shared assets are emitted and preloaded once per selected format, not once per design.
 
-See [multi-weight icon families](#multi-weight-icon-families) to configure multiple designs; they use the same output controls.
+## Multiple plugin instances
+
+To build more than one icon font, register the plugin once per font. Give each instance its own:
+
+- [`fontName`](/vite/configuration#fontname): names the font files and keys the [build cache](/vite/how-it-works#caching). Instances that share one keep replacing each other's cache entries.
+- [`moduleId`](/vite/configuration#moduleid), so each font's CSS can be imported.
+- [`baseSelector`](/vite/configuration#baseselector) and [`classPrefix`](/vite/configuration#classprefix): the generated CSS sets the font on the base selector, so two fonts with the same selectors override each other.
+- [`tsModuleId`](/vite/configuration#tsmoduleid), if you import the TypeScript metadata. Instances with the same ID overwrite each other's declarations.
+
+```ts [vite.config.ts]
+export default defineConfig({
+    plugins: [
+        viteSvgToWebfont({
+            context: resolve(import.meta.dirname, 'icons/app'),
+            fontName: 'app-icons',
+        }),
+        viteSvgToWebfont({
+            context: resolve(import.meta.dirname, 'icons/brand'),
+            fontName: 'brand-icons',
+            moduleId: 'brand-icons.css',
+            tsModuleId: 'brand-icons.ts',
+            baseSelector: '.brand',
+            classPrefix: 'brand-',
+        }),
+    ],
+});
+```
+
+```ts [main.ts]
+import 'virtual:vite-svg-2-webfont.css';
+import 'virtual:brand-icons.css';
+```
 
 ## Related options
 

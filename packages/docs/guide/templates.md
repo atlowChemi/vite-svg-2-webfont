@@ -18,14 +18,15 @@ Your application's build tools handle compilation of the generated components.
 
 ## Built-in Templates
 
-Choose a stylesheet template for displaying icons in your application, and optionally generate
-an HTML preview to browse the family:
+Choose a stylesheet template for displaying icons in your application. Optionally, generate
+an HTML preview to browse the family, and TypeScript to type your icon components:
 
-| Template               | What it generates                                                         | When to use it                                                                                                         |
-| ---------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| [CSS](#generated-css)  | Font-face declarations and ready-made icon classes.                       | Use icons directly in your markup without a Sass compilation step. This is the default stylesheet template.            |
-| [SCSS](#scss)          | Font-face declarations, an icon map, and the `webfont-icon($name)` mixin. | Attach icons to your own component selectors in a project that compiles Sass. Select this instead of the CSS template. |
-| [HTML](#html-previews) | An icon grid with embedded styles.                                        | Browse or inspect the generated icons. Enable preview output with `html: true`.                                        |
+| Template                  | What it generates                                                          | When to use it                                                                                                         |
+| ------------------------- | -------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| [CSS](#generated-css)     | Font-face declarations and ready-made icon classes.                        | Use icons directly in your markup without a Sass compilation step. This is the default stylesheet template.            |
+| [SCSS](#scss)             | Font-face declarations, an icon map, and the `webfont-icon($name)` mixin.  | Attach icons to your own component selectors in a project that compiles Sass. Select this instead of the CSS template. |
+| [HTML](#html-previews)    | An icon grid with embedded styles.                                         | Browse or inspect the generated icons. Enable preview output with `html: true`.                                        |
+| [TypeScript](#typescript) | The icon names, their union type, the base selector, and the class prefix. | Type an icon component's name prop, or iterate over the available icons. Enable it with `ts: true`.                    |
 
 ### Generated CSS
 
@@ -123,36 +124,11 @@ For multi-variant families, the built-in grid displays the default design (e.g.,
 Custom previews can use the `variants` context to offer other views. Default font URLs are relative
 to the HTML destination; explicit URL overrides are used as supplied.
 
-## Custom templates
+### TypeScript
 
-Set `cssTemplate` or `htmlTemplate` to a Handlebars file. In Rust these options are
-`css_template` and `html_template`; CLI manifests use camelCase names. See the API-specific
-references for [Node template paths](/node/usage#templates), [Rust options](/rust/usage#generatewebfontsoptions),
-or [CLI configuration](/cli/usage#json-manifest).
-
-For example, this custom HTML template lists the icon names:
-
-::: code-group
-
-```handlebars [icon-list.hbs]
-<h1>{{fontName}}</h1>
-<ul>
-    {{#each names}}
-        <li>{{this}}</li>
-    {{/each}}
-</ul>
-```
-
-:::
-
-Pass extra values through `templateOptions` (`template_options` in Rust). Node also supports
-callbacks that mutate the context before rendering. Handlebars context names are camelCase
-regardless of the API used to generate the font.
-
-### Generate Type Safe Component
-
-Use fixed TypeScript output to export icon names and their union type. No Handlebars template is needed.
-For Vite virtual imports and declaration discovery, see the [component example](/vite/examples#type-safe-icon-component).
+TypeScript output is fixed rather than a Handlebars template: it exports the icon names, their union type,
+the base selector, and the class prefix. Enable it with `ts: true` (`--ts` in the CLI). The Vite plugin also
+serves it as a virtual module; see its [component example](/vite/examples#type-safe-icon-component).
 
 ::: code-group
 
@@ -208,6 +184,32 @@ Both components assume the default `.icon` base selector: `.slice(1)` turns that
 the `icon` class name. If you customize `baseSelector`, adapt the component's classes to match.
 Load the generated CSS in your application. These examples render decorative icons alongside
 visible text, so they use `aria-hidden="true"`.
+
+## Custom templates
+
+Set `cssTemplate` or `htmlTemplate` to a Handlebars file. In Rust these options are
+`css_template` and `html_template`; CLI manifests use camelCase names. See the API-specific
+references for [Node template paths](/node/usage#templates), [Rust options](/rust/usage#generatewebfontsoptions),
+or [CLI configuration](/cli/usage#json-manifest).
+
+For example, this custom HTML template lists the icon names:
+
+::: code-group
+
+```handlebars [icon-list.hbs]
+<h1>{{fontName}}</h1>
+<ul>
+    {{#each names}}
+        <li>{{this}}</li>
+    {{/each}}
+</ul>
+```
+
+:::
+
+Pass extra values through `templateOptions` (`template_options` in Rust). Node also supports
+callbacks that mutate the context before rendering. Handlebars context names are camelCase
+regardless of the API used to generate the font.
 
 ## Template context
 
