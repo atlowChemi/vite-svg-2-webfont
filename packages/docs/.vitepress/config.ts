@@ -94,6 +94,8 @@ export default defineConfig({
     markdown,
     vite: {
         css: { postcss: iconCss },
+        // Ignored local dotenv files must not affect cached docs builds.
+        envDir: false,
         plugins: [
             groupIconVitePlugin({
                 customIcon: {
