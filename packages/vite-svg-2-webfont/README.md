@@ -1,28 +1,18 @@
 # vite-svg-2-webfont
 
 <p align="center">
-  <img src="../docs/assets/svg/logo.svg" alt="vite-svg-2-webfont logo" width="144" />
+  <img src="https://fonte.atlow.dev/logo.svg" alt="fonte" width="120" />
 </p>
 
 [![npm](https://img.shields.io/npm/v/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
 ![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/atlowChemi/vite-svg-2-webfont/main.yaml?branch=main&style=flat-square)
-[![docs](https://img.shields.io/badge/docs-online-646cff?style=flat-square)](https://fonte.atlow.dev/)
+[![docs](https://img.shields.io/badge/docs-fonte.atlow.dev-ff6a13?style=flat-square)](https://fonte.atlow.dev/vite/)
 [![npm](https://img.shields.io/npm/dm/vite-svg-2-webfont.svg?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
-[![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/master/LICENSE)
-[![npm bundle size](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)
-[![node engine](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)
-[![Package Quality](https://packagequality.com/shield/vite-svg-2-webfont.svg)](https://packagequality.com/#?package=vite-svg-2-webfont)
+[![license](https://img.shields.io/github/license/atlowChemi/vite-svg-2-webfont.svg?style=flat-square)](https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE)
+[![npm bundle size](https://img.shields.io/bundlephobia/minzip/vite-svg-2-webfont?style=flat-square)](https://bundlephobia.com/package/vite-svg-2-webfont)
+[![node engine](https://img.shields.io/node/v/vite-svg-2-webfont?style=flat-square)](https://www.npmjs.com/package/vite-svg-2-webfont)
 
-A Vite plugin that generates webfonts from SVG icon files and exposes a virtual stylesheet you can import into your application.
-
-## Documentation
-
-Full documentation lives at [fonte.atlow.dev](https://fonte.atlow.dev/).
-
-- [Getting Started](https://fonte.atlow.dev/getting-started)
-- [Usage](https://fonte.atlow.dev/usage)
-- [Configuration](https://fonte.atlow.dev/configuration)
-- [Public API](https://fonte.atlow.dev/public-api)
+The [fonte](https://fonte.atlow.dev/) Vite plugin. It turns a folder of SVG icons into an icon font as part of your Vite dev server and build, and serves it through a virtual stylesheet. Editing an icon reloads it in the dev server.
 
 ## Installation
 
@@ -30,7 +20,9 @@ Full documentation lives at [fonte.atlow.dev](https://fonte.atlow.dev/).
 npm install --save-dev vite-svg-2-webfont
 ```
 
-## Quick Start
+## Quick start
+
+Register the plugin in `vite.config.ts` and point `context` at the directory with your SVG icons:
 
 ```ts
 import { resolve } from 'node:path';
@@ -46,28 +38,30 @@ export default defineConfig({
 });
 ```
 
+Import the generated stylesheet once in your app's entrypoint:
+
 ```ts
 import 'virtual:vite-svg-2-webfont.css';
 ```
+
+SVG file names become icon class names, so `add.svg` becomes `icon-add`:
 
 ```html
 <i class="icon icon-add"></i>
 ```
 
-In that example, `icon-add` is controlled by `classPrefix` and `icon` is controlled by `baseSelector`. See the [configuration reference](https://fonte.atlow.dev/configuration#classprefix) and [base selector option](https://fonte.atlow.dev/configuration#baseselector).
+The `icon-` prefix comes from [`classPrefix`](https://fonte.atlow.dev/vite/configuration#classprefix) and the `icon` class from [`baseSelector`](https://fonte.atlow.dev/vite/configuration#baseselector).
 
-## Multi-weight icon families
+## Documentation
 
-Generate multi variant families, such as light and bold designs, inline, outline, and solid designs, as shared font assets by configuring variants with matching SVG filenames:
+- [Getting started](https://fonte.atlow.dev/vite/)
+- [Usage](https://fonte.atlow.dev/vite/usage), including [multi-weight icon families](https://fonte.atlow.dev/vite/usage#multi-weight-icon-families) and [multiple plugin instances](https://fonte.atlow.dev/vite/usage#multiple-plugin-instances)
+- [Examples](https://fonte.atlow.dev/vite/examples), each with its generated output
+- [Configuration](https://fonte.atlow.dev/vite/configuration): every option
+- [How it works](https://fonte.atlow.dev/vite/how-it-works): development, builds, and caching
+- [Public API](https://fonte.atlow.dev/vite/public-api) for other plugins
+- [Migration](https://fonte.atlow.dev/vite/migration) between major versions
 
-```ts
-viteSvgToWebfont({
-    context: './src/icons',
-    variants: [
-        { name: 'light', context: 'light', weight: 300, default: true },
-        { name: 'bold', context: 'bold', weight: 700 },
-    ],
-});
-```
+## License
 
-Keep the same virtual CSS import and use `class="icon icon-add icon--bold"` to select bold. Families default to WOFF/WOFF2, optionally support TTF, and update during development when either design changes. See the [multi-weight guide](https://fonte.atlow.dev/usage#multi-weight-icon-families) for sparse designs, nested globs, and output options.
+[MIT](https://github.com/atlowChemi/vite-svg-2-webfont/blob/main/LICENSE)
