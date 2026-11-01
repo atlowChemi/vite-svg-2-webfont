@@ -280,7 +280,7 @@ publishing must execute unless their separate contracts have been validated.
 
 Browser/plugin packaging, plugin-local tests, and docs explicitly disable Vite
 dotenv loading. Use process environment for selectors such as `VITE_COMPAT_MAJOR`
-and `GITHUB_ACTIONS`; those inputs remain keyed.
+and `NODE_ENV`; those inputs remain keyed.
 The example application retains dotenv support and stays uncached because its
 ignored local-env files cannot be reliably keyed by pnpm.
 
