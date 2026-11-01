@@ -341,7 +341,7 @@ onBeforeUnmount(() => {
             </div>
         </section>
 
-        <section class="sec colophon">
+        <section id="colophon" class="sec colophon">
             <div class="rail mono">
                 <span class="no">No.</span><span class="num">05</span><span class="name">Colophon</span><span class="deg">{{ degrees }}</span>
             </div>
