@@ -94,6 +94,75 @@ fn overlapping_but_unnested_contours_stay_unioned() {
     );
 }
 
+/// A frame (outer square + its opening, as one stroked element) with a second element laid
+/// across the opening's edge — lucide's `image` at stroke width 3, where the mountain line runs
+/// into the frame. Inside the outer square but crossing the opening, the line used to become a
+/// hole of the frame, so where it overlaps the frame's band the fill cancelled to nothing.
+#[test]
+fn element_across_its_containers_opening_is_unioned() {
+    for bar_reversed in [false, true] {
+        let mut frame = PathBuilder::new();
+        square(&mut frame, 0.0, 0.0, 30.0);
+        // The opening, already wound as the frame's hole.
+        frame.move_to(5.0, 5.0);
+        frame.line_to(25.0, 5.0);
+        frame.line_to(25.0, 25.0);
+        frame.line_to(5.0, 25.0);
+        frame.close();
+        let mut bar = PathBuilder::new();
+        if bar_reversed {
+            bar.move_to(2.0, 12.0);
+            bar.line_to(15.0, 12.0);
+            bar.line_to(15.0, 18.0);
+            bar.line_to(2.0, 18.0);
+            bar.close();
+        } else {
+            bar.move_to(2.0, 12.0);
+            bar.line_to(2.0, 18.0);
+            bar.line_to(15.0, 18.0);
+            bar.line_to(15.0, 12.0);
+            bar.close();
+        }
+        let out = normalize_winding(vec![frame.finish().unwrap(), bar.finish().unwrap()]);
+        let s = signs(&out);
+        assert_eq!(s.len(), 3);
+        assert_ne!(s[0], s[1], "the frame's opening stays a hole");
+        assert_eq!(
+            s[2], s[0],
+            "an element straddling its container's opening must union with it (reversed={bar_reversed})"
+        );
+    }
+}
+
+/// Knockouts drawn as separate elements that cross each other (a white X over a filled disk)
+/// cross only one another, never the disk's own outline: both must stay holes.
+#[test]
+fn crossing_knockouts_inside_a_fill_stay_holes() {
+    let mut disk = PathBuilder::new();
+    square(&mut disk, 0.0, 0.0, 30.0);
+    let mut across = PathBuilder::new();
+    across.move_to(5.0, 13.0);
+    across.line_to(5.0, 17.0);
+    across.line_to(25.0, 17.0);
+    across.line_to(25.0, 13.0);
+    across.close();
+    let mut down = PathBuilder::new();
+    down.move_to(13.0, 5.0);
+    down.line_to(13.0, 25.0);
+    down.line_to(17.0, 25.0);
+    down.line_to(17.0, 5.0);
+    down.close();
+    let out = normalize_winding(vec![
+        disk.finish().unwrap(),
+        across.finish().unwrap(),
+        down.finish().unwrap(),
+    ]);
+    let s = signs(&out);
+    assert_eq!(s.len(), 3);
+    assert_ne!(s[1], s[0], "the horizontal bar is a knockout");
+    assert_ne!(s[2], s[0], "the vertical bar crossing it is a knockout too");
+}
+
 #[test]
 fn concave_outer_rejects_inner_edges_that_cross_outside() {
     let mut b = PathBuilder::new();
