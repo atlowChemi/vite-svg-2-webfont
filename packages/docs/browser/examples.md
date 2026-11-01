@@ -8,18 +8,19 @@ Each example runs in client-side code, with any bundler that handles `new URL(â€
 
 ## Fonts from dropped files
 
-Turn SVG files a user drops on the page into sources. File names become icon names, so replace anything other than letters, digits, hyphens, and underscores.
+Turn SVG files a user drops on the page into sources. File names become icon names, so replace anything other than letters, digits, hyphens, and underscores. [Iterator helpers](https://developer.mozilla.org/docs/Web/JavaScript/Reference/Global_Objects/Iterator) filter the `FileList` without copying it into an array first.
 
 ```ts [src/drop.ts]
 import { generateWebfonts, type SvgSource } from '@atlowchemi/webfont-browser-generator';
 
-async function toSources(files: Iterable<File>): Promise<SvgSource[]> {
-    const svgs = [...files].filter(file => file.name.endsWith('.svg'));
+function toSources(files: Iterable<File>): Promise<SvgSource[]> {
     return Promise.all(
-        svgs.map(async file => {
-            const name = file.name.slice(0, -4).replace(/[^\p{L}\p{N}_-]/gu, '-');
-            return { id: name, name, svg: await file.text() };
-        }),
+        Iterator.from(files)
+            .filter(file => file.name.endsWith('.svg'))
+            .map(async file => {
+                const name = file.name.slice(0, -4).replace(/[^\p{L}\p{N}_-]/gu, '-');
+                return { id: name, name, svg: await file.text() };
+            }),
     );
 }
 
@@ -120,31 +121,32 @@ The previous result is disposed only after the new one is ready, so the preview 
 Store the [engine cache](/guide/features/caching) between visits, so a returning user's unchanged icons aren't processed again. IndexedDB stores `Uint8Array` values as they are.
 
 ```ts [src/icon-cache.ts]
-const open = () =>
-    new Promise<IDBDatabase>((resolve, reject) => {
-        const request = indexedDB.open('icon-cache', 1);
-        request.onupgradeneeded = () => request.result.createObjectStore('caches');
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
+function settle<T>(request: IDBRequest<T>): Promise<T> {
+    const { promise, resolve, reject } = Promise.withResolvers<T>();
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+    return promise;
+}
+
+function open(): Promise<IDBDatabase> {
+    const request = indexedDB.open('icon-cache', 1);
+    request.onupgradeneeded = () => request.result.createObjectStore('caches');
+    return settle(request);
+}
 
 export async function loadCache(key: string): Promise<Uint8Array | undefined> {
     const db = await open();
-    return new Promise((resolve, reject) => {
-        const request = db.transaction('caches').objectStore('caches').get(key);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-    });
+    return settle(db.transaction('caches').objectStore('caches').get(key));
 }
 
 export async function saveCache(key: string, bytes: Uint8Array): Promise<void> {
     const db = await open();
-    return new Promise((resolve, reject) => {
-        const transaction = db.transaction('caches', 'readwrite');
-        transaction.objectStore('caches').put(bytes, key);
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => reject(transaction.error);
-    });
+    const transaction = db.transaction('caches', 'readwrite');
+    transaction.objectStore('caches').put(bytes, key);
+    const { promise, resolve, reject } = Promise.withResolvers<void>();
+    transaction.oncomplete = () => resolve();
+    transaction.onerror = () => reject(transaction.error);
+    return promise;
 }
 ```
 
