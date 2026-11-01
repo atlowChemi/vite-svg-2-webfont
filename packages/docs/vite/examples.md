@@ -3,11 +3,11 @@ description: Live vite-svg-2-webfont examples — each shows the Vite config, th
 ---
 
 <script setup>
-import ExampleTabs from './.vitepress/theme/components/ExampleTabs.vue';
-import ExampleIcons from './.vitepress/theme/components/ExampleIcons.vue';
-import ExampleOutput from './.vitepress/theme/components/ExampleOutput.vue';
-import ExampleCss from './.vitepress/theme/components/ExampleCss.vue';
-import TypedIcon from './examples/type-safe-component/Icon.vue';
+import ExampleTabs from '../.vitepress/theme/components/ExampleTabs.vue';
+import ExampleIcons from '../.vitepress/theme/components/ExampleIcons.vue';
+import ExampleOutput from '../.vitepress/theme/components/ExampleOutput.vue';
+import ExampleCss from '../.vitepress/theme/components/ExampleCss.vue';
+import TypedIcon from '../examples/type-safe-component/Icon.vue';
 </script>
 
 # Examples
@@ -21,7 +21,7 @@ Point `context` at a folder of SVGs: each file becomes a glyph and an `icon-<nam
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/basic/vite.config.ts
+<<< @/examples/basic/vite.config.ts
 
 </template>
 <template #icons>
@@ -42,7 +42,7 @@ Choose the font name, the base class, and the icon class prefix to match your pr
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/custom-naming/vite.config.ts
+<<< @/examples/custom-naming/vite.config.ts
 
 </template>
 <template #icons>
@@ -63,7 +63,7 @@ Ligatures are on by default: inside an element that uses the icon font, typing a
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/ligatures/vite.config.ts
+<<< @/examples/ligatures/vite.config.ts
 
 </template>
 <template #icons>
@@ -92,7 +92,7 @@ For optional physical source output, set `generateFiles: 'ts'` (default destinat
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', types: 'Type setup', components: 'Components', css: 'Generated CSS', generated: 'Generated TS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/type-safe-component/vite.config.ts
+<<< @/examples/type-safe-component/vite.config.ts
 
 </template>
 <template #icons>
@@ -104,7 +104,7 @@ Choose either option, preserving any existing type references or entries:
 
 ::: code-group
 
-<<< ./examples/type-safe-component/vite-env.d.ts
+<<< @/examples/type-safe-component/vite-env.d.ts
 
 ```json [tsconfig.json]
 {
@@ -121,13 +121,13 @@ Choose either option, preserving any existing type references or entries:
 
 ::: code-group
 
-<<< ./examples/type-safe-component/Icon.vue
+<<< @/examples/type-safe-component/Icon.vue
 
-<<< ./examples/type-safe-component/Icon.tsx
+<<< @/examples/type-safe-component/Icon.tsx
 
-<<< ./examples/type-safe-component/icon.component.ts
+<<< @/examples/type-safe-component/icon.component.ts
 
-<<< ./examples/type-safe-component/Icon.svelte
+<<< @/examples/type-safe-component/Icon.svelte
 
 :::
 
@@ -137,7 +137,7 @@ Choose either option, preserving any existing type references or entries:
 </template>
 <template #generated>
 
-<<< ./examples/type-safe-component/icons.ts
+<<< @/examples/type-safe-component/icons.ts
 
 </template>
 <template #output>
@@ -155,7 +155,7 @@ Add your own utilities to the generated stylesheet by starting from the built-in
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', template: 'icons.css.hbs', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/custom-css-template/vite.config.ts
+<<< @/examples/custom-css-template/vite.config.ts
 
 </template>
 <template #icons>
@@ -163,7 +163,7 @@ Add your own utilities to the generated stylesheet by starting from the built-in
 </template>
 <template #template>
 
-<<< ./examples/custom-css-template/icons.css.hbs{handlebars}
+<<< @/examples/custom-css-template/icons.css.hbs{handlebars}
 
 </template>
 <template #css>
@@ -184,7 +184,7 @@ Give each weight its own folder of matching file names. The designs share one fo
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/multi-weight/vite.config.ts
+<<< @/examples/multi-weight/vite.config.ts
 
 </template>
 <template #icons>
@@ -205,7 +205,7 @@ Keep the SVG colors for selected icons. Color glyphs need TTF, WOFF, or WOFF2 ou
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/color-glyphs/vite.config.ts
+<<< @/examples/color-glyphs/vite.config.ts
 
 </template>
 <template #icons>
@@ -238,7 +238,7 @@ The custom template reads `colorSlots.secondary`, the generated palette index. S
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', template: 'icons.css.hbs', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/theme-colors/vite.config.ts
+<<< @/examples/theme-colors/vite.config.ts
 
 </template>
 <template #icons>
@@ -246,7 +246,7 @@ The custom template reads `colorSlots.secondary`, the generated palette index. S
 </template>
 <template #template>
 
-<<< ./examples/theme-colors/icons.css.hbs{handlebars}
+<<< @/examples/theme-colors/icons.css.hbs{handlebars}
 
 </template>
 <template #css>
@@ -257,7 +257,7 @@ The custom template reads `colorSlots.secondary`, the generated palette index. S
 </template>
 </ExampleTabs>
 
-Palette overrides use explicit colors, not per-element `var(--secondary-color)` or `currentColor`. Select predefined palettes for your themes; only the foreground follows an inherited CSS variable here. Identical resolved RGB fills share a slot across selected icons and variants, with their layer opacity retained. Slots do not affect monochrome icons. Platforms using the monochrome fallback lose the secondary color; see [color compatibility](./webfont-generator/#browser-and-platform-compatibility).
+Palette overrides use explicit colors, not per-element `var(--secondary-color)` or `currentColor`. Select predefined palettes for your themes; only the foreground follows an inherited CSS variable here. Identical resolved RGB fills share a slot across selected icons and variants, with their layer opacity retained. Slots do not affect monochrome icons. Platforms using the monochrome fallback lose the secondary color; see [color compatibility](/guide/engine#browser-and-platform-compatibility).
 
 ## Pinned codepoints
 
@@ -266,7 +266,7 @@ Pin the codepoints of icons you publish, so CSS or content that refers to a code
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/pinned-codepoints/vite.config.ts
+<<< @/examples/pinned-codepoints/vite.config.ts
 
 </template>
 <template #icons>
@@ -291,7 +291,7 @@ Embed the fonts in the generated CSS as data URLs. The page makes no separate fo
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/inline-fonts/vite.config.ts
+<<< @/examples/inline-fonts/vite.config.ts
 
 </template>
 <template #icons>
@@ -312,7 +312,7 @@ Generate only the formats current browsers need, and preload WOFF2 so the browse
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', html: 'dist/index.html', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/preload/vite.config.ts
+<<< @/examples/preload/vite.config.ts
 
 </template>
 <template #icons>
@@ -340,7 +340,7 @@ Write the fonts, CSS, and HTML preview to a folder as well, for tools outside Vi
 <ExampleTabs :tabs="{ config: 'vite.config.ts', icons: 'icons/', files: 'generated/', css: 'Generated CSS', output: 'Output' }">
 <template #config>
 
-<<< ./examples/write-files/vite.config.ts
+<<< @/examples/write-files/vite.config.ts
 
 </template>
 <template #icons>

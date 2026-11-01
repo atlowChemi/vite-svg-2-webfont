@@ -32,7 +32,7 @@ const drawers = [
         plate: 'Rust',
         title: 'CLI',
         use: 'CI jobs or one-off local runs, from any language',
-        link: '/webfont-generator/cli',
+        link: '/cli/',
     },
     {
         key: 'node',
@@ -40,7 +40,7 @@ const drawers = [
         plate: 'Node',
         title: 'Build scripts',
         use: 'Your own tooling, at native speed',
-        link: '/webfont-generator/node',
+        link: '/node/',
     },
     {
         key: 'wasm',
@@ -48,7 +48,7 @@ const drawers = [
         plate: 'WASM',
         title: 'Browser',
         use: 'Casts from in-memory files, no file system needed',
-        link: '/webfont-generator/browser',
+        link: '/browser/',
     },
     {
         key: 'vite',
@@ -56,7 +56,7 @@ const drawers = [
         plate: 'Vite',
         title: 'Plugin',
         use: 'Runs inside the dev server, icon edits hot-reload on save',
-        link: '/getting-started',
+        link: '/vite/',
     },
 ];
 const activeKey = ref('cli');
@@ -260,8 +260,8 @@ onBeforeUnmount(() => {
                         </div>
                     </div>
                     <div class="actions">
-                        <a class="button brand" href="/getting-started">Get started</a>
-                        <a class="button" href="/which-package">Which package do I need?</a>
+                        <a class="button brand" href="/guide/">Get started</a>
+                        <a class="button" href="/playground">Try the playground</a>
                     </div>
                 </div>
             </div>
@@ -365,9 +365,9 @@ onBeforeUnmount(() => {
 
         <footer class="footer">
             <span class="footer-name">fonte</span>
-            <a href="/getting-started">Docs</a>
+            <a href="/guide/">Docs</a>
             <a :href="repo">GitHub</a>
-            <a href="/changelog">Changelog</a>
+            <a href="/rust/changelog">Changelog</a>
             <span class="license mono">MIT license · © Chemi Atlow</span>
         </footer>
     </div>

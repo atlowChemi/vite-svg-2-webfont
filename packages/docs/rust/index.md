@@ -28,7 +28,7 @@ Tokio runtime internally, so `fs` implies `async` even for synchronous callers.
 Features are additive: another dependency can enable additional capabilities in the same
 Cargo build.
 
-With `cli` enabled, `GenerateWebfontsOptions` and its input types implement `serde::Deserialize` using camelCase field names and rejecting unknown fields. Deserialization alone does not expand directories or rebase paths; those operations belong to the [CLI manifest loader](./cli#json-manifest).
+With `cli` enabled, `GenerateWebfontsOptions` and its input types implement `serde::Deserialize` using camelCase field names and rejecting unknown fields. Deserialization alone does not expand directories or rebase paths; those operations belong to the [CLI manifest loader](/cli/#json-manifest).
 
 ### Migrating from the embedded Node binding
 
@@ -353,7 +353,7 @@ let result = webfont_generator::generate_sync(options, Some(rename)).unwrap();
 | `normalize`             | `Option<bool>`                 | `true`                                                                     | Normalize glyph heights                                                       |
 | `incremental`           | `Option<bool>`                 | `false`                                                                    | Retain parsed glyphs for `regenerate`                                         |
 | `cache_location`        | `Option<String>`               | `None`                                                                     | Persistent cache directory; see [cache](#persistent-cache)                    |
-| `threads`               | `Option<NonZeroUsize>`         | One per core                                                               | Threads reading and doing glyph work at once; see [`threads`](./node#threads) |
+| `threads`               | `Option<NonZeroUsize>`         | One per core                                                               | Threads reading and doing glyph work at once; see [`threads`](/node/#threads) |
 | `fixed_width`           | `Option<bool>`                 | --                                                                         | Monospace font                                                                |
 | `center_horizontally`   | `Option<bool>`                 | --                                                                         | Center glyphs horizontally                                                    |
 | `center_vertically`     | `Option<bool>`                 | --                                                                         | Center glyphs vertically                                                      |
@@ -375,9 +375,9 @@ Set `cache_location` to reuse work across processes. Unchanged icons skip parsin
 processing, and formats whose inputs didn't change come straight from the cache. Output is
 byte-identical to an uncached run, except that when `format_options.ttf.ts` is unset, each
 cached format keeps the TTF `head` timestamp of the run that created it, so formats in one output
-can carry different timestamps; set `ts` for reproducible output. See [`cacheLocation`](./node#cachelocation) for the full behavior (it is the same option),
-[caching across builds](./node#caching-across-builds) for CI and Docker setups, and
-[performance](./under-the-hood#persistent-cache) for measured speedups.
+can carry different timestamps; set `ts` for reproducible output. See [`cacheLocation`](/node/#cachelocation) for the full behavior (it is the same option),
+[caching across builds](/node/#caching-across-builds) for CI and Docker setups, and
+[performance](/guide/under-the-hood#persistent-cache) for measured speedups.
 
 With `incremental: Some(true)`, committed updates automatically queue background cache writes,
 including single-file helpers and async replacements. A single writer per result lineage
@@ -426,9 +426,9 @@ cache directory; outstanding background writes can otherwise recreate removed fi
 
 By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG colors, set `color_glyphs: Some(ColorGlyphSelection::All)` for all glyphs or `Some(ColorGlyphSelection::Named(vec!["logo".into()]))` for selected names on `GenerateWebfontsOptions`.
 
-Named selection uses final post-rename logical names across every variant, including fallback states; blank states have no color record. `None` or an empty named list keeps monochrome output. Duplicates are harmless; unknown names are reported together in first-occurrence input order. Set `types` to TTF, WOFF, and/or WOFF2; ordinary defaults include incompatible EOT. See [color glyphs](./#color-glyphs) for SVG semantics and platform compatibility.
+Named selection uses final post-rename logical names across every variant, including fallback states; blank states have no color record. `None` or an empty named list keeps monochrome output. Duplicates are harmless; unknown names are reported together in first-occurrence input order. Set `types` to TTF, WOFF, and/or WOFF2; ordinary defaults include incompatible EOT. See [color glyphs](/guide/engine#color-glyphs) for SVG semantics and platform compatibility.
 
-Both file and SVG-text options accept `color_slots: Option<HashMap<String, String>>`, for example `Some(HashMap::from([("secondary".into(), "#ff9900".into())]))`. Nonempty slots require active `color_glyphs`. Colors must be distinct `#RRGGBB` values; names use ASCII letters, digits, hyphens or underscores. Slots reserve palette indices in ASCII name order, including unused colors. The CSS template context exposes `colorSlots` as name-to-index numbers for `@font-palette-values`. Matching uses resolved RGB and preserves layer opacity. See [slot semantics](./node#colorslots) and the [theme example](../examples#theme-colors-in-one-glyph).
+Both file and SVG-text options accept `color_slots: Option<HashMap<String, String>>`, for example `Some(HashMap::from([("secondary".into(), "#ff9900".into())]))`. Nonempty slots require active `color_glyphs`. Colors must be distinct `#RRGGBB` values; names use ASCII letters, digits, hyphens or underscores. Slots reserve palette indices in ASCII name order, including unused colors. The CSS template context exposes `colorSlots` as name-to-index numbers for `@font-palette-values`. Matching uses resolved RGB and preserves layer opacity. See [slot semantics](/node/#colorslots) and the [theme example](/vite/examples#theme-colors-in-one-glyph).
 
 ```rust
 use webfont_generator::{generate_sync, ColorGlyphSelection, FontType, GenerateWebfontsOptions};
@@ -483,8 +483,8 @@ TTF is also supported; SVG and EOT are not available for multi-variant families.
 For sparse designs, set [`missing_glyphs`](#missingglyphoptions). Incremental regeneration is
 available with `incremental: Some(true)` through the [variant methods](#variant-regeneration).
 
-See [Templates](./templates) for CSS customization, SCSS, and the
-[additional template context fields](./templates#template-context).
+See [Templates](/guide/templates) for CSS customization, SCSS, and the
+[additional template context fields](/guide/templates#template-context).
 
 ## `FontVariant`
 
@@ -601,7 +601,7 @@ a partial bundle if a write fails.
 The CSS and HTML methods accept `Option<HashMap<FontType, String>>` for the `urls` parameter. Results are cached internally for repeated calls with the same arguments.
 
 `None` uses generated URLs. `Some` replaces all defaults, leaving omitted entries empty;
-multi-variant results reject SVG/EOT URL overrides. See the shared [Templates reference](./templates)
+multi-variant results reject SVG/EOT URL overrides. See the shared [Templates reference](/guide/templates)
 for context fields, generated CSS, HTML previews, and SCSS usage.
 
 ### TypeScript output
@@ -769,6 +769,6 @@ For the complete API surface including all sub-types, see [docs.rs/webfont-gener
 
 ## See also
 
-- [Overview](./) -- architecture and design
-- [Node.js usage](./node) -- npm package API reference
-- [CLI usage](./cli) -- command-line interface
+- [Overview](/guide/engine) -- architecture and design
+- [Node.js usage](/node/) -- npm package API reference
+- [CLI usage](/cli/) -- command-line interface
