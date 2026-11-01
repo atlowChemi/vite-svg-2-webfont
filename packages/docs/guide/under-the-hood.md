@@ -66,7 +66,7 @@ flowchart TD
     end
 ```
 
-This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs. See [multi-variant fonts](/node/usage#multi-variant-fonts) and [color selection](/node/usage#color-selection) for usage.
+This path supports TTF, WOFF, and WOFF2; SVG/EOT output is available only for color-disabled single-face fonts. Multi-variant families also support incremental regeneration, reusing cached geometry and paint for unchanged designs. See [multi-variant fonts](/guide/features/variants) and [color selection](/guide/features/color-glyphs) for usage.
 
 ## Performance
 
@@ -141,13 +141,13 @@ Both platforms loaded `ttf2woff2` 4.0.5's JavaScript fallback rather than its na
 
 The shared-geometry pipeline avoids reparsing an SVG font to compile binary formats. Requesting only the formats you need also skips unnecessary output work: a WOFF2-only build does not serialize an SVG font or assemble a TTF binary.
 
-For repeated builds—such as a dev server regenerating your icon font whenever you edit an SVG—[incremental generation](/node/usage#incremental) can reuse parsed glyphs, compiled glyphs, font tables, and WOFF compression or transform work from the previous build, giving you faster feedback while developing. In our 100–600-glyph benchmarks, a one-SVG edit rebuilt **1.5–1.8× faster than a full Rust build** and **12–17× faster than Vusion**, which always rebuilds the entire font.
+For repeated builds—such as a dev server regenerating your icon font whenever you edit an SVG—[incremental generation](/guide/features/incremental) can reuse parsed glyphs, compiled glyphs, font tables, and WOFF compression or transform work from the previous build, giving you faster feedback while developing. In our 100–600-glyph benchmarks, a one-SVG edit rebuilt **1.5–1.8× faster than a full Rust build** and **12–17× faster than Vusion**, which always rebuilds the entire font.
 
-Multi-weight families use a variant compilation path to produce TTF, WOFF, and WOFF2; see [multi-variant fonts](/node/usage#multi-variant-fonts).
+Multi-weight families use a variant compilation path to produce TTF, WOFF, and WOFF2; see [multi-variant fonts](/guide/features/variants).
 
 #### Persistent cache
 
-Incremental generation helps within one process. The opt-in [`cacheLocation`](/node/usage#cachelocation) carries saved work across processes—a new dev server, a CLI run, or a CI job with a restored cache. Values are milliseconds with the native default settings from the tables above; **Warm speedup** is the uncached time divided by the warm time.
+Incremental generation helps within one process. The opt-in [`cacheLocation`](/guide/features/caching) carries saved work across processes—a new dev server, a CLI run, or a CI job with a restored cache. Values are milliseconds with the native default settings from the tables above; **Warm speedup** is the uncached time divided by the warm time.
 
 ##### macOS
 

@@ -31,7 +31,7 @@ const cssCustom = result.generateCss({ woff2: '/fonts/icons.woff2' });
 
 ## Color selection
 
-By default, each SVG icon is flattened into a monochrome glyph. To preserve SVG colors, set `colorGlyphs: true` for all glyphs or `colorGlyphs: ['logo']` for selected final post-rename names. Omission or `[]` keeps monochrome output. See [`colorGlyphs`](#colorglyphs) for validation rules and [color glyphs](/guide/engine#color-glyphs) for paint semantics and browser/platform limits.
+Set `colorGlyphs: true` to keep the SVG colors of every icon, or `colorGlyphs: ['logo']` for selected icons. See [color glyphs](/guide/features/color-glyphs) for the selection rules, theme palettes with [`colorSlots`](#colorslots), supported SVG paint, and browser support.
 
 ```ts
 const result = await generateWebfonts({
@@ -72,18 +72,6 @@ family.regenerate(
 );
 ```
 
-### Named theme colors
-
-Set `colorSlots: { secondary: '#ff9900' }` alongside `colorGlyphs` to reserve a palette entry for a theme color. Use `fill="currentColor"` for foreground paths and `fill="#ff9900"` for secondary paths. A CSS template or `cssContext` callback receives `colorSlots.secondary`, the numeric index to use in `@font-palette-values`'s `override-colors` descriptor. See the [live light/dark example](/vite/examples#theme-colors-in-one-glyph).
-
-### Color regeneration
-
-The existing result and regeneration methods are used; there are no color-specific getters. Paint-only edits change font bytes and their hashes, including generated CSS font URLs. Changing color selection between builds also changes the URL hash; array order and duplicate names do not. Omission and an empty array retain the same monochrome hash. A fresh build and an incremental build of the same final inputs produce matching output. Variant fallback consumers receive their source's paint changes, while blank/fallback membership transitions update the COLR records.
-
-Named selection is checked again after regeneration renames and membership changes. Removing the last source of a selected logical name fails rather than silently disabling that selection. Selection, parsing, or font-build failures retain the previous output and permit a corrected retry.
-
-The existing write-failure contracts still apply. Ordinary synchronous regeneration restores the previous in-memory result; retry with the changes or a full re-diff. Synchronous variant regeneration retains newly committed in-memory output and pending disk writes; a no-op retry completes those writes. Asynchronous regeneration preserves the receiver and returns a new result only on success; failed writes can be reconciled on retry. See [incremental generation](#incremental).
-
 ## Multi-variant fonts
 
 A multi-variant family groups several designs of the same icons, such as light and bold,
@@ -109,83 +97,26 @@ Load the generated `my-icons.css`, then use the icon class with an optional vari
 <span class="icon icon-add" aria-hidden="true"></span> <span class="icon icon-add icon--bold" aria-hidden="true"></span>
 ```
 
-The first icon uses the default design (`light`); the second uses `bold`. Each design needs a
-unique name and at least one SVG, and exactly one design must be the default. Omit `weight`
-to assign weights automatically, or supply increasing weights from 1–1000.
-
-Multi-variant output supports TTF, WOFF, and WOFF2, defaulting to WOFF/WOFF2. For icons that
-appear in only some designs, choose a [missing-glyph policy](#missingglyphs). Incremental
-regeneration is available with `incremental: true`; use the [variant methods](#variant-regeneration).
+The first icon uses the default design (`light`); the second uses `bold`. See [variants](/guide/features/variants)
+for the rules on designs and weights, supported formats, and icons missing from a design
+([`missingGlyphs`](#missingglyphs)). To update a family, use the [variant methods](#variant-regeneration).
 
 Custom templates receive extra family metadata; see the [template context comparison](/guide/templates#template-context).
 For stylesheet customization and SCSS, see [Templates](/guide/templates).
-
-## Caching across builds
-
-[`cacheLocation`](#cachelocation) is a plain directory, so any cache your build system already provides can carry it between runs. Restoring an older cache is still useful: icons that didn't change hit even when others did, and anything stale is ignored.
-
-::: code-group
-
-```yaml [GitHub Actions]
-- uses: actions/cache@v6
-  with:
-      path: .webfont-cache
-      # A new key per icon change saves an updated cache; restore-keys reuse the latest older one.
-      key: webfont-${{ runner.os }}-${{ hashFiles('icons/**/*.svg', 'pnpm-lock.yaml') }}
-      restore-keys: webfont-${{ runner.os }}-
-- run: node scripts/build-icons.mjs # generateWebfonts({ ..., cacheLocation: '.webfont-cache' })
-```
-
-```yaml [GitLab CI]
-build-icons:
-    script:
-        - node scripts/build-icons.mjs # generateWebfonts({ ..., cacheLocation: '.webfont-cache' })
-    cache:
-        key: webfont-$CI_COMMIT_REF_SLUG
-        fallback_keys: [webfont-$CI_DEFAULT_BRANCH]
-        paths: [.webfont-cache/]
-```
-
-```dockerfile [Dockerfile]
-# syntax=docker/dockerfile:1
-FROM node:24 AS icons
-WORKDIR /app
-COPY . .
-# BuildKit keeps the mount between builds; it never becomes part of the image.
-RUN --mount=type=cache,id=webfont-cache,target=/app/.webfont-cache \
-    node scripts/build-icons.mjs
-```
-
-:::
-
-::: warning Only restore trusted caches
-Cached fonts are reused as-is, so a cache directory is trusted build output. Only restore caches written by trusted builds, and clear the directory if in doubt. GitHub Actions already isolates caches saved by pull requests from the default branch; with other systems, avoid sharing one cache between untrusted branches and release builds.
-:::
 
 ## Options reference
 
 ### `colorSlots`
 
-- **Type:** `Record<string, string>`
-- **Default:** omitted (no reserved slots)
-
-Maps semantic names to distinct six-digit `#RRGGBB` source colors (case-insensitive). Names must be nonempty ASCII letters, digits, hyphens or underscores. Nonempty slots require active `colorGlyphs`; they do not enable color themselves. Empty maps are equivalent to omission.
-
-Indices start at zero in ASCII slot-name order. All slots are reserved even when unused; automatically discovered colors follow them. Changing icon membership or paint cannot move the reserved slots, but adding/removing/renaming slots can. Read `colorSlots` from the CSS context rather than hardcoding indices. This engine-owned context field overrides any same-named `templateOptions` value; CSS callbacks can still customize the context.
-
-Matching uses the resolved SVG RGB, across selected glyphs and variants, preserving layer opacity. Two slots cannot use the same RGB value. Unselected glyphs remain monochrome, and foreground paint continues to use the host text color. Slot configuration contributes to CSS font-URL hashes; object insertion order and hex letter case do not. Settings stay fixed during incremental regeneration.
-
-Slots select CSS font-palette entries, not inherited secondary CSS variables. Define explicit colors in named `@font-palette-values` rules and select them using `font-palette`. The font still contains its original default colors; browsers without color-font support use the monochrome fallback.
+- Type: `Record<string, string>`
+- Default: omitted (no reserved slots)
+- Description: Reserve named palette entries for theme colors, such as `{ secondary: '#ff9900' }`. Requires active [`colorGlyphs`](#colorglyphs). CSS templates and the `cssContext` callback receive `colorSlots` as a map from slot name to palette index; this engine-owned field overrides a same-named `templateOptions` value. See [theme colors](/guide/features/color-glyphs#theme-colors).
 
 ### `colorGlyphs`
 
 - Type: `true | string[]`
-- Default: omitted (monochrome)
-- Description: Preserve solid SVG paint for all glyphs (`true`) or selected final post-rename logical names. An empty array disables color. `false`, `null`, strings, and mixed-type arrays are invalid. Selection applies across every variant, including resolved fallbacks. Unknown names are rejected.
-
-Duplicates are harmless. Unknown names are reported together in first-occurrence input order. A selected logical name applies to every resolved design, including fallback states; blank states have no color record.
-
-Active color requires TTF, WOFF, or WOFF2. Ordinary defaults include EOT, so specify compatible `types`; variant defaults are compatible. Color selection contributes to CSS font-URL hashes; array order and repeated names do not change the hash. See [color selection](#color-selection) for incremental examples and [color glyphs](/guide/engine#color-glyphs) for SVG semantics and browser/platform compatibility.
+- Default: omitted (single-color)
+- Description: Keep the SVG colors of every icon (`true`) or of the listed final icon names. An empty array disables color. Requires TTF, WOFF, or WOFF2 output. See [color glyphs](/guide/features/color-glyphs) for the selection rules and supported SVG paint, and [color selection](#color-selection) for examples.
 
 ### `files`
 
@@ -306,7 +237,7 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 ### `codepoints`
 
 - Type: `Record<string, number>`
-- Description: Explicit Unicode codepoints for specific glyphs, keyed by glyph name.
+- Description: Explicit Unicode codepoints for specific glyphs, keyed by glyph name. See [pin codepoints](/guide/features/codepoints-and-ligatures#pin-codepoints).
 
 ### `startCodepoint`
 
@@ -339,26 +270,16 @@ rejects missing cells; fallback reuses `Regular` artwork, so `Regular` must cont
 
 - Type: `boolean`
 - Default: `false`
-- Description: Retain parsed glyph data on the result so [`regenerateAsync()`](#regenerateasync-files-changes) or [`regenerate()`](#regenerate-files-changes) can rebuild after file changes without re-parsing the glyphs that didn't change. Enable for watch/dev; leave it off for one-shot builds so the parsed geometry isn't held in memory.
+- Description: Retain parsed glyph data on the result for [incremental updates](/guide/features/incremental), so [`regenerateAsync()`](#regenerateasync-files-changes) or [`regenerate()`](#regenerate-files-changes) can rebuild after file changes without re-parsing the glyphs that didn't change. Enable for watch/dev; leave it off for one-shot builds so the parsed geometry isn't held in memory.
 
 ### `cacheLocation`
 
 - Type: `string`
-- Description: Directory for a persistent generation cache. A run saves per-icon work (parsed and processed glyph outlines) and finished font bytes there; later runs reuse them for icons and formats that didn't change, so a fresh process starts warm. Output is byte-identical to an uncached run (this wrapper always sets `formatOptions.ttf.ts`; see the timestamp note below for the Rust API and CLI). See [caching across builds](#caching-across-builds) for CI and Docker setups and [performance](/guide/under-the-hood#persistent-cache) for measured speedups.
-    - An edited icon is reprocessed alone; the others reuse their saved work.
-    - Incremental updates (`regenerate`, `add`, `update`, `remove`, and their async variants) automatically schedule background persistence. One writer per result lineage coalesces pending updates to the latest committed generation; encoding and disk I/O do not block rebuilding.
-    - TypeScript companion output is rendered from current icon names and selector settings even when all fonts hit the cache. Membership changes refresh it; geometry-only changes reuse it.
-    - When only CSS/HTML options change (templates, `cssFontsUrl`, `templateOptions`, …), every font comes from the cache.
-    - Formats are cached separately, so builds that differ only in a format option (for example WOFF2 compression quality between dev and production) share the rest. Each format keeps its latest entry plus one for the same icons with different format options.
-    - Builds that request different `types` (for example WOFF2 only in dev, all five in production) still share fonts and parsed glyphs, but processed outlines are kept for the latest `types` only, so alternating between them reprocesses paths.
-    - Without a fixed `formatOptions.ttf.ts` (Rust API and CLI only), each cached format keeps the TTF `head` timestamp of the run that created it, so formats in one output can carry different timestamps. Set `ts` for reproducible output.
-    - Entries are keyed by file contents, not paths, so a moved checkout still hits.
-    - A single-design font and a variant family with the same `fontName` replace each other's cache file, so alternating between them runs uncached.
-    - The engine owns the `*.wfcache` files it creates; remove them with [`clearCache()`](#clearcache-cachelocation). Rebuilding the native engine locally without a version change keeps old entries, so clear the cache after such a build.
-    - Read or write failures (missing permissions, corrupt or truncated files) never fail generation; the run recomputes, replaces corrupt or truncated files, and leaves an unwritable location uncached. Saved fonts and saved per-icon work carry separate checksums, so accidental corruption is detected rather than reused. Runs whose fonts all come from the cache don't read the per-icon work, so damage limited to it is detected and repaired by the next run that needs it (one with a format to rebuild, or an incremental one). A directory where the cache file belongs is never removed; generation prints a warning and stays uncached until you remove it.
-    - Cached fonts are reused as-is, so only restore trusted caches; see the [warning under caching across builds](#caching-across-builds).
-
-Await [`result.flushCache()`](#result-flushcache) before shutdown to finish pending incremental cache writes.
+- Description: Directory for the persistent [engine cache](/guide/features/caching). A run saves per-icon work and finished fonts there, and later runs reuse them for icons and formats that didn't change. Output is byte-identical to an uncached run; this package always sets `formatOptions.ttf.ts`, so cached fonts never carry another run's timestamp. Off by default.
+    - With [`incremental`](#incremental), every committed update queues a background cache write. Await [`result.flushCache()`](#result-flushcache) before shutdown.
+    - Remove the files the engine created with [`clearCache()`](#clearcache-cachelocation). Rebuilding the native engine locally without a version change keeps old entries, so clear the cache after such a build.
+    - A directory where the cache file belongs is never removed; generation prints a warning and stays uncached until you remove it.
+    - Cached fonts are reused as-is, so only restore trusted caches. See [keep it between CI runs](/guide/features/caching#keep-it-between-ci-runs) for CI and Docker setups.
 
 ### `threads`
 
@@ -389,7 +310,7 @@ Await [`result.flushCache()`](#result-flushcache) before shutdown to finish pend
 
 - Type: `boolean`
 - Default: `true`
-- Description: Enable ligature support. When enabled, each glyph can be referenced by its name as a text ligature.
+- Description: Enable ligature support. When enabled, each glyph can be referenced by its name as a text ligature. See [classes or ligatures?](/guide/features/codepoints-and-ligatures#classes-or-ligatures)
 
 ### `round`
 

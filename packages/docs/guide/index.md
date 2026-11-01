@@ -32,7 +32,7 @@ flowchart TD
 | ------------------------------------------------- | ------------------------ | ---------------------- | ---------------------- | ------------------ | ------------------ |
 | SVG, TTF, EOT, WOFF, WOFF2                        | ✅                       | ✅                     | ✅                     | ✅                 | ✅                 |
 | [Multi-weight families](/guide/glossary#variant)  | ✅                       | ✅                     | ✅                     | ✅                 | ✅ (JSON config)   |
-| [Color glyphs](/guide/engine#color-glyphs)        | ✅                       | ✅                     | ✅                     | ✅                 | ✅ (JSON config)   |
+| [Color glyphs](/guide/features/color-glyphs)      | ✅                       | ✅                     | ✅                     | ✅                 | ✅ (JSON config)   |
 | Custom Handlebars templates                       | ✅ (file paths)          | ✅ (file paths)        | ✅ (template text)     | ✅ (paths or text) | ✅ (file paths)    |
 | Callbacks (`rename`, `cssContext`, `htmlContext`) | `cssContext` only        | ✅                     | —                      | ✅ (hooks)         | —                  |
 | Incremental rebuilds                              | Automatic in development | ✅                     | ✅                     | ✅                 | —                  |
@@ -57,7 +57,7 @@ Icon fonts and SVG sprites (or inline SVGs) both put icons on a page, and they s
 
 **An SVG sprite or inline SVG is a better fit when:**
 
-- **Icons need full SVG artwork.** Gradients, strokes, masks, and many colors come out exactly as drawn. Icon fonts are monochrome by default, and [color glyphs](/guide/engine#color-glyphs) support only solid fills. Some platforms show the monochrome fallback instead.
+- **Icons need full SVG artwork.** Gradients, strokes, masks, and many colors come out exactly as drawn. Icon fonts are monochrome by default, and [color glyphs](/guide/features/color-glyphs) support only solid fills. Some platforms show the monochrome fallback instead.
 - **You animate parts of an icon.** Separate SVG paths can be animated on their own; a font glyph cannot.
 - **Icons must appear before any font loads.** Inline SVG renders with the HTML. An icon font renders once the font has loaded, though a [preload](/vite/configuration#preloadformats) or [`inline`](/vite/configuration#inline) shortens or removes that gap.
 - **You use only a handful of icons from a large set.** Sprite tools can include only the icons a page uses. An icon font contains every icon it was built with, so build it from the set you actually use.

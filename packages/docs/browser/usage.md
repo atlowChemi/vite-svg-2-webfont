@@ -135,9 +135,10 @@ options, create a new result.
 
 ## Persistent cache
 
-Pass `cache` to reuse work from an earlier session. Start with an empty array, store what
-`exportCache()` returns, and pass it back next time. Unchanged icons skip parsing and path
-processing, and unchanged formats are reused; output is byte-identical.
+Pass `cache` to reuse work from an earlier session with the [engine cache](/guide/features/caching).
+Start with an empty array, store what `exportCache()` returns, and pass it back next time.
+Unchanged icons skip parsing and path processing, and unchanged formats are reused; output is
+byte-identical.
 
 The package only accepts and returns the bytes (a `Uint8Array`); storing them is up to your app.
 Keep them anywhere that holds binary data: IndexedDB (stores `Uint8Array` natively), the Origin
@@ -176,7 +177,8 @@ from users or other origins, and clear the stored copy if in doubt.
 
 ## Incremental updates
 
-With `incremental: true`, single actions derive membership from the worker's current result:
+With `incremental: true`, a result can be [updated](/guide/features/incremental) in place. Single
+actions derive membership from the worker's current result:
 
 ```ts
 await result.add({ id: 'search', name: 'search', svg: searchSvg });
