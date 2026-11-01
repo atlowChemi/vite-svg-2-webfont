@@ -11,7 +11,7 @@ This page explains how the engine works internally. You don't need it to use any
 The shared Rust engine owns font generation, template rendering, and caches. Each distribution is a thin adapter around it:
 
 - The **npm package** owns the JavaScript API, callback transport, and conversion between JavaScript and Rust values. Its `webfont-generator-napi` crate is an internal workspace implementation, not a separate package for consumers to install.
-- The **browser package** compiles the engine's filesystem-free API to WebAssembly with wasm-bindgen and runs it in a dedicated module worker.
+- The **browser package** compiles the engine's filesystem-free API to WebAssembly with wasm-bindgen and runs it in module workers: one per result, or one shared by every result of a generator.
 - The **CLI** is a binary inside the Rust crate, behind the `cli` feature.
 
 ## Architecture

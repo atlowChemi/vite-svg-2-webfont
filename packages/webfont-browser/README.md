@@ -18,3 +18,4 @@ Generate webfonts from SVG text in browser workers, powered by precompiled WebAs
 - [Incremental updates](https://fonte.atlow.dev/webfont-generator/browser#incremental-updates)
 - [Persistent cache](https://fonte.atlow.dev/webfont-generator/browser#persistent-cache)
 - [Worker lifetime and hosting](https://fonte.atlow.dev/webfont-generator/browser#worker-lifetime-and-hosting)
+- [Reuse one worker](https://fonte.atlow.dev/webfont-generator/browser#reuse-one-worker)

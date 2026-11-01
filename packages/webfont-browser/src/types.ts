@@ -81,9 +81,32 @@ export type WebfontResult = {
     update: (id: string, svg: string, name?: string) => Promise<void>;
     /** Remove an existing source from every design. Rejects empty designs. */
     remove: (id: string) => Promise<void>;
-    /** Terminate the worker and reject outstanding calls. Safe to call repeatedly. */
+    /**
+     * Reject outstanding calls and release the result. A result from `generateWebfonts` terminates its worker; one
+     * from a generator frees its session and leaves the generator's other results running. Safe to call repeatedly.
+     */
     dispose: () => void;
     /** Synchronous scope cleanup for `using result = await generateWebfonts(...)`. */
+    [Symbol.dispose]: () => void;
+};
+
+/** Where to load the worker from. By default, bundlers resolve it relative to the package entry. */
+export type WorkerRuntime = {
+    /** A separately hosted worker; serve its WASM file beside it. */
+    workerUrl?: string | URL;
+};
+
+/**
+ * One worker that hosts any number of results, each with its own options and session. The WASM loads once, so
+ * every generation after the first starts right away. Calls from all its results share one queue and run in
+ * submission order; create more generators to build in parallel.
+ */
+export type WebfontGenerator = {
+    /** Generate a new result in this generator's worker. Takes the same options as the top-level function. */
+    generateWebfonts: (options: GenerateWebfontsOptions) => Promise<WebfontResult>;
+    /** Terminate the worker and reject outstanding calls of every result. Safe to call repeatedly. */
+    dispose: () => void;
+    /** Synchronous scope cleanup for `using generator = createWebfontGenerator()`. */
     [Symbol.dispose]: () => void;
 };
 
@@ -95,7 +118,7 @@ export type RequestPayload =
     | { method: 'update'; sourceId: string; svg: string; name?: string }
     | { method: 'remove'; sourceId: string }
     | { method: 'font'; format: string }
-    | { method: 'css' | 'html' | 'ts' | 'outputs' | 'cache' };
-export type Request = { id: number } & RequestPayload;
+    | { method: 'css' | 'html' | 'ts' | 'outputs' | 'cache' | 'dispose' };
+export type Request = { id: number; session: number } & RequestPayload;
 export type Result = undefined | string | Uint8Array<ArrayBuffer> | CollectedOutputs;
 export type Response = { id: number } & ({ ok: true; value: Result } | { ok: false; error: Error; fatal: boolean });

@@ -1,5 +1,5 @@
 import { beforeEach, expect, it, vi } from 'vite-plus/test';
-import { generateWebfonts } from '../src';
+import { createWebfontGenerator, generateWebfonts } from '../src';
 import type { Request, Response } from '../src/types';
 
 let worker: EventTarget & { postMessage: ReturnType<typeof vi.fn>; terminate: ReturnType<typeof vi.fn> };
@@ -82,4 +82,52 @@ it('sends cache bytes beside the JSON settings and requests exports', async () =
     await expect(result.exportCache()).resolves.toEqual(new Uint8Array([1]));
     expect(requests[0]).toMatchObject({ method: 'generate', cache, options: '{"fontName":"cached"}' });
     expect(requests[1]).toMatchObject({ method: 'cache' });
+});
+
+it('hosts many results in one worker and disposes them independently', async () => {
+    const requests: Request[] = [];
+    // Hold font replies so a call can still be pending when its result is disposed.
+    worker.postMessage.mockImplementation((data: Request) => {
+        requests.push(data);
+        if (data.method !== 'font') respond({ id: data.id, ok: true, value: data.method === 'css' ? `css ${data.session}` : undefined });
+    });
+    using generator = createWebfontGenerator();
+    const first = await generator.generateWebfonts({ fontName: 'first' });
+    using second = await generator.generateWebfonts({ fontName: 'second' });
+    expect(Worker).toHaveBeenCalledOnce();
+    expect(requests.map(({ method, session }) => [method, session])).toEqual([
+        ['generate', 0],
+        ['generate', 1],
+    ]);
+
+    const pending = first.font('ttf');
+    first.dispose();
+    first.dispose();
+    await expect(pending).rejects.toThrow('Webfont result has been disposed');
+    await expect(first.generateCss()).rejects.toThrow('Webfont result has been disposed');
+    expect(requests.filter(({ method }) => method === 'dispose')).toEqual([expect.objectContaining({ session: 0 })]);
+    await expect(second.generateCss()).resolves.toBe('css 1');
+    expect(worker.terminate).not.toHaveBeenCalled();
+});
+
+it('keeps the generator after a failed generation and terminates it on disposal', async () => {
+    worker.postMessage.mockImplementation(({ id, method }: Request) =>
+        respond(method === 'generate' && id === 0 ? { id, ok: false, error: new Error('unknown field'), fatal: false } : { id, ok: true, value: undefined }),
+    );
+    const generator = createWebfontGenerator({ workerUrl: '/worker.js' });
+    expect(Worker).toHaveBeenCalledWith('/worker.js', { type: 'module', name: 'webfont-browser' });
+    await expect(generator.generateWebfonts({})).rejects.toThrow('unknown field');
+    const result = await generator.generateWebfonts({});
+    expect(worker.terminate).not.toHaveBeenCalled();
+    generator[Symbol.dispose]();
+    generator.dispose();
+    expect(worker.terminate).toHaveBeenCalledOnce();
+    await expect(result.font('ttf')).rejects.toThrow('Webfont generator has been disposed');
+    await expect(generator.generateWebfonts({})).rejects.toThrow('Webfont generator has been disposed');
+});
+
+it('terminates a single-result worker when its generation fails', async () => {
+    worker.postMessage.mockImplementation(({ id }: Request) => respond({ id, ok: false, error: new Error('unknown field'), fatal: false }));
+    await expect(generateWebfonts({})).rejects.toThrow('unknown field');
+    expect(worker.terminate).toHaveBeenCalledOnce();
 });

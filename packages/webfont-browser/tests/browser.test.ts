@@ -1,5 +1,5 @@
 import { afterEach, expect, it } from 'vite-plus/test';
-import { generateWebfonts, type GenerateWebfontsOptions, type WebfontResult } from '../src';
+import { createWebfontGenerator, generateWebfonts, type GenerateWebfontsOptions, type WebfontResult } from '../src';
 
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#f00" d="M2 2H22V22H2Z"/></svg>';
 const changed = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#00f" d="M1 1L23 23H1Z"/></svg>';
@@ -292,6 +292,22 @@ it('rejects pending calls on disposal and isolates independent results', async (
     first.dispose();
     await expect(pending).rejects.toThrow('disposed');
     expect(await second.generateCss()).toContain('separate');
+});
+
+it('hosts many byte-identical results in one generator and keeps it after a failed generation', async () => {
+    using generator = createWebfontGenerator();
+    const options: GenerateWebfontsOptions = { sources: [source], types: ['ttf', 'woff2'], formatOptions: { ttf: { ts: 0 } } };
+    const expected = await (await generate(options)).collectOutputs();
+    // @ts-expect-error Unknown options are rejected at runtime too.
+    await expect(generator.generateWebfonts({ ...options, files: [] })).rejects.toThrow('unknown field');
+    const first = await generator.generateWebfonts(options);
+    using second = await generator.generateWebfonts({ ...options, fontName: 'second' });
+    expect(await first.collectOutputs()).toEqual(expected);
+    first.dispose();
+    await expect(first.font('ttf')).rejects.toThrow('disposed');
+    expect(await second.generateCss()).toContain('second');
+    using third = await generator.generateWebfonts(options);
+    expect(await third.collectOutputs()).toEqual(expected);
 });
 
 it.each([10, 11])('generates WOFF2 quality %s without native threads', async quality => {
