@@ -37,13 +37,13 @@ Each variant accepts:
 
 Every design must resolve at least one file. Variant directories are watched recursively, including nested matching directories created during development. Multiple designs can reference the same physical SVG.
 
-See [multi-weight usage](/vite/usage#multi-weight-icon-families) and the [generator's variant reference](/node/#multi-variant-fonts).
+See [multi-weight usage](/vite/usage#multi-weight-icon-families) and the [generator's variant reference](/node/usage#multi-variant-fonts).
 
 ## `missingGlyphs`
 
 - Type: `{ behavior: 'error' | 'blank' | 'fallback'; variant?: string }`
 - Availability: variant mode only
-- Description: Generator policy for icons missing from a design. See the [generator reference](/node/#missingglyphs) for defaults and fallback rules.
+- Description: Generator policy for icons missing from a design. See the [generator reference](/node/usage#missingglyphs) for defaults and fallback rules.
 
 ## `variantClassPrefix`
 
@@ -56,7 +56,7 @@ See [multi-weight usage](/vite/usage#multi-weight-icon-families) and the [genera
 
 - Type: `Record<string, string>`
 - Default: omitted
-- Description: Reserve named palette entries for CSS theme overrides, for example `{ secondary: '#ff9900' }`. Nonempty slots require active `colorGlyphs`. The CSS context exposes a name-to-index `colorSlots` map. See [validation and ordering rules](/node/#colorslots) and the [live light/dark example](/vite/examples#theme-colors-in-one-glyph).
+- Description: Reserve named palette entries for CSS theme overrides, for example `{ secondary: '#ff9900' }`. Nonempty slots require active `colorGlyphs`. The CSS context exposes a name-to-index `colorSlots` map. See [validation and ordering rules](/node/usage#colorslots) and the [live light/dark example](/vite/examples#theme-colors-in-one-glyph).
 
 ## `colorGlyphs`
 
@@ -91,7 +91,7 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
 - Description: Directory for font files written directly by the generator when [`generateFiles`](#generatefiles) includes fonts
 - Default: `path.resolve(context, '..', 'artifacts')`
 - Build behavior: Direct file output also requires [`allowWriteFilesInBuild`](#allowwritefilesinbuild). Fonts bundled through the virtual CSS import use Vite's output settings instead of `dest`; see [production font output](/vite/usage#configure-production-font-output).
-- Reference: [`@atlowchemi/webfont-generator#dest`](/node/#dest)
+- Reference: [`@atlowchemi/webfont-generator#dest`](/node/usage#dest)
 
 ## `cssDest`
 
@@ -99,7 +99,7 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
 - Description: Output path for generated CSS
 - Default: `path.join(dest, fontName + '.css')`
 - Scope: Applies to directly generated CSS files. Vite controls the output path of bundled CSS.
-- Reference: [`@atlowchemi/webfont-generator#cssDest`](/node/#cssdest)
+- Reference: [`@atlowchemi/webfont-generator#cssDest`](/node/usage#cssdest)
 
 ## `cssTemplate`
 
@@ -109,14 +109,14 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
     - `fontName`
     - `src`
     - `codepoints`
-- Reference: [`@atlowchemi/webfont-generator#cssTemplate`](/node/#csstemplate) and [`templates`](/node/#templates)
+- Reference: [`@atlowchemi/webfont-generator#cssTemplate`](/node/usage#csstemplate) and [`templates`](/node/usage#templates)
 
 ## `cssContext`
 
 - Type: `(context: CssContext) => void`
 - Variant configurations infer `CssContext<true>`, including named designs, default weight, and family rendering metadata. Context callbacks use full generation on watch updates rather than incremental regeneration.
-- Description: Hook for mutating the rendering context passed to the CSS template before the CSS file is generated. The `context` argument carries the named fields documented on [`CssContext`](/node/#csscontext) (`fontName`, `src`, `codepoints`) plus the [`baseSelector`](#baseselector) and [`classPrefix`](#classprefix) keys the plugin forwards to the underlying generator.
-- Reference: [`@atlowchemi/webfont-generator#cssContext`](/node/#csscontext)
+- Description: Hook for mutating the rendering context passed to the CSS template before the CSS file is generated. The `context` argument carries the named fields documented on [`CssContext`](/node/usage#csscontext) (`fontName`, `src`, `codepoints`) plus the [`baseSelector`](#baseselector) and [`classPrefix`](#classprefix) keys the plugin forwards to the underlying generator.
+- Reference: [`@atlowchemi/webfont-generator#cssContext`](/node/usage#csscontext)
 
 ## `cssFontsUrl`
 
@@ -130,7 +130,7 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
 - Type: `string`
 - Description: Output path for generated HTML preview
 - Default: `path.join(dest, fontName + '.html')`
-- Reference: [`@atlowchemi/webfont-generator#htmlDest`](/node/#htmldest)
+- Reference: [`@atlowchemi/webfont-generator#htmlDest`](/node/usage#htmldest)
 
 ## `htmlTemplate`
 
@@ -140,56 +140,56 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
     - `fontName`
     - `styles`
     - `names`
-- Reference: [`@atlowchemi/webfont-generator#htmlTemplate`](/node/#htmltemplate)
+- Reference: [`@atlowchemi/webfont-generator#htmlTemplate`](/node/usage#htmltemplate)
 
 ## `ligature`
 
 - Type: `boolean`
 - Description: Enable or disable ligatures
 - Default: `true`
-- Reference: [`@atlowchemi/webfont-generator#ligature`](/node/#ligature)
+- Reference: [`@atlowchemi/webfont-generator#ligature`](/node/usage#ligature)
 
 ## `normalize`
 
 - Type: `boolean`
 - Description: Scale icons to the height of the tallest icon
 - Default: `true` (the generator default; the plugin forwards the option only when you set it)
-- Reference: [`@atlowchemi/webfont-generator#normalize`](/node/#normalize)
+- Reference: [`@atlowchemi/webfont-generator#normalize`](/node/usage#normalize)
 
 ## `round`
 
 - Type: `number`
 - Description: SVG path rounding precision
 - Default: `10e12`
-- Reference: [`@atlowchemi/webfont-generator#round`](/node/#round)
+- Reference: [`@atlowchemi/webfont-generator#round`](/node/usage#round)
 
 ## `descent`
 
 - Type: `number`
 - Description: Font descent, useful when you want to tune baseline alignment manually
 - Default: `0`
-- Reference: [`@atlowchemi/webfont-generator#descent`](/node/#descent)
+- Reference: [`@atlowchemi/webfont-generator#descent`](/node/usage#descent)
 
 ## `fixedWidth`
 
 - Type: `boolean`
 - Description: Create a monospace font based on the widest icon
 - Default: `false`
-- Reference: [`@atlowchemi/webfont-generator#fixedWidth`](/node/#fixedwidth)
+- Reference: [`@atlowchemi/webfont-generator#fixedWidth`](/node/usage#fixedwidth)
 
 ## `fontHeight`
 
 - Type: `number`
 - Description: Explicit output font height
 - Default: `1000` (the plugin's default; the generator alone defaults to the tallest icon's height)
-- Reference: [`@atlowchemi/webfont-generator#fontHeight`](/node/#fontheight)
+- Reference: [`@atlowchemi/webfont-generator#fontHeight`](/node/usage#fontheight)
 
 ## `centerHorizontally`
 
 - Type: `boolean`
 - Description: Center glyphs horizontally based on their bounds
 - Default: `false`
-- Reference: [`@atlowchemi/webfont-generator#centerHorizontally`](/node/#centerhorizontally)
+- Reference: [`@atlowchemi/webfont-generator#centerHorizontally`](/node/usage#centerhorizontally)
 
 ## `centerVertically`
 
@@ -200,7 +200,7 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
     - This option is a convenience alias for `formatOptions.svg.centerVertically`
     - If both `centerVertically` and `formatOptions.svg.centerVertically` are defined, `formatOptions.svg.centerVertically` takes precedence
     - Any other properties inside `formatOptions.svg` are preserved
-- Reference: [`@atlowchemi/webfont-generator#centerVertically`](/node/#centervertically)
+- Reference: [`@atlowchemi/webfont-generator#centerVertically`](/node/usage#centervertically)
 
 ## `optimizeOutput`
 
@@ -208,7 +208,7 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
 - Description: Run an SVG path optimizer over each glyph before assembling the font
 - Default: `false`
 - Notes:
-    - Available since v7 — exposes the underlying [`@atlowchemi/webfont-generator#optimizeOutput`](/node/#optimizeoutput) option through the plugin
+    - Available since v7 — exposes the underlying [`@atlowchemi/webfont-generator#optimizeOutput`](/node/usage#optimizeoutput) option through the plugin
     - Convenience alias for `formatOptions.svg.optimizeOutput`; the format-level option takes precedence when both are set
     - Optimization may reduce SVG path data, but does not guarantee smaller binary font output; compare the generated sizes for your input set
 
@@ -221,7 +221,7 @@ See the [generator's color guidance](/guide/engine#color-glyphs) for supported S
     - Convenience alias for `formatOptions.woff2.compressionQuality`; the format-level option takes precedence when both are set
     - When left unset, the plugin uses a faster quality (`10`) during development (`serve`) so font rebuilds on icon changes are quicker, while production builds use the engine default (`11`) for the smallest output. The dev-served font renders identically to production — only its bytes differ.
     - Set this to pin a single quality across both dev and build (e.g. `11` to make dev byte-for-byte match production)
-- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/node/#formatoptions)
+- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/node/usage#formatoptions)
 
 ## `generateFiles`
 
@@ -258,7 +258,7 @@ Enable writing with [`generateFiles`](#generatefiles). With `generateFiles: true
     - `eot`
 - Default: `['eot', 'woff', 'woff2', 'ttf', 'svg']`
 - Variant mode: only `ttf`, `woff`, and `woff2` are supported; default is `['woff', 'woff2']`.
-- Reference: [`@atlowchemi/webfont-generator#types`](/node/#types)
+- Reference: [`@atlowchemi/webfont-generator#types`](/node/usage#types)
 
 ## `preloadFormats`
 
@@ -299,27 +299,27 @@ viteSvgToWebfont({
 
 - Type: `{ [key: string]: number }`
 - Description: Explicit codepoints for selected icons. Icons without assigned codepoints continue from the generator start codepoint while avoiding duplicates.
-- Reference: [`@atlowchemi/webfont-generator#codepoints`](/node/#codepoints)
+- Reference: [`@atlowchemi/webfont-generator#codepoints`](/node/usage#codepoints)
 
 ## `classPrefix`
 
 - Type: `string`
 - Description: Class prefix for generated icon classes
 - Default: `'icon-'`
-- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/node/#templateoptions)
+- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/node/usage#templateoptions)
 
 ## `baseSelector`
 
 - Type: `string`
 - Description: Base selector to which the font styles are applied
 - Default: `'.icon'`
-- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/node/#templateoptions)
+- Reference: [`@atlowchemi/webfont-generator#templateOptions`](/node/usage#templateoptions)
 
 ## `formatOptions`
 
 - Type: `FormatOptions`
 - Description: Per-format options forwarded to the underlying [`@atlowchemi/webfont-generator`](/guide/engine). The shape is `{ svg?: SvgFormatOptions; ttf?: TtfFormatOptions; woff?: WoffFormatOptions; woff2?: Woff2FormatOptions }` — see the engine docs for the fields available on each.
-- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/node/#formatoptions)
+- Reference: [`@atlowchemi/webfont-generator#formatOptions`](/node/usage#formatoptions)
 - Note: `formatOptions.ttf.ts` is ignored. Like upstream `@vusion/webfonts-generator`, the generator always writes a fixed TTF timestamp, so builds are reproducible.
 
 ## `moduleId`

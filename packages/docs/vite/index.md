@@ -2,7 +2,11 @@
 description: Install vite-svg-2-webfont and add it to your Vite app with the default virtual stylesheet workflow.
 ---
 
-# Getting Started
+# Vite Plugin
+
+`vite-svg-2-webfont` turns a folder of SVG icons into an icon font as part of your Vite dev server and build, and serves it through a virtual stylesheet. It runs the fonte engine through the [Node.js package](/node/).
+
+Use it when your app is built with Vite and its icons live in the repository. Editing an icon reloads it in the dev server.
 
 ## Installation
 

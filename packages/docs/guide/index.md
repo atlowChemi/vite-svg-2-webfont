@@ -2,9 +2,9 @@
 description: Choose between the Vite plugin, the Node.js package, the browser package, the Rust crate, and the CLI — and decide whether an icon font is the right fit at all.
 ---
 
-# Which Package Do I Need?
+# Choosing a Tool
 
-Every package here runs the same Rust engine, so the fonts they produce are the same. They differ in where they run and how you feed them icons.
+Every fonte tool runs the same Rust engine, so the fonts they produce are the same. They differ in where they run and how you feed them icons.
 
 ```mermaid
 flowchart TD
@@ -40,7 +40,7 @@ flowchart TD
 | Preload tags in built HTML                        | ✅                       | —                      | —                      | —                  | —                  |
 | Runs on                                           | Node.js                  | Node.js (native addon) | Browsers (WebAssembly) | Native, no Node.js | Native, no Node.js |
 
-The plugin calls the Node.js package internally, so plugin options map closely to [generator options](/node/#options-reference).
+The plugin calls the Node.js package internally, so plugin options map closely to [generator options](/node/usage#options-reference).
 
 ## Icon font or SVG sprite?
 
