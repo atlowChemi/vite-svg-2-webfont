@@ -128,7 +128,7 @@ The engine stores each glyph on a grid of whole units. By default the grid is as
     ]"
 />
 
-**Fix:** the Vite plugin already uses [`fontHeight: 1000`](/vite/configuration#fontheight). With the [Node.js](/node/configuration#fontheight), [browser](/browser/configuration#fontheight), [Rust](/rust/usage#generatewebfontsoptions), or [CLI](/cli/configuration#fontheight) interfaces, set `fontHeight` to `1000` or more.
+**Fix:** the Vite plugin already uses [`fontHeight: 1000`](/vite/configuration#fontheight). With the [Node.js](/node/configuration#fontheight), [browser](/browser/configuration#fontheight), [Rust](/rust/configuration), or [CLI](/cli/configuration#fontheight) interfaces, set `fontHeight` to `1000` or more.
 
 ## File names become class names
 
@@ -144,7 +144,7 @@ Each file name, without `.svg`, becomes the icon's name and CSS class. File-base
     ]"
 />
 
-**Fix:** name files with letters, digits, hyphens, and underscores only. Class names are case-sensitive, so `Add.svg` and `add.svg` produce different classes. With the [Node.js API](/node/configuration#rename), a `rename` callback can turn paths into safe names. The [browser](/browser/) and in-memory [Rust](/rust/usage#text-options-and-identity) APIs reject unsafe names.
+**Fix:** name files with letters, digits, hyphens, and underscores only. Class names are case-sensitive, so `Add.svg` and `add.svg` produce different classes. With the [Node.js API](/node/configuration#rename), a `rename` callback can turn paths into safe names. The [browser](/browser/) and in-memory [Rust](/rust/configuration#in-memory-options) APIs reject unsafe names.
 
 ## Pin codepoints for stable output
 
