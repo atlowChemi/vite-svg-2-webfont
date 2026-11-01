@@ -94,7 +94,7 @@ export default defineConfig({
     markdown,
     vite: {
         css: { postcss: iconCss },
-        // Docs use declared process env (GITHUB_ACTIONS), not ignored local dotenv files.
+        // Ignored local dotenv files must not affect cached docs builds.
         envDir: false,
         plugins: [
             groupIconVitePlugin({
