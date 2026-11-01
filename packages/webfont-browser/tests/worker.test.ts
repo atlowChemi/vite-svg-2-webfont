@@ -4,9 +4,14 @@ import type { RequestPayload, Response } from '../src/types';
 
 // Exercise the real worker and WASM in Node, replacing only the browser transport
 // and URL fetch so V8 can instrument worker.ts in this test process.
+const loading = vi.hoisted(() => ({ error: undefined as Error | undefined }));
 vi.mock('../generated/webfont_browser.js', async importOriginal => {
     const binding = await importOriginal<typeof import('../generated/webfont_browser.js')>();
-    return { ...binding, default: () => binding.default({ module_or_path: readFileSync(new URL('../generated/webfont_browser_bg.wasm', import.meta.url)) }) };
+    return {
+        ...binding,
+        default: () =>
+            loading.error ? Promise.reject(loading.error) : binding.default({ module_or_path: readFileSync(new URL('../generated/webfont_browser_bg.wasm', import.meta.url)) }),
+    };
 });
 
 let scope: EventTarget;
@@ -25,10 +30,10 @@ afterEach(() => {
     vi.restoreAllMocks();
 });
 
-function request(payload: RequestPayload): Promise<Response> {
+function request(payload: RequestPayload, session = 0): Promise<Response> {
     return new Promise(resolve => {
         respond = resolve;
-        scope.dispatchEvent(new MessageEvent('message', { data: { ...payload, id: id++ } }));
+        scope.dispatchEvent(new MessageEvent('message', { data: { ...payload, id: id++, session } }));
     });
 }
 
@@ -54,15 +59,38 @@ it('routes worker requests through real WASM and recovers after invalid updates'
     expect(await request({ method: 'add', source: JSON.stringify({ ...JSON.parse(options).sources[0], id: 'second', name: 'second' }) })).toMatchObject({ ok: true });
     expect(await request({ method: 'update', sourceId: 'second', svg: JSON.parse(options).sources[0].svg, name: 'renamed' })).toMatchObject({ ok: true });
     expect(await request({ method: 'remove', sourceId: 'second' })).toMatchObject({ ok: true });
-    expect(await request({ method: 'generate', options })).toMatchObject({ ok: false, fatal: true, error: new Error('Session is already initialized') });
+    expect(await request({ method: 'generate', options })).toMatchObject({ ok: false, fatal: false, error: new Error('Session is already initialized') });
 });
 
-it('marks initialization failures as fatal', async () => {
+it('rejects invalid options without failing the worker', async () => {
     expect(await request({ method: 'generate', options: '{"files":[]}' })).toMatchObject({
         ok: false,
-        fatal: true,
+        fatal: false,
         error: expect.objectContaining({ message: expect.stringContaining('unknown field') }),
     });
+    expect(await request({ method: 'generate', options })).toMatchObject({ ok: true });
+});
+
+it('marks a WASM that fails to load as fatal', async () => {
+    loading.error = new Error('WASM unavailable');
+    try {
+        await startWorker();
+        expect(await request({ method: 'generate', options })).toMatchObject({ ok: false, fatal: true, error: loading.error });
+    } finally {
+        loading.error = undefined;
+    }
+});
+
+it('hosts independent sessions and frees one without affecting the others', async () => {
+    const other = JSON.stringify({ ...JSON.parse(options), fontName: 'other' });
+    expect(await request({ method: 'generate', options }, 1)).toMatchObject({ ok: true });
+    expect(await request({ method: 'generate', options: other }, 2)).toMatchObject({ ok: true });
+    expect(await request({ method: 'css' }, 2)).toMatchObject({ ok: true, value: expect.stringContaining('other') });
+    expect(await request({ method: 'dispose' }, 1)).toMatchObject({ ok: true });
+    expect(await request({ method: 'css' }, 1)).toMatchObject({ ok: false, fatal: false, error: new Error('Session is not initialized') });
+    expect(await request({ method: 'dispose' }, 1)).toMatchObject({ ok: true });
+    expect(await request({ method: 'css' }, 2)).toMatchObject({ ok: true, value: expect.stringContaining('other') });
+    expect(await request({ method: 'generate', options }, 1)).toMatchObject({ ok: true });
 });
 
 it('normalizes non-Error throws and recovers for subsequent requests', async () => {

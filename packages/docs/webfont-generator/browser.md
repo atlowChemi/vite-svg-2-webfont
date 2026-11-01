@@ -131,7 +131,7 @@ An explicit `dispose()` method is available for manually managed lifetimes inste
 | `update(id, svg, name?)`          | `Promise<void>`                    | Replace an existing source, preserving its position. Requires `incremental: true`.                                    |
 | `remove(id)`                      | `Promise<void>`                    | Remove an ID from all designs without emptying a design. Requires `incremental: true`.                                |
 | `exportCache()`                   | `Promise<Uint8Array \| undefined>` | Persistent cache bytes to store; `undefined` when caching is off or nothing changed. See [caching](#persistent-cache) |
-| `dispose()`                       | `void`                             | Terminate the worker and reject pending calls. Idempotent: repeated calls have no additional effect and do not throw  |
+| `dispose()`                       | `void`                             | Reject pending calls and release the result; see [worker lifetime](#worker-lifetime-and-hosting). Idempotent          |
 
 `CollectedOutputs` is `Partial<Record<FontType | 'css' | 'html' | 'ts', Uint8Array<ArrayBuffer>>>`.
 Access outputs directly by kind, for example `(await result.collectOutputs()).woff2`.
@@ -246,7 +246,40 @@ hosted worker. By default, bundlers resolve the worker relative to the package e
 
 For separately hosted workers, serve `worker.js` and `webfont_browser_bg.wasm` together from the same origin.
 
-Each result has its own worker and WASM instance. Keep a result for incremental work, and
-dispose it when finished. The package needs neither SharedArrayBuffer nor cross-origin isolation.
+Each result from `generateWebfonts` has its own worker and WASM instance, and disposing the
+result terminates its worker. Keep a result for incremental work, and dispose it when finished. The package needs neither SharedArrayBuffer nor cross-origin isolation.
 Vite emits the worker and WASM assets. Serve WASM with `application/wasm`, and permit worker
 execution and WASM compilation in your Content Security Policy.
+
+### Reuse one worker
+
+Starting a worker loads and compiles the WASM, which can take longer than generating a small
+font. When an app generates repeatedly with changing options, such as an editor that rebuilds on
+every settings change, create one generator and generate every result in its worker:
+
+```ts
+import { createWebfontGenerator } from '@atlowchemi/webfont-browser-generator';
+
+// The worker starts loading the WASM now, before the first generation.
+using generator = createWebfontGenerator();
+
+let result = await generator.generateWebfonts({ sources, types: ['woff2'] });
+// Later, with other options: the WASM is already loaded.
+const next = await generator.generateWebfonts({ sources, types: ['woff2', 'woff'] });
+result.dispose();
+result = next;
+```
+
+`createWebfontGenerator({ workerUrl })` takes the same optional worker URL, and
+`generator.generateWebfonts(options)` takes the same options and returns the same result as the
+top-level function.
+
+- **Several results at once.** A generator can host any number of live results. Disposing one
+  frees its memory and rejects its pending calls; the others keep working.
+- **One queue.** Calls from every result of a generator run one at a time, in submission order,
+  so a long build delays the others. To build in parallel, create one generator per parallel task.
+- **Failures.** A generation with invalid options rejects without affecting the generator. If the
+  WASM fails to load or crashes, every result of that generator rejects; create a new one.
+- **Disposal.** Disposing the generator terminates its worker and rejects the pending and future
+  calls of all its results. Results don't keep the generator alive, so keep it as long as you
+  use them.

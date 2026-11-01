@@ -1,5 +1,6 @@
 import { expectTypeOf, it } from 'vite-plus/test';
 import {
+    createWebfontGenerator,
     generateWebfonts,
     type CollectedOutputs,
     type FontType,
@@ -9,7 +10,9 @@ import {
     type SourceFontVariant,
     type SourceMembership,
     type SvgSource,
+    type WebfontGenerator,
     type WebfontResult,
+    type WorkerRuntime,
 } from '../src/index.js';
 
 const source: SvgSource = { id: 'square', name: 'square', svg: '<svg/>' };
@@ -98,4 +101,16 @@ it('exposes async single actions without returning replacement results', async (
     void result.update(source.id);
     // @ts-expect-error Removal accepts a source ID, not a source object.
     void result.remove(source);
+});
+
+it('creates a reusable generator with the same options and result type', async () => {
+    expectTypeOf(createWebfontGenerator).parameter(0).toEqualTypeOf<WorkerRuntime | undefined>();
+    using generator = createWebfontGenerator({ workerUrl: new URL('https://example.com/worker.js') });
+    expectTypeOf(generator).toEqualTypeOf<WebfontGenerator>();
+    expectTypeOf(generator.generateWebfonts).parameter(0).toEqualTypeOf<GenerateWebfontsOptions>();
+    using result = await generator.generateWebfonts({ sources: [source], cache: new Uint8Array() });
+    expectTypeOf(result).toEqualTypeOf<WebfontResult>();
+    expectTypeOf(generator.dispose()).toBeVoid();
+    // @ts-expect-error The worker location belongs to the generator, not each generation.
+    void generator.generateWebfonts({ sources: [source] }, { workerUrl: '/worker.js' });
 });
