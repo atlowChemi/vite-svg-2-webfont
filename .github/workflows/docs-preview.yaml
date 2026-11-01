@@ -1,15 +1,17 @@
 name: Docs preview
 
-# CI builds the docs without secrets and uploads them as the `docs-site` artifact.
-# This workflow runs from the default branch, so the Cloudflare credentials only ever meet trusted workflow code:
+# CI builds the docs without secrets and uploads them as the `docs-site` artifact. Deploys run from the default
+# branch (workflow_run), so the Cloudflare credentials never meet pull request code from forks:
 # - pushes to main deploy the Worker behind next.fonte.atlow.dev;
 # - same-repository pull requests get a `pr-<number>` Worker Preview, a GitHub deployment, and a sticky comment;
-# - closing a pull request deletes its Preview.
+# - closing a same-repository pull request deletes its Preview. Its authors can already edit workflows, and fork
+#   pull requests get no secrets, so a plain `pull_request` trigger suffices here (GitHub restricts
+#   `pull_request_target` in public repositories from December 2, 2026).
 on:
     workflow_run:
         workflows: [CI]
         types: [completed]
-    pull_request_target:
+    pull_request:
         types: [closed]
 
 permissions:
@@ -168,8 +170,7 @@ jobs:
 
     teardown:
         name: tear down pull request preview
-        # Runs base-branch code only; the pull request's own code is never checked out.
-        if: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.head.repo.full_name == github.repository }}
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         runs-on: ubuntu-latest
         concurrency:
             group: docs-preview-pr-${{ github.event.pull_request.number }}
@@ -195,8 +196,11 @@ jobs:
                       echo "::notice title=No docs preview::#$PR never had a preview."
                   fi
                   echo "id=$comment" >> "$GITHUB_OUTPUT"
+            # A closed pull request's merge ref can be gone; the default branch has the tool versions and Worker config.
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
               if: ${{ steps.comment.outputs.id != '' }}
+              with:
+                  ref: ${{ github.event.repository.default_branch }}
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               if: ${{ steps.comment.outputs.id != '' }}
               with:
@@ -209,7 +213,16 @@ jobs:
               env:
                   CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
                   CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-              run: vpx "$WRANGLER" preview delete --name "pr-$PR" --skip-confirmation
+              # A pull request whose preview predates Worker Previews (a version alias) has no Preview to delete;
+              # still retire its deployments and update its comment.
+              run: |
+                  out=$(vpx "$WRANGLER" preview delete --name "pr-$PR" --skip-confirmation 2>&1) && { echo "$out"; exit 0; }
+                  echo "$out"
+                  if grep -q 'Preview not found. \[code: 10025\]' <<< "$out"; then
+                      echo "::notice title=No Worker Preview::pr-$PR has no Worker Preview to delete."
+                      exit 0
+                  fi
+                  exit 1
             - name: Retire GitHub deployments
               if: ${{ steps.comment.outputs.id != '' }}
               run: |
