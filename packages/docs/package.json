@@ -3,6 +3,13 @@
     "private": true,
     "version": "0.0.0",
     "type": "module",
+    "scripts": {
+        "next:dev": "vitepress dev .",
+        "next:preview": "vitepress preview .",
+        "next:optimize-svg": "svgo -r -f assets/svg -o public",
+        "next:social-card": "node ./scripts/generate-social-card.ts",
+        "next:build": "vitepress build ."
+    },
     "devDependencies": {
         "@atlowchemi/webfont-browser-generator": "workspace:*",
         "@expo-google-fonts/open-sans": "^0.4.2",

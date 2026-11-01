@@ -1,0 +1,111 @@
+# Dormant migration entry points; normal development and CI still use vp run.
+# Cache contracts and activation are added in the subsequent review layer.
+pipelines:
+    next-native: [next:native]
+    next-check: [next:fmt:rust, next:adapter:check, next:browser:check]
+    next-test: [next:test:js]
+    next-rust-test: [next:fmt:rust, next:adapter:test]
+    next-browser-test: [next:fmt:rust, next:browser:test]
+    next-build: [next:plugin:pack, next:browser:pack]
+    next-docs: [next:docs]
+    next-example: [next:example]
+    next-coverage: [next:coverage]
+    next-assets: [next:docs:social]
+    next-compat: [next:test:compat]
+    next-scripts-coverage: [next:coverage:scripts]
+    next-bench: [next:bench:vitest, next:fmt:rust]
+    next-engine-bench: [next:engine:bench]
+    next-engine-coverage: [next:engine:coverage]
+    next-cli-coverage: [next:engine:coverage:cli]
+    next-doctests: [next:engine:doctests]
+    next-engine-color-proof: [next:engine:color-proof]
+    next-adapter-browser: [next:adapter:browser]
+    next-adapter-color-proof: [next:adapter:color-proof]
+    next-adapter-coverage: [next:adapter:coverage]
+    next-native-coverage: [next:adapter:coverage:native]
+    next-binding-regenerate: [next:adapter:binding:regenerate]
+    next-adapter-bench: [next:adapter:bench]
+    next-native-release: [next:native:release, next:fmt:rust]
+    next-browser-tarball: [next:browser:tgz]
+    next-browser-coverage: [next:browser:coverage]
+    next-browser-publish: [next:browser:publish]
+    next-plugin-dev: [next:plugin:dev]
+    next-plugin-tarball: [next:plugin:tgz]
+    next-plugin-test: [next:plugin:test]
+    next-plugin-browser: [next:plugin:browser]
+    next-fixtures-refresh: [next:plugin:fixtures]
+    next-plugin-publish: [next:plugin:publish]
+    next-example-dev: [next:example:dev]
+    next-example-preview: [next:example:preview]
+    next-docs-dev: [next:docs:dev]
+    next-docs-preview: [next:docs:preview]
+tasks:
+    # Package scripts are raw commands, not independently cacheable entry points.
+    next:build: { cache: false, dependsOn: [] }
+    next:pack: { cache: false, dependsOn: [] }
+    next:check: { cache: false, dependsOn: [] }
+    next:test: { cache: false, dependsOn: [] }
+    next:test:features: { cache: false, dependsOn: [] }
+    next:optimize-svg: { cache: false, dependsOn: [] }
+    next:social-card: { cache: false, dependsOn: [] }
+    next:dev: { cache: false, dependsOn: [] }
+    next:preview: { cache: false, dependsOn: [] }
+    next:bench: { cache: false, dependsOn: [] }
+    next:pack:tgz: { cache: false, dependsOn: [] }
+    next:publish: { cache: false, dependsOn: [] }
+    next:build:release: { cache: false, dependsOn: [] }
+    next:binding:regenerate: { cache: false, dependsOn: [] }
+    next:test:browser: { cache: false, dependsOn: [] }
+    next:test:coverage: { cache: false, dependsOn: [] }
+    next:test:coverage:cli: { cache: false, dependsOn: [] }
+    next:test:coverage:native: { cache: false, dependsOn: [] }
+    next:test:doctests: { cache: false, dependsOn: [] }
+    next:test:color-proof: { cache: false, dependsOn: [] }
+    next:test:fixtures:refresh: { cache: false, dependsOn: [] }
+    next:bench:vitest: { cache: false, dependsOn: [next:native:release] }
+    next:test:compat: { cache: false, dependsOn: [next:native] }
+    next:coverage:scripts: { cache: false, dependsOn: [] }
+    next:engine:bench: { cache: false, dependsOn: [] }
+    next:engine:coverage: { cache: false, dependsOn: [] }
+    next:engine:coverage:cli: { cache: false, dependsOn: [] }
+    next:engine:color-proof: { cache: false, dependsOn: [] }
+    next:adapter:browser: { cache: false, dependsOn: [next:native, next:adapter:color-proof] }
+    next:adapter:color-proof: { cache: false, dependsOn: [] }
+    next:adapter:coverage: { cache: false, dependsOn: [] }
+    next:adapter:coverage:native: { cache: false, dependsOn: [] }
+    next:adapter:binding:regenerate: { cache: false, dependsOn: [] }
+    next:adapter:bench: { cache: false, dependsOn: [] }
+    next:native:release: { cache: false, dependsOn: [next:adapter:test] }
+    next:browser:tgz: { cache: false, dependsOn: [next:browser:pack] }
+    next:browser:coverage: { cache: false, dependsOn: [next:browser:pack] }
+    next:browser:publish: { cache: false, dependsOn: [next:browser:tgz] }
+    next:plugin:dev: { cache: false, dependsOn: [] }
+    next:plugin:tgz: { cache: false, dependsOn: [next:plugin:pack] }
+    next:plugin:browser: { cache: false, dependsOn: [next:native] }
+    next:plugin:fixtures: { cache: false, dependsOn: [next:plugin:pack] }
+    # Release CI supplies native artifacts; publishing preserves its raw-pack bypass.
+    next:plugin:publish: { cache: false, dependsOn: [] }
+    next:example:dev: { cache: false, dependsOn: [next:plugin:pack, next:docs:svg] }
+    next:example:preview: { cache: false, dependsOn: [next:example] }
+    next:docs:dev: { cache: false, dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack] }
+    next:docs:preview: { cache: false, dependsOn: [next:docs] }
+    next:fmt:rust: { cache: false, dependsOn: [] }
+    next:engine:check: { cache: false, dependsOn: [] }
+    next:engine:doctests: { cache: false, dependsOn: [] }
+    next:engine:features: { cache: false, dependsOn: [next:engine:check] }
+    next:engine:test: { cache: false, dependsOn: [next:engine:check, next:engine:features] }
+    next:adapter:check: { cache: false, dependsOn: [next:engine:check] }
+    next:adapter:test: { cache: false, dependsOn: [next:adapter:check, next:engine:test] }
+    next:native: { cache: false, dependsOn: [] }
+    next:wasm: { cache: false, dependsOn: [] }
+    next:browser:pack: { cache: false, dependsOn: [next:wasm] }
+    next:browser:check: { cache: false, dependsOn: [next:wasm] }
+    next:browser:test: { cache: false, dependsOn: [next:browser:check, next:browser:pack] }
+    next:plugin:pack: { cache: false, dependsOn: [next:native] }
+    next:plugin:test: { cache: false, dependsOn: [next:native] }
+    next:test:js: { cache: false, dependsOn: [next:native, next:browser:pack] }
+    next:coverage: { cache: false, dependsOn: [next:native] }
+    next:docs:svg: { cache: false, dependsOn: [] }
+    next:docs:social: { cache: false, dependsOn: [next:docs:svg] }
+    next:docs: { cache: false, dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack] }
+    next:example: { cache: false, dependsOn: [next:plugin:pack, next:docs:svg] }
