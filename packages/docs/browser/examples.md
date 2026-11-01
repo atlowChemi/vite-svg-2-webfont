@@ -4,7 +4,7 @@ description: Examples for @atlowchemi/webfont-browser-generator — fonts from d
 
 # Browser Examples
 
-Each example runs in client-side code; with Vite, the worker and WebAssembly files are bundled for you. See [configuration](/browser/configuration) for every option and the [API reference](/browser/api) for the result. The [Playground](/playground) combines most of these into one app.
+Each example runs in client-side code, with any bundler that handles `new URL(…, import.meta.url)`, such as Vite or webpack, or with [no bundler](#without-a-bundler). See [configuration](/browser/configuration) for every option and the [API reference](/browser/api) for the result. The [Playground](/playground) combines most of these into one app.
 
 ## Fonts from dropped files
 
@@ -164,6 +164,28 @@ if (updated) await saveCache('icons', updated);
 ```
 
 `exportCache()` resolves `undefined` when nothing changed, which skips the write. A fixed `ts` keeps the output identical whether fonts come from the cache or not.
+
+## Without a bundler
+
+Copy the package's `dist` folder to your site, for example to `/vendor/webfont/`, and map the package name to its entry with an import map. The worker and WebAssembly files are found next to `index.js`:
+
+```html [index.html]
+<script type="importmap">
+    { "imports": { "@atlowchemi/webfont-browser-generator": "/vendor/webfont/index.js" } }
+</script>
+<script type="module">
+    import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';
+
+    const result = await generateWebfonts({
+        sources: [{ id: 'square', name: 'square', svg: '<svg viewBox="0 0 24 24"><path d="M2 2H22V22H2Z"/></svg>' }],
+        types: ['woff2'],
+    });
+    console.log(await result.font('woff2'));
+    result.dispose();
+</script>
+```
+
+Serve the folder from the page's own origin, since module workers can't load from another one, and serve `webfont_browser_bg.wasm` as `application/wasm`.
 
 ## Self-hosted worker
 

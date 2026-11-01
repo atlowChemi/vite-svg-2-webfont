@@ -38,7 +38,7 @@ bun add @atlowchemi/webfont-browser-generator
 
 ## Your first font
 
-Import `generateWebfonts` in your application's client code. With Vite, the worker and WASM assets are bundled automatically.
+Import `generateWebfonts` in your application's client code. Bundlers such as Vite and webpack emit the package's worker and WebAssembly files for you, and it also works without a bundler; see [how to use](/browser/usage#how-to-use).
 
 ```ts [src/main.ts]
 import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';

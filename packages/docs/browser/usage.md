@@ -8,8 +8,11 @@ Install the package first; see [Getting Started](/browser/). Every option is lis
 
 ## How to use
 
-Import `generateWebfonts` in your Vite application's client code. Vite automatically bundles
-the worker and WASM assets; no additional Vite configuration is needed.
+Import `generateWebfonts` in client code. The package starts its worker from `new URL('./worker.js', import.meta.url)`, and the worker loads `webfont_browser_bg.wasm` the same way, so both files are found next to the package's own module:
+
+- **With a bundler** that handles `new URL(…, import.meta.url)`, such as Vite, webpack 5, or Parcel, the files are emitted with your build. No configuration is needed.
+- **Without a bundler**, serve the package's `dist` folder as it is and import `index.js` from it, for example through an import map; see [without a bundler](/browser/examples#without-a-bundler).
+- **Other bundlers** need a plugin for the pattern, or a separately hosted worker passed as `workerUrl`; see [self-hosted worker](/browser/examples#self-hosted-worker).
 
 ```ts [src/main.ts]
 import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';
@@ -138,7 +141,7 @@ Each result from `generateWebfonts()` has its own worker and WebAssembly instanc
 
 `generateWebfonts(options, { workerUrl })` accepts an optional string or URL for a separately hosted worker. By default, bundlers resolve the worker relative to the package entry. Serve `worker.js` and `webfont_browser_bg.wasm` together from the same origin; see [self-hosted worker](/browser/examples#self-hosted-worker).
 
-Vite emits the worker and WebAssembly assets. Serve the WebAssembly file as `application/wasm`, and permit worker execution and WebAssembly compilation in your Content Security Policy.
+The worker must come from the same origin as the page. Serve the WebAssembly file as `application/wasm`, and permit worker execution and WebAssembly compilation in your Content Security Policy.
 
 ### Reuse one worker
 
