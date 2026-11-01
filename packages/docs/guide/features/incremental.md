@@ -14,7 +14,7 @@ Use it for watch mode, dev servers, and editors: anywhere one process rebuilds t
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Vite    | Automatic in the dev server. SVG changes rebuild the font and update the page through HMR; see [development](/vite/how-it-works#development).                                                    |
 | Node.js | Generate with `incremental: true`, then call `regenerate`, `regenerateAsync`, or the single-file `add`, `update`, and `remove` helpers. See [Node.js usage](/node/api#regenerate-files-changes). |
-| Browser | Generate with `incremental: true`, then call `add`, `update`, `remove`, or `regenerate`. See [browser usage](/browser/usage#incremental-updates).                                                |
+| Browser | Generate with `incremental: true`, then call `add`, `update`, `remove`, or `regenerate`. See [browser API](/browser/api#updating-a-result).                                                      |
 | Rust    | Generate with `incremental: Some(true)`, then call the `regenerate` family or, for in-memory sources, `add`, `update`, and `remove`. See [Rust usage](/rust/usage#incremental-rebuild).          |
 | CLI     | Not available: each run is a separate process. Use the [engine cache](/guide/features/caching) to reuse work between runs.                                                                       |
 

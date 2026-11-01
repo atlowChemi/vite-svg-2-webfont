@@ -1,10 +1,10 @@
 ---
-description: Browser font generation with precompiled WebAssembly and a worker-owned in-memory API.
+description: Generate icon fonts in the browser with @atlowchemi/webfont-browser-generator, use the output, cache between sessions, update results, and host the worker.
 ---
 
 # Browser Usage
 
-Install the package first; see [Getting Started](/browser/).
+Install the package first; see [Getting Started](/browser/). Every option is listed in [configuration](/browser/configuration), and every method and type in the [API reference](/browser/api).
 
 ## How to use
 
@@ -26,10 +26,7 @@ const bytes = await result.font('woff2');
 const css = await result.generateCss();
 ```
 
-Options follow the [Rust SVG text API](/rust/usage#svg-text-api) in camelCase, including variants,
-color selection, missing-glyph policies, format options and inline templates. Unknown fields,
-including file input/output options, are rejected. There are no JavaScript callbacks.
-Variant families support TTF, WOFF and WOFF2; ordinary fonts additionally support SVG and EOT.
+The options match the other tools', except that icons arrive as SVG text in `sources` and templates are text rather than file paths. Nothing is read from or written to disk, and there are no JavaScript callbacks. See [configuration](/browser/configuration).
 
 Without `formatOptions.ttf.ts`, generation captures the browser clock once and retains that
 timestamp during updates; fonts reused from a [persistent cache](#persistent-cache) keep the
@@ -81,58 +78,6 @@ await fetch('/api/icon-fonts', { method: 'POST', body: form });
 
 To pass explicit font URLs instead of rewriting the CSS, set `cssFontsUrl` to the URL prefix where you will serve the files.
 
-## Result methods
-
-::: tip
-An explicit `dispose()` method is available for manually managed lifetimes instead of using Explicit Resource Management. It is idempotent: calling it more than once has no additional effect and does not throw.
-:::
-
-| Method                            | Result                             | Behavior                                                                                                              |
-| --------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| `font(format)`                    | `Promise<Uint8Array \| undefined>` | Copy a requested font; does not render templates                                                                      |
-| `generateCss()`                   | `Promise<string>`                  | Lazy CSS render, even if CSS collection is disabled                                                                   |
-| `generateHtml()`                  | `Promise<string>`                  | Lazy HTML render, reusing CSS                                                                                         |
-| `generateTs()`                    | `Promise<string>`                  | Fixed TypeScript metadata, even if TS or CSS collection is disabled                                                   |
-| `collectOutputs()`                | `Promise<CollectedOutputs>`        | Object keyed by output kind, with independently owned bytes; unrequested outputs are omitted                          |
-| `regenerate(membership, changes)` | `Promise<void>`                    | Apply source updates; requires `incremental: true`                                                                    |
-| `add(source, variant?)`           | `Promise<void>`                    | Append a new source; families require a target variant. Requires `incremental: true`.                                 |
-| `update(id, svg, name?)`          | `Promise<void>`                    | Replace an existing source, preserving its position. Requires `incremental: true`.                                    |
-| `remove(id)`                      | `Promise<void>`                    | Remove an ID from all designs without emptying a design. Requires `incremental: true`.                                |
-| `exportCache()`                   | `Promise<Uint8Array \| undefined>` | Persistent cache bytes to store; `undefined` when caching is off or nothing changed. See [caching](#persistent-cache) |
-| `dispose()`                       | `void`                             | Terminate the worker and reject pending calls. Idempotent: repeated calls have no additional effect and do not throw  |
-
-`CollectedOutputs` is `Partial<Record<FontType | 'css' | 'html' | 'ts', Uint8Array<ArrayBuffer>>>`.
-Access outputs directly by kind, for example `(await result.collectOutputs()).woff2`.
-
-Calls on one result execute in submission order. Returned byte arrays remain valid after updates
-and disposal and cannot mutate the engine's retained buffers. CSS and HTML are compiled lazily;
-an invalid HTML template does not prevent accessing a font or rendering CSS.
-
-## TypeScript metadata
-
-`await result.generateTs()` returns fixed TypeScript source, even when `ts` or `css` is
-false. Set `ts: true` in generation options to also include UTF-8 bytes under `ts` in
-`collectOutputs()`; collection defaults to off.
-
-<!-- prettier-ignore -->
-```ts
-export const iconBaseSelector = ".icon" as const;
-export const iconClassPrefix = "icon-" as const;
-export const icons = [
-  "square"
-] as const;
-
-export type IconName = (typeof icons)[number];
-```
-
-The readonly tuple follows the engine's canonical icon order and variant-family names.
-Selectors use the effective `templateOptions.baseSelector` and `templateOptions.classPrefix`.
-Custom CSS may emit different classes: this metadata describes the context, not parsed CSS.
-There is no TS template, override, callback or browser filesystem destination.
-
-Source additions, removals, renames and batch regeneration refresh the metadata. To change
-options, create a new result.
-
 ## Persistent cache
 
 Pass `cache` to reuse work from an earlier session with the [engine cache](/guide/features/caching).
@@ -143,7 +88,7 @@ byte-identical.
 The package only accepts and returns the bytes (a `Uint8Array`); storing them is up to your app.
 Keep them anywhere that holds binary data: IndexedDB (stores `Uint8Array` natively), the Origin
 Private File System, Cache Storage, or your own server. Expect several MB for hundreds of icons.
-In the example, `loadCache` and `saveCache` stand for your own storage code:
+In the example, `loadCache` and `saveCache` stand for your own storage code; see [keep the cache in IndexedDB](/browser/examples#keep-the-cache-in-indexeddb) for one implementation:
 
 ```ts
 import { generateWebfonts } from '@atlowchemi/webfont-browser-generator';
@@ -177,37 +122,15 @@ from users or other origins, and clear the stored copy if in doubt.
 
 ## Incremental updates
 
-With `incremental: true`, a result can be [updated](/guide/features/incremental) in place. Single
-actions derive membership from the worker's current result:
+With `incremental: true`, a result can be [updated](/guide/features/incremental) in place as icons change, without sending the unchanged SVGs again:
 
 ```ts
 await result.add({ id: 'search', name: 'search', svg: searchSvg });
-await result.update('search', replacementSvg, 'renamed');
+await result.update('search', replacementSvg);
 await result.remove('search');
-// For a family, additions require a target variant:
-await family.add({ id: 'bold:search', name: 'search', svg: searchSvg }, 'bold');
 ```
 
-`add(source, variant?)` appends a new ID. `update(id, svg, name?)` preserves its position and,
-when omitted, its name. `remove(id)` preserves remaining order. Updates and removals apply
-to every design consuming the ID. Duplicate additions, unknown IDs, incorrect target variants,
-and removals that empty a design reject without replacing the result. Calls execute in submission
-order, including after recoverable failures. None of these methods requires resending unchanged SVGs.
-
-For batches, explicit ordering, or membership reassignment, use `regenerate`:
-
-```ts
-await result.regenerate({ sources: ['square'] }, [{ type: 'changed', id: 'square', svg: replacementSvg }]);
-```
-
-Supply complete final IDs in order, with only changed source content. For variants, membership
-is `{ variants: [{ name: 'light', ids: [...] }, { name: 'bold', ids: [...] }] }` in original design order.
-Changes use `type: 'added'` with id/name/svg, `type: 'changed'` with id/svg and optional name,
-or `type: 'removed'` with id. Options and variant configuration stay fixed.
-
-Ordinary validation/build failures reject the call and preserve the existing result for retry.
-Worker failures or WASM traps invalidate the session and reject pending calls. Create a new
-result after a fatal failure. `dispose()` is idempotent; all subsequent calls reject.
+See [updating a result](/browser/api#updating-a-result) for families, batches with `regenerate()`, and failures, and [live editing](/browser/examples#live-editing) for a complete editor.
 
 ## Worker lifetime and hosting
 

@@ -128,7 +128,7 @@ The engine stores each glyph on a grid of whole units. By default the grid is as
     ]"
 />
 
-**Fix:** the Vite plugin already uses [`fontHeight: 1000`](/vite/configuration#fontheight). With the [Node.js](/node/configuration#fontheight), [browser](/browser/usage#how-to-use), [Rust](/rust/usage#generatewebfontsoptions), or [CLI](/cli/usage#font-options) interfaces, set `fontHeight` to `1000` or more.
+**Fix:** the Vite plugin already uses [`fontHeight: 1000`](/vite/configuration#fontheight). With the [Node.js](/node/configuration#fontheight), [browser](/browser/configuration#fontheight), [Rust](/rust/usage#generatewebfontsoptions), or [CLI](/cli/configuration#fontheight) interfaces, set `fontHeight` to `1000` or more.
 
 ## File names become class names
 

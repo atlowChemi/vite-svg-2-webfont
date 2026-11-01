@@ -177,11 +177,16 @@ export default defineConfig({
             '/browser/': toolSidebar('Browser', [
                 { text: 'Getting Started', link: '/browser/' },
                 { text: 'Usage', link: '/browser/usage' },
+                { text: 'Examples', link: '/browser/examples' },
+                { text: 'Configuration', link: '/browser/configuration' },
+                { text: 'API', link: '/browser/api' },
                 { text: 'Changelog', link: '/browser/changelog' },
             ]),
             '/cli/': toolSidebar('CLI', [
                 { text: 'Getting Started', link: '/cli/' },
                 { text: 'Usage', link: '/cli/usage' },
+                { text: 'Examples', link: '/cli/examples' },
+                { text: 'Configuration', link: '/cli/configuration' },
                 { text: 'Changelog', link: '/rust/changelog' },
             ]),
             '/rust/': toolSidebar('Rust', [

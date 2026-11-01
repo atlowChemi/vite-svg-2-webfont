@@ -53,6 +53,9 @@ const css = await result.generateCss();
 
 ## Next steps
 
-- [Usage](/browser/usage): using the output, result methods, persistent caching, incremental updates, and hosting the worker.
+- [Usage](/browser/usage): using the output, caching between sessions, updates, and hosting the worker.
+- [Examples](/browser/examples): dropped files, a live preview, live editing, and an IndexedDB cache.
+- [Configuration](/browser/configuration): every option.
+- [API](/browser/api): the result, its methods, and the TypeScript types.
 - [Playground](/playground)
 - [Changelog](/browser/changelog)

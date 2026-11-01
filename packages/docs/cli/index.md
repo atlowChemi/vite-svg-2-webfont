@@ -34,6 +34,8 @@ webfont-generator --dest ./dist/fonts --font-name my-icons --types woff2,woff ./
 
 ## Next steps
 
-- [Usage](/cli/usage): every option, the JSON configuration file, and subcommands.
+- [Usage](/cli/usage): flags or a JSON manifest, and subcommands.
+- [Examples](/cli/examples): previews, dry runs, families, color, npm scripts, and CI caching.
+- [Configuration](/cli/configuration): every option, with its flag.
 - [Templates](/guide/templates): customize the generated CSS and HTML.
 - [Changelog](/rust/changelog): the CLI is released with the `webfont-generator` crate, so its changes are logged together in the Rust changelog.
