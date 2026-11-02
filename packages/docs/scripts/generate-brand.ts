@@ -6,6 +6,8 @@ import type { Path } from 'opentype.js';
 /**
  * Brand assets:
  * - `assets/svg/logo.svg` (copied to `public/` by `optimize-svg`): the T mark, used as the favicon;
+ * - `assets/svg/social-card.svg` and `github-social-preview.svg`: the link preview and the repository's social
+ *   preview, rendered to PNG by `generate-social-card.ts`;
  * - `.vitepress/theme/wordmark.ts`: the `fonTe` wordmark's shapes for the in-page `FonteWordmark` component, which
  *   colors them from the site theme;
  * - `assets/brand/`: the READMEs' logos, loaded from the repository rather than the site. `fonte.svg` is the wordmark
@@ -19,6 +21,10 @@ const docsDir = resolve(import.meta.dirname, '..');
 const require = createRequire(import.meta.url);
 // opentype.js is CommonJS without named-export hints, so Node's ESM loader only sees a default export.
 const { parse } = require('opentype.js') as typeof import('opentype.js');
+// Node runs this file without a build step, so it needs the `.ts` path, which a static import can't name under this
+// tsconfig.
+const iconsModule = '../.vitepress/theme/landing/icons.ts';
+const { packageMarks } = (await import(iconsModule)) as typeof import('../.vitepress/theme/landing/icons');
 const loadFont = async (file: string) => parse((await readFile(require.resolve(file))).buffer);
 
 const palette = {
@@ -305,9 +311,105 @@ function viteEmblem(): string {
     );
 }
 
+const mono = await loadFont('@fontsource/jetbrains-mono/files/jetbrains-mono-latin-500-normal.woff');
+const iron = '#1c1a1f';
+
+/** A line of text as outlines. */
+const text = (font: typeof zilla, value: string, x: number, y: number, size: number, fill: string) =>
+    `<path fill="${fill}" d="${pathData(font.getPath(value, x, y, size, { kerning: true }))}"/>`;
+
+/**
+ * The social cards: the tagline beside one large molten T, on iron. Text is outlined like the wordmark's letters, so
+ * `generate-social-card.ts` renders them without loading fonts.
+ */
+function socialCard(title: string, width: number, height: number, margin: number): string {
+    // The T fills the card's height, leaving room for the molten bar along the bottom edge.
+    const bar = 24;
+    const tScale = (height - bar - 2 * margin) / (T_BOX.height - 18);
+    const tLeft = width - margin - 86 * tScale;
+    const tTop = (height - bar - (T_BOX.height - 18) * tScale) / 2 - 18 * tScale;
+
+    const wordmarkHeight = 84;
+    const wordmarkScale = wordmarkHeight / (BASELINE - layout.top);
+    const wordmark = `<g transform="translate(${margin} ${round(margin + wordmarkHeight)}) scale(${round(wordmarkScale)})"><path fill="${palette.ink.dark}" d="${layout.letters}"/><g transform="${layout.tTransform}">${mark('wordmark', { mold: { color: palette.mold.dark }, strokeWidth: 2.4 })}</g></g>`;
+
+    const taglineSize = 78;
+    const lines = ['Melted SVGs,', 'cast into fonts'];
+    const widest = Math.max(...lines.map(line => zilla.getAdvanceWidth(line, taglineSize, { kerning: true })));
+    if (margin + widest > tLeft + 14 * tScale - 24) throw new Error(`The ${title} tagline runs into the T.`);
+    const baseline = height / 2 + 15;
+
+    return [
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title">`,
+        `<title id="title">${title}</title>`,
+        `<path fill="${iron}" d="M0 0H${width}V${height}H0Z"/>`,
+        `<g transform="translate(${round(tLeft)} ${round(tTop)}) scale(${round(tScale)})">${mark('card', { mold: { color: palette.mold.dark }, strokeWidth: 0.9 })}</g>`,
+        wordmark,
+        ...lines.map((line, i) => text(zilla, line, margin, baseline + i * 88, taglineSize, palette.ink.dark)),
+        text(mono, 'Vite · Node.js · Browser · CLI · Rust', margin, height - bar - margin + 8, 23, palette.mold.dark),
+        `<path fill="${palette.molten}" d="M0 ${height - bar}H${width}V${height}H0Z"/>`,
+        '</svg>\n',
+    ].join('');
+}
+
+/** The tool's 24×24 mark, filled. */
+type ToolMark = keyof typeof packageMarks;
+
+/**
+ * A doc page's social card: the page title on ash, with its tool's plate and mark, as on the page itself. Not wired
+ * into the build yet; `assets/social/page-card.svg` is a sample of the template.
+ */
+function pageCard({ plate, title, detail, url, tool }: { plate: string; title: string; detail: string; url: string; tool: ToolMark }): string {
+    const [width, height, margin] = [1200, 630, 72];
+    const ink = palette.ink.light;
+    const muted = palette.mold.light;
+    const markSize = 168;
+
+    // Wrap the title in Zilla Slab to the space left of the mark, two lines at most.
+    const titleSize = 84;
+    const maxWidth = width - 2 * margin - markSize - 48;
+    const lines: string[] = [];
+    for (const word of title.split(' ')) {
+        const last = lines.at(-1);
+        if (last && zilla.getAdvanceWidth(`${last} ${word}`, titleSize, { kerning: true }) <= maxWidth) lines[lines.length - 1] = `${last} ${word}`;
+        else lines.push(word);
+    }
+    if (lines.length > 2) throw new Error(`The page card title "${title}" needs more than two lines.`);
+
+    const wordmarkHeight = 50;
+    const wordmarkScale = wordmarkHeight / (BASELINE - layout.top);
+    const rule = (y: number) => `<path stroke="${ink}" stroke-opacity=".18" stroke-width="2" d="M${margin} ${y}H${width - margin}"/>`;
+    const plateWidth = mono.getAdvanceWidth(plate, 22);
+
+    return [
+        `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" role="img" aria-labelledby="title">`,
+        `<title id="title">${title}, ${plate}: fonte</title>`,
+        `<path fill="#faf7f2" d="M0 0H${width}V${height}H0Z"/>`,
+        `<g transform="translate(${margin} ${round(56 + wordmarkHeight)}) scale(${round(wordmarkScale)})"><path fill="${ink}" d="${layout.letters}"/><g transform="${layout.tTransform}">${mark('page-wordmark', { mold: { color: muted }, strokeWidth: 2.4 })}</g></g>`,
+        text(mono, plate, round(width - margin - plateWidth), 94, 22, '#b4410a'),
+        rule(128),
+        ...lines.map((line, i) => text(zilla, line, margin, (lines.length === 1 ? 320 : 276) + i * 96, titleSize, ink)),
+        text(mono, detail, margin, 452, 24, muted),
+        `<g transform="translate(${width - margin - markSize} 360) scale(${markSize / 24})"><path fill="${palette.molten}" d="${packageMarks[tool]}"/></g>`,
+        rule(556),
+        text(mono, url, margin, 596, 22, muted),
+        '</svg>\n',
+    ].join('');
+}
+
 const brandDir = resolve(docsDir, 'assets', 'brand');
 const files = {
     [resolve(docsDir, 'assets', 'svg', 'logo.svg')]: logo,
+    // GitHub's social preview is 1280×640 and asks for a 40pt safe border.
+    [resolve(docsDir, 'assets', 'svg', 'social-card.svg')]: socialCard('fonte: melted SVGs, cast into fonts', 1200, 630, 72),
+    [resolve(docsDir, 'assets', 'svg', 'github-social-preview.svg')]: socialCard('fonte: melted SVGs, cast into fonts', 1280, 640, 88),
+    [resolve(docsDir, 'assets', 'social', 'page-card.svg')]: pageCard({
+        plate: 'npm · Node.js',
+        title: 'Configuration',
+        detail: '@atlowchemi/webfont-generator',
+        url: 'fonte.atlow.dev/node/configuration',
+        tool: 'node',
+    }),
     [resolve(docsDir, '.vitepress', 'theme', 'wordmark.ts')]: component,
     [resolve(brandDir, 'fonte.svg')]: animatedWordmark,
     [resolve(brandDir, 'vite.svg')]: viteEmblem(),
@@ -316,6 +418,7 @@ const files = {
     [resolve(brandDir, 'rust.svg')]: rustEmblem(),
 };
 await mkdir(brandDir, { recursive: true });
+await mkdir(resolve(docsDir, 'assets', 'social'), { recursive: true });
 await Promise.all(
     Object.entries(files).map(async ([path, content]) => {
         await writeFile(path, content);

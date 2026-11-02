@@ -102,7 +102,7 @@ export default defineConfig({
             'meta',
             {
                 property: 'og:image:alt',
-                content: 'vite-svg-2-webfont social preview',
+                content: 'The fonte wordmark and the line "Melted SVGs, cast into fonts", beside a large T filled with molten metal.',
             },
         ],
         ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
