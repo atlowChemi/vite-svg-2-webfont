@@ -7,8 +7,8 @@
         "test:compat": "node scripts/run.mjs compat",
         "audit": "node scripts/run.mjs audit",
         "audit:negative": "node scripts/run.mjs negative",
-        "build": "node scripts/cargo.mjs build --locked",
-        "test": "node scripts/cargo.mjs test --locked",
-        "check": "node scripts/cargo.mjs clippy --locked -- -D warnings && node scripts/cargo.mjs fmt -- --check"
+        "build": "cargo build -p cache-audit --locked",
+        "test": "cargo test -p cache-audit --locked",
+        "check": "cargo clippy -p cache-audit --locked -- -D warnings && cargo fmt -p cache-audit -- --check"
     }
 }

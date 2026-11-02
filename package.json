@@ -8,6 +8,7 @@
         "node": "^22 || ^24 || >=26"
     },
     "scripts": {
+        "pnpm:devPreinstall": "node crates/cache-audit/scripts/prepare.mjs",
         "prepare": "vp config",
         "next:bench:vitest": "vp test bench --run --reporter=verbose --hideSkippedTests",
         "next:test:compat": "vp test --run --project=compat",

@@ -6,12 +6,16 @@ It extends the Unix preload and Linux syscall paths with hard-link, rename,
 and deletion access reporting. Source reads and destination writes use the
 existing fspy record format, including attempted operations that fail.
 
-The package build script checks out that exact revision and applies this patch
-in a disposable, patch-content-addressed directory under `target`. Cargo uses
-local overrides for the three changed crates; all upstream sources stay pinned.
+The root preinstall hook checks out that exact revision and applies this patch
+under `.pnpm/cache-audit-fspy`, verifying the revision and complete patched diff.
+Root Cargo configuration points `fspy` at that source for installs and builds;
+its transitive workspace crates use the same patched checkout.
 This keeps the maintained delta reviewable without vendoring the whole upstream
-workspace or relying on an unpublished fork commit. Use the package scripts to
-build/test; bare Cargo does not apply the patch.
+workspace or relying on an unpublished fork commit. After `vp install`, ordinary
+Cargo commands work too. The manifest patch explicitly identifies fspy's upstream
+workspace so Cargo does not attach its path dependency to our product workspace.
+When updating the revision or patch, remove `.pnpm/cache-audit-fspy` and reinstall;
+unexpected source modifications fail verification instead of being overwritten.
 
 The regression fixture covers links, rename/exchange, deletion, relative directory
 descriptors, direct Linux syscalls, and dynamically/static linked executables.

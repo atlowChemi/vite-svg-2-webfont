@@ -20,6 +20,7 @@ jobs:
               with:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -89,6 +90,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   targets: wasm32-unknown-unknown
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -96,7 +98,7 @@ jobs:
                       args: [--frozen-lockfile]
                   cache: true
             - name: Verify installation preserved the lockfile
-              run: git diff --exit-code HEAD -- pnpm-lock.yaml
+              run: git diff --exit-code HEAD -- pnpm-lock.yaml Cargo.lock .cargo/config.toml
             - name: Record external toolchain for audit diagnostics
               run: |
                   mkdir -p artifacts/cache-audit
@@ -108,8 +110,6 @@ jobs:
                     cc --version
                     uname -a
                   } > artifacts/cache-audit/toolchain.txt
-            - name: Install isolated auditor toolchain
-              run: rustup toolchain install nightly-2026-08-02 --profile minimal --component clippy --component rustfmt
             - name: Build and test observer
               env:
                   CARGO_TARGET_DIR: ${{ runner.temp }}/cache-audit-build
@@ -117,6 +117,20 @@ jobs:
                   vp run @atlowchemi/cache-audit#build
                   vp run @atlowchemi/cache-audit#test
                   vp run @atlowchemi/cache-audit#check
+            - name: Verify stable product compiler and published crate
+              shell: bash
+              run: |
+                  rustup toolchain install stable --profile minimal --target wasm32-unknown-unknown
+                  export RUSTC="$(rustup which --toolchain stable rustc)"
+                  export RUSTDOC="$(rustup which --toolchain stable rustdoc)"
+                  cargo check --locked -p webfont-generator --all-features
+                  cargo check --locked -p webfont-generator-napi
+                  cargo check --locked -p webfont-browser --target wasm32-unknown-unknown
+                  cargo package --locked -p webfont-generator
+                  mkdir -p "$RUNNER_TEMP/stable-package"
+                  tar -xzf target/package/webfont-generator-*.crate -C "$RUNNER_TEMP/stable-package"
+                  cd "$RUNNER_TEMP"/stable-package/webfont-generator-*
+                  cargo +stable check --locked --all-features
             - name: Compare Rust graphs with installed pnpm
               run: ${{ runner.temp }}/cache-audit-build/debug/cache-audit graph --all --verify-pnpm > artifacts/cache-audit/graphs.json
             - name: Verify installed pnpm cache semantics
