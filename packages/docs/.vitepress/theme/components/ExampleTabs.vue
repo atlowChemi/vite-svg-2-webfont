@@ -44,8 +44,16 @@ const group = useId();
     display: none;
 }
 
+/* A titled snippet's wrapper would draw a second frame inside the tab; the group's frame is the only one. */
 .example-tabs .vp-block :deep(.vp-code-block-title) {
     margin: 0;
+    border: 0;
+    border-radius: 0;
+}
+
+/* A panel of code fills the tab edge to edge, as in any code group; the padding is for icons and rendered output. */
+.example-tabs > .blocks > :deep(.vp-block:has(> div[class*='language-'], > .vp-code-block-title, > div > div[class*='language-'])) {
+    padding: 0;
 }
 
 .example-tabs .vp-block > :deep(:not(div[class*='language-'], .vp-code-block-title)) {
