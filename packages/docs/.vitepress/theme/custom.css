@@ -117,11 +117,7 @@ a:hover {
 }
 
 .VPNavBarMenuLink.active,
-.VPNavBarMenuLink:hover,
-.VPSidebarItem.is-active > .item > .link > .text,
-.VPSidebarItem .link:hover .text,
-.outline-link:hover,
-.outline-link.active {
+.VPNavBarMenuLink:hover {
     color: var(--vp-c-brand-1);
 }
 
@@ -136,14 +132,6 @@ a:hover {
 
 .VPSocialLinks .VPSocialLink:hover {
     color: var(--vp-c-brand-1);
-}
-
-.VPSidebarItem.is-active > .item > .indicator {
-    background: var(--fonte-molten);
-}
-
-.vp-doc :is(h2, h3) {
-    scroll-margin-top: 88px;
 }
 
 .vp-doc :is(h2, h3) a:hover {
@@ -220,15 +208,7 @@ a:hover {
     margin-top: 24px;
 }
 
-/*
- * Doc pages borrow the landing page's specimen-sheet details: mono labels like its section rails, ruled sections with
- * a molten tick, and option names set as entries rather than code chips.
- */
-.vp-doc h1 {
-    font-size: 40px;
-    line-height: 1.15;
-}
-
+/* Doc pages borrow the landing page's specimen-sheet details: mono labels like its section rails, and ruled sections with a molten tick. */
 .vp-doc h2 {
     position: relative;
 }
@@ -243,38 +223,6 @@ a:hover {
     background: var(--fonte-molten);
 }
 
-/* Option entries on the configuration pages: a heading that is only an option name. */
-.vp-doc h3:has(> code:first-child + .header-anchor:last-child) > code {
-    padding: 0;
-    background: none;
-    font-size: 0.9em;
-    color: var(--vp-c-text-1);
-}
-
-.vp-doc h3:has(> code:first-child + .header-anchor:last-child)::before {
-    content: '';
-    display: inline-block;
-    width: 7px;
-    height: 7px;
-    margin: 0 10px 0.15em 0;
-    background: var(--fonte-molten);
-    vertical-align: middle;
-}
-
-/* Their Type, Default, and Flag lines: a compact list right under the description. */
-.vp-doc h3:has(> code:first-child + .header-anchor:last-child) + p + ul,
-.vp-doc h3:has(> code:first-child + .header-anchor:last-child) + ul {
-    padding-left: 12px;
-    border-left: 1px solid var(--vp-c-divider);
-    list-style: none;
-    font-size: 14px;
-}
-
-.vp-doc h3:has(> code:first-child + .header-anchor:last-child) + p + ul > li + li,
-.vp-doc h3:has(> code:first-child + .header-anchor:last-child) + ul > li + li {
-    margin-top: 2px;
-}
-
 .vp-doc th {
     font-family: var(--vp-font-family-mono);
     font-size: 12px;
@@ -285,17 +233,6 @@ a:hover {
 
 .vp-doc tr:nth-child(2n) {
     background: none;
-}
-
-/* Sidebar group titles and the outline label read like the landing page's rails. */
-.VPSidebarItem.level-0 > .item > .text,
-.VPDocAsideOutline .outline-title {
-    font-family: var(--vp-font-family-mono);
-    font-size: 12px;
-    font-weight: 400;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    color: var(--vp-c-text-3);
 }
 
 .vp-doc .custom-block.tip,
