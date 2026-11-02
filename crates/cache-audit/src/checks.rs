@@ -226,7 +226,7 @@ fn copy_workspace(
         return Err("workspace copy cancelled".into());
     }
     let relative = source.strip_prefix(root)?;
-    if [".git", "target", "artifacts", "crates/cache-audit/target"]
+    if [".git", "target", "artifacts"]
         .iter()
         .any(|path| relative == Path::new(path))
         || source == reports

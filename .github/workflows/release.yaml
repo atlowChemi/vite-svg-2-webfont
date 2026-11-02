@@ -41,6 +41,8 @@ jobs:
             - name: Setup Rust toolchain
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
               uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
 
             - name: Sync Cargo.lock before frozen installation
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
@@ -87,6 +89,8 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -186,6 +190,13 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
+            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              with:
+                  node-version-file: .node-version
+                  run-install: true
+                  cache: true
             - name: Authenticate with crates.io
               uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
               id: crates-auth
@@ -206,6 +217,8 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -241,6 +254,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   targets: wasm32-unknown-unknown
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version

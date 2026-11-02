@@ -312,7 +312,9 @@ rustup toolchain install nightly-2026-02-18 --profile minimal --component llvm-t
 ```
 
 On macOS, put Homebrew LLVM's `bin` directory on PATH; Apple clang lacks the WASM target.
-`WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage toolchain; normal builds use stable Rust.
+`WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage toolchain; normal builds use the
+nightly pinned in `rust-toolchain.toml`. CI also verifies the product with stable
+`rustc` and checks the packaged engine crate using stable Cargo.
 The pinned nightly uses LLVM 22 to match wasm-bindgen-test's exact minicov 0.3.8 dependency.
 CI uploads coverage with the `browser-js` and `browser-rust` flags and reports the production
 smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.

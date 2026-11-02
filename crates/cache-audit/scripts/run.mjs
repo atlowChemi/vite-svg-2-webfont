@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
-const binary = process.env.CACHE_AUDIT_BIN || join(root, 'crates/cache-audit/target/debug/cache-audit');
+const binary = process.env.CACHE_AUDIT_BIN || join(root, 'target/debug/cache-audit');
 const [command, ...options] = process.argv.slice(2);
 let args = options[0] === '--' ? options.slice(1) : options;
 // Preserve the existing audit TASK [POLICY] entry point.

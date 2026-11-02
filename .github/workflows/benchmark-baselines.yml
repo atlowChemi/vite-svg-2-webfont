@@ -61,6 +61,8 @@ jobs:
             - name: Setup Rust
               id: rust
               uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
 
             - name: Setup Vite+
               uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
