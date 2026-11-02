@@ -1,3 +1,13 @@
+diff --git a/crates/fspy/Cargo.toml b/crates/fspy/Cargo.toml
+index 16683d743e35e999781c3a27e1a3c38bc0185695..49408a8f40952b5454ce8ca25ad214b671ed988d 100644
+--- a/crates/fspy/Cargo.toml
++++ b/crates/fspy/Cargo.toml
+@@ -1,4 +1,5 @@
+ [package]
++workspace = "../.."
+ name = "fspy"
+ version = "0.1.0"
+ edition = "2024"
 diff --git a/crates/fspy/src/unix/syscall_handler/link.rs b/crates/fspy/src/unix/syscall_handler/link.rs
 new file mode 100644
 index 0000000000000000000000000000000000000000..4df55c5bd90adec0d82add9529032f5e23f3a939

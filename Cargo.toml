@@ -1,8 +1,16 @@
 [workspace]
-members = ["crates/webfont-generator", "packages/webfont-generator", "packages/webfont-browser"]
+members = ["crates/webfont-generator", "packages/webfont-generator", "packages/webfont-browser", "crates/cache-audit"]
 default-members = ["crates/webfont-generator"]
-exclude = ["crates/cache-audit"]
 resolver = "3"
 
 [workspace.lints.clippy]
 allow_attributes = "deny"
+
+# Match the embedded pnpm APIs' upstream patches.
+[patch.crates-io]
+tar = { git = "https://github.com/pnpm/pnpm", rev = "91774e72a04d52ce61db06339696a433d383c764" }
+dashmap = { git = "https://github.com/pnpm/dashmap", rev = "4401b5c0b2626266dd5d5a9202677bca8b53e57a" }
+node-semver = { git = "https://github.com/pnpm/node-semver-rs", rev = "3d74d6b7f4de1de2006cf2f7663aac09de65b1f6" }
+
+[patch."https://github.com/voidzero-dev/vite-task"]
+fspy = { path = ".pnpm/cache-audit-fspy/crates/fspy" }

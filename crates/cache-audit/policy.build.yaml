@@ -38,16 +38,6 @@ tasks:
               kinds: [write]
               directory: true
               reason: 'Recreated output directories; artifact file writes still require output declarations'
-            - &cargo-shim
-              pattern: '.cargo/config.toml'
-              kinds: [read]
-              reason: 'Fixed pnpm installation shim, verified before and after execution'
-              contents: |
-                  # >>> pnpm-managed cargo sources >>>
-                  [[include]]
-                  path = "../.pnpm/crates/config.toml"
-                  optional = true
-                  # <<< pnpm-managed cargo sources <<<
         neverCache: &intermediates
             - pattern: '**/node_modules/**'
               reason: 'Installed dependencies represented by the lockfile, never task artifacts'
@@ -71,7 +61,6 @@ tasks:
             - *external
             - *directories
             - *discovery
-            - *cargo-shim
             - pattern: 'packages/webfont-browser/generated/**'
               kinds: [read]
               reason: 'wasm-bindgen replaces generated files from freshly compiled WASM; writes remain checked'

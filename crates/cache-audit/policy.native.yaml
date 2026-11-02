@@ -27,15 +27,6 @@ tasks:
             - pattern: 'pnpm11/pnpm/package.json'
               reason: 'pnpm executable package-manifest lookup'
         ignore:
-            - pattern: '.cargo/config.toml'
-              kinds: [read]
-              reason: 'pnpm installation shim, not user Cargo configuration; exact contents enforced before and after the build'
-              contents: |
-                  # >>> pnpm-managed cargo sources >>>
-                  [[include]]
-                  path = "../.pnpm/crates/config.toml"
-                  optional = true
-                  # <<< pnpm-managed cargo sources <<<
             - pattern: '{.,crates,packages,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}'
               kinds: [read]
               reason: 'Workspace and package directory metadata; file contents remain independently checked'

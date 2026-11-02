@@ -10,7 +10,7 @@ it.skipIf(process.platform === 'win32')('forwards audit selectors with or withou
     try {
         const binary = join(directory, 'audit-stub');
         writeFileSync(binary, '#!/usr/bin/env node\nconsole.log(JSON.stringify(process.argv.slice(2)));\n', { mode: 0o755 });
-        const launcher = fileURLToPath(new URL('../packages/cache-audit/scripts/run.mjs', import.meta.url));
+        const launcher = fileURLToPath(new URL('../crates/cache-audit/scripts/run.mjs', import.meta.url));
         for (const options of [['--all'], ['--', '--all'], ['--', 'next:native']]) {
             const result = JSON.parse(
                 execFileSync(process.execPath, [launcher, 'audit', ...options], {

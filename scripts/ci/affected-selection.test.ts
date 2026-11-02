@@ -257,7 +257,7 @@ describe('validation scope policy', () => {
         expect(scenario([file], affected).rustSuites).toEqual(['adapter']);
     });
     it('recognizes auditor workspace changes as shared tooling', () => {
-        expect(scenario(['packages/cache-audit/package.json'], [packageNames.audit]).full).toBe(true);
+        expect(scenario(['crates/cache-audit/package.json'], [packageNames.audit]).full).toBe(true);
     });
 
     it.each([{ names: [] }, { names: [packageNames.root] }])('broadens changed files with an incomplete selection: $names', ({ names }) => {

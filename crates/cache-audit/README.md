@@ -11,7 +11,8 @@ CI currently builds/tests the auditor and checks graph/fixture compatibility.
 
 ## Build and test
 
-Install Node, Git, and Rust `nightly-2026-08-02` (with rustfmt and Clippy).
+Install Node, Git, and Rust. The root `rust-toolchain.toml` pins nightly
+`2026-08-02` with rustfmt and Clippy; `fspy` needs Cargo artifact dependencies.
 Linux regression tests also require Python 3, a C compiler, static libc, and
 the installed pnpm on `PATH` for graph parity checks.
 From the repository root, use the workspace package:
@@ -22,15 +23,13 @@ vp run @atlowchemi/cache-audit#test
 vp run @atlowchemi/cache-audit#check
 ```
 
-The package scripts fetch the pinned upstream revision, apply the checked-in
-mutation-tracking patch, and verify the resulting diff. Downloads are reused by
-revision and patch hash under `target`. Cargo overrides point at those patched
-sources. See [patch maintenance](patches/README.md). Bare Cargo does not apply the
-patch; use these scripts. `packages/cache-audit` exposes these commands in the root
-pnpm workspace. The Rust project remains a separate Cargo workspace under
-`crates/cache-audit`; its nested pnpm workspace boundary keeps its nightly
-dependencies out of root Cargo discovery. Builds avoid inheriting pnpm's vendored
-Cargo sources.
+`vp install` prepares the pinned observer source and applies the checked-in
+mutation-tracking patch before dependency installation. Root Cargo configuration
+uses that same source for every command, with one shared `Cargo.lock` and pnpm
+workspace. The package lives alongside its Rust crate in `crates/cache-audit`;
+build/test/check invoke Cargo directly. See [patch maintenance](patches/README.md).
+Product crates remain the workspace default members, so a bare `cargo build`
+does not build the auditor. CI also checks product crates with stable `rustc`.
 
 ## Resolve task graphs
 
@@ -43,9 +42,9 @@ includes are explicitly unsupported by the validator rather than silently omitte
 These unpublished APIs are pinned independently of the installed pnpm version.
 
 ```sh
-crates/cache-audit/target/debug/cache-audit graph --pipeline next-build
-crates/cache-audit/target/debug/cache-audit graph --task next:native
-crates/cache-audit/target/debug/cache-audit graph --all --verify-pnpm
+target/debug/cache-audit graph --pipeline next-build
+target/debug/cache-audit graph --task next:native
+target/debug/cache-audit graph --all --verify-pnpm
 ```
 
 Use `--workspace PATH` for another checkout. Exactly one selection is required;
@@ -100,10 +99,10 @@ of the **cache task**, not the command's working directory.
 
 ```sh
 # From the repository root: raw observation, no coverage verdict.
-crates/cache-audit/target/debug/cache-audit -- pnpm --dir packages/webfont-generator run next:build > accesses.json
+target/debug/cache-audit -- pnpm --dir packages/webfont-generator run next:build > accesses.json
 
 # Audit the root-owned cache wrapper's declarations, executing its raw command.
-crates/cache-audit/target/debug/cache-audit --workspace . --project . --task next:native --policy crates/cache-audit/policy.native.yaml -- pnpm --dir packages/webfont-generator run next:build > audit.json
+target/debug/cache-audit --workspace . --project . --task next:native --policy crates/cache-audit/policy.native.yaml -- pnpm --dir packages/webfont-generator run next:build > audit.json
 ```
 
 Install dependencies and prepare prerequisite outputs **before** observation.
@@ -247,7 +246,7 @@ The dormant-pipeline CI job executes finite build/test/coverage/tarball pipeline
 uncached; servers, publishing,
 measurements, and source-mutating maintenance are explicitly invoked separately.
 Rust owns audit execution, compatibility checks, and declaration-negative checks;
-`packages/cache-audit/scripts/run.mjs` only launches the binary and forwards signals.
+`crates/cache-audit/scripts/run.mjs` only launches the binary and forwards signals.
 `compat` uses a temporary fixture and separate pnpm cache/store/state directories.
 `negative` copies the installed workspace, deliberately removes native source/output
 declarations there, and checks the observed diagnostics. It copies files rather
