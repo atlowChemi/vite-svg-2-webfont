@@ -45,8 +45,8 @@ html:has(.sk) {
     scroll-padding-top: calc(var(--sk-top, 60px) + var(--sk-strip, 46px) + 20px);
 }
 
-/* The bars set the jump offset through scroll-padding; VitePress's own heading margin would add a second one. */
-.sk .vp-doc :is(h1, h2, h3, h4) {
+/* The bars set the jump offset through scroll-padding; the default theme's margin on `.vp-doc [id]` would add a second one. */
+.sk .vp-doc [id] {
     scroll-margin-top: 0;
 }
 
@@ -586,6 +586,22 @@ a.tool:hover {
 .sk .vp-doc div[class*='language-'] {
     margin: 16px 0;
     border-radius: 8px;
+}
+
+.sk-edit {
+    display: inline-block;
+    margin-top: 64px;
+    font: 13px var(--vp-font-family-mono);
+    color: var(--vp-c-text-2);
+    text-decoration: none;
+}
+
+.sk-edit:hover {
+    color: var(--vp-c-brand-1);
+}
+
+.sk-edit + .sk-next {
+    margin-top: 16px;
 }
 
 .sk-next {

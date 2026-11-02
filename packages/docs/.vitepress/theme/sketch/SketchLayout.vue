@@ -270,6 +270,7 @@ function go(id: string) {
 }
 
 const toggleTheme = () => (isDark.value = !isDark.value);
+const editLink = computed(() => (theme.value.editLink?.pattern as string | undefined)?.replace(':path', page.value.relativePath));
 const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Switch to dark theme'));
 </script>
 
@@ -358,6 +359,7 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
 
             <main id="sk-content" class="sk-main" tabindex="-1">
                 <div class="vp-doc"><Content /></div>
+                <a v-if="editLink" class="sk-edit" :href="editLink" target="_blank" rel="noreferrer">Edit this page on GitHub ↗</a>
                 <nav class="sk-next" aria-label="Previous and next pages">
                     <a v-if="prev" :href="withBase(prev.link)"
                         ><span class="mono">← {{ numbered ? `No. ${no(index - 1)}` : 'Previous' }}</span

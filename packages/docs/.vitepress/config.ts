@@ -206,7 +206,6 @@ export default defineConfig({
             { icon: 'npm', link: `https://www.npmjs.com/package/${repoName}` },
             { icon: 'github', link: repo },
         ],
-        outline: [2, 3],
         footer: {
             message: 'Released under the MIT License.',
             copyright: 'Copyright © Chemi Atlow',
