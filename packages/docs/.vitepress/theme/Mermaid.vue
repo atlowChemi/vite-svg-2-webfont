@@ -58,15 +58,35 @@ onMounted(async () => {
 
 onUnmounted(() => mut.disconnect());
 
+// Mermaid's base theme, colored from the site's tokens as they are for the current light or dark mode: nodes are drawn
+// like the type case's compartments, and edges in the brand color.
+const themeVariables = () => {
+    const style = getComputedStyle(document.documentElement);
+    const token = name => style.getPropertyValue(name).trim();
+    return {
+        fontFamily: token('--vp-font-family-base'),
+        fontSize: '14px',
+        background: token('--vp-c-bg'),
+        primaryColor: token('--vp-c-bg-soft'),
+        primaryBorderColor: token('--fonte-mold'),
+        primaryTextColor: token('--vp-c-text-1'),
+        textColor: token('--vp-c-text-1'),
+        lineColor: token('--vp-c-brand-1'),
+        edgeLabelBackground: token('--vp-c-bg'),
+        clusterBkg: token('--vp-c-bg-alt'),
+        clusterBorder: token('--vp-c-divider'),
+        titleColor: token('--vp-c-text-2'),
+    };
+};
+
 const renderChart = async () => {
-    console.log('rendering chart' + props.id + code.value);
-    const hasDarkClass = document.documentElement.classList.contains('dark');
     const mermaidConfig = {
         securityLevel: 'loose',
         startOnLoad: false,
         // SVG labels avoid HTML text being clipped by inherited page typography.
         htmlLabels: false,
-        theme: hasDarkClass ? 'dark' : 'default',
+        theme: 'base',
+        themeVariables: themeVariables(),
     };
     let svgCode = await render(props.id, code.value, mermaidConfig);
     // This is a hack to force v-html to re-render, otherwise the diagram disappears
