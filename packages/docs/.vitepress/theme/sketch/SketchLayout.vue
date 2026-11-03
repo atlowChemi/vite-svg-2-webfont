@@ -44,6 +44,20 @@ const guideGroups = computed(() => ((theme.value.sidebar as Record<string, Group
 // Only the guide is read in order, so only its pages carry a number; tool pages and features are looked up.
 const numbered = computed(() => isGuide.value && group.value?.text === guideGroups.value[0]?.text);
 
+// Phones: the tool button's sheet also lists the current section's pages, grouped by shelf, so the strip can go away.
+const groupsOf = (key: string): Group[] => {
+    const groups = (theme.value.sidebar as Record<string, Group[]>)[`/${key}/`] ?? [];
+    // A tool's sidebar ends with the shared Guide, Features and Tools groups; only its own pages belong here.
+    return groups.slice(0, key === 'guide' ? 2 : 1);
+};
+const currentGroups = computed(() => groupsOf(section.value));
+const pageCount = computed(() => currentGroups.value.reduce((n, g) => n + g.items.length, 0));
+// The sheet lists the guide and each tool; the current one opens its pages underneath.
+const sheetTools = computed(() => [
+    { key: 'guide', plate: 'Start here', name: 'Guide', pkg: 'Concepts and features', link: withBase('/guide/') },
+    ...tools.map(t => ({ key: t.key, plate: t.plate, name: t.name, pkg: t.package, link: toolLink(t.key) })),
+]);
+
 /** Switching tools keeps your place: Node's Configuration → Vite's Configuration, when it has one. */
 function toolLink(key: string): string {
     const pageType = current.value.split('/')[2];
@@ -86,7 +100,12 @@ function readSections() {
 }
 
 // The current entry is the last heading above the bars, so it stays right after any jump: links, search, "Also in".
-const offset = () => (document.querySelector('.sk-strip')?.getBoundingClientRect().bottom ?? 0) + 24;
+// The strip is hidden on phones; track from whichever bar is actually showing.
+const offset = () => {
+    const strip = document.querySelector('.sk-strip');
+    const bottom = strip && getComputedStyle(strip).display !== 'none' ? strip.getBoundingClientRect().bottom : (document.querySelector('.sk-top')?.getBoundingClientRect().bottom ?? 0);
+    return bottom + 24;
+};
 let frame = 0;
 function track() {
     cancelAnimationFrame(frame);
@@ -282,6 +301,7 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
             <button class="sk-tool-button" type="button" aria-haspopup="dialog" :aria-expanded="sheet === 'tools'" @click="sheet = sheet === 'tools' ? '' : 'tools'">
                 <span class="plate">{{ tool?.plate ?? 'Start here' }}</span
                 ><strong>{{ tool?.name ?? 'Guide' }}</strong
+                ><span v-if="pageCount" class="cue mono">{{ pageCount }} pages</span
                 ><svg class="caret" viewBox="0 0 24 24" aria-hidden="true">
                     <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -394,14 +414,28 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
         <Transition name="sk-sheet">
             <div v-if="sheet === 'tools'" ref="sheetEl" class="sk-sheet" role="dialog" aria-modal="true" aria-labelledby="sk-sheet-title" tabindex="-1">
                 <div id="sk-sheet-title" class="sk-sheet-title mono">Tools</div>
-                <a class="sk-sheet-tool" :href="withBase('/guide/')" :aria-current="isGuide ? 'true' : undefined"
-                    ><span class="plate">Start here</span><strong>Guide</strong><span class="pkg mono">Concepts and features</span></a
-                >
-                <a v-for="t in tools" :key="t.key" class="sk-sheet-tool" :href="toolLink(t.key)" :aria-current="t.key === section ? 'true' : undefined"
-                    ><span class="plate">{{ t.plate }}</span
-                    ><strong>{{ t.name }}</strong
-                    ><span class="pkg mono">{{ t.package }}</span></a
-                >
+                <template v-for="entry in sheetTools" :key="entry.key">
+                    <a class="sk-sheet-tool" :href="entry.link" :aria-current="entry.key === section ? 'true' : undefined"
+                        ><span class="plate">{{ entry.plate }}</span
+                        ><strong>{{ entry.name }}</strong
+                        ><span class="pkg mono">{{ entry.pkg }}</span></a
+                    >
+                    <!-- Phones: the current section's pages live here, in place of the strip. -->
+                    <div v-if="entry.key === section && currentGroups.length" class="sk-sheet-pages">
+                        <template v-for="(g, gi) in currentGroups" :key="g.text">
+                            <div v-if="currentGroups.length > 1" class="sk-sheet-shelf mono">{{ g.text }}</div>
+                            <a
+                                v-for="(item, i) in g.items"
+                                :key="item.link"
+                                class="sk-sheet-page"
+                                :href="withBase(item.link)"
+                                :aria-current="normalize(item.link) === current ? 'page' : undefined"
+                                ><span v-if="entry.key === 'guide' && gi === 0" class="n">{{ no(i) }}</span
+                                >{{ item.text }}</a
+                            >
+                        </template>
+                    </div>
+                </template>
                 <a class="sk-sheet-tool play" :href="withBase('/playground')"
                     ><span class="plate">Try it</span><strong>Playground</strong><span class="pkg mono">Generate a font in your browser</span></a
                 >
