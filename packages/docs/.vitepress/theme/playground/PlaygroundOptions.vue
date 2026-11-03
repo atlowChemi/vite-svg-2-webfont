@@ -210,9 +210,39 @@ function resetTemplate(key: 'cssTemplate' | 'htmlTemplate') {
 }
 
 .pg-options summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     cursor: pointer;
     font-weight: 600;
     font-size: 14px;
+    list-style: none;
+}
+
+.pg-options summary::-webkit-details-marker {
+    display: none;
+}
+
+/* The doc pages' caret, pointing right while closed. */
+.pg-options summary::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    margin: 0 2px;
+    border-right: 1.5px solid var(--vp-c-brand-1);
+    border-bottom: 1.5px solid var(--vp-c-brand-1);
+    transform: rotate(-45deg);
+    transition: transform 0.2s;
+}
+
+.pg-options details[open] > summary::before {
+    transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .pg-options summary::before {
+        transition: none;
+    }
 }
 
 .pg-options details > label,

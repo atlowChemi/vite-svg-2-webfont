@@ -62,7 +62,7 @@ watch(
     padding: 16px 10px 12px;
     border: 1px solid var(--vp-c-divider);
     border-radius: var(--pg-radius);
-    background: var(--vp-c-bg-soft);
+    background: var(--vp-c-bg);
 }
 
 .pg-card-invalid {
@@ -113,8 +113,9 @@ watch(
     font-size: 13px;
 }
 
-.pg-card-codepoint {
+.pg-card .pg-card-codepoint {
     font-family: var(--vp-font-family-mono);
+    color: var(--vp-c-brand-1);
 }
 
 .pg-card-class {
@@ -122,7 +123,7 @@ watch(
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 12px;
-    color: var(--vp-c-text-2);
+    color: var(--vp-c-text-3);
 }
 
 .pg-card-error,
