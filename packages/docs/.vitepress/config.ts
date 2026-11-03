@@ -8,7 +8,9 @@ import { iconCss } from './icon-css';
 
 const repoName = 'vite-svg-2-webfont';
 const repo = `https://github.com/atlowChemi/${repoName}`;
-const docsUrl = 'https://fonte.atlow.dev/';
+// Absolute links for crawlers and link previews (`og:url`, `og:image`). CI sets `DOCS_URL` to the site a build is
+// deployed to (`next`, or a pull request's preview); everything else is the production site.
+const docsUrl = (process.env.DOCS_URL || 'https://fonte.atlow.dev').replace(/\/?$/, '/');
 const socialImage = `${docsUrl}social-card.png`;
 const siteName = 'fonte';
 const siteSubtitle = 'SVG icons, cast into fonts';
@@ -102,7 +104,7 @@ export default defineConfig({
             'meta',
             {
                 property: 'og:image:alt',
-                content: 'vite-svg-2-webfont social preview',
+                content: 'The fonte wordmark and the line "Melted SVGs, cast into fonts", beside a large T filled with molten metal.',
             },
         ],
         ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
