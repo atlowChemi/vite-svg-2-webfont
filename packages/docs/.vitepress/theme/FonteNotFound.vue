@@ -122,12 +122,13 @@ h1 {
     margin-top: 28px;
 }
 
+/* The landing page's buttons: iron text on molten reads in both themes. */
 .button {
     display: inline-block;
-    border: 1px solid var(--vp-c-divider);
-    border-radius: 6px;
-    padding: 8px 18px;
-    font-size: 14px;
+    border: 1px solid var(--vp-c-border);
+    border-radius: 4px;
+    padding: 7px 16px;
+    font-size: 15px;
     font-weight: 600;
     color: var(--vp-c-text-1);
     text-decoration: none;
@@ -141,14 +142,13 @@ h1 {
 }
 
 .button.brand {
-    border-color: var(--vp-c-brand-1);
-    background: var(--vp-c-brand-1);
-    color: var(--vp-c-white);
+    border-color: transparent;
+    background: var(--vp-button-brand-bg);
+    color: var(--vp-button-brand-text);
 }
 
 .button.brand:hover {
-    border-color: var(--vp-c-brand-2);
-    background: var(--vp-c-brand-2);
+    background: var(--vp-button-brand-hover-bg);
 }
 
 .case {
