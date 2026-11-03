@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Layout sketch: a docs shell that owns its whole layout, around VitePress's rendered content.
+// The doc pages' shell, which owns its whole layout around VitePress's rendered content.
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 import { Content, onContentUpdated, useData, useRoute, withBase } from 'vitepress';
 import { VPNavBarSearch } from 'vitepress/theme';
@@ -88,7 +88,7 @@ const label = (h: HTMLElement) => {
 };
 
 function readSections() {
-    headings = [...document.querySelectorAll<HTMLElement>('.sk-main .vp-doc :is(h2, h3)[id]')];
+    headings = [...document.querySelectorAll<HTMLElement>('.doc-main .vp-doc :is(h2, h3)[id]')];
     const entries: Entry[] = [];
     for (const h of headings) {
         if (h.tagName === 'H2') entries.push({ id: h.id, text: label(h), children: [] });
@@ -102,7 +102,7 @@ function readSections() {
 // The current entry is the last heading above the bars, so it stays right after any jump: links, search, "Also in".
 // Track from the lowest bar: the strip, or the top bar on phones, where the hidden strip's box is all zeros.
 const barBottom = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().bottom ?? 0;
-const offset = () => Math.max(barBottom('.sk-strip'), barBottom('.sk-top')) + 24;
+const offset = () => Math.max(barBottom('.doc-strip'), barBottom('.doc-top')) + 24;
 let frame = 0;
 function track() {
     cancelAnimationFrame(frame);
@@ -134,25 +134,25 @@ function revealActive() {
 // The card takes the facts from an option's "Type: …" list (the first list that opens with one); notes in the same list stay with the description.
 const SPEC = /^(Type|Default|Required|Flags?|Manifest|Valid values|Values|Availability|Since|Env|Reference)\b(?::\s*|$)/;
 function specimens() {
-    const doc = document.querySelector('.sk-main .vp-doc');
+    const doc = document.querySelector('.doc-main .vp-doc');
     if (!doc) return;
     for (const h3 of doc.querySelectorAll<HTMLElement>('h3')) {
-        if (h3.closest('.sk-option') || !h3.matches(':has(> code:first-child + .header-anchor:last-child)')) continue;
+        if (h3.closest('.doc-option') || !h3.matches(':has(> code:first-child + .header-anchor:last-child)')) continue;
         const article = document.createElement('article');
-        article.className = 'sk-option';
+        article.className = 'doc-option';
         article.setAttribute('aria-labelledby', h3.id);
         const desc = document.createElement('div');
-        desc.className = 'sk-desc';
+        desc.className = 'doc-desc';
         h3.before(article);
         article.append(h3, desc);
         let spec: HTMLUListElement | undefined;
-        while (article.nextElementSibling && !article.nextElementSibling.matches('h2, h3, .sk-option')) {
+        while (article.nextElementSibling && !article.nextElementSibling.matches('h2, h3, .doc-option')) {
             const el = article.nextElementSibling as HTMLElement;
             if (!spec && el.matches('ul') && SPEC.test(el.firstElementChild?.textContent ?? '')) spec = el as HTMLUListElement;
             desc.append(el);
         }
         const dl = document.createElement('dl');
-        dl.className = 'sk-spec';
+        dl.className = 'doc-spec';
         for (const li of spec ? [...spec.children] : []) {
             const text = (li.textContent ?? '').trim();
             const key = text.match(SPEC)?.[1];
@@ -189,7 +189,7 @@ onContentUpdated(() => {
     // The specimens moved the page under the router's jump to a #hash; land on the heading again.
     if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
     readSections();
-    void nextTick(() => document.querySelector('.sk-strip [aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }));
+    void nextTick(() => document.querySelector('.doc-strip [aria-current="page"]')?.scrollIntoView({ inline: 'center', block: 'nearest' }));
 });
 
 // Phones: the section pill steps aside while you scroll down, and comes back when you scroll up.
@@ -210,7 +210,7 @@ watch(
     () => (sheet.value = ''),
 );
 watch(sheet, async (open, was) => {
-    document.documentElement.classList.toggle('sk-locked', !!open);
+    document.documentElement.classList.toggle('doc-locked', !!open);
     if (open && !was) {
         opener = document.activeElement as HTMLElement | null;
         await nextTick();
@@ -265,7 +265,7 @@ onBeforeUnmount(() => {
     removeEventListener('resize', track);
     removeEventListener('hashchange', track);
     cancelAnimationFrame(frame);
-    document.documentElement.classList.remove('sk-locked');
+    document.documentElement.classList.remove('doc-locked');
 });
 
 const activeEntry = computed(() => sections.value.findIndex(s => s.id === activeSection.value));
@@ -291,11 +291,11 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
 </script>
 
 <template>
-    <div class="sk">
-        <a class="sk-skip" href="#sk-content">Skip to content</a>
-        <header class="sk-top" :inert="sheet ? true : undefined">
-            <a class="sk-wordmark" :href="withBase('/')" aria-label="fonte home"><FonteWordmark /></a>
-            <button class="sk-tool-button" type="button" aria-haspopup="dialog" :aria-expanded="sheet === 'tools'" @click="sheet = sheet === 'tools' ? '' : 'tools'">
+    <div class="doc">
+        <a class="doc-skip" href="#doc-content">Skip to content</a>
+        <header class="doc-top" :inert="sheet ? true : undefined">
+            <a class="doc-wordmark" :href="withBase('/')" aria-label="fonte home"><FonteWordmark /></a>
+            <button class="doc-tool-button" type="button" aria-haspopup="dialog" :aria-expanded="sheet === 'tools'" @click="sheet = sheet === 'tools' ? '' : 'tools'">
                 <span class="plate">{{ tool?.plate ?? 'Start here' }}</span
                 ><strong>{{ tool?.name ?? 'Guide' }}</strong
                 ><span v-if="pageCount" class="cue mono">{{ pageCount }} pages</span
@@ -303,19 +303,19 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
                     <path d="m6 9 6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
             </button>
-            <nav class="sk-drawers" aria-label="Tools">
-                <a class="sk-drawer" :href="withBase('/guide/')" :aria-current="isGuide ? 'true' : undefined"><span class="plate">Start here</span><strong>Guide</strong></a>
-                <a v-for="t in tools" :key="t.key" class="sk-drawer" :href="toolLink(t.key)" :aria-current="t.key === section ? 'true' : undefined"
+            <nav class="doc-drawers" aria-label="Tools">
+                <a class="doc-drawer" :href="withBase('/guide/')" :aria-current="isGuide ? 'true' : undefined"><span class="plate">Start here</span><strong>Guide</strong></a>
+                <a v-for="t in tools" :key="t.key" class="doc-drawer" :href="toolLink(t.key)" :aria-current="t.key === section ? 'true' : undefined"
                     ><span class="plate">{{ t.plate }}</span
                     ><strong>{{ t.name }}</strong></a
                 >
             </nav>
-            <a class="sk-play" :href="withBase('/playground')" aria-label="Playground: generate a font in your browser">
+            <a class="doc-play" :href="withBase('/playground')" aria-label="Playground: generate a font in your browser">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l10.5-6.5Z" fill="currentColor" /></svg>
                 <span class="label" aria-hidden="true"><span class="plate">Try it</span><strong>Playground</strong></span>
             </a>
-            <div class="sk-search"><VPNavBarSearch /></div>
-            <a v-if="github" class="sk-icon sk-github" :href="github" target="_blank" rel="noreferrer" aria-label="fonte on GitHub">
+            <div class="doc-search"><VPNavBarSearch /></div>
+            <a v-if="github" class="doc-icon doc-github" :href="github" target="_blank" rel="noreferrer" aria-label="fonte on GitHub">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <path
                         fill="currentColor"
@@ -323,7 +323,7 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
                     />
                 </svg>
             </a>
-            <button class="sk-icon sk-theme" type="button" :aria-label="themeLabel" :title="themeLabel" @click="toggleTheme">
+            <button class="doc-icon doc-theme" type="button" :aria-label="themeLabel" :title="themeLabel" @click="toggleTheme">
                 <svg viewBox="0 0 24 24" aria-hidden="true">
                     <circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.6" />
                     <path d="M12 4a8 8 0 0 1 0 16Z" fill="currentColor" />
@@ -331,10 +331,10 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
             </button>
         </header>
 
-        <nav class="sk-strip" :aria-label="`${group?.text ?? ''} pages`" :inert="sheet ? true : undefined">
+        <nav class="doc-strip" :aria-label="`${group?.text ?? ''} pages`" :inert="sheet ? true : undefined">
             <template v-if="isGuide">
                 <!-- The guide has two shelves; the switch says which one you're on, the tabs are that shelf's pages. -->
-                <span class="sk-shelves" role="group" aria-label="Guide shelves">
+                <span class="doc-shelves" role="group" aria-label="Guide shelves">
                     <a v-for="g in guideGroups" :key="g.text" :href="withBase(g.items[0]!.link)" :aria-current="g.text === group?.text ? 'true' : undefined">{{ g.text }}</a>
                 </span>
             </template>
@@ -345,8 +345,8 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
             <a v-if="!isGuide" class="guide" :href="withBase('/guide/')">Guide &amp; features →</a>
         </nav>
 
-        <div class="sk-page" :inert="sheet ? true : undefined">
-            <aside class="sk-rail" ref="rail">
+        <div class="doc-page" :inert="sheet ? true : undefined">
+            <aside class="doc-rail" ref="rail">
                 <template v-if="numbered">
                     <div class="mono dim">No.</div>
                     <div class="num">{{ no(index) }}</div>
@@ -356,7 +356,7 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
                 <a v-if="tool" class="mono dim tool" :href="tool.registry" target="_blank" rel="noreferrer">{{ tool.name }} · {{ tool.package }} ↗</a>
                 <div v-else-if="numbered" class="mono dim tool">{{ group?.text }}</div>
                 <nav v-if="sections.length" class="index" aria-label="On this page">
-                    <input v-if="entryCount >= 10" v-model="filter" class="sk-filter" type="search" placeholder="Filter this page" aria-label="Filter this page's sections" />
+                    <input v-if="entryCount >= 10" v-model="filter" class="doc-filter" type="search" placeholder="Filter this page" aria-label="Filter this page's sections" />
                     <ol>
                         <li v-for="(s, i) in shown" :key="s.id">
                             <a :href="`#${s.id}`" :class="{ within: s.id === activeSection }" :aria-current="s.id === active ? 'location' : undefined"
@@ -374,10 +374,10 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
                 </nav>
             </aside>
 
-            <main id="sk-content" class="sk-main" tabindex="-1">
+            <main id="doc-content" class="doc-main" tabindex="-1">
                 <div class="vp-doc"><Content /></div>
-                <a v-if="editLink" class="sk-edit" :href="editLink" target="_blank" rel="noreferrer">Edit this page on GitHub ↗</a>
-                <nav class="sk-next" aria-label="Previous and next pages">
+                <a v-if="editLink" class="doc-edit" :href="editLink" target="_blank" rel="noreferrer">Edit this page on GitHub ↗</a>
+                <nav class="doc-next" aria-label="Previous and next pages">
                     <a v-if="prev" :href="withBase(prev.link)"
                         ><span class="mono">← {{ numbered ? `No. ${no(index - 1)}` : 'Previous' }}</span
                         ><strong>{{ prev.text }}</strong></a
@@ -393,7 +393,7 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
         <!-- Phones: the rail's index becomes a pill that names the current section and opens a sheet. -->
         <button
             v-if="sections.length"
-            class="sk-pill"
+            class="doc-pill"
             :class="{ away: pillHidden }"
             type="button"
             aria-haspopup="dialog"
@@ -405,26 +405,26 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
             >{{ sections[activeEntry]?.text ?? 'On this page' }}<span aria-hidden="true">▴</span>
         </button>
 
-        <Transition name="sk-fade">
-            <div v-if="sheet" class="sk-scrim" @click="sheet = ''" />
+        <Transition name="doc-fade">
+            <div v-if="sheet" class="doc-scrim" @click="sheet = ''" />
         </Transition>
-        <Transition name="sk-sheet">
-            <div v-if="sheet === 'tools'" ref="sheetEl" class="sk-sheet" role="dialog" aria-modal="true" aria-labelledby="sk-sheet-title" tabindex="-1">
-                <div id="sk-sheet-title" class="sk-sheet-title mono">Tools</div>
+        <Transition name="doc-sheet">
+            <div v-if="sheet === 'tools'" ref="sheetEl" class="doc-sheet" role="dialog" aria-modal="true" aria-labelledby="doc-sheet-title" tabindex="-1">
+                <div id="doc-sheet-title" class="doc-sheet-title mono">Tools</div>
                 <template v-for="entry in sheetTools" :key="entry.key">
-                    <a class="sk-sheet-tool" :href="entry.link" :aria-current="entry.key === section ? 'true' : undefined"
+                    <a class="doc-sheet-tool" :href="entry.link" :aria-current="entry.key === section ? 'true' : undefined"
                         ><span class="plate">{{ entry.plate }}</span
                         ><strong>{{ entry.name }}</strong
                         ><span class="pkg mono">{{ entry.pkg }}</span></a
                     >
                     <!-- Phones: the current section's pages live here, in place of the strip. -->
-                    <div v-if="entry.key === section && currentGroups.length" class="sk-sheet-pages">
+                    <div v-if="entry.key === section && currentGroups.length" class="doc-sheet-pages">
                         <template v-for="g in currentGroups" :key="g.text">
-                            <div v-if="currentGroups.length > 1" class="sk-sheet-shelf mono">{{ g.text }}</div>
+                            <div v-if="currentGroups.length > 1" class="doc-sheet-shelf mono">{{ g.text }}</div>
                             <a
                                 v-for="item in g.items"
                                 :key="item.link"
-                                class="sk-sheet-page"
+                                class="doc-sheet-page"
                                 :href="withBase(item.link)"
                                 :aria-current="normalize(item.link) === current ? 'page' : undefined"
                                 >{{ item.text }}</a
@@ -432,10 +432,10 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
                         </template>
                     </div>
                 </template>
-                <a class="sk-sheet-tool play" :href="withBase('/playground')"
+                <a class="doc-sheet-tool play" :href="withBase('/playground')"
                     ><span class="plate">Try it</span><strong>Playground</strong><span class="pkg mono">Generate a font in your browser</span></a
                 >
-                <div class="sk-sheet-links">
+                <div class="doc-sheet-links">
                     <a v-if="github" :href="github" target="_blank" rel="noreferrer"><span class="plate">Source</span>GitHub ↗</a>
                     <a v-if="tool" :href="tool.registry" target="_blank" rel="noreferrer"
                         ><span class="plate">Package</span>{{ tool.registry.includes('crates.io') ? 'crates.io' : 'npm' }} ↗</a
@@ -443,18 +443,18 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
                     <button type="button" @click="toggleTheme"><span class="plate">Theme</span>{{ isDark ? 'Use light' : 'Use dark' }}</button>
                 </div>
             </div>
-            <div v-else-if="sheet === 'sections'" ref="sheetEl" class="sk-sheet" role="dialog" aria-modal="true" aria-labelledby="sk-sheet-title" tabindex="-1">
-                <div id="sk-sheet-title" class="sk-sheet-title mono">On this page · {{ group?.items[index]?.text ?? page.title }}</div>
-                <input v-if="entryCount >= 10" v-model="filter" class="sk-filter" type="search" placeholder="Filter this page" aria-label="Filter this page's sections" />
+            <div v-else-if="sheet === 'sections'" ref="sheetEl" class="doc-sheet" role="dialog" aria-modal="true" aria-labelledby="doc-sheet-title" tabindex="-1">
+                <div id="doc-sheet-title" class="doc-sheet-title mono">On this page · {{ group?.items[index]?.text ?? page.title }}</div>
+                <input v-if="entryCount >= 10" v-model="filter" class="doc-filter" type="search" placeholder="Filter this page" aria-label="Filter this page's sections" />
                 <template v-for="s in filter ? shown : sections" :key="s.id">
-                    <a class="sk-sheet-section" :aria-current="s.id === activeSection ? 'location' : undefined" :href="`#${s.id}`" @click.prevent="go(s.id)"
+                    <a class="doc-sheet-section" :aria-current="s.id === activeSection ? 'location' : undefined" :href="`#${s.id}`" @click.prevent="go(s.id)"
                         ><span class="n">{{ no(sections.findIndex(x => x.id === s.id)) }}</span
                         >{{ s.text }}</a
                     >
                     <a
                         v-for="c in s.children"
                         :key="c.id"
-                        class="sk-sheet-section child"
+                        class="doc-sheet-section child"
                         :aria-current="c.id === active ? 'location' : undefined"
                         :href="`#${c.id}`"
                         @click.prevent="go(c.id)"
@@ -466,4 +466,4 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
     </div>
 </template>
 
-<style src="./sketch.css"></style>
+<style src="./doc-layout.css"></style>
