@@ -1,22 +1,22 @@
-/* Layout sketch: the docs shell from local-docs/fonte-docs-layout, around the real pages. Palette comes from custom.css. */
-.sk {
-    --sk-top: 60px;
-    --sk-strip: 46px;
-    --sk-rail: 220px;
-    --sk-column: 780px;
-    --sk-plate: #1c1a1f;
+/* The doc pages' shell, around VitePress's rendered content. Palette comes from custom.css. */
+.doc {
+    --doc-top: 60px;
+    --doc-strip: 46px;
+    --doc-rail: 220px;
+    --doc-column: 780px;
+    --doc-plate: #1c1a1f;
     /* Muted text and molten numerals, darkened or lightened to reach 4.5:1 on every surface they sit on. */
     --vp-c-text-3: #6b6370;
-    --sk-hot: var(--vp-c-brand-1);
+    --doc-hot: var(--vp-c-brand-1);
     min-height: 100vh;
     background: var(--vp-c-bg);
 }
 
-.dark .sk {
+.dark .doc {
     --vp-c-text-3: #958d9b;
 }
 
-.sk-skip {
+.doc-skip {
     position: fixed;
     top: 8px;
     left: 8px;
@@ -29,45 +29,45 @@
     transform: translateY(-200%);
 }
 
-.sk-skip:focus {
+.doc-skip:focus {
     transform: none;
 }
 
-.sk-main:focus {
+.doc-main:focus {
     outline: none;
 }
 
-html.sk-locked {
+html.doc-locked {
     overflow: hidden;
 }
 
-html:has(.sk) {
-    scroll-padding-top: calc(var(--sk-top, 60px) + var(--sk-strip, 46px) + 20px);
+html:has(.doc) {
+    scroll-padding-top: calc(var(--doc-top, 60px) + var(--doc-strip, 46px) + 20px);
 }
 
 /* The bars set the jump offset through scroll-padding; the default theme's margin on `.vp-doc [id]` would add a second one. */
-.sk .vp-doc [id] {
+.doc .vp-doc [id] {
     scroll-margin-top: 0;
 }
 
-.sk .mono,
-.sk .plate,
-.sk .n {
+.doc .mono,
+.doc .plate,
+.doc .n {
     font-family: var(--vp-font-family-mono);
 }
 
-.sk .dim {
+.doc .dim {
     color: var(--vp-c-text-3);
     font-size: 12px;
     letter-spacing: 0.03em;
 }
 
 /* Top bar: wordmark, Guide plus the five tools as type-case drawers, search, theme. */
-.sk-top {
+.doc-top {
     position: sticky;
     top: 0;
     z-index: 30;
-    height: var(--sk-top);
+    height: var(--doc-top);
     display: flex;
     align-items: center;
     gap: 20px;
@@ -76,22 +76,22 @@ html:has(.sk) {
     border-bottom: 1px solid var(--vp-c-divider);
 }
 
-.sk-wordmark {
+.doc-wordmark {
     flex: none;
     display: block;
     width: 92px;
 }
 
-.sk-drawers {
+.doc-drawers {
     display: flex;
     gap: 2px;
     margin-right: auto;
     min-width: 0;
 }
 
-.sk-drawer,
-.sk-tool-button,
-.sk-sheet-tool {
+.doc-drawer,
+.doc-tool-button,
+.doc-sheet-tool {
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -107,43 +107,43 @@ html:has(.sk) {
         background 0.2s;
 }
 
-.sk-drawer {
+.doc-drawer {
     min-width: 78px;
     height: 42px;
 }
 
-.sk .plate {
+.doc .plate {
     font-size: 10px;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--vp-c-text-3);
 }
 
-.sk-drawer strong,
-.sk-tool-button strong,
-.sk-sheet-tool strong {
+.doc-drawer strong,
+.doc-tool-button strong,
+.doc-sheet-tool strong {
     font: 600 15px var(--fonte-font-display);
 }
 
-.sk-drawer:hover {
+.doc-drawer:hover {
     color: var(--vp-c-text-1);
     border-color: var(--vp-c-divider);
 }
 
-.sk-drawer[aria-current='true'],
-.sk-sheet-tool[aria-current='true'] {
+.doc-drawer[aria-current='true'],
+.doc-sheet-tool[aria-current='true'] {
     color: var(--vp-c-text-1);
     border-color: var(--vp-c-border);
     background: var(--vp-c-bg-alt);
     box-shadow: inset 0 -2px 0 var(--fonte-molten);
 }
 
-.sk-tool-button {
+.doc-tool-button {
     display: none;
 }
 
 /* The playground: the one place to try the engine, set apart from the docs drawers. */
-.sk-play {
+.doc-play {
     flex: none;
     display: flex;
     align-items: center;
@@ -160,7 +160,7 @@ html:has(.sk) {
         background 0.2s;
 }
 
-.sk-play svg {
+.doc-play svg {
     flex: none;
     width: 22px;
     height: 22px;
@@ -170,33 +170,33 @@ html:has(.sk) {
     color: var(--fonte-iron);
 }
 
-.sk-play .label {
+.doc-play .label {
     display: grid;
 }
 
-.sk-play strong {
+.doc-play strong {
     font: 600 15px var(--fonte-font-display);
 }
 
-.sk-play:hover {
+.doc-play:hover {
     border-color: var(--fonte-molten);
     background: var(--vp-c-brand-soft);
 }
 
-.sk-search {
+.doc-search {
     flex: none;
 }
 
 /* VitePress's search button, restyled as a plate. */
-.sk-search :deep(.DocSearch-Button),
-.sk-search .DocSearch-Button {
+.doc-search :deep(.DocSearch-Button),
+.doc-search .DocSearch-Button {
     height: 36px;
     border: 1px solid var(--vp-c-divider);
     border-radius: 6px;
     background: var(--vp-c-bg-alt);
 }
 
-.sk-icon {
+.doc-icon {
     flex: none;
     display: grid;
     place-items: center;
@@ -207,21 +207,21 @@ html:has(.sk) {
     color: var(--vp-c-text-2);
 }
 
-.sk-icon svg {
+.doc-icon svg {
     width: 18px;
     height: 18px;
 }
 
-.sk-icon:hover {
+.doc-icon:hover {
     color: var(--vp-c-brand-1);
 }
 
 /* The current group's pages, numbered. Every tool has the same pages, so switching tools keeps your place. */
-.sk-strip {
+.doc-strip {
     position: sticky;
-    top: var(--sk-top);
+    top: var(--doc-top);
     z-index: 29;
-    height: var(--sk-strip);
+    height: var(--doc-strip);
     display: flex;
     align-items: stretch;
     gap: 2px;
@@ -232,7 +232,7 @@ html:has(.sk) {
     scrollbar-width: none;
 }
 
-.sk-strip a {
+.doc-strip a {
     display: flex;
     flex: none;
     align-items: center;
@@ -245,30 +245,30 @@ html:has(.sk) {
     text-decoration: none;
 }
 
-.sk-strip .n {
+.doc-strip .n {
     font-size: 11px;
     color: var(--vp-c-text-3);
 }
 
-.sk-strip a:hover {
+.doc-strip a:hover {
     color: var(--vp-c-text-1);
 }
 
-.sk-strip a[aria-current='page'] {
+.doc-strip a[aria-current='page'] {
     color: var(--vp-c-text-1);
     border-bottom-color: var(--fonte-molten);
 }
 
-.sk-strip a[aria-current='page'] .n {
-    color: var(--sk-hot);
+.doc-strip a[aria-current='page'] .n {
+    color: var(--doc-hot);
 }
 
-.sk-strip .guide {
+.doc-strip .guide {
     margin-left: auto;
     color: var(--vp-c-text-3);
 }
 
-.sk-shelves {
+.doc-shelves {
     /* Stays in view while the shelf's pages scroll under it. */
     position: sticky;
     left: 0;
@@ -287,7 +287,7 @@ html:has(.sk) {
     background: var(--vp-c-bg-alt);
 }
 
-.sk-strip .sk-shelves a {
+.doc-strip .doc-shelves a {
     padding: 3px 10px;
     border: 0;
     border-radius: 5px;
@@ -295,7 +295,7 @@ html:has(.sk) {
     color: var(--vp-c-text-2);
 }
 
-.sk-strip .sk-shelves a[aria-current='true'] {
+.doc-strip .doc-shelves a[aria-current='true'] {
     background: var(--vp-c-bg);
     color: var(--vp-c-text-1);
     box-shadow:
@@ -303,7 +303,7 @@ html:has(.sk) {
         inset 0 -2px 0 var(--fonte-molten);
 }
 
-.sk-strip-group {
+.doc-strip-group {
     display: flex;
     flex: none;
     align-items: center;
@@ -314,42 +314,42 @@ html:has(.sk) {
     color: var(--vp-c-text-3);
 }
 
-.sk-strip-group:not(:first-child) {
+.doc-strip-group:not(:first-child) {
     margin-left: 10px;
     border-left: 1px solid var(--vp-c-divider);
 }
 
 /* Page: the landing page's rail on the left, one column of content, no right-hand outline. */
-.sk-page {
+.doc-page {
     display: grid;
-    grid-template-columns: var(--sk-rail) minmax(0, var(--sk-column));
+    grid-template-columns: var(--doc-rail) minmax(0, var(--doc-column));
     gap: 64px;
     justify-content: center;
     padding: 0 24px;
 }
 
-.sk-rail {
+.doc-rail {
     position: sticky;
-    top: calc(var(--sk-top) + var(--sk-strip));
+    top: calc(var(--doc-top) + var(--doc-strip));
     align-self: start;
-    max-height: calc(100vh - var(--sk-top) - var(--sk-strip));
+    max-height: calc(100vh - var(--doc-top) - var(--doc-strip));
     padding: 44px 0;
     overflow: auto;
     scrollbar-width: thin;
 }
 
-.sk-rail .num {
+.doc-rail .num {
     margin: 2px 0 4px;
     font: 600 60px/1 var(--fonte-font-display);
-    color: var(--sk-hot);
+    color: var(--doc-hot);
 }
 
-.sk-rail .name {
+.doc-rail .name {
     font: 600 19px/1.25 var(--fonte-font-display);
     color: var(--vp-c-text-1);
 }
 
-.sk-rail .tool {
+.doc-rail .tool {
     display: block;
     margin-top: 4px;
     overflow-wrap: anywhere;
@@ -360,21 +360,21 @@ a.tool:hover {
     color: var(--vp-c-brand-1);
 }
 
-.sk-rail .index {
+.doc-rail .index {
     margin-top: 28px;
 }
 
-.sk-rail .index ol {
+.doc-rail .index ol {
     margin: 0;
     padding: 0;
     list-style: none;
 }
 
-.sk-rail .index > ol {
+.doc-rail .index > ol {
     border-left: 1px solid var(--vp-c-divider);
 }
 
-.sk-filter {
+.doc-filter {
     width: 100%;
     margin-bottom: 12px;
     padding: 6px 10px;
@@ -384,12 +384,12 @@ a.tool:hover {
     font-size: 13px;
 }
 
-.sk-filter:focus {
+.doc-filter:focus {
     border-color: var(--fonte-molten);
     outline: none;
 }
 
-.sk-rail .index a {
+.doc-rail .index a {
     display: flex;
     gap: 10px;
     margin-left: -1px;
@@ -406,53 +406,53 @@ a.tool:hover {
 }
 
 /* Options and functions, under the section they belong to. */
-.sk-rail .index ol ol a {
+.doc-rail .index ol ol a {
     padding: 3px 0 3px 36px;
     font: 12.5px/1.45 var(--vp-font-family-mono);
 }
 
-.sk-rail .index a.within {
+.doc-rail .index a.within {
     color: var(--vp-c-text-1);
 }
 
-.sk-rail .index .n {
+.doc-rail .index .n {
     flex: none;
     font-size: 11px;
     line-height: 1.75;
     color: var(--vp-c-text-3);
 }
 
-.sk-rail .index a:hover {
+.doc-rail .index a:hover {
     color: var(--vp-c-text-1);
 }
 
-.sk-rail .index a[aria-current='location'] {
+.doc-rail .index a[aria-current='location'] {
     color: var(--vp-c-text-1);
     border-left-color: var(--fonte-molten);
 }
 
-.sk-rail .index a[aria-current='location'] .n,
-.sk-rail .index a.within .n {
-    color: var(--sk-hot);
+.doc-rail .index a[aria-current='location'] .n,
+.doc-rail .index a.within .n {
+    color: var(--doc-hot);
 }
 
-.sk-main {
+.doc-main {
     min-width: 0;
     padding: 40px 0 120px;
 }
 
 /* The page's own heading and sections, in the landing page's specimen style. */
-.sk .vp-doc h1 {
+.doc .vp-doc h1 {
     font: 600 46px/1.1 var(--fonte-font-display);
     letter-spacing: -0.01em;
 }
 
-.sk .vp-doc h1 + p {
+.doc .vp-doc h1 + p {
     font-size: 18px;
     color: var(--vp-c-text-2);
 }
 
-.sk .vp-doc h2 {
+.doc .vp-doc h2 {
     margin-top: 72px;
     padding-top: 20px;
     border-top: 1px solid var(--vp-c-divider);
@@ -460,7 +460,7 @@ a.tool:hover {
 }
 
 /* Option specimens: what it does on the left, its spec on the right. */
-.sk-option {
+.doc-option {
     display: grid;
     grid-template-columns: minmax(0, 1fr) 240px;
     gap: 6px 32px;
@@ -468,11 +468,11 @@ a.tool:hover {
     border-bottom: 1px dashed var(--vp-c-divider);
 }
 
-.sk-option.bare {
+.doc-option.bare {
     grid-template-columns: minmax(0, 1fr);
 }
 
-.sk .vp-doc .sk-option h3 {
+.doc .vp-doc .doc-option h3 {
     grid-column: 1 / -1;
     display: flex;
     align-items: baseline;
@@ -483,7 +483,7 @@ a.tool:hover {
     font: 400 20px var(--vp-font-family-mono);
 }
 
-.sk .vp-doc .sk-option h3::before {
+.doc .vp-doc .doc-option h3::before {
     content: '';
     flex: none;
     width: 8px;
@@ -492,22 +492,22 @@ a.tool:hover {
     transform: translateY(-3px);
 }
 
-.sk .vp-doc .sk-option h3 code {
+.doc .vp-doc .doc-option h3 code {
     padding: 0;
     background: none;
     font-size: inherit;
     color: var(--vp-c-text-1);
 }
 
-.sk-desc {
+.doc-desc {
     min-width: 0;
 }
 
-.sk-desc > :first-child {
+.doc-desc > :first-child {
     margin-top: 4px;
 }
 
-.sk-spec {
+.doc-spec {
     align-self: start;
     margin: 8px 0 0;
     padding: 12px 14px;
@@ -516,42 +516,42 @@ a.tool:hover {
     background: var(--vp-c-bg-alt);
 }
 
-.sk-spec > div {
+.doc-spec > div {
     display: grid;
     gap: 2px;
 }
 
-.sk-spec > div + div {
+.doc-spec > div + div {
     margin-top: 10px;
 }
 
-.sk-spec dt {
+.doc-spec dt {
     font: 10px var(--vp-font-family-mono);
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: var(--vp-c-text-3);
 }
 
-.sk-spec dd {
+.doc-spec dd {
     margin: 0;
     font-size: 13px;
     line-height: 1.5;
     overflow-wrap: anywhere;
 }
 
-.sk .vp-doc .sk-spec dd code {
+.doc .vp-doc .doc-spec dd code {
     padding: 0;
     background: none;
     font-size: 12.5px;
 }
 
-.sk-spec .also dd {
+.doc-spec .also dd {
     display: flex;
     flex-wrap: wrap;
     gap: 4px 10px;
 }
 
-.sk .vp-doc .sk-spec .also a {
+.doc .vp-doc .doc-spec .also a {
     font: 12px var(--vp-font-family-mono);
 }
 
@@ -560,8 +560,8 @@ a.tool:hover {
  * and corners; its title or tabs share the code's background, divided from it by a rule. Every size keeps blocks in
  * the text column, instead of VitePress's full-bleed blocks on phones.
  */
-.sk .vp-doc :is(.vp-code-group, .vp-code-block-title),
-.sk .vp-doc > div > div[class*='language-'] {
+.doc .vp-doc :is(.vp-code-group, .vp-code-block-title),
+.doc .vp-doc > div > div[class*='language-'] {
     margin: 16px 0;
     border: 1px solid var(--vp-c-divider);
     border-radius: 8px;
@@ -569,7 +569,7 @@ a.tool:hover {
     background: var(--vp-code-block-bg);
 }
 
-.sk .vp-doc :is(.vp-code-group .tabs, .vp-code-block-title-bar) {
+.doc .vp-doc :is(.vp-code-group .tabs, .vp-code-block-title-bar) {
     margin: 0;
     border-bottom: 1px solid var(--vp-c-divider);
     border-radius: 0;
@@ -577,18 +577,18 @@ a.tool:hover {
     background: var(--vp-code-block-bg);
 }
 
-.sk .vp-doc :is(.vp-code-group, .vp-code-block-title) div[class*='language-'] {
+.doc .vp-doc :is(.vp-code-group, .vp-code-block-title) div[class*='language-'] {
     margin: 0;
     border: 0;
     border-radius: 0;
 }
 
-.sk .vp-doc div[class*='language-'] {
+.doc .vp-doc div[class*='language-'] {
     margin: 16px 0;
     border-radius: 8px;
 }
 
-.sk-edit {
+.doc-edit {
     display: inline-block;
     margin-top: 64px;
     font: 13px var(--vp-font-family-mono);
@@ -596,15 +596,15 @@ a.tool:hover {
     text-decoration: none;
 }
 
-.sk-edit:hover {
+.doc-edit:hover {
     color: var(--vp-c-brand-1);
 }
 
-.sk-edit + .sk-next {
+.doc-edit + .doc-next {
     margin-top: 16px;
 }
 
-.sk-next {
+.doc-next {
     display: flex;
     justify-content: space-between;
     gap: 16px;
@@ -613,64 +613,64 @@ a.tool:hover {
     border-top: 1px solid var(--vp-c-divider);
 }
 
-.sk-next a {
+.doc-next a {
     display: grid;
     gap: 2px;
     color: var(--vp-c-text-1);
     text-decoration: none;
 }
 
-.sk-next .mono {
+.doc-next .mono {
     font-size: 12px;
     color: var(--vp-c-text-3);
 }
 
-.sk-next strong {
+.doc-next strong {
     font: 600 24px var(--fonte-font-display);
 }
 
-.sk-next .right {
+.doc-next .right {
     text-align: right;
 }
 
-.sk-next a:hover strong {
+.doc-next a:hover strong {
     color: var(--vp-c-brand-1);
 }
 
 /* Phone pieces, hidden on wide screens. */
-.sk-pill,
-.sk-scrim,
-.sk-sheet {
+.doc-pill,
+.doc-scrim,
+.doc-sheet {
     display: none;
 }
 
 @media (max-width: 1180px) {
-    .sk-drawer {
+    .doc-drawer {
         min-width: 0;
     }
 
-    .sk-drawer .plate {
+    .doc-drawer .plate {
         display: none;
     }
 }
 
 @media (max-width: 960px) {
-    .sk {
-        --sk-top: 56px;
-        --sk-strip: 0px;
+    .doc {
+        --doc-top: 56px;
+        --doc-strip: 0px;
     }
 
-    .sk-top {
+    .doc-top {
         gap: 10px;
         padding: 0 16px;
     }
 
-    .sk-drawers {
+    .doc-drawers {
         display: none;
     }
 
     /* Looks like a select: a bordered field with a chevron in its own well. */
-    .sk-tool-button {
+    .doc-tool-button {
         display: grid;
         grid-template-columns: auto auto;
         align-items: center;
@@ -683,35 +683,35 @@ a.tool:hover {
         box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
     }
 
-    .sk-tool-button[aria-expanded='true'] {
+    .doc-tool-button[aria-expanded='true'] {
         border-color: var(--fonte-molten);
     }
 
     /* The playground keeps a word on phones, so it reads as a link, not a media control. */
-    .sk-play {
+    .doc-play {
         gap: 6px;
         height: 38px;
         padding: 0 10px 0 6px;
     }
 
-    .sk-play svg {
+    .doc-play svg {
         width: 20px;
         height: 20px;
     }
 
-    .sk-play .label strong,
-    .sk-icon {
+    .doc-play .label strong,
+    .doc-icon {
         display: none;
     }
 
-    .sk-play .label .plate {
+    .doc-play .label .plate {
         font: 600 14px var(--fonte-font-display);
         letter-spacing: 0;
         text-transform: none;
         color: var(--vp-c-text-1);
     }
 
-    .sk-sheet-links {
+    .doc-sheet-links {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
         gap: 6px;
@@ -720,7 +720,7 @@ a.tool:hover {
         border-top: 1px solid var(--vp-c-divider);
     }
 
-    .sk-sheet-links > * {
+    .doc-sheet-links > * {
         display: grid;
         gap: 2px;
         padding: 8px 12px;
@@ -732,33 +732,33 @@ a.tool:hover {
         text-decoration: none;
     }
 
-    .sk-sheet-tool.play strong {
+    .doc-sheet-tool.play strong {
         color: var(--vp-c-brand-1);
     }
 
     /* No room to keep the switch pinned over the tabs on a phone; it scrolls with them. */
-    .sk-strip .sk-shelves {
+    .doc-strip .doc-shelves {
         position: static;
         margin-left: 6px;
         box-shadow: none;
     }
 
-    .sk-tool-button .plate {
+    .doc-tool-button .plate {
         grid-column: 1;
     }
 
-    .sk-tool-button strong {
+    .doc-tool-button strong {
         grid-column: 1;
     }
 
     /* The sheet carries this section's pages too, and the cue says so. */
-    .sk-tool-button .cue {
+    .doc-tool-button .cue {
         grid-column: 1;
         font-size: 10px;
         color: var(--vp-c-text-3);
     }
 
-    .sk-tool-button .caret {
+    .doc-tool-button .caret {
         grid-row: 1 / -1;
         grid-column: 2;
         width: 26px;
@@ -770,44 +770,44 @@ a.tool:hover {
     }
 
     /* Phones: pages live in the tool button's sheet instead of a clipped strip. */
-    .sk-strip {
+    .doc-strip {
         display: none;
     }
 
-    .sk-page {
+    .doc-page {
         grid-template-columns: minmax(0, 1fr);
         gap: 0;
         padding: 0 16px;
     }
 
-    .sk-rail {
+    .doc-rail {
         display: none;
     }
 
-    .sk-main {
+    .doc-main {
         padding-top: 28px;
     }
 
-    .sk .vp-doc h1 {
+    .doc .vp-doc h1 {
         font-size: 36px;
     }
 
-    .sk-option {
+    .doc-option {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    .sk-spec {
+    .doc-spec {
         display: flex;
         flex-wrap: wrap;
         gap: 10px 22px;
     }
 
-    .sk-spec > div + div {
+    .doc-spec > div + div {
         margin-top: 0;
     }
 
     /* The current section, as a pill that opens the page's index. */
-    .sk-pill {
+    .doc-pill {
         position: fixed;
         left: 50%;
         bottom: max(16px, env(safe-area-inset-bottom));
@@ -830,21 +830,21 @@ a.tool:hover {
         transition: transform 0.25s;
     }
 
-    .sk-pill.away {
+    .doc-pill.away {
         transform: translate(-50%, calc(100% + 32px));
     }
 
-    .sk-pill .num {
+    .doc-pill .num {
         font: 600 15px var(--fonte-font-display);
-        color: var(--sk-hot);
+        color: var(--doc-hot);
     }
 
-    .sk-pill > span:last-child {
+    .doc-pill > span:last-child {
         color: var(--vp-c-text-3);
         font-size: 11px;
     }
 
-    .sk-scrim {
+    .doc-scrim {
         touch-action: none;
         position: fixed;
         inset: 0;
@@ -853,7 +853,7 @@ a.tool:hover {
         background: rgb(0 0 0 / 0.4);
     }
 
-    .sk-sheet {
+    .doc-sheet {
         position: fixed;
         left: 0;
         right: 0;
@@ -870,7 +870,7 @@ a.tool:hover {
         background: var(--vp-c-bg-elv);
     }
 
-    .sk-sheet-title {
+    .doc-sheet-title {
         margin: 0 4px 8px;
         font-size: 11px;
         letter-spacing: 0.06em;
@@ -878,7 +878,7 @@ a.tool:hover {
         color: var(--vp-c-text-3);
     }
 
-    .sk-sheet-tool {
+    .doc-sheet-tool {
         display: grid;
         grid-template-columns: 76px 1fr;
         align-items: baseline;
@@ -886,14 +886,14 @@ a.tool:hover {
         padding: 12px;
     }
 
-    .sk-sheet-tool .pkg {
+    .doc-sheet-tool .pkg {
         grid-column: 2;
         font-size: 11px;
         color: var(--vp-c-text-3);
         overflow-wrap: anywhere;
     }
 
-    .sk-sheet-section {
+    .doc-sheet-section {
         display: flex;
         align-items: baseline;
         gap: 12px;
@@ -903,14 +903,14 @@ a.tool:hover {
         text-decoration: none;
     }
 
-    .sk-sheet-pages {
+    .doc-sheet-pages {
         display: grid;
         gap: 2px;
         margin: -2px 0 6px;
         padding: 0 0 6px 10px;
     }
 
-    .sk-sheet-shelf {
+    .doc-sheet-shelf {
         padding: 8px 12px 2px;
         font-size: 10px;
         letter-spacing: 0.06em;
@@ -918,7 +918,7 @@ a.tool:hover {
         color: var(--vp-c-text-3);
     }
 
-    .sk-sheet-page {
+    .doc-sheet-page {
         display: block;
         padding: 8px 12px;
         border-radius: 6px;
@@ -926,80 +926,80 @@ a.tool:hover {
         text-decoration: none;
     }
 
-    .sk-sheet-page[aria-current='page'] {
+    .doc-sheet-page[aria-current='page'] {
         background: var(--vp-c-bg-alt);
         color: var(--vp-c-text-1);
         box-shadow: inset 2px 0 0 var(--fonte-molten);
     }
 
-    .sk-sheet-section .n {
+    .doc-sheet-section .n {
         font-size: 12px;
         color: var(--vp-c-text-3);
     }
 
-    .sk-sheet-section.child {
+    .doc-sheet-section.child {
         padding: 6px 12px 6px 40px;
         font: 13px var(--vp-font-family-mono);
     }
 
-    .sk-sheet :is(.sk-filter) {
+    .doc-sheet :is(.doc-filter) {
         margin: 0 0 8px;
         padding: 10px 12px;
         font-size: 15px;
     }
 
-    .sk-sheet:focus {
+    .doc-sheet:focus {
         outline: none;
     }
 
-    .sk-sheet-section[aria-current='location'] {
+    .doc-sheet-section[aria-current='location'] {
         background: var(--vp-c-bg-alt);
         color: var(--vp-c-text-1);
     }
 
-    .sk-sheet-section[aria-current='location'] .n {
-        color: var(--sk-hot);
+    .doc-sheet-section[aria-current='location'] .n {
+        color: var(--doc-hot);
     }
 }
 
 @media (max-width: 420px) {
-    .sk-wordmark {
+    .doc-wordmark {
         width: 72px;
     }
 }
 
-.sk-fade-enter-active,
-.sk-fade-leave-active {
+.doc-fade-enter-active,
+.doc-fade-leave-active {
     transition: opacity 0.2s;
 }
 
 /* A closing sheet and its scrim mustn't catch the next tap. */
-.sk-fade-leave-active,
-.sk-sheet-leave-active {
+.doc-fade-leave-active,
+.doc-sheet-leave-active {
     pointer-events: none;
 }
 
-.sk-fade-enter-from,
-.sk-fade-leave-to {
+.doc-fade-enter-from,
+.doc-fade-leave-to {
     opacity: 0;
 }
 
-.sk-sheet-enter-active,
-.sk-sheet-leave-active {
+.doc-sheet-enter-active,
+.doc-sheet-leave-active {
     transition: transform 0.25s cubic-bezier(0.3, 0.7, 0.3, 1);
 }
 
-.sk-sheet-enter-from,
-.sk-sheet-leave-to {
+.doc-sheet-enter-from,
+.doc-sheet-leave-to {
     transform: translateY(100%);
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .sk-pill,
-    .sk-sheet-enter-active,
-    .sk-sheet-leave-active,
-    .sk-fade-enter-active,
-    .sk-fade-leave-active {
+    .doc-pill,
+    .doc-sheet-enter-active,
+    .doc-sheet-leave-active,
+    .doc-fade-enter-active,
+    .doc-fade-leave-active {
         transition: none;
     }
 }

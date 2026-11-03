@@ -99,7 +99,7 @@ function pathData({ commands }: Path): string {
         .join('');
 }
 
-/** Matches the landing sketch: the T is .95em wide and pulls in .075em on the left and .06em on the right. */
+/** Matches the landing page: the T is .95em wide and pulls in .075em on the left and .06em on the right. */
 function layoutWordmark() {
     const fon = zilla.getPath('fon', 0, BASELINE, SIZE, { kerning: true });
     const tX = zilla.getAdvanceWidth('fon', SIZE, { kerning: true }) - 0.075 * SIZE;

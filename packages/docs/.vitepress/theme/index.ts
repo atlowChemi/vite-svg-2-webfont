@@ -6,7 +6,7 @@ import FonteNotFound from './FonteNotFound.vue';
 import FonteWordmark from './FonteWordmark.vue';
 import FonteLanding from './landing/FonteLanding.vue';
 import Mermaid from './Mermaid.vue';
-import SketchLayout from './sketch/SketchLayout.vue';
+import DocLayout from './doc/DocLayout.vue';
 import '@fontsource/zilla-slab/600.css';
 import '@fontsource/jetbrains-mono/400.css';
 import 'virtual:group-icons.css';
@@ -20,7 +20,7 @@ const theme: Theme = {
     // shows the type case.
     Layout: () => {
         const { frontmatter } = useData();
-        if (frontmatter.value.layout !== 'page') return h(SketchLayout);
+        if (frontmatter.value.layout !== 'page') return h(DocLayout);
         return h(DefaultTheme.Layout, null, { 'nav-bar-title-before': () => h(FonteWordmark), 'not-found': () => h(FonteNotFound) });
     },
 
