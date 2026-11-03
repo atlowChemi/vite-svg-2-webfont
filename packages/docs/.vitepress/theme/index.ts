@@ -10,6 +10,7 @@ import DocLayout from './doc/DocLayout.vue';
 import '@fontsource/zilla-slab/600.css';
 import '@fontsource/jetbrains-mono/400.css';
 import 'virtual:group-icons.css';
+import 'virtual:site-icons.css';
 import './custom.css';
 
 const theme: Theme = {
