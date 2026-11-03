@@ -49,4 +49,11 @@ const emit = defineEmits<{ dismiss: [] }>();
     opacity: 0;
     transform: translateY(8px);
 }
+
+@media (prefers-reduced-motion: reduce) {
+    .pg-toast-enter-active,
+    .pg-toast-leave-active {
+        transition: opacity 0.2s;
+    }
+}
 </style>

@@ -85,7 +85,8 @@ async function downloadZip() {
     align-items: flex-start;
     padding: 6px 12px;
     border: 1px solid var(--vp-c-divider);
-    border-radius: 6px;
+    border-radius: var(--pg-radius);
+    background: var(--vp-c-bg);
     font-family: var(--vp-font-family-mono);
     font-size: 13px;
 }

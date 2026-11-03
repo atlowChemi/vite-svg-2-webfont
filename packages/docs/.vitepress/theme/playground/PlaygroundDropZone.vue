@@ -40,6 +40,7 @@ function onPick(event: Event) {
     padding: 32px 16px;
     border: 2px dashed var(--vp-c-divider);
     border-radius: var(--pg-radius);
+    background: var(--vp-c-bg-soft);
     text-align: center;
     transition:
         border-color 0.2s,
@@ -48,6 +49,12 @@ function onPick(event: Event) {
 
 .pg-drop p {
     margin: 0;
+}
+
+.pg-drop strong {
+    font-family: var(--fonte-font-display);
+    font-size: 20px;
+    font-weight: 600;
 }
 
 .pg-drop-active {

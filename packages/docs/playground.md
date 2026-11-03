@@ -30,8 +30,10 @@ Drop in SVG icons to build a webfont with [`@atlowchemi/webfont-browser-generato
 
 .playground-page > h1 {
     margin-bottom: 12px;
-    font-size: 32px;
+    font-family: var(--fonte-font-display);
+    font-size: 40px;
     font-weight: 600;
+    line-height: 1.1;
 }
 
 .playground-page > p {
