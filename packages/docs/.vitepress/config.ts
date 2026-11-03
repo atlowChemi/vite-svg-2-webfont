@@ -1,7 +1,9 @@
 import { defineConfig, type MarkdownOptions } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
-import { codeThemes } from './codeThemes';
+import catppuccinFrappe from 'shiki/themes/catppuccin-frappe.mjs';
+import catppuccinLatte from 'shiki/themes/catppuccin-latte.mjs';
+import { codeBackgrounds, withReadableTokens } from './codeThemes';
 import { examplePlugins } from './examples';
 import { siteIconFont } from './siteIconFont';
 import { svgAuthoringFontPlugins } from './svgAuthoringFonts';
@@ -18,7 +20,7 @@ const siteSubtitle = 'SVG icons, cast into fonts';
 const siteDescription = 'A Rust engine that casts SVG icons into fonts, with a CLI, Node and browser bindings, and a Vite plugin.';
 
 const markdown: MarkdownOptions = {
-    theme: codeThemes,
+    theme: { light: withReadableTokens(catppuccinLatte, codeBackgrounds.light), dark: withReadableTokens(catppuccinFrappe, codeBackgrounds.dark) },
     config(md) {
         md.use(groupIconMdPlugin);
         const defaultRenderer = md.renderer.rules.fence;

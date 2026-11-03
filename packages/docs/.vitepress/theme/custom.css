@@ -16,7 +16,8 @@
 
     --vp-c-text-1: var(--fonte-iron);
     --vp-c-text-2: #5a5258;
-    --vp-c-text-3: #7d7582;
+    /* Muted text, dark (or light) enough for 4.5:1 on every surface it sits on: page, code, and cards. */
+    --vp-c-text-3: #6b6370;
 
     --vp-c-border: #d6cab9;
     --vp-c-divider: #e3d9cb;
@@ -56,7 +57,7 @@
 
     --vp-c-text-1: var(--fonte-ash);
     --vp-c-text-2: #b3abba;
-    --vp-c-text-3: #8a8290;
+    --vp-c-text-3: #958d9b;
 
     --vp-c-border: #4a444f;
     --vp-c-divider: #3a353f;
@@ -231,6 +232,11 @@ a:hover {
     color: var(--vp-c-text-3);
 }
 
+/* Inline code in a header sits on the header's tint and the code's own; drop the code's to keep 4.5:1. */
+.vp-doc th code {
+    background: transparent;
+}
+
 .vp-doc tr:nth-child(2n) {
     background: none;
 }
@@ -238,6 +244,20 @@ a:hover {
 .vp-doc .custom-block.tip,
 .vp-doc .custom-block.info {
     border-left: 3px solid var(--fonte-ember);
+}
+
+/*
+ * VitePress blurs and fades the lines around a focused one until the block is hovered, which keyboard and touch users
+ * can't do, and fades them below 4.5:1. The focused line keeps its highlight; the rest stay readable.
+ */
+.vp-doc [class*='language-'] .has-focused-lines .line:not(.has-focus) {
+    filter: none;
+    opacity: 1;
+}
+
+/* VitePress tints a tip's inline code on top of the tip's own tint; molten code on that double tint misses 4.5:1. */
+.vp-doc .custom-block.tip {
+    --vp-custom-block-tip-code-bg: var(--vp-c-bg);
 }
 
 .vp-doc .custom-block.warning,

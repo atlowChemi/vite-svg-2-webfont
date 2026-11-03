@@ -42,11 +42,14 @@ watch(
 
 <template>
     <div class="pg-viewer">
-        <div class="pg-viewer-tabs" role="tablist">
-            <button type="button" role="tab" data-title="output.css" :aria-selected="viewer === 'css'" @click="viewer = 'css'">CSS</button>
-            <button type="button" role="tab" data-title="output.html" :aria-selected="viewer === 'html'" @click="viewer = 'html'">HTML</button>
-            <button v-if="svgFont" type="button" role="tab" data-title="output.svg" :aria-selected="viewer === 'svg'" @click="viewer = 'svg'">SVG font</button>
-            <button type="button" role="tab" data-title="output.ts" :aria-selected="viewer === 'ts'" @click="viewer = 'ts'">TypeScript</button>
+        <div class="pg-viewer-tabs">
+            <!-- A tab list holds only tabs; Copy sits beside it. -->
+            <div class="pg-viewer-tablist" role="tablist" aria-label="Generated code">
+                <button type="button" role="tab" data-title="output.css" :aria-selected="viewer === 'css'" @click="viewer = 'css'">CSS</button>
+                <button type="button" role="tab" data-title="output.html" :aria-selected="viewer === 'html'" @click="viewer = 'html'">HTML</button>
+                <button v-if="svgFont" type="button" role="tab" data-title="output.svg" :aria-selected="viewer === 'svg'" @click="viewer = 'svg'">SVG font</button>
+                <button type="button" role="tab" data-title="output.ts" :aria-selected="viewer === 'ts'" @click="viewer = 'ts'">TypeScript</button>
+            </div>
             <button type="button" class="pg-link" @click="copy('source', viewerText)">
                 {{ copied === 'source' ? 'Copied!' : 'Copy' }}
             </button>
@@ -63,9 +66,13 @@ watch(
     overflow: hidden;
 }
 
-.pg-viewer-tabs {
+.pg-viewer-tabs,
+.pg-viewer-tablist {
     display: flex;
     gap: 16px;
+}
+
+.pg-viewer-tabs {
     padding: 0 16px;
     box-shadow: inset 0 -1px var(--vp-code-tab-divider);
 }
