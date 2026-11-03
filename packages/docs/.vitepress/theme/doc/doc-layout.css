@@ -668,12 +668,15 @@ a.tool:hover {
     }
 
     /* Looks like a select: a bordered field with a chevron in its own well. */
+    /* Two short rows that fit the 56px bar beside the wordmark and Try it: the tool over its page count. The sheet it opens
+     * still shows each tool's plate. */
     .doc-tool-button {
         display: grid;
         grid-template-columns: auto auto;
         align-items: center;
         column-gap: 10px;
-        min-height: 42px;
+        height: 44px;
+        line-height: 1.2;
         margin-right: auto;
         padding: 2px 6px 2px 12px;
         border-color: var(--vp-c-border);
@@ -710,6 +713,13 @@ a.tool:hover {
         color: var(--vp-c-text-1);
     }
 
+    /* The narrowest phones keep only Try it's play mark; its link is still named "Playground". */
+    @media (max-width: 360px) {
+        .doc-play .label {
+            display: none;
+        }
+    }
+
     .doc-sheet-links {
         display: grid;
         grid-template-columns: repeat(3, 1fr);
@@ -743,16 +753,18 @@ a.tool:hover {
     }
 
     .doc-tool-button .plate {
-        grid-column: 1;
+        display: none;
     }
 
     .doc-tool-button strong {
         grid-column: 1;
+        white-space: nowrap;
     }
 
     /* The sheet carries this section's pages too, and the cue says so. */
     .doc-tool-button .cue {
         grid-column: 1;
+        white-space: nowrap;
         font-size: 10px;
         color: var(--vp-c-text-3);
     }
