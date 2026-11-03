@@ -100,13 +100,9 @@ function readSections() {
 }
 
 // The current entry is the last heading above the bars, so it stays right after any jump: links, search, "Also in".
-// The strip is hidden on phones; track from whichever bar is actually showing.
-const offset = () => {
-    const strip = document.querySelector('.sk-strip');
-    const bottom =
-        strip && getComputedStyle(strip).display !== 'none' ? strip.getBoundingClientRect().bottom : (document.querySelector('.sk-top')?.getBoundingClientRect().bottom ?? 0);
-    return bottom + 24;
-};
+// Track from the lowest bar: the strip, or the top bar on phones, where the hidden strip's box is all zeros.
+const barBottom = (selector: string) => document.querySelector(selector)?.getBoundingClientRect().bottom ?? 0;
+const offset = () => Math.max(barBottom('.sk-strip'), barBottom('.sk-top')) + 24;
 let frame = 0;
 function track() {
     cancelAnimationFrame(frame);
