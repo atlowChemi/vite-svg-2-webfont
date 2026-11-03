@@ -103,7 +103,8 @@ function readSections() {
 // The strip is hidden on phones; track from whichever bar is actually showing.
 const offset = () => {
     const strip = document.querySelector('.sk-strip');
-    const bottom = strip && getComputedStyle(strip).display !== 'none' ? strip.getBoundingClientRect().bottom : (document.querySelector('.sk-top')?.getBoundingClientRect().bottom ?? 0);
+    const bottom =
+        strip && getComputedStyle(strip).display !== 'none' ? strip.getBoundingClientRect().bottom : (document.querySelector('.sk-top')?.getBoundingClientRect().bottom ?? 0);
     return bottom + 24;
 };
 let frame = 0;
