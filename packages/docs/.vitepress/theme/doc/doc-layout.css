@@ -5,15 +5,9 @@
     --doc-rail: 220px;
     --doc-column: 780px;
     --doc-plate: #1c1a1f;
-    /* Muted text and molten numerals, darkened or lightened to reach 4.5:1 on every surface they sit on. */
-    --vp-c-text-3: #6b6370;
     --doc-hot: var(--vp-c-brand-1);
     min-height: 100vh;
     background: var(--vp-c-bg);
-}
-
-.dark .doc {
-    --vp-c-text-3: #958d9b;
 }
 
 .doc-skip {
@@ -552,7 +546,11 @@ a.tool:hover {
 }
 
 .doc .vp-doc .doc-spec .also a {
-    font: 12px var(--vp-font-family-mono);
+    display: inline-block;
+    min-width: 24px;
+    min-height: 24px;
+    font: 12px / 24px var(--vp-font-family-mono);
+    text-align: center;
 }
 
 /*

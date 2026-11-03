@@ -92,10 +92,11 @@ const result = useTemplateRef<HTMLElement>('result');
 const { isDark } = useData();
 
 type Rgb = [number, number, number];
-// Accent temperatures, hot to cold. Light mode uses darker stops so the accent stays readable on ash.
+// Accent temperatures, hot to cold. Light mode uses darker stops so the accent keeps 4.5:1 on ash, the footer's background;
+// cold is the muted text color.
 const heat: Record<'dark' | 'light', { hot: Rgb; ember: Rgb; cold: Rgb; ink: Rgb }> = {
     dark: { hot: [255, 106, 19], ember: [255, 176, 46], cold: [138, 130, 144], ink: [243, 236, 226] },
-    light: { hot: [194, 65, 12], ember: [161, 92, 0], cold: [125, 117, 130], ink: [28, 26, 31] },
+    light: { hot: [180, 65, 10], ember: [148, 84, 0], cold: [107, 99, 112], ink: [28, 26, 31] },
 };
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 const mix = (a: Rgb, b: Rgb, t: number) => `rgb(${a.map((v, i) => Math.round(v + (b[i]! - v) * t)).join(' ')})`;
@@ -413,7 +414,8 @@ html.fonte-landing-docked:has(.VPNavBarHamburger[aria-expanded='true']) .VPNavBa
 
 <style scoped>
 .landing {
-    --acc: var(--fonte-molten);
+    /* Until the first scroll frame sets it (never, with reduced motion), the accent is the readable brand orange. */
+    --acc: var(--vp-c-brand-1);
     --rail-top: calc(var(--vp-nav-height) + 28px);
     --hero-wordmark-height: clamp(56px, 12vw, 140px);
     /* One centered block on wide screens: the 120px rail plus the content column. Section rules stay full width. */
@@ -898,7 +900,7 @@ h2 {
 .fonte {
     font-style: italic;
     font-weight: 600;
-    color: var(--fonte-molten);
+    color: var(--vp-c-brand-1);
 }
 
 .footer {
