@@ -2,7 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
 import { useData, withBase } from 'vitepress';
 import FonteWordmark from '../FonteWordmark.vue';
-import { arrowDown, packageMarks, trayIcons } from './icons';
+import { codepointLabel, siteIcon, trayIcons, type SiteIcon } from '../siteIcons';
 
 const repo = 'https://github.com/atlowChemi/vite-svg-2-webfont';
 
@@ -23,12 +23,12 @@ const features = [
         details: 'The same engine compiled to WebAssembly casts fonts in a web worker, with no server and no build step.',
     },
 ];
-const icons = Object.entries(trayIcons);
+const icons = trayIcons;
 
 const drawers = [
     {
         key: 'cli',
-        mark: packageMarks.rust,
+        mark: 'rust',
         plate: 'Rust',
         title: 'CLI',
         use: 'CI jobs or one-off local runs, from any language',
@@ -36,7 +36,7 @@ const drawers = [
     },
     {
         key: 'node',
-        mark: packageMarks.node,
+        mark: 'node',
         plate: 'Node',
         title: 'Build scripts',
         use: 'Your own tooling, at native speed',
@@ -44,7 +44,7 @@ const drawers = [
     },
     {
         key: 'wasm',
-        mark: packageMarks.wasm,
+        mark: 'wasm',
         plate: 'WASM',
         title: 'Browser',
         use: 'Casts from in-memory files, no file system needed',
@@ -52,13 +52,13 @@ const drawers = [
     },
     {
         key: 'vite',
-        mark: packageMarks.vite,
+        mark: 'vite',
         plate: 'Vite',
         title: 'Plugin',
         use: 'Runs inside the dev server, icon edits hot-reload on save',
         link: '/vite/',
     },
-];
+] satisfies { mark: SiteIcon }[];
 const activeKey = ref('cli');
 const activeDrawer = computed(() => drawers.find(drawer => drawer.key === activeKey.value) ?? drawers[0]!);
 
@@ -236,9 +236,7 @@ onBeforeUnmount(() => {
             </div>
             <div ref="stage" class="stage">
                 <div class="tray" aria-hidden="true">
-                    <span v-for="[name, paths] in icons" :key="name" ref="trayItems" class="tray-item">
-                        <svg class="stroke-icon" viewBox="0 0 24 24"><path v-for="d in paths" :key="d" :d /></svg>
-                    </span>
+                    <span v-for="name in icons" :key="name" ref="trayItems" class="tray-item"><i :class="siteIcon(name)" /></span>
                 </div>
                 <div ref="placeholder" class="placeholder">
                     <FonteWordmark :class="{ hidden: ready }" :surface="emptySurface" />
@@ -247,16 +245,16 @@ onBeforeUnmount(() => {
                 <p class="sub">A Rust engine for icon fonts, for the CLI, Node, the browser, and Vite.</p>
                 <div ref="hint" class="hint mono" aria-hidden="true">
                     <span>scroll to cast</span>
-                    <svg class="stroke-icon" viewBox="0 0 24 24"><path v-for="d in arrowDown" :key="d" :d /></svg>
+                    <i :class="siteIcon('arrow-down')" />
                 </div>
                 <div ref="result" class="result">
                     <div class="result-head mono">
                         <span>my-icons.woff2</span><span>{{ icons.length }} glyphs</span>
                     </div>
                     <div class="cells">
-                        <div v-for="([name, paths], i) in icons" :key="name" class="cell">
-                            <svg class="stroke-icon" viewBox="0 0 24 24" aria-hidden="true"><path v-for="d in paths" :key="d" :d /></svg>
-                            <code class="mono">U+E00{{ i + 1 }}</code>
+                        <div v-for="name in icons" :key="name" class="cell">
+                            <i :class="siteIcon(name)" aria-hidden="true" />
+                            <code class="mono">U+{{ codepointLabel(name) }}</code>
                         </div>
                     </div>
                     <div class="actions">
@@ -282,7 +280,7 @@ onBeforeUnmount(() => {
                 <div class="drawers">
                     <button v-for="drawer in drawers" :key="drawer.key" class="drawer" type="button" :aria-pressed="drawer.key === activeKey" @click="activeKey = drawer.key">
                         <span class="drawer-top">
-                            <svg class="mark" viewBox="0 0 24 24" aria-hidden="true"><path :d="drawer.mark" /></svg>
+                            <i class="mark" :class="siteIcon(drawer.mark)" aria-hidden="true" />
                             <span class="plate mono">{{ drawer.plate }}</span>
                         </span>
                         <strong>{{ drawer.title }}</strong>
@@ -431,14 +429,6 @@ html.fonte-landing-docked:has(.VPNavBarHamburger[aria-expanded='true']) .VPNavBa
     font-family: var(--vp-font-family-mono);
     font-size: 12px;
     letter-spacing: 0.03em;
-}
-
-.stroke-icon {
-    fill: none;
-    stroke: currentColor;
-    stroke-width: 2;
-    stroke-linecap: round;
-    stroke-linejoin: round;
 }
 
 .flyer {
@@ -618,10 +608,9 @@ h2 {
     will-change: transform;
 }
 
-.tray-item svg {
+.tray-item .site-icon {
     display: block;
-    width: 100%;
-    height: 100%;
+    font-size: 32px;
 }
 
 .placeholder {
@@ -658,9 +647,9 @@ h2 {
     color: var(--vp-c-text-3);
 }
 
-.hint svg {
-    width: 22px;
-    height: 22px;
+.hint .site-icon {
+    display: block;
+    font-size: 22px;
     color: var(--acc);
     animation: bob 1.6s ease-in-out infinite;
 }
@@ -672,7 +661,7 @@ h2 {
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .hint svg {
+    .hint .site-icon {
         animation: none;
     }
 }
@@ -708,9 +697,9 @@ h2 {
     background: var(--vp-c-bg-soft);
 }
 
-.cell svg {
-    width: 26px;
-    height: 26px;
+.cell .site-icon {
+    display: block;
+    font-size: 26px;
     color: var(--vp-c-brand-1);
 }
 
@@ -783,14 +772,13 @@ h2 {
 }
 
 .mark {
-    width: 26px;
-    height: 26px;
-    fill: var(--vp-c-text-2);
-    transition: fill 0.3s;
+    font-size: 26px;
+    color: var(--vp-c-text-2);
+    transition: color 0.3s;
 }
 
 .drawer[aria-pressed='true'] .mark {
-    fill: var(--acc);
+    color: var(--acc);
 }
 
 .plate,

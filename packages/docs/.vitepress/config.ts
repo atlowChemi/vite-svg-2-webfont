@@ -3,6 +3,7 @@ import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-i
 import llmstxt from 'vitepress-plugin-llms';
 import { codeThemes } from './codeThemes';
 import { examplePlugins } from './examples';
+import { siteIconFont } from './siteIconFont';
 import { svgAuthoringFontPlugins } from './svgAuthoringFonts';
 import { iconCss } from './icon-css';
 
@@ -131,6 +132,7 @@ export default defineConfig({
                 defaultLabels: ['Generated CSS', 'Generated TS', 'output.css', 'output.html', 'output.svg', 'output.ts'],
             }),
             llmstxt(),
+            siteIconFont(),
             ...svgAuthoringFontPlugins(),
             ...examplePlugins(markdown),
         ],

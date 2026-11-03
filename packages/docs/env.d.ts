@@ -1,5 +1,7 @@
 declare module 'virtual:group-icons.css';
 
+declare module 'virtual:site-icons.css';
+
 declare module '*.css' {
     const content: Record<string, string>;
     export default content;

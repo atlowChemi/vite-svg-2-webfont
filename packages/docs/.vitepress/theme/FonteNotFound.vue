@@ -1,16 +1,12 @@
 <script setup lang="ts">
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { withBase } from 'vitepress';
-import { trayIcons } from './landing/icons';
+import { codepointLabel, siteIcon, trayIcons } from './siteIcons';
 
-// A type case of cast glyphs with one empty compartment: the sort for this page. A highlight scans the case once and
-// stops on the gap; with reduced motion, the gap is marked straight away.
-const icons = Object.values(trayIcons);
+// A type case of glyphs cast in the site's icon font, with one empty compartment: the sort for this page. A highlight
+// scans the case once and stops on the gap; with reduced motion, the gap is marked straight away.
 const missing = 10;
-const cells = Array.from({ length: 18 }, (_, i) => ({
-    paths: icons[(i * 5) % icons.length]!,
-    code: (0xe001 + i).toString(16).toUpperCase(),
-}));
+const cells = Array.from({ length: 18 }, (_, i) => trayIcons[(i * 5) % trayIcons.length]!);
 
 const scan = ref<number | null>(null);
 const found = ref(false);
@@ -52,10 +48,10 @@ onBeforeUnmount(() => clearTimeout(timer));
             </div>
         </div>
         <div class="case" aria-hidden="true">
-            <div v-for="(cell, i) in cells" :key="cell.code" class="cell" :class="{ hole: i === missing, scan: scan === i, found: found && i === missing }">
+            <div v-for="(cell, i) in cells" :key="i" class="cell" :class="{ hole: i === missing, scan: scan === i, found: found && i === missing }">
                 <template v-if="i !== missing">
-                    <svg viewBox="0 0 24 24"><path v-for="d in cell.paths" :key="d" :d /></svg>
-                    <span class="mono">{{ cell.code }}</span>
+                    <i :class="siteIcon(cell)" />
+                    <span class="mono">{{ codepointLabel(cell) }}</span>
                 </template>
             </div>
         </div>
@@ -171,15 +167,13 @@ h1 {
     border-radius: 4px;
     background: var(--vp-c-bg);
     transition: border-color 0.12s;
+    container-type: inline-size;
 }
 
-.cell svg {
-    width: 46%;
-    fill: none;
-    stroke: var(--vp-c-text-2);
-    stroke-width: 1.6;
-    stroke-linecap: round;
-    stroke-linejoin: round;
+/* 46% of the compartment's width, as the outline used to be drawn. */
+.cell .site-icon {
+    font-size: 46cqi;
+    color: var(--vp-c-text-2);
 }
 
 .cell span {
