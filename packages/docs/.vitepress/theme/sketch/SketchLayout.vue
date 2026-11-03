@@ -419,15 +419,14 @@ const themeLabel = computed(() => (isDark.value ? 'Switch to light theme' : 'Swi
                     >
                     <!-- Phones: the current section's pages live here, in place of the strip. -->
                     <div v-if="entry.key === section && currentGroups.length" class="sk-sheet-pages">
-                        <template v-for="(g, gi) in currentGroups" :key="g.text">
+                        <template v-for="g in currentGroups" :key="g.text">
                             <div v-if="currentGroups.length > 1" class="sk-sheet-shelf mono">{{ g.text }}</div>
                             <a
-                                v-for="(item, i) in g.items"
+                                v-for="item in g.items"
                                 :key="item.link"
                                 class="sk-sheet-page"
                                 :href="withBase(item.link)"
                                 :aria-current="normalize(item.link) === current ? 'page' : undefined"
-                                ><span v-if="entry.key === 'guide' && gi === 0" class="n">{{ no(i) }}</span
                                 >{{ item.text }}</a
                             >
                         </template>

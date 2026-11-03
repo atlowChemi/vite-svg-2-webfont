@@ -919,28 +919,17 @@ a.tool:hover {
     }
 
     .sk-sheet-page {
-        display: flex;
-        align-items: baseline;
-        gap: 12px;
+        display: block;
         padding: 8px 12px;
         border-radius: 6px;
         color: var(--vp-c-text-2);
         text-decoration: none;
     }
 
-    .sk-sheet-page .n {
-        font-size: 12px;
-        color: var(--vp-c-text-3);
-    }
-
     .sk-sheet-page[aria-current='page'] {
         background: var(--vp-c-bg-alt);
         color: var(--vp-c-text-1);
         box-shadow: inset 2px 0 0 var(--fonte-molten);
-    }
-
-    .sk-sheet-page[aria-current='page'] .n {
-        color: var(--sk-hot);
     }
 
     .sk-sheet-section .n {
