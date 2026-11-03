@@ -107,6 +107,7 @@ tasks:
             - LDFLAGS
             - SDKROOT
             - MACOSX_DEPLOYMENT_TARGET
+            - DYLD_FALLBACK_LIBRARY_PATH
             - CARGO_PROFILE_RELEASE_LTO
             - CARGO_PROFILE_RELEASE_OPT_LEVEL
             - CARGO_PROFILE_RELEASE_CODEGEN_UNITS
@@ -161,6 +162,7 @@ tasks:
         outputs: []
         env: *rust-env
         inputs: &engine-inputs
+            - &auditor-source 'crates/cache-audit/{Cargo.toml,README.md,build.rs,src/**/*.rs,tests/**/*.rs,benches/**/*.rs,examples/**/*.rs,patches/**,scripts/prepare.mjs}'
             - '**/.gitignore'
             - patches/**
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,Cargo.toml,Cargo.lock,.npmrc,.pnpmfile.*,rust-toolchain*}'
@@ -174,6 +176,7 @@ tasks:
         dependsOn: []
         env: *rust-env
         inputs:
+            - *auditor-source
             - '**/.gitignore'
             - patches/**
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,Cargo.toml,Cargo.lock,.npmrc,.pnpmfile.*,rust-toolchain*}'
@@ -220,6 +223,7 @@ tasks:
         cache: true
         dependsOn: []
         inputs:
+            - *auditor-source
             - patches/**
             - '**/.gitignore'
             - package.json
@@ -256,6 +260,7 @@ tasks:
         cache: true
         dependsOn: []
         inputs:
+            - *auditor-source
             - patches/**
             - package.json
             - pnpm-workspace.yaml
