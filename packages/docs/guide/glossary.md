@@ -1,5 +1,5 @@
 ---
-description: Definitions of the terms used across the vite-svg-2-webfont and webfont-generator docs.
+description: Definitions of the terms used across the fonte docs, for every tool.
 ---
 
 # Glossary
