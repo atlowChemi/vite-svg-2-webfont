@@ -2,6 +2,7 @@ import { h } from 'vue';
 import { useData } from 'vitepress';
 import type { Theme } from 'vitepress';
 import DefaultTheme from 'vitepress/theme';
+import FonteNotFound from './FonteNotFound.vue';
 import FonteWordmark from './FonteWordmark.vue';
 import FonteLanding from './landing/FonteLanding.vue';
 import Mermaid from './Mermaid.vue';
@@ -15,11 +16,12 @@ const theme: Theme = {
     extends: DefaultTheme,
 
     // Doc pages use their own shell. The landing page, the playground and the 404 page (`layout: page`) keep the default
-    // theme's, with the wordmark in the nav title link ahead of the subtitle (`themeConfig.siteTitle`).
+    // theme's, with the wordmark in the nav title link ahead of the subtitle (`themeConfig.siteTitle`), and the 404 page
+    // shows the type case.
     Layout: () => {
         const { frontmatter } = useData();
         if (frontmatter.value.layout !== 'page') return h(SketchLayout);
-        return h(DefaultTheme.Layout, null, { 'nav-bar-title-before': () => h(FonteWordmark) });
+        return h(DefaultTheme.Layout, null, { 'nav-bar-title-before': () => h(FonteWordmark), 'not-found': () => h(FonteNotFound) });
     },
 
     enhanceApp({ app }) {
