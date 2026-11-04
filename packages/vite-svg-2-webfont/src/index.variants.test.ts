@@ -112,6 +112,33 @@ async function serve(options: IconPluginOptions) {
     }
 }
 
+it('points every variant face at the dev font from nested pages', async () => {
+    await using files = await fixture({ types: ['woff2', 'ttf'] });
+    await using dev = await serve(files.options);
+    const urls = [...(await dev.css()).matchAll(/url\(\\"([^"\\]+)\\"\)/g)].map(match => match[1]!);
+    // One src per variant face, each listing both formats.
+    expect(urls.length).toBeGreaterThanOrEqual(4);
+    const { port } = dev.server.httpServer!.address() as { port: number };
+    for (const url of urls) expect(url).toMatch(/^\/icons\.(?:woff2|ttf)\?[\da-f]{64}$/);
+    const responses = await Promise.all(urls.map(url => fetch(new URL(url, `http://127.0.0.1:${port}/nested/page`))));
+    for (const response of responses) {
+        expect(response.status).toBe(200);
+        expect(response.headers.get('content-type')).not.toBe('text/html');
+    }
+    expect(
+        new Uint8Array(
+            await (
+                await fetch(
+                    new URL(
+                        urls.find(url => url.includes('.woff2'))!,
+                        `http://127.0.0.1:${port}/a/b/`,
+                    ),
+                )
+            ).arrayBuffer(),
+        ),
+    ).toEqual(await dev.font());
+});
+
 it('forwards named slots to the font and CSS template in a real plugin build', async () => {
     await using files = await fixture({
         colorGlyphs: true,

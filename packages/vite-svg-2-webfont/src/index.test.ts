@@ -1,5 +1,6 @@
 import { constants } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { createHash } from 'node:crypto';
 import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { join as pathJoin } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
@@ -9,6 +10,7 @@ import { build, createServer, normalizePath, preview, version as viteVersion } f
 import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from 'vite-plus/test';
 import { viteSvgToWebfont } from './index';
 import type { IconPluginFileOptions } from './optionParser';
+import { MIME_TYPES } from './utils';
 import type { AddressInfo } from 'node:net';
 
 it.runIf(process.env.VITE_COMPAT_MAJOR)('runs integration tests against the selected upstream Vite major', () => {
@@ -212,6 +214,151 @@ describe('serve - handles virtual import and has all font types available', () =
     it.concurrent.each(types)(`has font of type %s available`, async type => {
         const [expected, res] = await Promise.all([loadFileContent(`fonts/iconfont.${type}`, 'buffer'), fetchBufferContent(server, `/iconfont.${type}`)]);
         expect(res).toStrictEqual(expected);
+    });
+});
+
+// Vite injects the virtual module's CSS as a <style> element, so the browser resolves its font URLs against the page's
+// URL. These suites read the URLs the dev server sends and resolve them the way a browser would, from root and nested pages.
+const MODULE_PATH = '@id/__x00__virtual:vite-svg-2-webfont.css';
+const sha256 = (data: ArrayBuffer) => createHash('sha256').update(Buffer.from(data)).digest('hex');
+
+/** The `url("…")` values in the dev server's virtual CSS module, which Vite serves as JS with the CSS in a string. */
+const moduleFontUrls = async (server: ViteDevServer, base = '/') => {
+    const code = await fetchTextContent(server, `${base}${MODULE_PATH}`);
+    if (!code) throw new Error('Virtual CSS module not served');
+    return [...code.matchAll(/url\(\\"([^"\\]+)\\"\)/g)].map(match => match[1]!);
+};
+
+/** Fetches what a page at `page` loads for each font URL, keyed by the font type the URL names. */
+const resolveFromPage = async (server: ViteDevServer, page: string, urls: string[]) => {
+    const { host, port } = getServerAddress(server);
+    return Promise.all(
+        urls.map(async url => {
+            const resolved = new URL(url, `http://${host}:${port}${page}`);
+            const type = /\.(\w+)$/.exec(resolved.pathname)![1] as (typeof types)[number];
+            const res = await fetch(resolved);
+            return { url, resolved, type, status: res.status, contentType: res.headers.get('content-type'), body: await res.arrayBuffer() };
+        }),
+    );
+};
+
+const byName = (a: string, b: string) => a.localeCompare(b);
+
+const PAGES = ['/', '/index.html', '/nested/page', '/nested/page/', '/deeply/nested/route/index.html', '/nested/page?query=1#hash'];
+
+describe('serve - font URLs resolve from every page', () => {
+    let server: ViteDevServer;
+    let urls: string[];
+
+    beforeAll(async () => {
+        const createdServer = await createServer(getConfig(ConfigType.Basic, { formatOptions: { woff2: { compressionQuality: 11 } } }));
+        server = await createdServer.listen();
+        urls = await moduleFontUrls(server);
+    });
+
+    afterAll(async () => {
+        await server.close();
+    });
+
+    it('points one absolute URL at each font type, from the site root', () => {
+        expect(urls.map(url => /\.(\w+)\?/.exec(url)![1]!).toSorted(byName)).toEqual([...types].toSorted(byName));
+        for (const url of urls) expect(url).toMatch(/^\/iconfont\.\w+\?[\da-f]{64}(?:\?#iefix|#iconfont)?$/);
+    });
+
+    it.each(PAGES)('loads every font from %s', async page => {
+        const loaded = await resolveFromPage(server, page, urls);
+        const expected = await Promise.all(loaded.map(({ type }) => loadFileContent(`fonts/iconfont.${type}`, 'buffer')));
+        loaded.forEach(({ resolved, type, status, contentType, body }, i) => {
+            expect(resolved.pathname).toBe(`/iconfont.${type}`);
+            expect(status).toBe(200);
+            expect(contentType).toBe(MIME_TYPES[type]);
+            expect(body).toStrictEqual(expected[i]);
+        });
+    });
+
+    it('versions each URL with the hash of the font it serves', async () => {
+        for (const { resolved, body } of await resolveFromPage(server, '/nested/page', urls)) {
+            expect(resolved.search.replace(/^\?|\?$/g, '')).toBe(sha256(body));
+        }
+    });
+});
+
+describe('serve - font URLs follow the base', () => {
+    it.each([
+        { base: '/docs/', expected: '/docs/', page: '/docs/vite/examples' },
+        { base: '/docs/nested/', expected: '/docs/nested/', page: '/docs/nested/a/b/' },
+        { base: './', expected: '/', page: '/nested/page' },
+        { base: '', expected: '/', page: '/nested/page' },
+        { base: 'https://cdn.example.com/assets/', expected: '/assets/', page: '/assets/nested/page' },
+    ])('serves base $base under $expected, as pages under it resolve them', async ({ base, expected, page }) => {
+        const created = await createServer({ ...getConfig(ConfigType.Basic, { types: ['woff2', 'eot'] }), base });
+        const server = await created.listen();
+        try {
+            const urls = await moduleFontUrls(server, expected);
+            expect(urls).toHaveLength(2);
+            for (const url of urls) expect(url.startsWith(`${expected}iconfont.`)).toBe(true);
+            for (const { resolved, type, status, contentType, body } of await resolveFromPage(server, page, urls)) {
+                expect(resolved.pathname).toBe(`${expected}iconfont.${type}`);
+                expect(status).toBe(200);
+                expect(contentType).toBe(MIME_TYPES[type]);
+                expect(resolved.search.replace(/^\?|\?$/g, '')).toBe(sha256(body));
+            }
+            // The site root keeps serving the fonts, as before the base was honored.
+            const atRoot = await fetchFromServer(server, '/iconfont.woff2');
+            expect(atRoot.headers.get('content-type')).toBe(MIME_TYPES.woff2);
+        } finally {
+            await server.close();
+        }
+    });
+});
+
+describe('serve - module CSS ignores cssFontsUrl, written CSS keeps it', () => {
+    it.each(['https://cdn.example.com/fonts/', '/assets/fonts/'])('cssFontsUrl %s', async cssFontsUrl => {
+        const dest = await mkdtemp(pathJoin(tmpdir(), 'vsw-css-fonts-url-'));
+        const created = await createServer(getConfig(ConfigType.Basic, { types: ['woff2'], cssFontsUrl, dest, generateFiles: 'css' }));
+        const server = await created.listen();
+        try {
+            const [url] = await moduleFontUrls(server);
+            expect(url).toMatch(/^\/iconfont\.woff2\?[\da-f]{64}$/);
+            const [loaded] = await resolveFromPage(server, '/nested/page', [url!]);
+            expect(loaded!.status).toBe(200);
+            const written = await readFile(pathJoin(dest, 'iconfont.css'), 'utf8');
+            expect(written).not.toContain(url);
+            expect(written).toContain(`url("${cssFontsUrl}iconfont.woff2?`);
+        } finally {
+            await Promise.all([server.close(), rm(dest, { recursive: true, force: true })]);
+        }
+    });
+});
+
+describe('serve - font URLs change with the fonts', () => {
+    const filename = '__dev-url-hash__.svg';
+    const svgUrl = new URL(`webfont-test/svg/${filename}`, root);
+
+    it('serves the regenerated font at a new URL', async () => {
+        let watcherHandler: Parameters<typeof setupWatcherMock>[2] | undefined;
+        setupWatcherMock.mockImplementationOnce(async (_path, _signal, handler) => {
+            watcherHandler = handler;
+        });
+        const created = await createServer({ ...getConfig(ConfigType.Basic, { types: ['woff2'] }), base: '/docs/' });
+        const server = await created.listen();
+        try {
+            const [before] = await moduleFontUrls(server, '/docs/');
+            const [original] = await resolveFromPage(server, '/docs/guide/page', [before!]);
+
+            await writeFile(svgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>');
+            if (!watcherHandler) throw new Error('Watcher not initialized');
+            await watcherHandler([{ path: pathJoin(webfontFolder, filename), kind: 'added' }]);
+
+            const [after] = await moduleFontUrls(server, '/docs/');
+            expect(after).not.toBe(before);
+            const [edited] = await resolveFromPage(server, '/docs/guide/page', [after!]);
+            expect(edited!.resolved.pathname).toBe('/docs/iconfont.woff2');
+            expect(edited!.body).not.toStrictEqual(original!.body);
+            expect(edited!.resolved.search.slice(1)).toBe(sha256(edited!.body));
+        } finally {
+            await Promise.all([server.close(), rm(svgUrl, { force: true })]);
+        }
     });
 });
 
