@@ -41,6 +41,10 @@ jobs:
                   # The plugin and engine validate entries; restore the latest cache across commits.
                   key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
                   restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
+            # The build renders Mermaid diagrams in headless Chromium.
+            - name: install Chromium for diagrams
+              working-directory: packages/docs
+              run: vp exec playwright install --with-deps --only-shell chromium
             - name: build docs
               run: vp run @atlowchemi/vite-svg-webfont-docs#build
             - name: upload pages artifact

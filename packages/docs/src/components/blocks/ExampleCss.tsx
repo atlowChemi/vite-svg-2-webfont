@@ -1,7 +1,16 @@
 import { Html } from './Html.tsx';
 
 const ENTITIES: Record<string, string> = { '&quot;': '"', '&#x27;': "'", '&#39;': "'", '&lt;': '<', '&gt;': '>', '&amp;': '&' };
-const lineText = (line: string) => line.replaceAll(/<[^>]+>/g, '').replaceAll(/&(?:quot|#x27|#39|lt|gt|amp);/g, entity => ENTITIES[entity]!);
+/** A highlighted line's text, for matching snippets: its tags removed (repeatedly, so none can re-form) and entities decoded. */
+function lineText(line: string): string {
+    let previous;
+    let text = line;
+    do {
+        previous = text;
+        text = text.replaceAll(/<[^>]+>/g, '');
+    } while (text !== previous);
+    return text.replaceAll(/&(?:quot|#x27|#39|lt|gt|amp);/g, entity => ENTITIES[entity]!);
+}
 
 /**
  * The CSS the plugin generated for one example, highlighted at build time (`html`). Lines containing any `highlight`

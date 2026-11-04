@@ -80,6 +80,17 @@ export function llmsTxt(pages: Page[]): string {
 const frontmatter = (page: Page) =>
     `---\ntitle: ${JSON.stringify(page.title)}\n${page.description ? `description: ${JSON.stringify(page.description)}\n` : ''}url: ${page.route}\n---\n\n`;
 
+/** Removes HTML tags and comments, repeating until none are left, so removing one can't join the pieces of another. */
+function stripTags(text: string): string {
+    let previous;
+    let out = text;
+    do {
+        previous = out;
+        out = out.replace(/<\/?[A-Za-z][\w-]*(?:\s[^<>]*)?\/?>|<!--[\s\S]*?-->/g, '');
+    } while (out !== previous);
+    return out;
+}
+
 /**
  * A page's Markdown for readers that aren't browsers: components give way to the Markdown in their slots (an example's
  * config, for one), and HTML tags outside code are dropped, keeping their text.
@@ -110,7 +121,7 @@ export function plainMarkdown(source: string, components: Set<string>): string {
             return line
                 .replace(/^(#{1,6} .*?)\s*\{#[\w-]+\}\s*$/, '$1')
                 .split(/(`+[^`]*`+)/)
-                .map((part, n) => (n % 2 ? part : part.replace(/<\/?[A-Za-z][\w-]*(?:\s[^<>]*)?\/?>|<!--[\s\S]*?-->/g, '')))
+                .map((part, n) => (n % 2 ? part : stripTags(part)))
                 .join('');
         })
         .join('\n')

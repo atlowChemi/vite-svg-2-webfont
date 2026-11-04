@@ -22,11 +22,18 @@ export const site = {
 const npm = (name: string) => `https://www.npmjs.com/package/${name}`;
 const crate = 'https://crates.io/crates/webfont-generator';
 export const tools = [
-    { key: 'vite', plate: 'Plugin', name: 'Vite', package: 'vite-svg-2-webfont', registry: npm('vite-svg-2-webfont') },
-    { key: 'node', plate: 'npm', name: 'Node.js', package: '@atlowchemi/webfont-generator', registry: npm('@atlowchemi/webfont-generator') },
-    { key: 'browser', plate: 'Wasm', name: 'Browser', package: '@atlowchemi/webfont-browser-generator', registry: npm('@atlowchemi/webfont-browser-generator') },
-    { key: 'cli', plate: 'Binary', name: 'CLI', package: 'webfont-generator --features cli', registry: crate },
-    { key: 'rust', plate: 'Crate', name: 'Rust', package: 'webfont-generator', registry: crate },
+    { key: 'vite', plate: 'Plugin', name: 'Vite', package: 'vite-svg-2-webfont', registry: npm('vite-svg-2-webfont'), registryName: 'npm' },
+    { key: 'node', plate: 'npm', name: 'Node.js', package: '@atlowchemi/webfont-generator', registry: npm('@atlowchemi/webfont-generator'), registryName: 'npm' },
+    {
+        key: 'browser',
+        plate: 'Wasm',
+        name: 'Browser',
+        package: '@atlowchemi/webfont-browser-generator',
+        registry: npm('@atlowchemi/webfont-browser-generator'),
+        registryName: 'npm',
+    },
+    { key: 'cli', plate: 'Binary', name: 'CLI', package: 'webfont-generator --features cli', registry: crate, registryName: 'crates.io' },
+    { key: 'rust', plate: 'Crate', name: 'Rust', package: 'webfont-generator', registry: crate, registryName: 'crates.io' },
 ] as const;
 export type Tool = (typeof tools)[number];
 

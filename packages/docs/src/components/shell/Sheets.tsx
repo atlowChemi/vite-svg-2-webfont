@@ -52,7 +52,7 @@ export function ToolsSheet({ nav }: { nav: PageNav }) {
                 {nav.tool && (
                     <a href={nav.tool.registry} target="_blank" rel="noreferrer">
                         <span className="plate">Package</span>
-                        {nav.tool.registry.includes('crates.io') ? 'crates.io' : 'npm'} ↗
+                        {nav.tool.registryName} ↗
                     </a>
                 )}
                 <button type="button" data-theme-toggle="">
