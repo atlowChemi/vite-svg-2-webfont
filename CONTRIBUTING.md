@@ -61,8 +61,9 @@ workspace discovery and installation settings remain in the root configuration.
 
 Normal development still uses the `vp` commands above. The `next:*` scripts and
 `next-*` pipelines are the replacement graph under validation, not the active
-workflow. This foundation declares commands and prerequisites with every task
-cache disabled. Cache auditing and activation are separate review layers.
+workflow. All task caches remain disabled at this review layer. The auditor and
+its fixture-based checks are available; workspace cache declarations, activation,
+and filesystem-audit CI arrive together in the next layer.
 
 ```mermaid
 flowchart LR
@@ -72,6 +73,10 @@ flowchart LR
     pipeline --> tasks["Root next:* tasks and prerequisite edges"]
     tasks --> scripts["Package package.json: next:* raw commands"]
     scripts --> tools
+    audit["cache-audit audit --task / --pipeline / --all"] --> rust["Embedded pnpm Rust graph APIs"]
+    rust --> execution["Rust prerequisite execution and per-task observation"]
+    execution --> tools
+    rust -. "graph --all --verify-pnpm" .-> pipeline
 ```
 
 The main artifact dependencies below apply to both graphs. Arrows point from a
@@ -125,10 +130,20 @@ as `next:native` and `next:wasm` own cross-package cache declarations. Use nativ
 `pnpm pipeline NAME --full` to prepare prerequisites; a raw package script does not.
 `next-test` preserves the original JS test scope; Rust suites are separate pipelines.
 Keep `--full`: native affected selection currently skips required root-owned tasks
-for docs-only edits.
+for docs-only edits. See the auditor's [cache-reset policy](./crates/cache-audit/README.md#run-dormant-pipelines-and-reset-task-caches)
+for external-tool upgrades and ignored local configuration.
 
 Lifecycle hooks (`prepare`, native `prepublishOnly`) retain their existing names
-and automatic package-manager behavior.
+and automatic package-manager behavior. The auditor's own commands are exposed
+through `vp run @atlowchemi/cache-audit#TASK`; see its
+[README](./crates/cache-audit/README.md).
+
+The Linux auditor owns graph selection, serial prerequisite execution, per-task
+reports, cancellation, and temporary Cargo targets in Rust. Its `--all` selects
+reviewed policy tasks; it does not launch dev servers or publish pipelines.
+`test:compat` validates cache behavior in a temporary fixture with separate pnpm
+caches; `audit:negative` mutates a temporary workspace copy. The package's Node
+entry point only forwards arguments and signals to the compiled binary.
 
 The dormant-pipeline CI job executes a finite validation suite including builds,
 tests, coverage, and tarballs. Dev/preview,
@@ -297,7 +312,9 @@ rustup toolchain install nightly-2026-02-18 --profile minimal --component llvm-t
 ```
 
 On macOS, put Homebrew LLVM's `bin` directory on PATH; Apple clang lacks the WASM target.
-`WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage toolchain; normal builds use stable Rust.
+`WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage toolchain; normal builds use the
+nightly pinned in `rust-toolchain.toml`. CI also verifies the product with stable
+`rustc` and checks the packaged engine crate using stable Cargo.
 The pinned nightly uses LLVM 22 to match wasm-bindgen-test's exact minicov 0.3.8 dependency.
 CI uploads coverage with the `browser-js` and `browser-rust` flags and reports the production
 smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.

@@ -21,6 +21,8 @@ jobs:
                   fetch-depth: 0
                   ref: ${{ github.event.pull_request.head.sha || github.sha }}
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -47,6 +49,8 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -86,6 +90,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               id: rust
               with:
+                  toolchain: nightly-2026-08-02
                   components: clippy, rustfmt
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
@@ -115,7 +120,10 @@ jobs:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
-                  components: llvm-tools-preview
+                  # Install the complete workspace toolchain before doctests and coverage overlap.
+                  components: clippy, rustfmt, llvm-tools-preview
+                  targets: wasm32-unknown-unknown
+                  toolchain: nightly-2026-08-02
             - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
               with:
                   tool: cargo-llvm-cov,cargo-nextest
@@ -176,6 +184,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   components: llvm-tools-preview
+                  toolchain: nightly-2026-08-02
             - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
               with:
                   tool: cargo-llvm-cov
@@ -234,6 +243,8 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   targets: wasm32-unknown-unknown
+                  components: clippy, rustfmt
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -268,6 +279,8 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -324,6 +337,7 @@ jobs:
               with:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version-file: .node-version
@@ -430,6 +444,8 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
             - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   runtime: node@${{ matrix.node }}
@@ -477,6 +493,8 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
             - name: extract node version from .node-version
               id: node-version
               run: echo "node_version=$(cat .node-version)" >> "$GITHUB_OUTPUT"
@@ -504,7 +522,7 @@ jobs:
                   # Reinstall inside Alpine so native dependencies match musl.
                   args: |
                       sh -c "set -e && \
-                        apk add --no-cache cargo && \
+                        apk add --no-cache cargo git && \
                         npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && \
                         pnpm install --frozen-lockfile --ignore-scripts && \
                         pnpm exec vp test --run --project='!*-browser*' --project='!scripts'"
@@ -547,6 +565,8 @@ jobs:
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
             - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
               with:
                   node-version: ${{ matrix.node_version }}
