@@ -7,7 +7,7 @@ import { expect, it } from 'vite-plus/test';
 
 it('discovers new pipelines and rejects stale exclusions before execution', () => {
     const workflow = parse(readFileSync(new URL('../../.github/workflows/cache-audit.yaml', import.meta.url), 'utf8'));
-    const script = workflow.jobs.pipelines.steps.find((step: { name?: string }) => step.name === 'Select dormant pipelines').run;
+    const script = workflow.jobs['select-work'].steps.find((step: { name?: string }) => step.name === 'Select dormant pipelines').run;
     const { pipelines } = parse(readFileSync(new URL('../../pnpm-tasks.yaml', import.meta.url), 'utf8'));
     const directory = mkdtempSync(join(tmpdir(), 'dormant-pipelines-'));
     try {
