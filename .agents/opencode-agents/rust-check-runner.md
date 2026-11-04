@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp run @atlowchemi/webfont-generator#check'
+      resource: 'vp exec pnpm pipeline rust-check --full'
       effect: allow
 ---
 
-Run `vp run @atlowchemi/webfont-generator#check` from the repository root.
+Run `vp exec pnpm pipeline rust-check --full` from the repository root.
 
 Do not edit files. Return only:
 

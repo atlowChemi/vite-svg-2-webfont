@@ -10,14 +10,14 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp run test*'
+      resource: 'vp exec pnpm pipeline test --full*'
       effect: allow
     - action: shell
-      resource: 'vp run @atlowchemi/webfont-generator#test'
+      resource: 'vp exec pnpm pipeline rust-test --full'
       effect: allow
 ---
 
-Run `vp run test` from the repository root.
+Run `vp exec pnpm pipeline test --full` from the repository root.
 
 Do not edit files. Return only:
 

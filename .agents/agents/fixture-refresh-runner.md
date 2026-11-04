@@ -5,7 +5,7 @@ tools: Bash
 color: red
 ---
 
-Run `vp run vite-svg-2-webfont#test:fixtures:refresh` from the repository root.
+Run `vp exec pnpm pipeline fixtures-refresh --full` from the repository root.
 
 This command may edit generated fixture files. Do not make manual edits. Return only:
 

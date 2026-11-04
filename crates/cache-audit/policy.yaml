@@ -2,7 +2,7 @@
 # directory metadata and producer-owned cleanup do not waive artifact coverage.
 version: 1
 tasks:
-    '.#next:docs:svg':
+    '.#docs:svg':
         missingInputs: &file-probes
             - pattern: '**/{package.json,package.json5,package.yaml,deno.json,deno.jsonc,lerna.json,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml,.pnp.cjs}'
               reason: 'Package, workspace, and toolchain regular-file discovery'
@@ -53,7 +53,7 @@ tasks:
             - pattern: 'packages/{docs,webfont-browser,vite-svg-2-webfont,example}/dist/**'
               reason: 'Retired build files; exemption requires a prior declared output that is absent afterward'
 
-    '.#next:wasm':
+    '.#wasm':
         missingInputs: *file-probes
         ignore:
             - *external
@@ -67,7 +67,7 @@ tasks:
               reason: 'wasm-bindgen replaces generated files from freshly compiled WASM; writes remain checked'
         neverCache: *intermediates
 
-    '.#next:browser:pack':
+    '.#browser:pack':
         missingInputs: *file-probes
         ignore:
             - *external
@@ -80,7 +80,7 @@ tasks:
         neverCache: *intermediates
         cleanupOutputs: *retired
 
-    '.#next:native':
+    '.#native':
         missingInputs:
             - pattern: '**/.gitignore'
               reason: 'Git discovery probes; existing and future ignore configuration is keyed'
@@ -150,7 +150,7 @@ tasks:
             - pattern: 'packages/webfont-generator/.napi-rs-filesystem-*/**'
               reason: 'NAPI filesystem transaction locks and temporary state'
 
-    '.#next:plugin:pack':
+    '.#plugin:pack':
         missingInputs: *file-probes
         ignore:
             - *external
@@ -163,12 +163,12 @@ tasks:
         neverCache: *intermediates
         cleanupOutputs: *retired
 
-    '.#next:docs:social':
+    '.#docs:social':
         missingInputs: *file-probes
         ignore: [*external, *directories, *discovery]
         neverCache: *intermediates
 
-    '.#next:docs':
+    '.#docs':
         requiresUncached: true
         missingInputs: *file-probes
         ignore:
@@ -190,7 +190,7 @@ tasks:
         neverCache: *intermediates
         cleanupOutputs: *retired
 
-    '.#next:example':
+    '.#example':
         requiresUncached: true
         missingInputs: *file-probes
         ignore:
