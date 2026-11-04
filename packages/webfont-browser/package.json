@@ -6,7 +6,7 @@
     "scripts": {
         "pack:tgz": "pnpm pack",
         "test:coverage": "node scripts/coverage.mjs",
-        "publish": "vp exec -c \"pnpm stage publish atlowchemi-webfont-browser-generator-*.tgz --access public --no-git-checks\"",
+        "publish": "pnpm stage publish atlowchemi-webfont-browser-generator-*.tgz --access public --no-git-checks",
         "build": "node scripts/build.mjs",
         "pack": "vp pack",
         "check": "cargo clippy -p webfont-browser --target wasm32-unknown-unknown --locked -- -D warnings",

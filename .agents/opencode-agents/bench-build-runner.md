@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp exec pnpm --dir packages/webfont-generator run bench --no-run*'
+      resource: 'pnpm --dir packages/webfont-generator run bench --no-run*'
       effect: allow
 ---
 
-Run `vp exec pnpm --dir packages/webfont-generator run bench --no-run` from the repository root.
+Run `pnpm --dir packages/webfont-generator run bench --no-run` from the repository root.
 
 Do not edit files. Return only:
 

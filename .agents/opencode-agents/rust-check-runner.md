@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp exec pnpm pipeline rust-check --full'
+      resource: 'pnpm pipeline rust-check --full'
       effect: allow
 ---
 
-Run `vp exec pnpm pipeline rust-check --full` from the repository root.
+Run `pnpm pipeline rust-check --full` from the repository root.
 
 Do not edit files. Return only:
 

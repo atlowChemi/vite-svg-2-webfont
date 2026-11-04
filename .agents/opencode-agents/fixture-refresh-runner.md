@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp exec pnpm pipeline fixtures-refresh --full*'
+      resource: 'pnpm pipeline fixtures-refresh --full*'
       effect: allow
 ---
 
-Run `vp exec pnpm pipeline fixtures-refresh --full` from the repository root.
+Run `pnpm pipeline fixtures-refresh --full` from the repository root.
 
 This command may edit generated fixture files. Do not make manual edits. Return only:
 

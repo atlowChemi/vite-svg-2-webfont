@@ -30,18 +30,17 @@ jobs:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: |
-                      args: [--frozen-lockfile]
+                  require-lockfile: true
                   cache: true
             - name: Select affected packages conservatively
               run: node scripts/ci/affected-selection.ts
             - name: Select finite pipelines
               shell: bash
               run: |
-                  vp exec pnpm config get pipelines --location project --json > pipelines.json
+                  pnpm config get pipelines --location project --json > pipelines.json
                   jq -r '
                     {
                       "bench": "Fresh measurements belong to benchmark CI",
@@ -96,13 +95,12 @@ jobs:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: |
-                      args: [--frozen-lockfile]
+                  require-lockfile: true
                   cache: true
-            - run: vp exec playwright install --with-deps chromium firefox webkit
+            - run: pnpm exec playwright install --with-deps chromium firefox webkit
             - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
               with:
                   name: cache-audit-binary-linux-x64
@@ -117,7 +115,7 @@ jobs:
                   status=0
                   while IFS= read -r pipeline; do
                     log="artifacts/cache-audit/pipelines/$pipeline.log"
-                    if vp exec pnpm pipeline "$pipeline" --full --no-cache > "$log" 2>&1; then
+                    if pnpm pipeline "$pipeline" --full --no-cache > "$log" 2>&1; then
                       echo "$pipeline: passed"
                     else
                       echo "::error::$pipeline failed; see $log"
@@ -137,7 +135,7 @@ jobs:
               run: |
                   status=0
                   while IFS= read -r task; do
-                    if vp exec pnpm --dir crates/cache-audit run audit -- --task "$task" --reports "artifacts/cache-audit/tasks/${task//:/-}"; then
+                    if pnpm --dir crates/cache-audit run audit -- --task "$task" --reports "artifacts/cache-audit/tasks/${task//:/-}"; then
                       echo "$task: passed" >> "$GITHUB_STEP_SUMMARY"
                       if [[ "$task" == native ]]; then
                         echo 'native_passed=true' >> "$GITHUB_OUTPUT"
@@ -152,7 +150,7 @@ jobs:
               if: ${{ !cancelled() && steps.audit.outputs.native_passed == 'true' }}
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-bin/cache-audit
-              run: vp exec pnpm --dir crates/cache-audit run audit:negative
+              run: pnpm --dir crates/cache-audit run audit:negative
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               if: always()
               with:
@@ -171,11 +169,10 @@ jobs:
               with:
                   targets: wasm32-unknown-unknown
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: |
-                      args: [--frozen-lockfile]
+                  require-lockfile: true
                   cache: true
             - name: Verify installation preserved the lockfile
               run: git diff --exit-code HEAD -- pnpm-lock.yaml Cargo.lock .cargo/config.toml
@@ -183,7 +180,7 @@ jobs:
               run: |
                   mkdir -p artifacts/cache-audit
                   {
-                    vp exec pnpm --version
+                    pnpm --version
                     node --version
                     rustc -vV
                     cargo --version
@@ -194,9 +191,9 @@ jobs:
               env:
                   CARGO_TARGET_DIR: ${{ runner.temp }}/cache-audit-build
               run: |
-                  vp exec pnpm --dir crates/cache-audit run build
-                  vp exec pnpm --dir crates/cache-audit run test
-                  vp exec pnpm --dir crates/cache-audit run check
+                  pnpm --dir crates/cache-audit run build
+                  pnpm --dir crates/cache-audit run test
+                  pnpm --dir crates/cache-audit run check
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: cache-audit-binary-linux-x64
@@ -222,7 +219,7 @@ jobs:
             - name: Verify installed pnpm cache semantics
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
-              run: vp exec pnpm --dir crates/cache-audit run test:compat
+              run: pnpm --dir crates/cache-audit run test:compat
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               if: always()
               with:

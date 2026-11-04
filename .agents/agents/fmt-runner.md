@@ -5,7 +5,7 @@ tools: Bash
 color: yellow
 ---
 
-Run `vp fmt` from the repository root.
+Run `pnpm exec vp fmt` from the repository root.
 
 This command may edit files by applying formatter output. Do not make manual edits. Return only:
 
