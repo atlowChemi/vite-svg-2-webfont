@@ -5,7 +5,18 @@ import { join } from 'node:path';
 import { expect, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 
-type Task = { project: string; script: string; missingScript: boolean; dependsOn: { project: string; script: string }[] };
+type Task = {
+    project: string;
+    script: string;
+    missingScript: boolean;
+    dependsOn: { project: string; script: string }[];
+};
+
+it('uses the rustup sysroot with CI-installed components inside pnpm', () => {
+    const rustc = execFileSync('rustup', ['which', 'rustc'], { encoding: 'utf8' }).trim();
+    const expected = execFileSync(rustc, ['--print', 'sysroot'], { encoding: 'utf8' }).trim();
+    expect(execFileSync('pnpm', ['exec', 'rustc', '--print', 'sysroot'], { encoding: 'utf8' }).trim()).toBe(expected);
+});
 
 it('restores pipeline outputs using only the persisted pipeline directory', () => {
     const directory = mkdtempSync(join(tmpdir(), 'pipeline-cache-'));
@@ -17,7 +28,11 @@ it('restores pipeline outputs using only the persisted pipeline directory', () =
             'packages: [.]\npipelines:\n  build: [build]\ntasks:\n  build:\n    cache: true\n    inputs: [build.cjs]\n    outputs: [output.txt]\n',
         );
         const cache = join(directory, 'cache');
-        const options = { cwd: directory, env: { ...process.env, PNPM_CONFIG_CACHE_DIR: cache }, encoding: 'utf8' as const };
+        const options = {
+            cwd: directory,
+            env: { ...process.env, PNPM_CONFIG_CACHE_DIR: cache },
+            encoding: 'utf8' as const,
+        };
         execFileSync('pnpm', ['install', '--ignore-scripts'], options);
         execFileSync('git', ['init', '--quiet'], options);
         execFileSync('git', ['add', 'package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'build.cjs'], options);
@@ -35,7 +50,11 @@ it('restores pipeline outputs using only the persisted pipeline directory', () =
     }
 });
 const graph = (pipeline: string): Task[] =>
-    JSON.parse(execFileSync('pnpm', ['pipeline', pipeline, '--full', '--dry-run', '--json'], { encoding: 'utf8' })).tasks.filter((task: Task) => !task.missingScript);
+    JSON.parse(
+        execFileSync('pnpm', ['pipeline', pipeline, '--full', '--dry-run', '--json'], {
+            encoding: 'utf8',
+        }),
+    ).tasks.filter((task: Task) => !task.missingScript);
 
 it.each([
     ['docs', ['native', 'plugin:pack', 'wasm', 'browser:pack', 'docs:svg', 'docs:social', 'docs']],
