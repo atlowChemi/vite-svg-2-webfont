@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp run @atlowchemi/webfont-generator#build*'
+      resource: 'vp exec pnpm pipeline native --full*'
       effect: allow
 ---
 
-Run `vp run @atlowchemi/webfont-generator#build` from the repository root.
+Run `vp exec pnpm pipeline native --full` from the repository root.
 
 This command may update generated binding artifacts. Do not make manual edits. Return only:
 

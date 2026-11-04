@@ -12,7 +12,7 @@ const { scripts } = JSON.parse(readFileSync('package.json', 'utf8'));
 const projects = Object.fromEntries(
     globSync(['crates/*/package.json', 'packages/*/package.json']).map(file => [file.replace(/\/package.json$/, ''), JSON.parse(readFileSync(file, 'utf8')).name]),
 );
-const auditTasks = ['next:native', 'next:wasm', 'next:docs', 'next:plugin:pack'];
+const auditTasks = ['native', 'wasm', 'docs', 'plugin:pack'];
 const select = (files: string[], packages: string[]) =>
     resolveSelection('a'.repeat(40), (_command, args) => {
         if (args[0] === 'merge-base') return 'a'.repeat(40);
@@ -23,15 +23,15 @@ const select = (files: string[], packages: string[]) =>
 it('limits docs-only changes to docs pipelines and audits', () => {
     const work = selectAuditWork(select(['packages/docs/index.md'], [packageNames.docs]), pipelines, scripts, projects, auditTasks);
     const selected = work.workers.flatMap(worker => worker.pipelines);
-    expect(selected).toContain('next-docs');
-    expect(selected).not.toContain('next-native');
-    expect(selected).not.toContain('next-test');
-    expect(selected).not.toContain('next-browser-test');
-    expect(work.workers.flatMap(worker => worker.audits)).toEqual(['next:docs']);
+    expect(selected).toContain('docs');
+    expect(selected).not.toContain('native');
+    expect(selected).not.toContain('test');
+    expect(selected).not.toContain('browser-test');
+    expect(work.workers.flatMap(worker => worker.audits)).toEqual(['docs']);
 });
 
 it('runs every discovered pipeline exactly once in at most two workers for shared changes', () => {
-    const discovered = { ...pipelines, 'next-new-validation': ['next:new'] };
+    const discovered = { ...pipelines, 'new-validation': ['new'] };
     const work = selectAuditWork(select(['Cargo.lock'], []), discovered, scripts, projects, auditTasks);
     expect(work.workers).toHaveLength(2);
     expect(work.workers.flatMap(worker => worker.pipelines).toSorted()).toEqual(Object.keys(discovered).toSorted());
@@ -43,16 +43,14 @@ it('keeps downstream packages and conservatively includes unknown commands', () 
         select(['packages/vite-svg-2-webfont/src/index.ts'], [packageNames.plugin, packageNames.docs, packageNames.example]),
         {
             ...pipelines,
-            'next-new-validation': ['next:new'],
-            'next-unknown-project': ['next:unknown'],
+            'new-validation': ['new'],
+            'unknown-project': ['unknown'],
         },
-        { ...scripts, 'next:unknown': 'pnpm --dir packages/unknown run next:check' },
+        { ...scripts, unknown: 'pnpm --dir packages/unknown run check' },
         projects,
         auditTasks,
     );
-    expect(work.workers.flatMap(worker => worker.pipelines)).toEqual(
-        expect.arrayContaining(['next-plugin-test', 'next-docs', 'next-example', 'next-new-validation', 'next-unknown-project']),
-    );
+    expect(work.workers.flatMap(worker => worker.pipelines)).toEqual(expect.arrayContaining(['plugin-test', 'docs', 'example', 'new-validation', 'unknown-project']));
 });
 
 it('creates no workers for an inert change and falls back to all work without a base', () => {
@@ -65,7 +63,12 @@ it('creates no workers for an inert change and falls back to all work without a 
 });
 
 /* oxlint-disable vitest/no-conditional-expect -- Each policy fixture has a distinct expected outcome. */
-it.each(['policy', 'no policy', 'invalid policy'] as const)('runs the CI entry point with %s', async policy => {
+it.each([
+    ['policy', false],
+    ['policy', true],
+    ['no policy', false],
+    ['invalid policy', false],
+] as const)('runs the CI entry point with %s (audit only: %s)', async (policy, auditOnly) => {
     const directory = mkdtempSync(join(tmpdir(), 'audit-selection-'));
     const cwd = process.cwd();
     const argv = process.argv;
@@ -76,17 +79,18 @@ it.each(['policy', 'no policy', 'invalid policy'] as const)('runs the CI entry p
     };
     try {
         write('artifacts/affected-selection/selection.json', select(['packages/docs/index.md'], [packageNames.docs]));
-        write('pipelines.json', { 'next-docs': ['next:docs'], 'next-native': ['next:native'], 'next-docs-dev': ['next:docs'] });
-        write('selected-pipelines.txt', 'next-docs\nnext-native\n');
+        write('pipelines.json', { docs: ['docs'], native: ['native'], 'docs-dev': ['docs'] });
+        write('selected-pipelines.txt', 'docs\nnative\n');
         write('package.json', { scripts });
         write('packages/docs/package.json', { name: packageNames.docs });
         write('packages/webfont-generator/package.json', { name: packageNames.adapter });
         if (policy !== 'no policy') {
-            write('crates/cache-audit/policy.yaml', `version: 1\ntasks:\n  '${policy === 'invalid policy' ? 'other#docs' : '.#next:docs'}': {}\n  '.#next:native': {}\n`);
+            write('crates/cache-audit/policy.yaml', `version: 1\ntasks:\n  '${policy === 'invalid policy' ? 'other#docs' : '.#docs'}': {}\n  '.#native': {}\n`);
         }
         // Run the entry point through Vitest too: native Node TS and Vite transforms have different coverage offsets.
         process.chdir(directory);
         process.argv = [process.execPath, fileURLToPath(new URL('./select-audit-work.ts', import.meta.url))];
+        vi.stubEnv('AUDIT_ONLY', String(auditOnly));
         vi.stubEnv('GITHUB_OUTPUT', policy === 'no policy' ? undefined : join(directory, 'output'));
         vi.stubEnv('GITHUB_STEP_SUMMARY', policy === 'no policy' ? undefined : join(directory, 'summary'));
         const log = vi.spyOn(console, 'log').mockImplementation(() => {});
@@ -97,7 +101,7 @@ it.each(['policy', 'no policy', 'invalid policy'] as const)('runs the CI entry p
         }
         await import('./select-audit-work');
         const result = JSON.parse(log.mock.calls[0]![0]);
-        expect(result.workers).toEqual([{ id: 0, pipelines: ['next-docs'], audits: policy === 'no policy' ? [] : ['next:docs'] }]);
+        expect(result.workers).toEqual([{ id: 0, pipelines: auditOnly ? [] : ['docs'], audits: policy === 'no policy' ? [] : ['docs'] }]);
         if (policy === 'policy') {
             expect(readFileSync(join(directory, 'output'), 'utf8')).toBe(`work=${JSON.stringify(result)}\n`);
             expect(readFileSync(join(directory, 'summary'), 'utf8')).toContain(JSON.stringify(result, null, 2));

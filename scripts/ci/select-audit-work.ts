@@ -14,14 +14,14 @@ export function selectAuditWork(
     const affected = (task: string): boolean => {
         if (selection.full) return true;
         if (!selection.packages.length) return false;
-        const directory = scripts[task]?.match(/^pnpm --dir (\S+) run next:\S+$/)?.[1];
+        const directory = scripts[task]?.match(/^pnpm --dir (\S+) run \S+$/)?.[1];
         if (directory) {
             const name = projects[directory];
             return name ? selection.packages.includes(name) : true;
         }
-        if (task === 'next:fmt:rust') return job('rust-coverage') || job('test-wasm');
-        if (task === 'next:coverage:scripts') return job('test-scripts');
-        if (['next:test:js', 'next:coverage', 'next:test:compat'].includes(task)) {
+        if (task === 'fmt:rust') return job('rust-coverage') || job('test-wasm');
+        if (task === 'coverage:scripts') return job('test-scripts');
+        if (['test:js', 'coverage', 'test:compat'].includes(task)) {
             return job('test-scripts') || job('build') || job('test-wasm');
         }
         // New/unrecognized commands must run until their ownership is understood.
@@ -55,7 +55,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
               return label.slice(2);
           })
         : [];
-    const work = selectAuditWork(selection, Object.fromEntries(Object.entries(pipelines).filter(([name]) => enabled.has(name))), scripts, projects, tasks);
+    const work = selectAuditWork(
+        selection,
+        process.env.AUDIT_ONLY === 'true' ? {} : Object.fromEntries(Object.entries(pipelines).filter(([name]) => enabled.has(name))),
+        scripts,
+        projects,
+        tasks,
+    );
     const json = JSON.stringify(work);
     if (process.env.GITHUB_OUTPUT) appendFileSync(process.env.GITHUB_OUTPUT, `work=${json}\n`);
     if (process.env.GITHUB_STEP_SUMMARY)

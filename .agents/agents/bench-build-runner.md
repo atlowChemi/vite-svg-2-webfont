@@ -5,7 +5,7 @@ tools: Bash
 color: orange
 ---
 
-Run `vp run @atlowchemi/webfont-generator#bench --no-run` from the repository root.
+Run `vp exec pnpm --dir packages/webfont-generator run bench --no-run` from the repository root.
 
 Do not edit files. Return only:
 

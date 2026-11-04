@@ -1,49 +1,24 @@
 import { resolve } from 'node:path';
 import { defineProject, type UserProjectConfigExport } from 'vite-plus';
+import { viteSvgToWebfont } from 'vite-svg-2-webfont';
 
 const webfontFolder = resolve(import.meta.dirname, 'src', 'webfont');
-
-let viteSvgToWebfont: (typeof import('vite-svg-2-webfont'))['viteSvgToWebfont'] | undefined;
-try {
-    // TODO [2027-04-30]: Restore the source import once Node 22 support ends; task discovery cannot parse unlowered `await using`.
-    ({ viteSvgToWebfont } = await import(import.meta.resolve('vite-svg-2-webfont')));
-} catch {
-    // Task discovery runs before the plugin and native module are built.
-}
 
 // https://vitejs.dev/config/
 const config: UserProjectConfigExport = defineProject({
     build: {
         assetsInlineLimit: 0,
     },
-    plugins: viteSvgToWebfont
-        ? [
-              viteSvgToWebfont({
-                  context: webfontFolder,
-                  htmlDest: resolve(webfontFolder, 'icons.ts'),
-                  htmlTemplate: resolve(webfontFolder, 'icons.ts.hbs'),
-                  fontName: 'exampleIcon',
-                  baseSelector: '.exIcon',
-                  generateFiles: 'html',
-              }),
-          ]
-        : [],
-    run: {
-        tasks: {
-            dev: {
-                command: 'vp dev',
-                dependsOn: ['vite-svg-2-webfont#pack', '@atlowchemi/vite-svg-webfont-docs#optimize-svg'],
-            },
-            build: {
-                command: 'vp build',
-                dependsOn: ['vite-svg-2-webfont#pack', '@atlowchemi/vite-svg-webfont-docs#optimize-svg'],
-            },
-            preview: {
-                command: 'vp preview',
-                dependsOn: ['build'],
-            },
-        },
-    },
+    plugins: [
+        viteSvgToWebfont({
+            context: webfontFolder,
+            htmlDest: resolve(webfontFolder, 'icons.ts'),
+            htmlTemplate: resolve(webfontFolder, 'icons.ts.hbs'),
+            fontName: 'exampleIcon',
+            baseSelector: '.exIcon',
+            generateFiles: 'html',
+        }),
+    ],
 });
 
 export default config;

@@ -91,7 +91,7 @@ jobs:
                   fi
 
             - name: Build webfont generator release binding
-              run: vp run --ignore-depends-on @atlowchemi/webfont-generator#build:release
+              run: vp exec pnpm --dir packages/webfont-generator run build:release
 
             - name: Run Rust benchmarks
               run: |

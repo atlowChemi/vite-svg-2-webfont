@@ -5,7 +5,7 @@ tools: Bash
 color: green
 ---
 
-Run `vp run coverage` from the repository root.
+Run `vp exec pnpm pipeline coverage --full` from the repository root.
 
 Do not edit files. Return only:
 
