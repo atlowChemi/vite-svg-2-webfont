@@ -70,7 +70,7 @@ vp run @atlowchemi/cache-audit#audit -- --all
 The equivalent binary entry point is `cache-audit audit --workspace PATH` with
 one of those selectors. `--task` audits matching tasks and prepares prerequisites;
 `--pipeline` audits every executable node in that pipeline. `--all` audits only
-tasks listed in the reviewed native/build policy files, preparing their dependency
+tasks listed in the reviewed `policy.yaml`, preparing their dependency
 closure once. Select servers, publishing, and other open-ended pipelines explicitly.
 `--policy PATH` supplies another policy file; `--reports PATH` selects the report
 directory. The legacy package command `audit -- TASK [POLICY]` is also accepted.
@@ -102,7 +102,7 @@ of the **cache task**, not the command's working directory.
 target/debug/cache-audit -- pnpm --dir packages/webfont-generator run next:build > accesses.json
 
 # Audit the root-owned cache wrapper's declarations, executing its raw command.
-target/debug/cache-audit --workspace . --project . --task next:native --policy crates/cache-audit/policy.native.yaml -- pnpm --dir packages/webfont-generator run next:build > audit.json
+target/debug/cache-audit --workspace . --project . --task next:native --policy crates/cache-audit/policy.yaml -- pnpm --dir packages/webfont-generator run next:build > audit.json
 ```
 
 Install dependencies and prepare prerequisite outputs **before** observation.
@@ -141,9 +141,7 @@ outside it are absolute. Patterns use wax, like pnpm. `ignore` accepts optional
 apply independently to a `read_write` access; `read_write` exempts both halves
 of that combined access only. Every rule requires a reason.
 Rules can also specify `contents` for a literal path: its exact UTF-8 contents
-must match both before and after execution, otherwise the audit fails. The native
-policy uses this for pnpm's Git-ignored Cargo installation shim; custom Cargo
-configuration cannot silently inherit that exemption. These assertions are audit
+must match both before and after execution, otherwise the audit fails. These assertions are audit
 preconditions, not extra pnpm hash inputs. Cache activation must enforce them or
 fingerprint the installation state on cache lookups too.
 `missingInputs` lists reviewed regular-file probe patterns (each with a reason).
@@ -154,12 +152,12 @@ directory dependencies, which pnpm's Git file enumeration does not hash.
 the actual input/output selections; it cannot be restricted by access kind.
 Policies are opt-in: external paths are not silently ignored. Keep exceptions
 narrow and review the declared environment inputs and toolchain cache policy separately.
-`policy.native.yaml` describes the reviewed native-build environment. A clean
+`policy.yaml` contains the task-specific rules for native builds, SVG optimization,
+WASM, both library packs, social images, docs, and the example. A clean
 filesystem audit does not replace environment declarations/toolchain invalidation or enable
 result caching.
 
-`policy.build.yaml` covers SVG optimization, WASM, both library packs, social
-images, docs, and the example. `directory: true` restricts an exemption to paths
+`directory: true` restricts an exemption to paths
 that are directories; it cannot waive regular-file reads. `cleanupOutputs`
 accepts retired files only when they were declared outputs before execution and
 are absent afterward.

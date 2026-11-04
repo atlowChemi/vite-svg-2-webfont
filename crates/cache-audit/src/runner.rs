@@ -122,9 +122,8 @@ pub async fn run(
     let reports = reports.unwrap_or_else(|| root.join("artifacts/cache-audit"));
     let policy_files = match policy {
         Some(path) => vec![path.canonicalize()?],
-        None => ["native", "build"]
-            .iter()
-            .map(|name| root.join(format!("crates/cache-audit/policy.{name}.yaml")))
+        None => [root.join("crates/cache-audit/policy.yaml")]
+            .into_iter()
             .filter(|path| path.exists())
             .collect(),
     };
