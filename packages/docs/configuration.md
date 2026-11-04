@@ -124,6 +124,7 @@ See the [generator's color guidance](/webfont-generator/#color-glyphs) for suppo
 - Description: Fonts path used in the generated CSS file
 - Default: value derived from `cssDest`
 - Build behavior: Does not override font URLs in the bundled virtual CSS. Vite resolves those URLs from its emitted assets and public `base` path.
+- Dev behavior: Does not override font URLs in the virtual CSS, which point at the fonts the dev server serves under `base`. Only files written by [`generateFiles`](#generatefiles) use it.
 
 ## `htmlDest`
 

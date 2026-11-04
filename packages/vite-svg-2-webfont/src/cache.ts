@@ -9,7 +9,7 @@ import { ensureDirExistsAndWriteFile } from './utils';
 /** Stands in for the per-run font directory in cached build CSS. */
 export const CACHE_PLACEHOLDER = '__VSW_CACHE__';
 /** Bump when the manifest shape or the cached CSS conventions change. */
-const FORMAT_VERSION = 1;
+const FORMAT_VERSION = 2;
 
 export type CacheMode = 'dev' | 'build';
 export type CacheEntry = {
@@ -18,6 +18,7 @@ export type CacheEntry = {
     fonts: Record<string, string>;
     /** Missing only when rendering failed; such entries are stored with a `null` key. */
     css?: string;
+    /** The virtual module's CSS, its font URLs under `CACHE_PLACEHOLDER`: the run's temp dir in builds, the dev server's base in dev. */
     moduleCss?: string;
     html?: string;
     ts?: string;

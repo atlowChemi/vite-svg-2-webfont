@@ -1,5 +1,5 @@
 import { join as pathJoin } from 'node:path';
-import type { ModuleGraph, ModuleNode, Plugin } from 'vite-plus';
+import type { Connect, ModuleGraph, ModuleNode, Plugin } from 'vite-plus';
 import { moduleSource, publishDeclaration } from './virtualTypes';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, resolveSources, parsePreloadFormatsOption } from './optionParser';
@@ -51,6 +51,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type as any));
     let isBuild: boolean;
     let cacheFolder: string;
+    /** The dev server's public base path, where the font middleware serves each font. */
+    let devBase = '/';
     /** Rendered outputs for the current fonts; `generatedFonts` is unset after a cache hit. */
     let outputs: CacheEntry | undefined;
     let _moduleGraph: ModuleGraph | undefined;
@@ -197,6 +199,14 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const renderModuleCss = (fonts: Record<string, string>) =>
         generatedFonts!.generateCss(Object.fromEntries(Object.entries(fonts).map(([type, name]) => [type, `${CACHE_PLACEHOLDER}/${name}`])));
 
+    /**
+     * Where the dev middleware serves each font, relative to the dev server's base. The content hash in the query
+     * makes the browser fetch an edited font instead of reusing the one it cached.
+     */
+    const devFontPaths = (fonts: Iterable<readonly [T, Buffer]>) =>
+        Object.fromEntries(Array.from(fonts, ([type, font]) => [type, `${processedOptions.fontName}.${type}?${getBufferHash(font)}`]));
+    const currentDevFontPaths = () => devFontPaths((processedOptions.types as T[]).map(type => [type, getGeneratedFont(type)!] as const));
+
     /** Render the outputs of a fresh engine result and persist them for the next run. */
     const storeOutputs = async (key: string | null) => {
         const buffers = new Map(
@@ -220,7 +230,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
         };
         const css = render(() => generatedFonts!.generateCss());
-        const moduleCss = isBuild && !options.inline ? render(() => renderModuleCss(fonts)) : undefined;
+        const moduleCss = options.inline ? undefined : render(() => renderModuleCss(isBuild ? fonts : devFontPaths(buffers)));
         const html = processedOptions.html ? render(() => generatedFonts!.generateHtml()) : undefined;
         const ts = generatedFonts!.generateTs();
         const entry: CacheEntry = { key, fonts, css, ts, ...(moduleCss !== undefined && { moduleCss }), ...(html !== undefined && { html }) };
@@ -334,6 +344,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         configResolved(_config) {
             isBuild = _config.command === 'build';
             cacheFolder = `${_config.cacheDir}/vite-svg-2-webfont`;
+            // In dev, Vite resolves `base` to a path ending in `/`: a relative base becomes `/`, and a full URL keeps its pathname.
+            devBase = _config.base ?? '/';
             if (useCache) {
                 // On a plugin cache miss (an edited icon, cssContext) the engine still starts warm.
                 processedOptions.cacheLocation = pathJoin(cacheFolder, 'engine');
@@ -397,10 +409,17 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             if (id !== resolvedVirtualModuleId) {
                 return undefined;
             }
-            if (isBuild && !options.inline) {
+            if (options.inline) {
+                return inline(getCss());
+            }
+            // The module's CSS never uses `cssFontsUrl`, which describes where the written files are deployed. A build
+            // points at the fonts on disk so Vite emits them as assets. Dev points at the middleware's absolute paths:
+            // Vite injects this CSS as a <style> element, and a relative URL there resolves against the page's URL,
+            // so it would miss the fonts on any page outside the base directory.
+            if (isBuild) {
                 return (outputs!.moduleCss ?? renderModuleCss(outputs!.fonts)).replaceAll(`${CACHE_PLACEHOLDER}/`, `${tmpDir.replaceAll('\\', '/')}/`);
             }
-            return inline(getCss());
+            return (outputs?.moduleCss ?? renderModuleCss(currentDevFontPaths())).replaceAll(`${CACHE_PLACEHOLDER}/`, devBase);
         },
         load(id) {
             if (id === resolvedTsModuleId) {
@@ -452,7 +471,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             const { middlewares } = server;
             for (const fontType of processedOptions.types) {
                 const fileName = `${processedOptions.fontName}.${fontType}`;
-                middlewares.use(`/${fileName}`, (_req, res) => {
+                const serveFont: Connect.SimpleHandleFunction = (_req, res) => {
                     const font = getGeneratedFont(fontType as T);
                     /* v8 ignore next 4 -- buildStart awaits generate() before the server listens, so fonts are always available by the time middleware fires */
                     if (!font) {
@@ -463,7 +482,11 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                     res.setHeader('content-length', font.length);
                     res.statusCode = 200;
                     return res.end(font);
-                });
+                };
+                // Plugin middlewares run before Vite strips the base, so the module's URLs include it. The site root
+                // keeps serving the fonts too, as it did before, for CSS files written with `cssFontsUrl: '/'`.
+                middlewares.use(`${devBase}${fileName}`, serveFont);
+                if (devBase !== '/') middlewares.use(`/${fileName}`, serveFont);
             }
         },
         async buildEnd() {

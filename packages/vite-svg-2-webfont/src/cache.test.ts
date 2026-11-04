@@ -133,6 +133,51 @@ describe('output cache', () => {
         expect(fonts.filter(name => name.endsWith('.woff2'))).toHaveLength(2);
     });
 
+    it('serves dev module CSS from a hit with font URLs under the base', async () => {
+        await using p = await project();
+        const serve = async (base: string) => {
+            const server = await createServer({ ...p.config(), base, server: { port: 0 } });
+            await server.listen();
+            try {
+                const { port } = server.httpServer!.address() as { port: number };
+                const origin = `http://localhost:${port}`;
+                const code = await (await fetch(`${origin}${base}@id/__x00__virtual:vite-svg-2-webfont.css`)).text();
+                const urls = [...code.matchAll(/url\(\\"([^"\\]+)\\"\)/g)].map(match => match[1]!);
+                // Resolved the way a <style> element on a nested page resolves them.
+                const fonts = await Promise.all(urls.map(async url => Buffer.from(await (await fetch(new URL(url, `${origin}${base}nested/page`))).arrayBuffer())));
+                return { urls, fonts };
+            } finally {
+                await server.close();
+            }
+        };
+
+        const cold = await serve('/');
+        expect(cold.urls.map(url => url.replace(/\?.*/, ''))).toEqual(['/iconfont.woff2', '/iconfont.ttf']);
+        const warm = await serve('/docs/');
+        expect(generate).toHaveBeenCalledOnce();
+        expect(warm.urls).toEqual(cold.urls.map(url => `/docs${url}`));
+        expect(warm.fonts).toEqual(cold.fonts);
+        expect(warm.fonts.every(font => font.length > 0)).toBe(true);
+    });
+
+    it('regenerates a dev entry written before module CSS was cached', async () => {
+        await using p = await project();
+        const server = await createServer({ ...p.config(), server: { port: 0 } });
+        await server.listen();
+        await server.close();
+        const path = join(p.cacheFolder, 'iconfont.json');
+        const manifest = JSON.parse(await readFile(path, 'utf8'));
+        expect(manifest.dev.moduleCss).toContain('__VSW_CACHE__/iconfont.woff2?');
+        delete manifest.dev.moduleCss;
+        await writeFile(path, JSON.stringify({ ...manifest, version: 1 }));
+
+        const restart = await createServer({ ...p.config(), server: { port: 0 } });
+        await restart.listen();
+        await restart.close();
+        expect(generate).toHaveBeenCalledTimes(2);
+        expect(JSON.parse(await readFile(path, 'utf8')).dev.moduleCss).toContain('__VSW_CACHE__/iconfont.woff2?');
+    });
+
     it('bypasses the cache when cssContext is set', async () => {
         await using p = await project();
         await p.run({ cssContext: () => undefined });
