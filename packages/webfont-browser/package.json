@@ -8,9 +8,9 @@
         "test:coverage": "node scripts/coverage.mjs",
         "publish": "pnpm stage publish atlowchemi-webfont-browser-generator-*.tgz --access public --no-git-checks",
         "build": "node scripts/build.mjs",
-        "pack": "vp pack",
+        "pack": "tsdown",
         "check": "cargo clippy -p webfont-browser --target wasm32-unknown-unknown --locked -- -D warnings",
-        "test": "vp test --run --root ../.. --project=webfont-wasm-browser --project=webfont-browser-build"
+        "test": "vitest --run --root ../.. --project=webfont-wasm-browser --project=webfont-browser-build"
     },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
@@ -40,6 +40,6 @@
     },
     "devDependencies": {
         "@atlowchemi/webfont-engine": "workspace:*",
-        "vite-plus": "catalog:"
+        "vite": "catalog:"
     }
 }

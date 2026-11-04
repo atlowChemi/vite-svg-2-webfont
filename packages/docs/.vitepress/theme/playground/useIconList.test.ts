@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import { defaultSettings, type PlaygroundSettings } from './options';
 import { useIconList } from './useIconList';
 

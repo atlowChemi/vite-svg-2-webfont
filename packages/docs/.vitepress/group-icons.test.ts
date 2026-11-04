@@ -1,6 +1,6 @@
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 import { groupIconVitePlugin } from 'vitepress-plugin-group-icons';
-import { preprocessCSS, resolveConfig } from 'vite-plus';
+import { preprocessCSS, resolveConfig } from 'vite';
 import { iconCss } from './icon-css';
 
 async function render(labels: string[]) {

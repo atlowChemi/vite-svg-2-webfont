@@ -1,5 +1,5 @@
 import { dirname, resolve } from 'node:path';
-import { defineConfig } from 'vite-plus';
+import { defineConfig } from 'vitest/config';
 import project from './vite.config';
 
 const output = process.env.WEBFONT_NATIVE_COVERAGE_DIR;

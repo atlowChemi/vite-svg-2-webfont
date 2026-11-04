@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { copyFileSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 
 it.each([false, true])('retains every feature report and propagates failures (failure=%s)', fail => {
     const root = mkdtempSync(join(tmpdir(), 'rust-coverage-matrix-'));

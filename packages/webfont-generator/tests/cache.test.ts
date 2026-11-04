@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { clearCache, generateWebfonts, type FontType, type MultiVariantFontType } from '../index.js';
 
 const fixtures = join(import.meta.dirname, '..', '..', '..', 'crates', 'webfont-generator', 'src', 'svg', 'fixtures', 'icons');

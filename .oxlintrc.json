@@ -1,0 +1,39 @@
+{
+    "plugins": ["eslint", "typescript", "unicorn", "vitest", "oxc", "promise"],
+    "jsPlugins": [{ "name": "unicorn-js", "specifier": "eslint-plugin-unicorn" }],
+    "categories": { "correctness": "deny", "suspicious": "deny", "perf": "warn" },
+    "options": { "typeAware": true, "reportUnusedDisableDirectives": "error", "typeCheck": true },
+    "settings": {
+        "jsdoc": {
+            "ignorePrivate": false,
+            "ignoreInternal": false,
+            "ignoreReplacesDocs": true,
+            "overrideReplacesDocs": true,
+            "augmentsExtendsReplacesDocs": false,
+            "implementsReplacesDocs": false,
+            "exemptDestructuredRootsFromChecks": false,
+            "tagNamePreference": {}
+        },
+        "vitest": { "typecheck": true }
+    },
+    "rules": {
+        "unicorn-js/expiring-todo-comments": ["error", { "checkDates": true, "checkDatesOnPullRequests": true }],
+        "vitest/consistent-test-it": ["error", { "fn": "it", "withinDescribe": "it" }],
+        "typescript/no-unsafe-type-assertion": "off",
+        "vitest/require-mock-type-parameters": "off",
+        "eslint/no-underscore-dangle": "off"
+    },
+    "env": { "builtin": true },
+    "ignorePatterns": [
+        "dist",
+        "node_modules",
+        "coverage",
+        "tests/fixtures/**",
+        "packages/example/dist",
+        "packages/vite-svg-2-webfont/src/fixtures",
+        "packages/webfont-generator/binding{.js,.d.ts}",
+        "packages/webfont-browser/generated/**",
+        "packages/docs/examples/type-safe-component/Icon.tsx",
+        "packages/docs/examples/type-safe-component/icon.component.ts"
+    ]
+}

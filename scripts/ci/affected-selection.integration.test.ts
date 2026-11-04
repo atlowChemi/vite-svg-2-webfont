@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { copyFileSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vite-plus/test';
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { packageNames, resolveSelection } from './affected-selection';
 
 const repo = resolve(import.meta.dirname, '../..');

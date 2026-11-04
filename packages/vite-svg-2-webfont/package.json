@@ -4,13 +4,13 @@
     "description": "A vite plugin which generates a webfont out of svg icons",
     "type": "module",
     "scripts": {
-        "dev": "vp pack --watch",
+        "dev": "tsdown --watch",
         "pack:tgz": "pnpm pack",
-        "test:browser": "vp test --run --root ../.. --project=vite-svg-webfont-browser",
+        "test:browser": "vitest --run --root ../.. --project=vite-svg-webfont-browser",
         "test:fixtures:refresh": "node ./scripts/refresh-font-fixtures.ts",
         "publish": "pnpm run pack && pnpm run pack:tgz && pnpm stage publish vite-svg-2-webfont-*.tgz --no-git-checks",
-        "pack": "vp pack",
-        "test": "vp test --run"
+        "pack": "tsdown",
+        "test": "vitest --run"
     },
     "main": "./dist/index.js",
     "module": "./dist/index.js",

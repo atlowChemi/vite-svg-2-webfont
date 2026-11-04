@@ -4,9 +4,9 @@ import { access, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promi
 import { join as pathJoin } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
 import { fileURLToPath } from 'node:url';
-import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite-plus';
-import { build, createServer, normalizePath, preview, version as viteVersion } from 'vite-plus';
-import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from 'vite-plus/test';
+import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite';
+import { build, createServer, normalizePath, preview, version as viteVersion } from 'vite';
+import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from 'vitest';
 import { viteSvgToWebfont } from './index';
 import type { IconPluginFileOptions } from './optionParser';
 import type { AddressInfo } from 'node:net';

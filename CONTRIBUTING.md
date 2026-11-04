@@ -8,9 +8,9 @@ This repository uses:
 
 - The Node version pinned in [`.node-version`](./.node-version)
 - The pnpm version pinned in `package.json` for installation and task orchestration; see [pnpm installation](https://pnpm.io/installation)
-- Workspace-pinned Vite+ for build/test/lint tools, invoked with `pnpm exec vp`; no global Vite+ installation is required
-- `oxlint` for linting, type-aware checks, and type checking through Vite+ and `tsgo`
-- `oxfmt` for formatting through Vite+
+- Workspace-pinned Vite, Vitest, and tsdown for development, testing, and package bundling
+- `oxlint` for linting, type-aware checks, and type checking through `tsgo`
+- `oxfmt` for formatting
 - A monorepo workspace with JavaScript packages under `packages/` and the Rust engine under `crates/`
 - The pinned Rust toolchain with Cargo, Clippy, and rustfmt. CI also verifies stable product compatibility. The JavaScript test and plugin build pipelines build the native binding automatically.
 
@@ -31,7 +31,7 @@ On Linux, use `pnpm exec playwright install --with-deps chromium firefox webkit`
 Run these from the repository root:
 
 ```bash
-pnpm exec vp check                              # format, lint, TypeScript checks
+pnpm run check                                  # format, lint, TypeScript checks
 pnpm pipeline test --full                        # JavaScript, browser, and type tests; builds native and WASM bindings
 pnpm pipeline coverage --full                    # non-browser JavaScript tests with coverage
 pnpm pipeline scripts-coverage --full            # repository script tests, including subprocess coverage
@@ -59,8 +59,8 @@ generated binding files; separate invocations should not write them concurrently
 using pnpm 12.15's native `include`. Edit task declarations in that file;
 workspace discovery and installation settings remain in the root configuration.
 
-Pipelines are the authoritative development and CI entry points. Vite+ supplies
-the build, test, lint, and formatting tools; its duplicate run-task graph is removed.
+Pipelines are the authoritative development and CI entry points. Vite, Vitest,
+tsdown, oxlint, and oxfmt supply the underlying tools.
 Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter
 checks and tests, browser Clippy, plugin-local tests, doctests, tarballs, and SVG/social assets enable
 task caches. Remaining exceptions and fresh Codecov bundle-analysis commands are
@@ -71,7 +71,7 @@ flowchart LR
     active["pnpm pipeline PIPELINE --full"] --> pipeline["pnpm-tasks.yaml"]
     pipeline --> tasks["Root tasks and prerequisite edges"]
     tasks --> scripts["Package package.json: raw commands"]
-    scripts --> tools["Vite+, Cargo, NAPI, and package tools"]
+    scripts --> tools["Vite, Vitest, tsdown, Cargo, NAPI, and package tools"]
     audit["cache-audit audit --task / --pipeline / --all"] --> rust["Embedded pnpm Rust graph APIs"]
     rust --> execution["Rust prerequisite execution and per-task observation"]
     execution --> tools
@@ -257,10 +257,10 @@ The Rust benchmarks prefer Iconify JSON fixtures from the workspace `node_module
 ## Tools
 
 - `pnpm` installs dependencies and runs pipelines. Package scripts resolve their local tools automatically.
-- `oxlint` is the main linting tool and is run through `pnpm exec vp lint` and `pnpm exec vp check`.
-- `oxlint` is configured for type-aware linting and type checking through Vite+, powered by `tsgo`.
-- `oxfmt` is the formatter and is run through `pnpm exec vp fmt` and `pnpm exec vp check`.
-- `vitest` is used for unit tests and is run through `pnpm exec vp test`.
+- `pnpm run check` runs oxfmt checks and oxlint with type-aware linting and type checking powered by `tsgo`.
+- Configure lint rules in `.oxlintrc.json` and formatting in `.oxfmtrc.json`.
+- `pnpm run fmt` formats files with oxfmt.
+- `vitest` is used for unit tests and is run through `pnpm exec vitest`.
 
 ## Project Structure
 
@@ -312,7 +312,7 @@ CI uploads coverage with the `browser-js` and `browser-rust` flags and reports t
 smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.
 
 Release-PR preparation updates Cargo.lock through the registry before frozen installation, runs
-`pnpm pipeline binding-regenerate --full`, and formats changes with `pnpm exec vp fmt`.
+`pnpm pipeline binding-regenerate --full`, and formats changes with `pnpm run fmt`.
 The regeneration task uses the NAPI generator to update only the JS loader, preserving
 exports from the last full binding build without compiling Rust. Changes to the native API
 still require the normal binding build to refresh both exports and TypeScript declarations.
@@ -364,7 +364,7 @@ Before opening a pull request, please:
 
 1. Install dependencies with `pnpm install`.
 2. Build the plugin with `pnpm pipeline plugin-build --full`.
-3. Run `pnpm exec vp check` for formatting, lint, and TypeScript checks.
+3. Run `pnpm run check` for formatting, lint, and TypeScript checks.
 4. Run `pnpm pipeline test --full` when your change affects JavaScript or browser behavior; use `pnpm pipeline coverage --full` to check non-browser JavaScript coverage.
 5. Run `pnpm pipeline rust-test --full` when changing Rust code; this includes Rust checks and tests. The JavaScript test pipeline does not run the Rust test suite.
 6. Run `pnpm --dir packages/webfont-generator run bench --no-run` when changing Rust benchmark targets or benchmark-only support code.
@@ -447,19 +447,19 @@ printf '%s\n' 'chore(benchmarks): show per-test progress locally and in CI' | pn
 
 Commits should be created only after the code passes the repository checks.
 
-The checked-in hooks in `.vite-hooks/` run:
+The checked-in hooks in `.githooks/` run:
 
-- `pre-commit`: `pnpm exec vp staged`, then `pnpm exec vp test`. Staged-file tasks run `vp check --fix` and Rust formatting as configured in the root `vite.config.ts`.
+- `pre-commit`: `pnpm exec lint-staged`, then `pnpm exec vitest run`. Staged-file tasks run Oxc checks/fixes and Rust formatting as configured in `lint-staged.config.js`.
 - `commit-msg`: `pnpm exec commitlint --edit` to validate the message.
 
-`pnpm install` invokes the local `vp config` through the `prepare` script to set up hooks. If Git already has a custom `core.hooksPath`, Vite+ may leave it in place; check your local hook configuration rather than assuming these hooks are active.
+`pnpm install` sets Git's `core.hooksPath` to the checked-in `.githooks` directory through the `prepare` script.
 
-Run `pnpm pipeline test --full` before committing to ensure the native binding is built. The hook's direct `pnpm exec vp test` command does not build it or run the Rust test suite, and hooks do not replace the change-specific checks above.
+Run `pnpm pipeline test --full` before committing to ensure the native binding is built. The hook's direct `pnpm exec vitest run` command does not build it or run the Rust test suite, and hooks do not replace the change-specific checks above.
 
 ## Notes
 
 - Keep lockfile changes in `pnpm-lock.yaml` when dependencies change.
 - Do not commit `package-lock.json` files to the workspace.
-- Use `pnpm pipeline NAME --full` for prerequisite orchestration and `pnpm exec vp` for the underlying Vite+ tools. Avoid `pnpm dlx` for installed tools: `exec` uses the workspace-pinned version.
+- Use `pnpm pipeline NAME --full` for prerequisite orchestration and `pnpm exec` for standalone tools. Avoid `pnpm dlx` for installed tools: `exec` uses the workspace-pinned version.
 - Prefer `pnpm pipeline docs-dev --full` over direct `vitepress` commands so the docs prerequisites are prepared.
 - The type-safe component example imports `virtual:typed-icons`. After a fresh install or plugin repack, run the docs dev server or docs build before standalone example type-checking: Vite initializes package-local declarations during generation. The docs build task packs the plugin before starting VitePress, so generation precedes component compilation. The Vite config's TypeScript program is not a substitute for the example's `vite-env.d.ts` opt-in.

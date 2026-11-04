@@ -1,5 +1,5 @@
-import { defineProject } from 'vite-plus';
-import { playwright } from 'vite-plus/test/browser-playwright';
+import { defineProject } from 'vitest/config';
+import { playwright } from '@vitest/browser-playwright';
 import { builtFamilyFixture } from './tests/browser/built-family-fixture';
 
 export default defineProject({

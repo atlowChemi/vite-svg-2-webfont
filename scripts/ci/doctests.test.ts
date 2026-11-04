@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 // @ts-expect-error Standalone JavaScript CLI has no declaration file.
 import { runDoctests } from './doctests.mjs';
 

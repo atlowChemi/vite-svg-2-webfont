@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os';
 import { addAbortListener } from 'node:events';
 import { join as pathJoin } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as utils from './utils';
 
 vi.mock('fs/promises', async () => {

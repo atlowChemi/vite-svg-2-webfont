@@ -104,7 +104,7 @@ jobs:
             - uses: ./.github/actions/pipeline-cache
             # These shell checks can overlap; JSON-reading actions cannot (actions/runner#4641).
             - parallel:
-                  - run: pnpm exec vp check
+                  - run: pnpm run check
                   - run: pnpm pipeline rust-check --full
 
     rust-coverage:
@@ -465,7 +465,7 @@ jobs:
               run: pnpm --dir packages/vite-svg-2-webfont run pack
             - name: Run tests
               id: host-tests
-              run: pnpm exec vp test --run --project='!*-browser*' --project='!scripts'
+              run: pnpm exec vitest --run --project='!*-browser*' --project='!scripts'
               env:
                   CI_TEST_REPORT: test-results/host.xml
                   CI_TEST_SUITE: host-${{ matrix.settings.target }}-node${{ matrix.node }}
@@ -528,7 +528,7 @@ jobs:
                         apk add --no-cache cargo git && \
                         npm install -g pnpm@${{ steps.pnpm-version.outputs.version }} && \
                         pnpm install --frozen-lockfile --ignore-scripts && \
-                        pnpm exec vp test --run --project='!*-browser*' --project='!scripts'"
+                        pnpm exec vitest --run --project='!*-browser*' --project='!scripts'"
             - name: Upload musl test results
               if: ${{ !cancelled() && (steps.musl-tests.outcome == 'success' || hashFiles('test-results/musl.xml') != '') }}
               uses: ./.github/actions/upload-test-results
@@ -605,7 +605,7 @@ jobs:
               id: coverage-tests
               if: ${{ matrix.primary }}
               run: |
-                  pnpm exec vp test --run --project='!*-browser*' --project='!scripts' --coverage --coverage.include='packages/vite-svg-2-webfont/src/**'
+                  pnpm exec vitest --run --project='!*-browser*' --project='!scripts' --coverage --coverage.include='packages/vite-svg-2-webfont/src/**'
                   test -s coverage/lcov.info
             - name: Upload coverage reports to Codecov
               if: ${{ !cancelled() && matrix.primary && hashFiles('coverage/lcov.info') != '' }}
@@ -619,7 +619,7 @@ jobs:
             - name: Run tests
               id: compat-tests
               if: ${{ !matrix.primary }}
-              run: pnpm exec vp test --run --project='!*-browser*' --project='!scripts'
+              run: pnpm exec vitest --run --project='!*-browser*' --project='!scripts'
             - name: Upload compatibility test results
               if: ${{ !cancelled() && (steps.coverage-tests.outcome == 'success' || steps.compat-tests.outcome == 'success' || hashFiles('test-results/vite-compat.xml') != '') }}
               uses: ./.github/actions/upload-test-results

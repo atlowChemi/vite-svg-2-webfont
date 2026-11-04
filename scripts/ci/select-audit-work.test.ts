@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parse } from 'yaml';
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 import { packageNames, resolveSelection } from './affected-selection';
 import { selectAuditWork } from './select-audit-work';
 

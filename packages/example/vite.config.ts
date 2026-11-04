@@ -1,11 +1,11 @@
 import { resolve } from 'node:path';
-import { defineProject, type UserProjectConfigExport } from 'vite-plus';
+import { defineConfig, type UserConfig } from 'vite';
 import { viteSvgToWebfont } from 'vite-svg-2-webfont';
 
 const webfontFolder = resolve(import.meta.dirname, 'src', 'webfont');
 
 // https://vitejs.dev/config/
-const config: UserProjectConfigExport = defineProject({
+const config: UserConfig = defineConfig({
     build: {
         assetsInlineLimit: 0,
     },

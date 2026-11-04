@@ -1,4 +1,4 @@
-import type { CSSOptions } from 'vite-plus';
+import type { CSSOptions } from 'vite';
 
 export const iconCss: Exclude<NonNullable<CSSOptions['postcss']>, string> = {
     plugins: [

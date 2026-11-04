@@ -15,8 +15,7 @@ catalog:
     '@vitest/coverage-v8': 5.0.5
     oxc-minify: ^0.156.0
     typescript: ^7.0.2
-    vite: npm:@voidzero-dev/vite-plus-core@1.3.0
-    vite-plus: 1.3.0
+    vite: 8.3.5
     vitest: 5.0.5
 
 cargo:
@@ -27,6 +26,9 @@ cargo:
 runtimeOnFail: error
 
 overrides:
+    # Standalone Oxc binaries must not resolve their optional Vite+ integration.
+    'oxfmt>vite-plus': '-'
+    'oxlint>vite-plus': '-'
     lodash@>=4.0.0 <=4.17.22: '^4.18.1'
     make-fetch-happen: 16.0.1
     minimatch@<3.1.4: '^10.0.0'

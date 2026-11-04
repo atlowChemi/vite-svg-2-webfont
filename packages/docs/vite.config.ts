@@ -1,4 +1,4 @@
-import { defineProject, type UserProjectConfigExport } from 'vite-plus';
+import { defineProject, type UserProjectConfigExport } from 'vitest/config';
 
 const config: UserProjectConfigExport = defineProject({
     test: {

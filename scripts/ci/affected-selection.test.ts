@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parse } from 'yaml';
 import { determineValidationScope, resolveSelection, packageNames, selectJobs, type Selection } from './affected-selection';

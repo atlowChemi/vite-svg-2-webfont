@@ -1,5 +1,5 @@
 import { join as pathJoin } from 'node:path';
-import type { ModuleGraph, ModuleNode, Plugin } from 'vite-plus';
+import type { ModuleGraph, ModuleNode, Plugin } from 'vite';
 import { moduleSource, publishDeclaration } from './virtualTypes';
 import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, resolveSources, parsePreloadFormatsOption } from './optionParser';
@@ -27,7 +27,7 @@ function getResolvedVirtualModuleId<T extends string>(virtualModuleId: T): `\0${
     return `\0${virtualModuleId}`;
 }
 
-/** Ensure vp doesn't crash locally and in CI if the native binding doesn't exist yet.  */
+/** Allow config loading locally and in CI before the native binding is built. */
 let _generateWebfonts: (typeof import('@atlowchemi/webfont-generator'))['generateWebfonts'] | undefined;
 async function getGenerateWebfonts() {
     return (_generateWebfonts ??= (await import('@atlowchemi/webfont-generator')).generateWebfonts);

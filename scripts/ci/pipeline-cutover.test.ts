@@ -2,7 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 import { parse } from 'yaml';
 
 type Task = {
