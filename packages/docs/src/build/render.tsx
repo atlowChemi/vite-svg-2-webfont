@@ -20,7 +20,7 @@ import { site } from '../site/site.ts';
 import type { Block } from './blocks.ts';
 import { docsRoot, renderMarkdown, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
-import { llmsFullTxt, llmsTxt, markdownFiles, searchIndex } from './outputs.ts';
+import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, searchIndex } from './outputs.ts';
 import { specimens } from './specimens.ts';
 
 /** Browser entries a page can link besides `main`, each with its own stylesheet or script. */
@@ -137,7 +137,13 @@ function body(page: Page): ReactNode {
         );
     if (page.frontmatter.layout === 'page')
         return (
-            <PageShell nav={nav}>
+            // The landing page ends in a footer of its own.
+            <PageShell nav={nav} footer={page.route !== '/'}>
+                {page.route === '/' && (
+                    <div hidden data-nosnippet="">
+                        Are you an LLM? View /llms.txt for optimized Markdown documentation, or /llms-full.txt for full documentation bundle
+                    </div>
+                )}
                 <div dangerouslySetInnerHTML={{ __html: page.html }} />
             </PageShell>
         );
@@ -170,6 +176,11 @@ export function renderDocument(page: Page, assets: Assets, docsUrl: string): str
                 <meta property="og:image" content={image} />
                 <meta property="og:image:alt" content='The fonte wordmark and the line "Melted SVGs, cast into fonts", beside a large T filled with molten metal.' />
                 <meta name="twitter:card" content="summary_large_image" />
+                <meta name="twitter:title" content={page.route === '/' ? site.name : page.title} />
+                <meta name="twitter:description" content={description} />
+                <meta name="twitter:image" content={image} />
+                {page.file && <link rel="alternate" type="text/markdown" href={mdPath(page.route)} />}
+                <link rel="describedby" href="/llms.txt" />
                 <script dangerouslySetInnerHTML={{ __html: themeScript }} />
                 <script type="speculationrules" dangerouslySetInnerHTML={{ __html: speculation }} />
                 {linked
@@ -191,8 +202,15 @@ export function renderDocument(page: Page, assets: Assets, docsUrl: string): str
 
 /** Every file the site serves besides the pages: the search index, llms.txt and each page's Markdown. */
 export function siteFiles(all: Page[]): Map<string, string> {
-    const docs = all.filter(p => p.file && p.frontmatter.layout !== 'page');
-    return new Map([['search-index.json', searchIndex(docs)], ['llms.txt', llmsTxt(docs)], ['llms-full.txt', llmsFullTxt(docs)], ...markdownFiles(docs)]);
+    const sources = all.filter(p => p.file);
+    // The landing page is all components, with nothing to find; the Playground is found by its own text.
+    const searchable = sources.filter(p => p.route !== '/');
+    return new Map([
+        ['search-index.json', searchIndex(searchable)],
+        ['llms.txt', llmsTxt(sources)],
+        ['llms-full.txt', llmsFullTxt(sources, blockNames)],
+        ...markdownFiles(sources, blockNames),
+    ]);
 }
 
 /** Every code-group and example-tab label, for the file icons in `virtual:group-icons.css`. */

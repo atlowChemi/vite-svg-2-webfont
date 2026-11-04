@@ -10,7 +10,8 @@ export interface SearchDoc {
 
 export const indexOptions: Options<SearchDoc> = {
     fields: ['title', 'titles', 'text'],
-    storeFields: ['title', 'titles'],
+    // The text is stored too, for each result's excerpt.
+    storeFields: ['title', 'titles', 'text'],
     stringifyField: (value, field) => (field === 'titles' ? (value as string[]).join(' ') : String(value)),
 };
 

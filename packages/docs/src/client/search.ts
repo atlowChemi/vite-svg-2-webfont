@@ -9,6 +9,38 @@ let index: Promise<MiniSearch<SearchDoc>> | undefined;
 
 const escape = (s: string) => s.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
 
+/** The text, escaped, with every matched term marked. */
+function marked(text: string, terms: RegExp | undefined): string {
+    if (!terms) return escape(text);
+    let out = '';
+    let last = 0;
+    for (const match of text.matchAll(terms)) {
+        out += `${escape(text.slice(last, match.index))}<mark>${escape(match[0])}</mark>`;
+        last = match.index + match[0].length;
+    }
+    return out + escape(text.slice(last));
+}
+
+/** About 160 characters of the section's text around its first match. */
+function excerpt(text: string, terms: RegExp | undefined): string {
+    const at = terms ? Math.max(0, text.search(terms)) : 0;
+    const start = at > 60 ? text.lastIndexOf(' ', at - 50) + 1 : 0;
+    const end = Math.min(text.length, start + 160);
+    const cut = end < text.length ? text.lastIndexOf(' ', end) : end;
+    return `${start ? '…' : ''}${marked(text.slice(start, cut > start ? cut : end), terms)}${end < text.length ? '…' : ''}`;
+}
+
+const termPattern = (terms: string[]) =>
+    terms.length
+        ? new RegExp(
+              terms
+                  .toSorted((a, b) => b.length - a.length)
+                  .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+                  .join('|'),
+              'gi',
+          )
+        : undefined;
+
 function build(): HTMLDialogElement {
     const el = document.createElement('dialog');
     el.className = 'doc-search-dialog';
@@ -36,10 +68,11 @@ function build(): HTMLDialogElement {
         active = 0;
         list.innerHTML = results.length
             ? results
-                  .map(
-                      r =>
-                          `<li><a role="option" href="${escape(r.id)}"><span class="trail">${[...(r.titles as string[])].map(escape).join(' › ')}</span><strong>${escape(r.title as string)}</strong></a></li>`,
-                  )
+                  .map(r => {
+                      const terms = termPattern(r.terms);
+                      const text = r.text as string;
+                      return `<li><a role="option" href="${escape(r.id)}"><span class="trail">${[...(r.titles as string[])].map(escape).join(' › ')}</span><strong>${marked(r.title as string, terms)}</strong>${text ? `<span class="excerpt">${excerpt(text, terms)}</span>` : ''}</a></li>`;
+                  })
                   .join('')
             : `<li class="dim">No results for “${escape(q)}”.</li>`;
         mark();

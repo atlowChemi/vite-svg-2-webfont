@@ -52,6 +52,17 @@ export const slug = (heading: string) =>
         .replace(/^(\d)/, '_$1')
         .toLowerCase();
 
+/** Removes a trailing `{#id}` from a heading and returns the id. */
+function customId(inline: Token): string | undefined {
+    const last = inline.children?.at(-1);
+    const match = last?.type === 'text' ? /\s*\{#([\w-]+)\}\s*$/.exec(last.content) : null;
+    if (!last || !match) return undefined;
+    last.content = last.content.slice(0, match.index);
+    if (!last.content) inline.children!.pop();
+    inline.content = inline.content.replace(/\s*\{#[\w-]+\}\s*$/, '');
+    return match[1];
+}
+
 const inlineText = (token: Token) => (token.children ?? []).map(t => (t.type === 'text' || t.type === 'code_inline' ? t.content : '')).join('');
 
 let tabGroup = 0;
@@ -93,18 +104,36 @@ function createMarkdown() {
         },
     });
 
-    // Heading ids from VitePress's slugger (deduplicated per page), its permalink anchor, and the page's outline.
+    // External links open in a new tab, as VitePress's did.
+    md.renderer.rules.link_open = (tokens, i, options, _env, self) => {
+        const token = tokens[i]!;
+        if (/^(?:[a-z][a-z\d+.-]*:)?\/\//i.test(String(token.attrGet('href') ?? ''))) {
+            token.attrSet('target', '_blank');
+            token.attrSet('rel', 'noreferrer');
+        }
+        return self.renderToken(tokens, i, options);
+    };
+
+    // Wide tables scroll sideways, so they take focus to scroll from the keyboard.
+    md.renderer.rules.table_open = (tokens, i, options, _env, self) => {
+        tokens[i]!.attrSet('tabindex', '0');
+        return self.renderToken(tokens, i, options);
+    };
+
+    // Heading ids from VitePress's slugger (deduplicated per page), its permalink anchor, and the page's outline. A
+    // trailing `{#id}` sets the id itself, as VitePress's attribute syntax did.
     md.core.ruler.push('fonte-headings', state => {
         const env = state.env as Env;
         for (let i = 0; i < state.tokens.length; i++) {
             const open = state.tokens[i]!;
             if (open.type !== 'heading_open') continue;
             const inline = state.tokens[i + 1]!;
+            const custom = customId(inline);
             const text = inlineText(inline);
-            const base = slug(text);
+            const base = custom ?? slug(text);
             const n = env.slugs.get(base) ?? 0;
             env.slugs.set(base, n + 1);
-            const id = n ? `${base}-${n}` : base;
+            const id = n && !custom ? `${base}-${n}` : base;
             open.attrSet('id', id);
             open.attrSet('tabindex', '-1');
             const anchor = new state.Token('html_inline', '', 0);

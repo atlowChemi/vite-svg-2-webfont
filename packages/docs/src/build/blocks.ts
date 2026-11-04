@@ -45,13 +45,50 @@ function closing(source: string, name: string, from: number): number {
     throw new Error(`<${name}> is never closed`);
 }
 
+/** The fence a line opens or closes (` ``` ` or `~~~`, three or more), if any. */
+const fenceMarker = (line: string) => /^\s*(`{3,}|~{3,})/.exec(line)?.[1];
+const closesFence = (line: string, fence: string) => {
+    const marker = fenceMarker(line);
+    return !!marker && marker[0] === fence[0] && marker.length >= fence.length && !line.trim().slice(marker.length);
+};
+
+/**
+ * Splits a block's body into its `<template #name>` slots and the default slot. Tags inside fenced code are code: a
+ * snippet of a Vue file has a `</template>` of its own.
+ */
 function slotsOf(body: string): Record<string, string> {
     const slots: Record<string, string> = {};
-    const rest = body.replace(/^<template #([\w-]+)>\n?([\s\S]*?)\n?^<\/template>$/gm, (_, name: string, content: string) => {
-        slots[name] = content;
-        return '';
-    });
-    if (rest.trim()) slots.default = rest.trim();
+    const rest: string[] = [];
+    let slot: { name: string; lines: string[]; depth: number } | undefined;
+    let fence: string | undefined;
+    for (const line of body.split('\n')) {
+        const target = slot?.lines ?? rest;
+        if (fence) {
+            if (closesFence(line, fence)) fence = undefined;
+            target.push(line);
+            continue;
+        }
+        fence = fenceMarker(line);
+        if (fence) {
+            target.push(line);
+            continue;
+        }
+        const open = /^<template #([\w-]+)>\s*$/.exec(line);
+        if (!slot && open) {
+            slot = { name: open[1]!, lines: [], depth: 0 };
+            continue;
+        }
+        if (slot && /^<\/template>\s*$/.test(line) && slot.depth-- === 0) {
+            slots[slot.name] = slot.lines.join('\n').replace(/^\n/, '').replace(/\n$/, '');
+            slot = undefined;
+            continue;
+        }
+        if (slot && /^<template(?:\s[^>]*)?(?<!\/)>\s*$/.test(line)) slot.depth++;
+        target.push(line);
+    }
+    if (slot) throw new Error(`<template #${slot.name}> is never closed`);
+    const fallback = rest.join('\n').trim();
+    if (fallback) slots.default = fallback;
     return slots;
 }
 
@@ -69,10 +106,9 @@ export function extractBlocks(source: string, names: Set<string>, placeholder: (
         line.lastIndex = i;
         const text = line.exec(source)![0];
         const next = i + text.length + 1;
-        const marker = /^\s*(`{3,}|~{3,})/.exec(text)?.[1];
         if (fence) {
-            if (marker && marker[0] === fence[0] && marker.length >= fence.length && !text.trim().slice(marker.length)) fence = undefined;
-        } else if (marker) fence = marker;
+            if (closesFence(text, fence)) fence = undefined;
+        } else fence = fenceMarker(text);
         const name = !fence && /^<([A-Z]\w*)\b/.exec(text)?.[1];
         if (!name || !names.has(name)) {
             out += source.slice(i, Math.min(next, source.length));

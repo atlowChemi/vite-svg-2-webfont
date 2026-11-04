@@ -6,6 +6,7 @@ import { PageStrip } from './PageStrip.tsx';
 import { PrevNext } from './PrevNext.tsx';
 import { Rail } from './Rail.tsx';
 import { SectionPill, SectionsSheet, ToolsSheet } from './Sheets.tsx';
+import { SiteFooter } from './SiteFooter.tsx';
 import { TopBar } from './TopBar.tsx';
 
 export interface DocPage {
@@ -46,9 +47,9 @@ export function DocShell({ page }: { page: DocPage }) {
 }
 
 /** A full-width page under the same top bar: the landing page, the Playground and the 404 page. */
-export function PageShell({ nav, children }: { nav: PageNav; children: ReactNode }) {
+export function PageShell({ nav, footer = true, children }: { nav: PageNav; footer?: boolean; children: ReactNode }) {
     return (
-        <div className="doc doc-wide">
+        <div className={footer ? 'doc doc-wide doc-footed' : 'doc doc-wide'}>
             <a className="doc-skip" href="#doc-content">
                 Skip to content
             </a>
@@ -56,6 +57,7 @@ export function PageShell({ nav, children }: { nav: PageNav; children: ReactNode
             <main id="doc-content" className="doc-wide-main" tabIndex={-1}>
                 {children}
             </main>
+            {footer && <SiteFooter />}
             <ToolsSheet nav={nav} />
         </div>
     );

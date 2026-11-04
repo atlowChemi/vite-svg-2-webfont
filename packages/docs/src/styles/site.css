@@ -131,6 +131,18 @@ dialog.doc-sheet::backdrop {
     background: var(--vp-c-brand-soft);
 }
 
+.doc-search-dialog .excerpt {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--vp-c-text-2);
+}
+
+.doc-search-dialog mark {
+    border-radius: 2px;
+    background: var(--vp-c-brand-soft);
+    color: inherit;
+}
+
 .doc-search-dialog :is(.trail, .hint) {
     font-size: 11px;
     color: var(--vp-c-text-3);
@@ -156,6 +168,62 @@ dialog.doc-sheet::backdrop {
 /* Full-width pages (landing, Playground, 404) sit under the same top bar, with no strip or rail. */
 .doc-wide-main:focus {
     outline: none;
+}
+
+/* The Playground and 404 end in the site's footer, held to the bottom of short pages. */
+.doc-footed {
+    display: flex;
+    flex-direction: column;
+}
+
+.doc-footed .doc-wide-main {
+    flex: 1;
+}
+
+.doc-footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px 28px;
+    padding: 24px max(16px, calc((100% - 1152px) / 2)) 28px;
+    border-top: 1px solid var(--vp-c-divider);
+    background: var(--vp-c-bg-alt);
+    font-size: 14px;
+}
+
+.doc-footer nav {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 16px;
+}
+
+.doc-footer .plate {
+    font: 11px var(--vp-font-family-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--vp-c-text-3);
+}
+
+.doc-footer a {
+    color: var(--vp-c-text-2);
+    text-decoration: none;
+}
+
+.doc-footer a:hover {
+    color: var(--vp-c-brand-1);
+}
+
+.doc-footer .license {
+    margin: 0 0 0 auto;
+    color: var(--vp-c-text-3);
+}
+
+@media (max-width: 720px) {
+    .doc-footer .license {
+        width: 100%;
+        margin-left: 0;
+    }
 }
 
 /* Under the Hood: the fastest result in each benchmark row. */

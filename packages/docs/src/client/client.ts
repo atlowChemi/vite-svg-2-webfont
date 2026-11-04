@@ -14,12 +14,35 @@ function themeLabels() {
 }
 themeLabels();
 
+const THEME_KEY = 'vitepress-theme-appearance';
+const systemDark = matchMedia('(prefers-color-scheme: dark)');
+const storedTheme = () => {
+    try {
+        return localStorage.getItem(THEME_KEY) ?? 'auto';
+    } catch {
+        return 'auto';
+    }
+};
+
+// A choice that matches the system is stored as `auto`, as VitePress did, so the page follows the system from then on.
 function toggleTheme() {
     const dark = root.classList.toggle('dark');
     try {
-        localStorage.setItem('vitepress-theme-appearance', dark ? 'dark' : 'light');
+        localStorage.setItem(THEME_KEY, dark === systemDark.matches ? 'auto' : dark ? 'dark' : 'light');
     } catch {}
     themeLabels();
+}
+
+// On `auto`, an open page follows the system switching between light and dark.
+systemDark.addEventListener('change', () => {
+    if (storedTheme() !== 'auto') return;
+    root.classList.toggle('dark', systemDark.matches);
+    themeLabels();
+});
+
+// The search shortcut, as this platform spells it.
+if (!/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) {
+    for (const kbd of document.querySelectorAll('.doc-search-button kbd')) kbd.textContent = 'Ctrl K';
 }
 
 // The rail's index follows the reader: the current entry is the last heading above the bars, so it stays right after
@@ -174,13 +197,26 @@ function openSheet(button: HTMLElement) {
     button.setAttribute('aria-expanded', 'true');
 }
 
-// Copying a code block copies what it shows, without removed diff lines.
+// Copying a code block copies what it shows, without removed diff lines, and shell commands without their prompts.
 async function copy(button: HTMLElement) {
-    const pre = button.parentElement?.querySelector('pre');
-    if (!pre) return;
+    const block = button.parentElement;
+    const pre = block?.querySelector('pre');
+    if (!block || !pre) return;
     const clone = pre.cloneNode(true) as HTMLElement;
     clone.querySelectorAll('.diff.remove, .vp-copy-ignore').forEach(el => el.remove());
-    await navigator.clipboard.writeText(clone.textContent ?? '');
+    let text = clone.textContent ?? '';
+    if (/language-(?:shellscript|shell|bash|sh|zsh)\b/.test(block.className)) text = text.replace(/^ *[$>] /gm, '').trim();
+    try {
+        await navigator.clipboard.writeText(text);
+    } catch {
+        // Without the Clipboard API (an insecure origin, an older browser), copy through a selected text area.
+        const area = Object.assign(document.createElement('textarea'), { value: text, readOnly: true });
+        area.style.cssText = 'position:fixed;opacity:0';
+        document.body.append(area);
+        area.select();
+        document.execCommand('copy');
+        area.remove();
+    }
     button.classList.add('copied');
     setTimeout(() => button.classList.remove('copied'), 2000);
 }
