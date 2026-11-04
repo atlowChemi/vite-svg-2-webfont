@@ -6,6 +6,7 @@
 - Keep `--full`: use the conservative CI selector before invoking a pipeline, not pnpm's task-level affected selection. `pnpm run` scripts are raw commands without prerequisites; use them only when prerequisites are already supplied or for forwarding tool arguments.
 - Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/test`), not from direct `vite` or `vitest` packages.
 - After pulling remote changes, run `pnpm install` before validation.
+- Keep `runtimeOnFail: error`: Rust is managed by rustup so installed cross-target libraries and LLVM tools match the compiler used inside pnpm scripts.
 - Unified `pnpm install` requires Rust first. Use `pnpm add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `pnpm update crate:…` does not update them in pnpm 12.6.0.
 - Use Conventional Commit messages and PR titles: `type(scope): description` or `type: description`. Before creating or editing either, read `scope-enum` in `commitlint.config.js`; use a listed scope or omit it when none fits. Validate the proposed message/title with `printf '%s\n' 'your title' | pnpm exec commitlint` before committing or submitting it.
 
