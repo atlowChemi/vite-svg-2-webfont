@@ -31,7 +31,7 @@ flowchart LR
     W -.->|reload CSS module| V
 ```
 
-- **Fonts stay in memory.** The dev server serves each format at `/<fontName>.<type>`, for example `/iconfont.woff2`, and the virtual CSS points at those URLs. Nothing is written to disk unless you enable [`generateFiles`](/configuration#generatefiles).
+- **Fonts stay in memory.** The dev server serves each format under Vite's [`base`](https://vite.dev/config/shared-options.html#base) at `<base><fontName>.<type>`, for example `/iconfont.woff2`. The virtual CSS points at those absolute URLs, so pages on nested routes load the same fonts, and each URL carries a hash of its font so the browser fetches a rebuilt font instead of a cached one. Nothing is written to disk unless you enable [`generateFiles`](/configuration#generatefiles).
 - **SVG changes update the page without a full reload.** The plugin watches your icon folders. When an SVG is added, changed, or removed, it rebuilds the font and reloads the virtual CSS module through Vite's HMR, so icons update in place.
 - **Rebuilds are incremental.** In development the plugin asks the engine to keep its work between builds, so a rebuild only reprocesses the icons that changed. It falls back to a full rebuild if an incremental one fails.
 - **Rebuilds are fast by default.** In development WOFF2 uses Brotli quality `10` instead of `11`: the font renders identically, its bytes are a little larger, and encoding is about twice as fast. Set [`woff2CompressionQuality`](/configuration#woff2compressionquality) to pin one value for both.
