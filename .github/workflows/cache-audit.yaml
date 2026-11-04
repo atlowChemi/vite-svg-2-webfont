@@ -1,4 +1,4 @@
-name: Dormant pipeline audit
+name: Cache contract audit
 
 on:
     pull_request:
@@ -38,29 +38,29 @@ jobs:
                   cache: true
             - name: Select affected packages conservatively
               run: node scripts/ci/affected-selection.ts
-            - name: Select dormant pipelines
+            - name: Select finite pipelines
               shell: bash
               run: |
                   vp exec pnpm config get pipelines --location project --json > pipelines.json
                   jq -r '
                     {
-                      "next-bench": "Fresh measurements belong to benchmark CI",
-                      "next-engine-bench": "Fresh measurements belong to benchmark CI",
-                      "next-adapter-bench": "Fresh measurements belong to benchmark CI",
-                      "next-engine-coverage": "Requires the dedicated Rust coverage toolchain",
-                      "next-cli-coverage": "Requires the dedicated Rust coverage toolchain",
-                      "next-adapter-coverage": "Requires the dedicated Rust coverage toolchain",
-                      "next-native-coverage": "Requires the dedicated native coverage toolchain",
-                      "next-browser-coverage": "Instrumented browser reports belong to coverage CI",
-                      "next-binding-regenerate": "Mutates generated binding sources",
-                      "next-fixtures-refresh": "Mutates tracked font fixtures",
-                      "next-browser-publish": "Publishes packages to the registry",
-                      "next-plugin-publish": "Publishes packages to the registry",
-                      "next-plugin-dev": "Long-running development server",
-                      "next-example-dev": "Long-running development server",
-                      "next-example-preview": "Long-running preview server",
-                      "next-docs-dev": "Long-running development server",
-                      "next-docs-preview": "Long-running preview server"
+                      "bench": "Fresh measurements belong to benchmark CI",
+                      "engine-bench": "Fresh measurements belong to benchmark CI",
+                      "adapter-bench": "Fresh measurements belong to benchmark CI",
+                      "engine-coverage": "Requires the dedicated Rust coverage toolchain",
+                      "cli-coverage": "Requires the dedicated Rust coverage toolchain",
+                      "adapter-coverage": "Requires the dedicated Rust coverage toolchain",
+                      "native-coverage": "Requires the dedicated native coverage toolchain",
+                      "browser-coverage": "Instrumented browser reports belong to coverage CI",
+                      "binding-regenerate": "Mutates generated binding sources",
+                      "fixtures-refresh": "Mutates tracked font fixtures",
+                      "browser-publish": "Publishes packages to the registry",
+                      "plugin-publish": "Publishes packages to the registry",
+                      "plugin-dev": "Long-running development server",
+                      "example-dev": "Long-running development server",
+                      "example-preview": "Long-running preview server",
+                      "docs-dev": "Long-running development server",
+                      "docs-preview": "Long-running preview server"
                     } as $blocked
                     | (($blocked | keys) - keys) as $missing
                     | if ($missing | length) > 0 then
@@ -71,7 +71,10 @@ jobs:
                   ' pipelines.json > selected-pipelines.txt
             - name: Plan affected pipelines and audits
               id: work
+              # Normal PR execution lives in main.yaml; only manual/weekly runs sweep pipelines.
               run: node scripts/ci/select-audit-work.ts
+              env:
+                  AUDIT_ONLY: ${{ github.event_name == 'pull_request' }}
 
     pipelines:
         name: Affected validation (worker ${{ matrix.id }})
@@ -134,9 +137,9 @@ jobs:
               run: |
                   status=0
                   while IFS= read -r task; do
-                    if vp run @atlowchemi/cache-audit#audit -- --task "$task" --reports "artifacts/cache-audit/tasks/${task//:/-}"; then
+                    if vp exec pnpm --dir crates/cache-audit run audit -- --task "$task" --reports "artifacts/cache-audit/tasks/${task//:/-}"; then
                       echo "$task: passed" >> "$GITHUB_STEP_SUMMARY"
-                      if [[ "$task" == next:native ]]; then
+                      if [[ "$task" == native ]]; then
                         echo 'native_passed=true' >> "$GITHUB_OUTPUT"
                       fi
                     else
@@ -149,7 +152,7 @@ jobs:
               if: ${{ !cancelled() && steps.audit.outputs.native_passed == 'true' }}
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-bin/cache-audit
-              run: vp run @atlowchemi/cache-audit#audit:negative
+              run: vp exec pnpm --dir crates/cache-audit run audit:negative
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               if: always()
               with:
@@ -191,9 +194,9 @@ jobs:
               env:
                   CARGO_TARGET_DIR: ${{ runner.temp }}/cache-audit-build
               run: |
-                  vp run @atlowchemi/cache-audit#build
-                  vp run @atlowchemi/cache-audit#test
-                  vp run @atlowchemi/cache-audit#check
+                  vp exec pnpm --dir crates/cache-audit run build
+                  vp exec pnpm --dir crates/cache-audit run test
+                  vp exec pnpm --dir crates/cache-audit run check
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               with:
                   name: cache-audit-binary-linux-x64
@@ -219,7 +222,7 @@ jobs:
             - name: Verify installed pnpm cache semantics
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
-              run: vp run @atlowchemi/cache-audit#test:compat
+              run: vp exec pnpm --dir crates/cache-audit run test:compat
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               if: always()
               with:

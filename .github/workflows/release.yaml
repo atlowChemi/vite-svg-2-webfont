@@ -61,7 +61,7 @@ jobs:
             - name: Regenerate bindings and commit release outputs
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
               run: |
-                  vp run @atlowchemi/webfont-generator#binding:regenerate
+                  vp exec pnpm pipeline binding-regenerate --full
                   vp fmt
                   git add Cargo.lock pnpm-lock.yaml packages/webfont-generator/binding.js \
                     'crates/*/CHANGELOG.md' 'packages/*/CHANGELOG.md'
@@ -232,7 +232,7 @@ jobs:
                   echo 'Approve with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
                   echo '' >> "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
-                  vp run vite-svg-2-webfont#publish | tee -a "$GITHUB_STEP_SUMMARY"
+                  vp exec pnpm pipeline plugin-publish --full | tee -a "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
 
             - name: Upload release assets
@@ -264,7 +264,7 @@ jobs:
               run: |
                   echo '## Staged: @atlowchemi/webfont-browser-generator' >> "$GITHUB_STEP_SUMMARY"
                   echo 'Approve with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
-                  vp run @atlowchemi/webfont-browser-generator#publish | tee -a "$GITHUB_STEP_SUMMARY"
+                  vp exec pnpm pipeline browser-publish --full | tee -a "$GITHUB_STEP_SUMMARY"
             - name: Upload release assets
               uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
               with:

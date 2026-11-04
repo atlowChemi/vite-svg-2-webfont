@@ -328,7 +328,7 @@ async fn execute_task(
 ) -> Result<(i32, Option<i32>)> {
     let log = File::create(reports.join(format!("{name}.log")))?;
     // Tool installation belongs outside the observed WASM compilation.
-    if audited && key.project == root && key.task_name == "next:wasm" {
+    if audited && key.project == root && key.task_name == "wasm" {
         let code = execute(
             Command::new("node")
                 .args([
@@ -402,7 +402,7 @@ async fn execute_task(
     };
     // Published addons must load without depending on compiler scratch files.
     drop(target);
-    if audited && key.project == root && key.task_name == "next:native" && command_code == Some(0) {
+    if audited && key.project == root && key.task_name == "native" && command_code == Some(0) {
         let addon_log = File::create(reports.join(format!("{name}.addon.log")))?;
         let addon = execute(
             Command::new("node")

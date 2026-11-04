@@ -59,7 +59,7 @@ jobs:
             - name: Run script tests with coverage
               id: tests
               run: |
-                  vp run coverage:scripts
+                  vp exec pnpm pipeline scripts-coverage --full
                   test -s coverage/scripts/lcov.info
               env:
                   CI_TEST_REPORT: test-results/scripts.xml
@@ -105,7 +105,7 @@ jobs:
             # These shell checks can overlap; JSON-reading actions cannot (actions/runner#4641).
             - parallel:
                   - run: vp check
-                  - run: vp run @atlowchemi/webfont-generator#check
+                  - run: vp exec pnpm pipeline rust-check --full
 
     rust-coverage:
         name: Rust coverage (${{ matrix.suite }})
@@ -137,12 +137,12 @@ jobs:
               id: doctests
               background: true
               if: ${{ matrix.suite == 'engine' }}
-              run: vp run @atlowchemi/webfont-engine#test:doctests
-            - run: vp run @atlowchemi/webfont-engine#test:coverage
+              run: vp exec pnpm --dir crates/webfont-generator run test:doctests
+            - run: vp exec pnpm pipeline engine-coverage --full
               if: ${{ matrix.suite == 'engine' }}
-            - run: vp run @atlowchemi/webfont-engine#test:coverage:cli
+            - run: vp exec pnpm pipeline cli-coverage --full
               if: ${{ matrix.suite == 'cli' }}
-            - run: vp run @atlowchemi/webfont-generator#test:coverage
+            - run: vp exec pnpm pipeline adapter-coverage --full
               if: ${{ matrix.suite == 'adapter' }}
             - name: Verify required reports
               run: |
@@ -193,7 +193,7 @@ jobs:
                   node-version-file: .node-version
                   run-install: true
                   cache: true
-            - run: vp run @atlowchemi/webfont-generator#test:coverage:native
+            - run: vp exec pnpm pipeline native-coverage --full
             - name: Verify required reports
               run: |
                   test -s coverage/napi-vitest/rust.lcov
@@ -261,7 +261,7 @@ jobs:
                   # The plugin and engine validate entries; restore the latest cache across commits.
                   key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
                   restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
-            - run: vp run @atlowchemi/vite-svg-webfont-docs#build
+            - run: vp exec pnpm pipeline docs --full
             # Picked up by docs-preview.yaml, which deploys it with Cloudflare credentials this run never sees.
             - name: Upload docs site
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -292,13 +292,13 @@ jobs:
               run: vp exec playwright install --with-deps chromium firefox webkit
             - name: Prepare shared browser prerequisites
               run: |
-                  vp run @atlowchemi/webfont-generator#build
-                  vp run @atlowchemi/webfont-generator#test:color-proof
+                  vp exec pnpm pipeline native --full
+                  vp exec pnpm pipeline adapter-color-proof --full
             - wait: browsers
             - name: Run browser tests
               id: engine-browser-tests
               background: true
-              run: vp run --ignore-depends-on @atlowchemi/webfont-generator#test:browser
+              run: vp exec pnpm --dir packages/webfont-generator run test:browser
               env:
                   CI_TEST_REPORT: test-results/engine-browser.xml
                   CI_TEST_SUITE: engine-browser-linux-x64
@@ -306,7 +306,7 @@ jobs:
               id: plugin-browser-tests
               background: true
               if: ${{ !cancelled() }}
-              run: vp run --ignore-depends-on vite-svg-2-webfont#test:browser
+              run: vp exec pnpm --dir packages/vite-svg-2-webfont run test:browser
               env:
                   CI_TEST_REPORT: test-results/plugin-browser.xml
                   CI_TEST_SUITE: plugin-browser-linux-x64
@@ -351,13 +351,13 @@ jobs:
               id: browsers
               background: true
             - run: |
-                  vp run @atlowchemi/webfont-browser-generator#check
-                  vp run --ignore-depends-on @atlowchemi/webfont-browser-generator#pack
+                  vp exec pnpm pipeline browser-check --full
+                  vp exec pnpm --dir packages/webfont-browser run pack
               env:
                   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
                   ALLOW_BUNDLE_ANALYSIS: 'true'
             - wait: browsers
-            - run: vp run --ignore-depends-on @atlowchemi/webfont-browser-generator#test
+            - run: vp exec pnpm --dir packages/webfont-browser run test
               env:
                   CI_TEST_REPORT: test-results/wasm-browser.xml
                   CI_TEST_SUITE: wasm-browser-linux-x64
@@ -384,7 +384,7 @@ jobs:
             - uses: taiki-e/install-action@86f7a0ffb25f40114606501a311ebcfaf882ea32 # v2.88.0
               with:
                   tool: cargo-llvm-cov@0.9.0
-            - run: vp run @atlowchemi/webfont-browser-generator#test:coverage
+            - run: vp exec pnpm pipeline browser-coverage --full
             - name: Verify browser coverage reports
               run: |
                   test -s coverage/browser-js/lcov.info
@@ -459,7 +459,7 @@ jobs:
               shell: bash
               run: ls packages/webfont-generator/*.node
             - name: Build plugin
-              run: pnpm --filter vite-svg-2-webfont exec vp pack
+              run: pnpm --dir packages/vite-svg-2-webfont run pack
             - name: Run tests
               id: host-tests
               run: pnpm exec vp test --run --project='!*-browser*' --project='!scripts'
@@ -508,7 +508,7 @@ jobs:
                   name: bindings-${{ matrix.arch }}-unknown-linux-musl
                   path: packages/webfont-generator/
             - name: Build plugin
-              run: pnpm --filter vite-svg-2-webfont exec vp pack
+              run: pnpm --dir packages/vite-svg-2-webfont run pack
             - name: Resolve pnpm version
               id: pnpm-version
               run: echo "version=$(node -p "JSON.parse(require('fs').readFileSync('package.json','utf8')).packageManager.split('@', 2)[1].split('+')[0]")" >> "$GITHUB_OUTPUT"
@@ -583,7 +583,7 @@ jobs:
             - name: Verify binding
               run: ls packages/webfont-generator/*.node
             - name: Build plugin
-              run: vp run --ignore-depends-on vite-svg-2-webfont#pack
+              run: vp exec pnpm --dir packages/vite-svg-2-webfont run pack
               env:
                   CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
                   ALLOW_BUNDLE_ANALYSIS: ${{ matrix.primary }}
