@@ -1,0 +1,21 @@
+name: Cache pnpm pipeline results
+description: Persist task results separately from the dependency store
+runs:
+    using: composite
+    steps:
+        - name: Select CI cache namespace
+          id: namespace
+          shell: bash
+          env:
+              WORKFLOW: ${{ github.workflow }}
+              JOB: ${{ github.job }}
+          run: |
+              echo "PNPM_CONFIG_CACHE_DIR=$RUNNER_TEMP/pnpm-pipeline-cache" >> "$GITHUB_ENV"
+              # Bump v1 when external tools change without a corresponding tracked pin.
+              fingerprint=$(printf '%s\n' "$WORKFLOW" "$JOB" "${ImageOS:-}" "${ImageVersion:-}" "$(node --version)" "$(pnpm --version)" "$(rustc -Vv)" | sha256sum | cut -d ' ' -f 1)
+              echo "prefix=pnpm-pipeline-v1-${{ runner.os }}-${{ runner.arch }}-$fingerprint-${{ hashFiles('rust-toolchain.toml', 'pnpm-lock.yaml', '.github/actions/pipeline-cache/action.yaml') }}" >> "$GITHUB_OUTPUT"
+        - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+          with:
+              path: ${{ runner.temp }}/pnpm-pipeline-cache/pipeline
+              key: ${{ steps.namespace.outputs.prefix }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+              restore-keys: ${{ steps.namespace.outputs.prefix }}-

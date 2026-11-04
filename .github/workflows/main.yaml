@@ -101,6 +101,7 @@ jobs:
                   node-version-file: .node-version
                   require-lockfile: true
                   cache: true
+            - uses: ./.github/actions/pipeline-cache
             # These shell checks can overlap; JSON-reading actions cannot (actions/runner#4641).
             - parallel:
                   - run: pnpm exec vp check
@@ -267,6 +268,7 @@ jobs:
             - name: install Chromium for diagrams
               working-directory: packages/docs
               run: pnpm exec playwright install --with-deps --only-shell chromium
+            - uses: ./.github/actions/pipeline-cache
             - run: pnpm pipeline docs --full
               env:
                   # Where docs-preview.yaml deploys this build, so its link previews point at its own pages: `next` for
@@ -296,6 +298,7 @@ jobs:
                   node-version-file: .node-version
                   require-lockfile: true
                   cache: true
+            - uses: ./.github/actions/pipeline-cache
             - name: Install browsers
               id: browsers
               background: true
@@ -357,6 +360,7 @@ jobs:
               with:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
+            - uses: ./.github/actions/pipeline-cache
             - run: pnpm exec playwright install --with-deps chromium firefox webkit
               id: browsers
               background: true
