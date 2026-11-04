@@ -13,7 +13,7 @@ import type {
     FontVariant,
     MissingGlyphOptions,
 } from '@atlowchemi/webfont-generator';
-import type { IndexHtmlTransformContext } from 'vite-plus';
+import type { IndexHtmlTransformContext } from 'vite';
 
 const FILE_TYPE_OPTIONS = ['html', 'css', 'fonts', 'ts'] as const;
 type FileType = (typeof FILE_TYPE_OPTIONS)[number];

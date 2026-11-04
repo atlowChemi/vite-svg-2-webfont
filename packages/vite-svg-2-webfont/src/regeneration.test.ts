@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vite-plus/test';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createGenerationQueue, reconcileChanges, watchRoots } from './regeneration';
 import { resolve, relative, isAbsolute, posix, win32 } from 'node:path';
 import type { IconPluginOptions } from './optionParser';

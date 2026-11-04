@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { isCSSRequest, isFileLoadingAllowed, isRunnableDevEnvironment, type BuildEnvironment, type Connect, type Plugin, type ViteDevServer } from 'vite-plus';
+import { isCSSRequest, isFileLoadingAllowed, isRunnableDevEnvironment, type BuildEnvironment, type Connect, type Plugin, type ViteDevServer } from 'vite';
 type SitePlugins = typeof import('./plugins/index.ts');
 
 // The docs as static pages. Vite builds two things: `src/build/render.tsx` for Node, and the browser assets (one shared
@@ -159,7 +159,7 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
             if (this.environment.mode !== 'dev' || this.environment.name !== 'client') return undefined;
             return /\/node_modules\/.+\.css$/.test(id) ? { code: '' } : undefined;
         },
-        // `vp preview` answers with the built `_headers`, as the deployed site does, so the policy can be tried locally.
+        // `vite preview` answers with the built `_headers`, as the deployed site does, so the policy can be tried locally.
         async configurePreviewServer(preview) {
             const headersFilePath = resolve(preview.config.root, preview.config.build.outDir, '_headers');
             const headersString = await readFile(headersFilePath, 'utf8');

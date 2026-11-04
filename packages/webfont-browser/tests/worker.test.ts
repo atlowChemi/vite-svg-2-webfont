@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { afterEach, beforeEach, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import type { RequestPayload, Response } from '../src/types';
 
 // Exercise the real worker and WASM in Node, replacing only the browser transport

@@ -6,7 +6,7 @@ import { compileString } from 'sass';
 import { parse } from 'opentype.js';
 import sizeIcons from './fixtures/output-size/icons.json';
 import * as templates from '../templates.js';
-import { afterEach, beforeAll, describe, expect, it } from 'vite-plus/test';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { generateWebfonts as generateNativeBinding } from '../binding.js';
 import { type FontType, generateWebfonts, type GenerateWebfontsFileOptions, type GenerateWebfontsVariantOptions } from '../index.js';
 
@@ -979,7 +979,7 @@ expect.extend({
     },
 });
 
-declare module 'vite-plus/test' {
+declare module 'vitest' {
     interface Matchers<R, T> {
         toEqualFont(expected: Awaited<ReturnType<typeof generateWebfonts>>): R;
         toEqualCss(expected: Awaited<ReturnType<typeof generateWebfonts>>): R;

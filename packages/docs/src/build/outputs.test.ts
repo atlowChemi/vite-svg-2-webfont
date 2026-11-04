@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import MiniSearch from 'minisearch';
 import { indexOptions, type SearchDoc } from '../client/searchOptions.ts';
 import { llmsFullTxt, llmsTxt, markdownFiles, parseRendered, plainMarkdown, searchIndex, searchSections, type MarkdownBlocks } from './outputs.ts';

@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import { packageNames, resolveSelection, selectJobs, type Selection } from './affected-selection';
 
 const script = fileURLToPath(new URL('./required-checks.ts', import.meta.url));

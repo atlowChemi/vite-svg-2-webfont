@@ -1,8 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { codecovRollupPlugin } from '@codecov/rollup-plugin';
 import { chromium } from 'playwright';
-import { build, preview } from 'vite-plus';
-import { expect, it } from 'vite-plus/test';
+import { build, preview } from 'vite';
+import { expect, it } from 'vitest';
 
 it('loads the emitted worker and WASM from a production build under a URL prefix', async () => {
     const config = {

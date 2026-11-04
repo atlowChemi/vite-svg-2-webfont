@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from 'vite-plus/test';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { createWebfontGenerator, generateWebfonts } from '../src';
 import type { Request, Response } from '../src/types';
 
