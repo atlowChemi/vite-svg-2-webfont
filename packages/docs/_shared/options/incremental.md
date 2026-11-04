@@ -1,0 +1,1 @@
+Keep the engine's work on the result, so it can be [updated incrementally](/guide/features/incremental) after icons change without reprocessing the others. Turn it on for watch mode and dev servers; leave it off for one-off builds, so the work isn't held in memory.

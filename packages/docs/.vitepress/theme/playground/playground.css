@@ -1,6 +1,7 @@
 /* Styles shared by the playground's components; each component keeps its own layout styles. */
 .pg {
-    --pg-radius: 8px;
+    --pg-radius: 4px;
+    accent-color: var(--vp-c-brand-1);
     display: flex;
     flex-direction: column;
     gap: 24px;
@@ -10,7 +11,9 @@
     margin: 0;
     padding: 0;
     border: 0;
-    font-size: 18px;
+    font-family: var(--fonte-font-display);
+    font-size: 22px;
+    font-weight: 600;
 }
 
 .pg input:not([type='checkbox'], [type='radio'], [type='range']),
@@ -18,7 +21,7 @@
     width: 100%;
     padding: 6px 10px;
     border: 1px solid var(--vp-c-divider);
-    border-radius: 6px;
+    border-radius: var(--pg-radius);
     background: var(--vp-c-bg);
     color: var(--vp-c-text-1);
     font-size: 14px;
@@ -38,29 +41,33 @@
     clip-path: inset(50%);
 }
 
+/* The landing page's buttons: molten for the main action, outlined for the rest. */
 .pg-button {
     display: inline-flex;
     align-items: center;
-    padding: 6px 16px;
-    border-radius: 20px;
-    background: var(--vp-c-brand-3);
-    color: var(--vp-c-white);
+    padding: 7px 16px;
+    border: 1px solid transparent;
+    border-radius: var(--pg-radius);
+    background: var(--vp-button-brand-bg);
+    color: var(--vp-button-brand-text);
     font-size: 14px;
-    font-weight: 500;
+    font-weight: 600;
     cursor: pointer;
 }
 
 .pg-button:hover {
-    background: var(--vp-c-brand-2);
+    background: var(--vp-button-brand-hover-bg);
 }
 
 .pg-button-alt {
-    background: var(--vp-c-default-soft);
+    border-color: var(--vp-c-border);
+    background: transparent;
     color: var(--vp-c-text-1);
 }
 
 .pg-button-alt:hover {
-    background: var(--vp-c-default-2);
+    border-color: var(--vp-c-brand-1);
+    background: transparent;
 }
 
 .pg-link {
@@ -80,7 +87,7 @@
     white-space: pre-wrap;
     font-family: var(--vp-font-family-mono);
     font-size: 13px !important;
-    border-radius: 6px;
+    border-radius: var(--pg-radius);
     background: var(--vp-c-danger-soft);
     color: var(--vp-c-danger-1);
 }

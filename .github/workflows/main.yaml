@@ -251,6 +251,10 @@ jobs:
                   key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
                   restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
             - run: vp run @atlowchemi/vite-svg-webfont-docs#build
+              env:
+                  # Where docs-preview.yaml deploys this build, so its link previews point at its own pages: `next` for
+                  # main, the pull request's Worker Preview otherwise. Unset, the docs fall back to the production site.
+                  DOCS_URL: ${{ github.event_name == 'pull_request' && format('https://pr-{0}-fonte-next.chemiatlow.workers.dev/', github.event.pull_request.number) || 'https://next.fonte.atlow.dev/' }}
             # Picked up by docs-preview.yaml, which deploys it with Cloudflare credentials this run never sees.
             - name: Upload docs site
               uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

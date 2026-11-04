@@ -1,0 +1,1 @@
+Reserve named palette entries for theme colors, such as `{ secondary: '#ff9900' }`. Values are distinct `#RRGGBB` colors, and slots need an active `colorGlyphs` selection. CSS templates receive `colorSlots`, a map from slot name to palette index. See [theme colors](/guide/features/color-glyphs#theme-colors).

@@ -1,0 +1,1 @@
+What a family does when a design lacks an icon that other designs have: `blank` keeps an empty glyph of the icon's width, `error` fails the build, and `fallback` borrows the icon from the design named in `variant`, which must contain every icon. Only valid with `variants`. See [icons missing from a design](/guide/features/variants#icons-missing-from-a-design).

@@ -1,5 +1,5 @@
 import type { HighlighterCore } from 'shiki/core';
-import { codeThemes } from '../../codeThemes';
+import { codeBackgrounds, codeThemes, withReadableTokens } from '../../codeThemes';
 
 let highlighter: Promise<HighlighterCore> | undefined;
 
@@ -8,7 +8,10 @@ export function loadHighlighter(): Promise<HighlighterCore> {
     highlighter ??= (async () => {
         const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([import('shiki/core'), import('shiki/engine/javascript')]);
         return createHighlighterCore({
-            themes: [import('shiki/themes/catppuccin-latte.mjs'), import('shiki/themes/catppuccin-frappe.mjs')],
+            themes: [
+                import('shiki/themes/catppuccin-latte.mjs').then(({ default: theme }) => withReadableTokens(theme, codeBackgrounds.light)),
+                import('shiki/themes/catppuccin-frappe.mjs').then(({ default: theme }) => withReadableTokens(theme, codeBackgrounds.dark)),
+            ],
             langs: [import('shiki/langs/css.mjs')],
             engine: createJavaScriptRegexEngine(),
         });

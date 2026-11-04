@@ -45,7 +45,7 @@ afterAll(() => {
 
 describe('real Git/pnpm affected selection', () => {
     it.each(['pull_request', 'push', 'missing-event'])('writes consistent workflow outputs and artifacts for %s', eventName => {
-        change('packages/docs/getting-started.md');
+        change('packages/docs/guide/glossary.md');
         commit();
         const temporary = mkdtempSync(join(tmpdir(), 'selection-event-'));
         try {
@@ -126,7 +126,7 @@ describe('real Git/pnpm affected selection', () => {
         ['packages/webfont-generator/native/lib.rs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.docs, packageNames.root], true],
         ['packages/webfont-generator/index.js', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.docs, packageNames.root], true],
         ['packages/vite-svg-2-webfont/src/index.ts', [packageNames.plugin, packageNames.example, packageNames.docs], false],
-        ['packages/docs/getting-started.md', [packageNames.docs], false],
+        ['packages/docs/guide/glossary.md', [packageNames.docs], false],
         ['packages/docs/wrangler.jsonc', [], false],
         ['packages/vite-svg-2-webfont/CHANGELOG.md', [packageNames.plugin, packageNames.example, packageNames.docs], false],
         ['packages/webfont-generator/templates/css.hbs', [packageNames.adapter, packageNames.plugin, packageNames.example, packageNames.docs, packageNames.root], true],
@@ -166,10 +166,10 @@ describe('real Git/pnpm affected selection', () => {
     });
 
     it('selects both owners of a cross-package rename', () => {
-        renameSync(join(fixture, 'packages/docs/getting-started.md'), join(fixture, 'packages/example/moved.md'));
+        renameSync(join(fixture, 'packages/docs/guide/glossary.md'), join(fixture, 'packages/example/moved.md'));
         commit();
         const result = resolveSelection(base, run);
-        expect(result.files).toEqual(['packages/docs/getting-started.md', 'packages/example/moved.md']);
+        expect(result.files).toEqual(['packages/docs/guide/glossary.md', 'packages/example/moved.md']);
         expect(result.packages).toEqual([packageNames.docs, packageNames.example].toSorted());
         expect(result.jobs.docs).toBe(true);
         expect(result.jobs.build).toBe(true);
@@ -184,7 +184,7 @@ describe('real Git/pnpm affected selection', () => {
     });
 
     it('compares a diverged PR to its merge-base, excluding base-only docs edits', () => {
-        change('packages/docs/getting-started.md');
+        change('packages/docs/guide/glossary.md');
         const baseTip = commit();
         git('checkout', '--detach', base);
         change('packages/example/src/main.ts');

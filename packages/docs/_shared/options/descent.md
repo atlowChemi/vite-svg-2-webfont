@@ -1,0 +1,1 @@
+The font's descent, in font units. Overrides the value computed from the icons. Use it to adjust where icons sit relative to the text baseline; see [mixed sizes and alignment](/guide/svg-authoring#mixed-sizes-and-alignment).

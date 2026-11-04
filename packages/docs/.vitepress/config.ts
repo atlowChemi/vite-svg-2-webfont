@@ -1,18 +1,26 @@
 import { defineConfig, type MarkdownOptions } from 'vitepress';
 import { groupIconMdPlugin, groupIconVitePlugin } from 'vitepress-plugin-group-icons';
 import llmstxt from 'vitepress-plugin-llms';
-import { codeThemes } from './codeThemes';
+import catppuccinFrappe from 'shiki/themes/catppuccin-frappe.mjs';
+import catppuccinLatte from 'shiki/themes/catppuccin-latte.mjs';
+import { codeBackgrounds, withReadableTokens } from './codeThemes';
 import { examplePlugins } from './examples';
+import { siteIconFont } from './siteIconFont';
 import { svgAuthoringFontPlugins } from './svgAuthoringFonts';
 import { iconCss } from './icon-css';
 
 const repoName = 'vite-svg-2-webfont';
 const repo = `https://github.com/atlowChemi/${repoName}`;
-const docsUrl = 'https://fonte.atlow.dev/';
+// Absolute links for crawlers and link previews (`og:url`, `og:image`). CI sets `DOCS_URL` to the site a build is
+// deployed to (`next`, or a pull request's preview); everything else is the production site.
+const docsUrl = (process.env.DOCS_URL || 'https://fonte.atlow.dev').replace(/\/?$/, '/');
 const socialImage = `${docsUrl}social-card.png`;
+const siteName = 'fonte';
+const siteSubtitle = 'SVG icons, cast into fonts';
+const siteDescription = 'A Rust engine that casts SVG icons into fonts, with a CLI, Node and browser bindings, and a Vite plugin.';
 
 const markdown: MarkdownOptions = {
-    theme: codeThemes,
+    theme: { light: withReadableTokens(catppuccinLatte, codeBackgrounds.light), dark: withReadableTokens(catppuccinFrappe, codeBackgrounds.dark) },
     config(md) {
         md.use(groupIconMdPlugin);
         const defaultRenderer = md.renderer.rules.fence;
@@ -45,50 +53,66 @@ const markdown: MarkdownOptions = {
     },
 };
 
-const guidesSidebar = {
-    text: 'Guides',
+const guideSidebar = {
+    text: 'Guide',
     items: [
-        { text: 'Which Package Do I Need?', link: '/which-package' },
-        { text: 'SVG Authoring & Troubleshooting', link: '/svg-authoring' },
-        { text: 'Glossary', link: '/glossary' },
+        { text: 'Choosing a Tool', link: '/guide/' },
+        { text: 'The Engine', link: '/guide/engine' },
+        { text: 'Under the Hood', link: '/guide/under-the-hood' },
+        { text: 'Templates', link: '/guide/templates' },
+        { text: 'SVG Authoring & Troubleshooting', link: '/guide/svg-authoring' },
+        { text: 'Glossary', link: '/guide/glossary' },
     ],
 };
 
+const featuresSidebar = {
+    text: 'Features',
+    items: [
+        { text: 'Engine Cache', link: '/guide/features/caching' },
+        { text: 'Variants', link: '/guide/features/variants' },
+        { text: 'Color Glyphs', link: '/guide/features/color-glyphs' },
+        { text: 'Incremental Updates', link: '/guide/features/incremental' },
+        { text: 'Codepoints and Ligatures', link: '/guide/features/codepoints-and-ligatures' },
+    ],
+};
+
+const tools = [
+    { text: 'Vite Plugin', link: '/vite/' },
+    { text: 'Node.js', link: '/node/' },
+    { text: 'Browser', link: '/browser/' },
+    { text: 'CLI', link: '/cli/' },
+    { text: 'Rust', link: '/rust/' },
+];
+
+// Every tool section lists its own pages first, then the shared guide and the other tools.
+const toolSidebar = (text: string, items: { text: string; link: string }[]) => [{ text, items }, guideSidebar, featuresSidebar, { text: 'Tools', items: tools }];
+
 export default defineConfig({
-    title: repoName,
-    description: 'A Vite plugin that generates webfonts from SVG icons.',
+    title: siteName,
+    description: siteDescription,
     cleanUrls: true,
+    // Fragments included into other pages, not pages of their own.
+    srcExclude: ['_shared/**'],
     head: [
         ['link', { rel: 'icon', href: '/logo.svg' }],
-        ['meta', { name: 'theme-color', content: '#646cff' }],
+        ['meta', { name: 'theme-color', content: '#faf7f2', media: '(prefers-color-scheme: light)' }],
+        ['meta', { name: 'theme-color', content: '#1c1a1f', media: '(prefers-color-scheme: dark)' }],
         ['meta', { property: 'og:type', content: 'website' }],
-        ['meta', { property: 'og:site_name', content: repoName }],
-        ['meta', { property: 'og:title', content: repoName }],
-        [
-            'meta',
-            {
-                property: 'og:description',
-                content: 'A Vite plugin that generates webfonts from SVG icons.',
-            },
-        ],
+        ['meta', { property: 'og:site_name', content: siteName }],
+        ['meta', { property: 'og:title', content: siteName }],
+        ['meta', { property: 'og:description', content: siteDescription }],
         ['meta', { property: 'og:url', content: docsUrl }],
         ['meta', { property: 'og:image', content: socialImage }],
         [
             'meta',
             {
                 property: 'og:image:alt',
-                content: 'vite-svg-2-webfont social preview',
+                content: 'The fonte wordmark and the line "Melted SVGs, cast into fonts", beside a large T filled with molten metal.',
             },
         ],
         ['meta', { name: 'twitter:card', content: 'summary_large_image' }],
-        ['meta', { name: 'twitter:title', content: repoName }],
-        [
-            'meta',
-            {
-                name: 'twitter:description',
-                content: 'A Vite plugin that generates webfonts from SVG icons.',
-            },
-        ],
+        ['meta', { name: 'twitter:title', content: siteName }],
+        ['meta', { name: 'twitter:description', content: siteDescription }],
         ['meta', { name: 'twitter:image', content: socialImage }],
     ],
     markdown,
@@ -110,6 +134,7 @@ export default defineConfig({
                 defaultLabels: ['Generated CSS', 'Generated TS', 'output.css', 'output.html', 'output.svg', 'output.ts'],
             }),
             llmstxt(),
+            siteIconFont(),
             ...svgAuthoringFontPlugins(),
             ...examplePlugins(markdown),
         ],
@@ -120,60 +145,64 @@ export default defineConfig({
         },
     },
     themeConfig: {
-        logo: '/logo.svg',
-        siteTitle: repoName,
+        siteTitle: siteSubtitle,
         nav: [
-            { text: 'Guide', link: '/getting-started' },
-            { text: 'Which Package?', link: '/which-package' },
+            { text: 'Guide', link: '/guide/', activeMatch: '^/guide/' },
+            { text: 'Tools', items: tools },
             { text: 'Playground', link: '/playground' },
             {
-                text: 'Webfont Generator',
+                text: 'Changelogs',
                 items: [
-                    { text: 'Overview', link: '/webfont-generator/' },
-                    { text: 'Node.js', link: '/webfont-generator/node' },
-                    { text: 'Rust', link: '/webfont-generator/rust' },
-                    { text: 'Browser', link: '/webfont-generator/browser' },
-                    { text: 'CLI', link: '/webfont-generator/cli' },
-                    { text: 'Under the Hood', link: '/webfont-generator/under-the-hood' },
-                    { text: 'npm Adapter Changelog', link: '/webfont-generator/changelog' },
-                    { text: 'Rust Engine Changelog', link: '/webfont-generator/engine-changelog' },
+                    { text: 'Vite Plugin', link: '/vite/changelog' },
+                    { text: 'Node.js', link: '/node/changelog' },
+                    { text: 'Browser', link: '/browser/changelog' },
+                    { text: 'Rust Engine & CLI', link: '/rust/changelog' },
                 ],
             },
-            { text: 'Changelog', link: '/changelog' },
         ],
         sidebar: {
-            '/': [
-                {
-                    text: 'Vite Plugin',
-                    items: [
-                        { text: 'Getting Started', link: '/getting-started' },
-                        { text: 'Usage', link: '/usage' },
-                        { text: 'Examples', link: '/examples' },
-                        { text: 'How It Works', link: '/how-it-works' },
-                        { text: 'Configuration', link: '/configuration' },
-                        { text: 'Public API', link: '/public-api' },
-                        { text: 'Migration', link: '/migration' },
-                    ],
-                },
-                guidesSidebar,
-            ],
-            '/webfont-generator/': [
-                {
-                    text: 'Webfont Generator',
-                    items: [
-                        { text: 'Overview', link: '/webfont-generator/' },
-                        { text: 'Node.js', link: '/webfont-generator/node' },
-                        { text: 'Rust', link: '/webfont-generator/rust' },
-                        { text: 'Browser', link: '/webfont-generator/browser' },
-                        { text: 'CLI', link: '/webfont-generator/cli' },
-                        { text: 'Templates', link: '/webfont-generator/templates' },
-                        { text: 'Under the Hood', link: '/webfont-generator/under-the-hood' },
-                        { text: 'npm Adapter Changelog', link: '/webfont-generator/changelog' },
-                        { text: 'Rust Engine Changelog', link: '/webfont-generator/engine-changelog' },
-                    ],
-                },
-                guidesSidebar,
-            ],
+            '/guide/': [guideSidebar, featuresSidebar, { text: 'Tools', items: tools }],
+            '/vite/': toolSidebar('Vite Plugin', [
+                { text: 'Getting Started', link: '/vite/' },
+                { text: 'Usage', link: '/vite/usage' },
+                { text: 'Examples', link: '/vite/examples' },
+                { text: 'How It Works', link: '/vite/how-it-works' },
+                { text: 'Configuration', link: '/vite/configuration' },
+                { text: 'Public API', link: '/vite/public-api' },
+                { text: 'Migration', link: '/vite/migration' },
+                { text: 'Changelog', link: '/vite/changelog' },
+            ]),
+            '/node/': toolSidebar('Node.js', [
+                { text: 'Getting Started', link: '/node/' },
+                { text: 'Usage', link: '/node/usage' },
+                { text: 'Examples', link: '/node/examples' },
+                { text: 'Configuration', link: '/node/configuration' },
+                { text: 'API', link: '/node/api' },
+                { text: 'Changelog', link: '/node/changelog' },
+            ]),
+            '/browser/': toolSidebar('Browser', [
+                { text: 'Getting Started', link: '/browser/' },
+                { text: 'Usage', link: '/browser/usage' },
+                { text: 'Examples', link: '/browser/examples' },
+                { text: 'Configuration', link: '/browser/configuration' },
+                { text: 'API', link: '/browser/api' },
+                { text: 'Changelog', link: '/browser/changelog' },
+            ]),
+            '/cli/': toolSidebar('CLI', [
+                { text: 'Getting Started', link: '/cli/' },
+                { text: 'Usage', link: '/cli/usage' },
+                { text: 'Examples', link: '/cli/examples' },
+                { text: 'Configuration', link: '/cli/configuration' },
+                { text: 'Changelog', link: '/rust/changelog' },
+            ]),
+            '/rust/': toolSidebar('Rust', [
+                { text: 'Getting Started', link: '/rust/' },
+                { text: 'Usage', link: '/rust/usage' },
+                { text: 'Examples', link: '/rust/examples' },
+                { text: 'Configuration', link: '/rust/configuration' },
+                { text: 'API', link: '/rust/api' },
+                { text: 'Changelog', link: '/rust/changelog' },
+            ]),
         },
         search: {
             provider: 'local',
@@ -183,7 +212,6 @@ export default defineConfig({
             { icon: 'npm', link: `https://www.npmjs.com/package/${repoName}` },
             { icon: 'github', link: repo },
         ],
-        outline: [2, 3],
         footer: {
             message: 'Released under the MIT License.',
             copyright: 'Copyright © Chemi Atlow',
