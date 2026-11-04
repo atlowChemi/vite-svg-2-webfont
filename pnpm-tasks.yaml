@@ -1,87 +1,91 @@
-# Dormant migration entry points; normal development and CI still use vp run.
+# Authoritative task graph for development and CI: pnpm pipeline NAME --full.
 # Root-owned tasks cover workspace inputs that package-local ../../ globs cannot hash.
 pipelines:
-    next-native: [next:native]
-    next-check: [next:fmt:rust, next:adapter:check, next:browser:check]
-    next-test: [next:test:js]
-    next-rust-test: [next:fmt:rust, next:adapter:test]
-    next-browser-test: [next:fmt:rust, next:browser:test]
-    next-build: [next:plugin:pack, next:browser:pack]
-    next-docs: [next:docs]
-    next-example: [next:example]
-    next-coverage: [next:coverage]
-    next-assets: [next:docs:social]
-    next-compat: [next:test:compat]
-    next-scripts-coverage: [next:coverage:scripts]
-    next-bench: [next:bench:vitest, next:fmt:rust]
-    next-engine-bench: [next:engine:bench]
-    next-engine-coverage: [next:engine:coverage]
-    next-cli-coverage: [next:engine:coverage:cli]
-    next-doctests: [next:engine:doctests]
-    next-engine-color-proof: [next:engine:color-proof]
-    next-adapter-browser: [next:adapter:browser]
-    next-adapter-color-proof: [next:adapter:color-proof]
-    next-adapter-coverage: [next:adapter:coverage]
-    next-native-coverage: [next:adapter:coverage:native]
-    next-binding-regenerate: [next:adapter:binding:regenerate]
-    next-adapter-bench: [next:adapter:bench]
-    next-native-release: [next:native:release, next:fmt:rust]
-    next-browser-tarball: [next:browser:tgz]
-    next-browser-coverage: [next:browser:coverage]
-    next-browser-publish: [next:browser:publish]
-    next-plugin-dev: [next:plugin:dev]
-    next-plugin-tarball: [next:plugin:tgz]
-    next-plugin-test: [next:plugin:test]
-    next-plugin-browser: [next:plugin:browser]
-    next-fixtures-refresh: [next:plugin:fixtures]
-    next-plugin-publish: [next:plugin:publish]
-    next-example-dev: [next:example:dev]
-    next-example-preview: [next:example:preview]
-    next-docs-dev: [next:docs:dev]
-    next-docs-preview: [next:docs:preview]
+    native: [native]
+    check: [fmt:rust, adapter:check, browser:check]
+    rust-check: [fmt:rust, adapter:check]
+    browser-check: [fmt:rust, browser:check]
+    test: [test:js]
+    rust-test: [fmt:rust, adapter:test]
+    browser-test: [fmt:rust, browser:test]
+    build: [plugin:pack, browser:pack]
+    plugin-build: [plugin:pack]
+    browser-build: [browser:pack]
+    docs: [docs]
+    example: [example]
+    coverage: [coverage]
+    assets: [docs:social]
+    compat: [test:compat]
+    scripts-coverage: [coverage:scripts]
+    bench: [bench:vitest, fmt:rust]
+    engine-bench: [engine:bench]
+    engine-coverage: [engine:coverage]
+    cli-coverage: [engine:coverage:cli]
+    doctests: [engine:doctests]
+    engine-color-proof: [engine:color-proof]
+    adapter-browser: [adapter:browser]
+    adapter-color-proof: [adapter:color-proof]
+    adapter-coverage: [adapter:coverage]
+    native-coverage: [adapter:coverage:native]
+    binding-regenerate: [adapter:binding:regenerate]
+    adapter-bench: [adapter:bench]
+    native-release: [native:release, fmt:rust]
+    browser-tarball: [browser:tgz]
+    browser-coverage: [browser:coverage]
+    browser-publish: [browser:publish]
+    plugin-dev: [plugin:dev]
+    plugin-tarball: [plugin:tgz]
+    plugin-test: [plugin:test]
+    plugin-browser: [plugin:browser]
+    fixtures-refresh: [plugin:fixtures]
+    plugin-publish: [plugin:publish]
+    example-dev: [example:dev]
+    example-preview: [example:preview]
+    docs-dev: [docs:dev]
+    docs-preview: [docs:preview]
 tasks:
     # Package scripts are raw commands, not independently cacheable entry points.
-    next:build: { cache: false, dependsOn: [] }
-    next:pack: { cache: false, dependsOn: [] }
-    next:check: { cache: false, dependsOn: [] }
-    next:test: { cache: false, dependsOn: [] }
-    next:test:features: { cache: false, dependsOn: [] }
-    next:optimize-svg: { cache: false, dependsOn: [] }
-    next:social-card: { cache: false, dependsOn: [] }
-    next:dev: { cache: false, dependsOn: [] }
-    next:preview: { cache: false, dependsOn: [] }
-    next:bench: { cache: false, dependsOn: [] }
-    next:pack:tgz: { cache: false, dependsOn: [] }
-    next:publish: { cache: false, dependsOn: [] }
-    next:build:release: { cache: false, dependsOn: [] }
-    next:binding:regenerate: { cache: false, dependsOn: [] }
-    next:test:browser: { cache: false, dependsOn: [] }
-    next:test:coverage: { cache: false, dependsOn: [] }
-    next:test:coverage:cli: { cache: false, dependsOn: [] }
-    next:test:coverage:native: { cache: false, dependsOn: [] }
-    next:test:doctests: { cache: false, dependsOn: [] }
-    next:test:color-proof: { cache: false, dependsOn: [] }
-    next:test:fixtures:refresh: { cache: false, dependsOn: [] }
+    build: { cache: false, dependsOn: [] }
+    pack: { cache: false, dependsOn: [] }
+    check: { cache: false, dependsOn: [] }
+    test: { cache: false, dependsOn: [] }
+    test:features: { cache: false, dependsOn: [] }
+    optimize-svg: { cache: false, dependsOn: [] }
+    social-card: { cache: false, dependsOn: [] }
+    dev: { cache: false, dependsOn: [] }
+    preview: { cache: false, dependsOn: [] }
+    bench: { cache: false, dependsOn: [] }
+    pack:tgz: { cache: false, dependsOn: [] }
+    publish: { cache: false, dependsOn: [] }
+    build:release: { cache: false, dependsOn: [] }
+    binding:regenerate: { cache: false, dependsOn: [] }
+    test:browser: { cache: false, dependsOn: [] }
+    test:coverage: { cache: false, dependsOn: [] }
+    test:coverage:cli: { cache: false, dependsOn: [] }
+    test:coverage:native: { cache: false, dependsOn: [] }
+    test:doctests: { cache: false, dependsOn: [] }
+    test:color-proof: { cache: false, dependsOn: [] }
+    test:fixtures:refresh: { cache: false, dependsOn: [] }
 
     # Unrestricted report/export/update modes remain uncached (see cache-audit README).
     # Dev/preview, publishing, measurements, and source-mutating maintenance are
     # explicit executions; defining a pipeline never schedules it automatically.
-    next:bench:vitest: { cache: false, dependsOn: [next:native:release] }
-    next:test:compat: { cache: false, dependsOn: [next:native] }
-    next:coverage:scripts: { cache: false, dependsOn: [] }
-    next:engine:bench: { cache: false, dependsOn: [] }
-    next:engine:coverage: { cache: false, dependsOn: [] }
-    next:engine:coverage:cli: { cache: false, dependsOn: [] }
-    next:engine:color-proof: { cache: false, dependsOn: [] }
-    next:adapter:browser: { cache: false, dependsOn: [next:native, next:adapter:color-proof] }
-    next:adapter:color-proof: { cache: false, dependsOn: [] }
-    next:adapter:coverage: { cache: false, dependsOn: [] }
-    next:adapter:coverage:native: { cache: false, dependsOn: [] }
-    next:adapter:binding:regenerate: { cache: false, dependsOn: [] }
-    next:adapter:bench: { cache: false, dependsOn: [] }
-    next:native:release:
+    bench:vitest: { cache: false, dependsOn: [native:release] }
+    test:compat: { cache: false, dependsOn: [native] }
+    coverage:scripts: { cache: false, dependsOn: [] }
+    engine:bench: { cache: false, dependsOn: [] }
+    engine:coverage: { cache: false, dependsOn: [] }
+    engine:coverage:cli: { cache: false, dependsOn: [] }
+    engine:color-proof: { cache: false, dependsOn: [] }
+    adapter:browser: { cache: false, dependsOn: [native, adapter:color-proof] }
+    adapter:color-proof: { cache: false, dependsOn: [] }
+    adapter:coverage: { cache: false, dependsOn: [] }
+    adapter:coverage:native: { cache: false, dependsOn: [] }
+    adapter:binding:regenerate: { cache: false, dependsOn: [] }
+    adapter:bench: { cache: false, dependsOn: [] }
+    native:release:
         cache: true
-        dependsOn: [next:adapter:test]
+        dependsOn: [adapter:test]
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml}'
             - packages/webfont-generator/**
@@ -116,35 +120,35 @@ tasks:
             - UPDATE_SVG_FIXTURES
             - WASM_BINDGEN
         outputs: [packages/webfont-generator/binding.js, packages/webfont-generator/binding.d.ts, packages/webfont-generator/*.node]
-    next:browser:tgz:
+    browser:tgz:
         cache: true
-        dependsOn: [next:browser:pack]
+        dependsOn: [browser:pack]
         inputs:
             - '{LICENSE,package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,.npmrc,.pnpmfile.*}'
             - packages/webfont-browser/{package.json,README.md,LICENSE*,.npmignore}
         outputs: [packages/webfont-browser/atlowchemi-webfont-browser-generator-*.tgz]
-    next:browser:coverage: { cache: false, dependsOn: [next:browser:pack] }
-    next:browser:publish: { cache: false, dependsOn: [next:browser:tgz] }
-    next:plugin:dev: { cache: false, dependsOn: [] }
-    next:plugin:tgz:
+    browser:coverage: { cache: false, dependsOn: [browser:pack] }
+    browser:publish: { cache: false, dependsOn: [browser:tgz] }
+    plugin:dev: { cache: false, dependsOn: [] }
+    plugin:tgz:
         cache: true
-        dependsOn: [next:plugin:pack]
+        dependsOn: [plugin:pack]
         inputs:
             - '{LICENSE,package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,.npmrc,.pnpmfile.*}'
             - packages/vite-svg-2-webfont/{package.json,README.md,LICENSE*,.npmignore}
         outputs: [packages/vite-svg-2-webfont/vite-svg-2-webfont-*.tgz]
-    next:plugin:browser: { cache: false, dependsOn: [next:native] }
-    next:plugin:fixtures: { cache: false, dependsOn: [next:plugin:pack] }
+    plugin:browser: { cache: false, dependsOn: [native] }
+    plugin:fixtures: { cache: false, dependsOn: [plugin:pack] }
     # Release CI supplies the native artifacts; preserve the existing dependency
     # bypass by running raw pack scripts inside this uncached publishing command.
-    next:plugin:publish: { cache: false, dependsOn: [] }
-    next:example:dev: { cache: false, dependsOn: [next:plugin:pack, next:docs:svg] }
-    next:example:preview: { cache: false, dependsOn: [next:example] }
-    next:docs:dev: { cache: false, dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack] }
-    next:docs:preview: { cache: false, dependsOn: [next:docs] }
+    plugin:publish: { cache: false, dependsOn: [] }
+    example:dev: { cache: false, dependsOn: [plugin:pack, docs:svg] }
+    example:preview: { cache: false, dependsOn: [example] }
+    docs:dev: { cache: false, dependsOn: [docs:social, plugin:pack, browser:pack] }
+    docs:preview: { cache: false, dependsOn: [docs] }
 
     # Formatting is a pipeline sibling, not a dependency that widens package check keys.
-    next:fmt:rust:
+    fmt:rust:
         cache: true
         dependsOn: []
         outputs: []
@@ -156,7 +160,7 @@ tasks:
             - .cargo/**
     # Validated success-only caches; no compiler outputs are restored.
     # External-tool upgrades require a task-cache reset (see cache-audit README).
-    next:engine:check:
+    engine:check:
         cache: true
         dependsOn: []
         outputs: []
@@ -171,7 +175,7 @@ tasks:
             - '{crates,packages}/*/{Cargo.toml,package.json}'
             - packages/.cargo/**
             - packages/{Cargo.toml,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml}
-    next:engine:doctests:
+    engine:doctests:
         cache: true
         dependsOn: []
         env: *rust-env
@@ -187,21 +191,21 @@ tasks:
             - packages/{Cargo.toml,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml}
             - scripts/ci/doctests.mjs
         outputs: [test-results/doctests.xml]
-    next:engine:features:
+    engine:features:
         cache: true
         outputs: []
         env: *rust-env
         inputs: *engine-inputs
-        dependsOn: [next:engine:check]
-    next:engine:test:
+        dependsOn: [engine:check]
+    engine:test:
         cache: true
         outputs: []
         env: *rust-env
         inputs: *engine-inputs
-        dependsOn: [next:engine:check, next:engine:features]
-    next:adapter:check:
+        dependsOn: [engine:check, engine:features]
+    adapter:check:
         cache: true
-        dependsOn: [next:engine:check]
+        dependsOn: [engine:check]
         outputs: []
         env: *rust-env
         inputs: &adapter-inputs
@@ -210,16 +214,16 @@ tasks:
             # release artifact must still allow its producer's cache restoration.
             - packages/webfont-generator/{Cargo.toml,build.rs,package.json,README.md,rust-toolchain*}
             - packages/webfont-generator/{native,src,tests,benches,examples,templates,.cargo}/**
-    next:adapter:test:
+    adapter:test:
         cache: true
         outputs: []
         env: *rust-env
         inputs: *adapter-inputs
-        dependsOn: [next:adapter:check, next:engine:test]
+        dependsOn: [adapter:check, engine:test]
 
     # Validated native cache; external-tool upgrades require a task-cache reset.
     # Cargo's intermediate target directory is deliberately not a restored output.
-    next:native:
+    native:
         cache: true
         dependsOn: []
         inputs:
@@ -256,7 +260,7 @@ tasks:
             - packages/webfont-generator/binding.d.ts
             - packages/webfont-generator/*.node
         env: *rust-env
-    next:wasm:
+    wasm:
         cache: true
         dependsOn: []
         inputs:
@@ -284,10 +288,10 @@ tasks:
             - '{.npmrc,.pnpmfile.cjs,.pnpmfile.mjs,package.json5,package.yaml}'
         outputs: [packages/webfont-browser/generated/**]
         env: *rust-env
-    next:browser:pack:
+    browser:pack:
         cache: true
         env: [NODE_ENV]
-        dependsOn: [next:wasm]
+        dependsOn: [wasm]
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
             - '**/{package.json,pnpm-workspace.yaml,.pnp.cjs,tsconfig*.json}'
@@ -296,23 +300,23 @@ tasks:
             - &postcss-ancestors '{.postcssrc,.postcssrc.*,postcss.config.*,packages/.postcssrc,packages/.postcssrc.*,packages/postcss.config.*,packages/deno.json,packages/deno.jsonc,packages/lerna.json}'
             - packages/webfont-browser/{.postcssrc,.postcssrc.*,postcss.config.*,deno.json,deno.jsonc,lerna.json}
         outputs: [packages/webfont-browser/dist/**]
-    next:browser:check:
+    browser:check:
         cache: true
-        dependsOn: [next:wasm]
+        dependsOn: [wasm]
         outputs: []
         env: *rust-env
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml}'
             - packages/webfont-browser/{Cargo.toml,README.md,build.rs,rust-toolchain*}
             - packages/webfont-browser/{native,src,tests,examples,benches,.cargo}/**
-    next:browser:test:
+    browser:test:
         cache: false
-        dependsOn: [next:browser:check, next:browser:pack]
-    next:plugin:pack:
+        dependsOn: [browser:check, browser:pack]
+    plugin:pack:
         # Hits reuse the bundle and skip analysis uploads; request --no-cache for a fresh report.
         cache: true
         env: [NODE_ENV, CODECOV_TOKEN, ALLOW_BUNDLE_ANALYSIS]
-        dependsOn: [next:native]
+        dependsOn: [native]
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
             - '**/{package.json,pnpm-workspace.yaml,.pnp.cjs,tsconfig*.json}'
@@ -321,9 +325,9 @@ tasks:
             - *postcss-ancestors
             - packages/vite-svg-2-webfont/{.postcssrc,.postcssrc.*,postcss.config.*,deno.json,deno.jsonc,lerna.json,rust-toolchain,rust-toolchain.toml}
         outputs: [packages/vite-svg-2-webfont/dist/**]
-    next:plugin:test:
+    plugin:test:
         cache: true
-        dependsOn: [next:native]
+        dependsOn: [native]
         outputs: []
         env: [VITE_COMPAT_MAJOR, NODE_ENV, NODE_OPTIONS, NAPI_RS_NATIVE_LIBRARY_PATH, NAPI_RS_ENFORCE_VERSION_CHECK, NAPI_RS_FORCE_WASI, NAPI_RS_WASI_FLAVOR]
         inputs:
@@ -335,14 +339,14 @@ tasks:
             - packages/vite-svg-2-webfont/{vite.config.*,tsconfig*.json,.env,.env.*}
             - *postcss-ancestors
             - packages/vite-svg-2-webfont/{.postcssrc,.postcssrc.*,postcss.config.*,deno.json,deno.jsonc,lerna.json}
-    next:test:js:
+    test:js:
         cache: false
-        dependsOn: [next:native, next:browser:pack]
-    next:coverage:
+        dependsOn: [native, browser:pack]
+    coverage:
         cache: false
-        dependsOn: [next:native]
+        dependsOn: [native]
 
-    next:docs:svg:
+    docs:svg:
         dependsOn: []
         inputs:
             - patches/**
@@ -357,10 +361,10 @@ tasks:
             - '{.npmrc,.pnpmfile.cjs,.pnpmfile.mjs,package.json5,package.yaml}'
             - '**/svgo.config.{js,cjs,mjs,ts}'
         outputs: [packages/docs/public/**/*.svg]
-    next:docs:social:
+    docs:social:
         # Bundled fonts avoid host-font inputs; fresh-build reproducibility verified.
         cache: true
-        dependsOn: [next:docs:svg]
+        dependsOn: [docs:svg]
         inputs:
             - package.json
             - pnpm-workspace.yaml
@@ -369,11 +373,11 @@ tasks:
             - packages/docs/package.json
             - packages/docs/scripts/generate-social-card.ts
         outputs: [packages/docs/public/social-card.png, packages/docs/public/github-social-preview.png]
-    next:docs:
+    docs:
         # Config disables dotenv loading; process environment inputs remain explicit.
         cache: true
         env: [NODE_ENV]
-        dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack]
+        dependsOn: [docs:social, plugin:pack, browser:pack]
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
             - '**/{package.json,pnpm-workspace.yaml,.pnp.cjs,tsconfig*.json}'
@@ -382,11 +386,11 @@ tasks:
             - packages/vite-svg-2-webfont/CHANGELOG.md
             - crates/webfont-generator/CHANGELOG.md
         outputs: [packages/docs/.vitepress/dist/**, packages/docs/examples/write-files/generated/**]
-    next:example:
+    example:
         # Ignored .env.local/.env.production.local cannot be native file inputs.
         cache: false
         env: [NODE_ENV]
-        dependsOn: [next:plugin:pack, next:docs:svg]
+        dependsOn: [plugin:pack, docs:svg]
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
             - '**/{package.json,pnpm-workspace.yaml,.pnp.cjs,tsconfig*.json}'

@@ -5,7 +5,7 @@ tools: Bash
 color: blue
 ---
 
-Run `vp run @atlowchemi/webfont-generator#check` from the repository root.
+Run `pnpm pipeline rust-check --full` from the repository root.
 
 Do not edit files. Return only:
 

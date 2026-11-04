@@ -11,7 +11,7 @@ it.skipIf(process.platform === 'win32')('forwards audit selectors with or withou
         const binary = join(directory, 'audit-stub');
         writeFileSync(binary, '#!/usr/bin/env node\nconsole.log(JSON.stringify(process.argv.slice(2)));\n', { mode: 0o755 });
         const launcher = fileURLToPath(new URL('../crates/cache-audit/scripts/run.mjs', import.meta.url));
-        for (const options of [['--all'], ['--', '--all'], ['--', 'next:native']]) {
+        for (const options of [['--all'], ['--', '--all'], ['--', 'native']]) {
             const result = JSON.parse(
                 execFileSync(process.execPath, [launcher, 'audit', ...options], {
                     encoding: 'utf8',
@@ -19,7 +19,7 @@ it.skipIf(process.platform === 'win32')('forwards audit selectors with or withou
                 }),
             );
             expect(result.slice(0, 2)).toEqual(['audit', '--workspace']);
-            expect(result.slice(3)).toEqual(options.at(-1) === 'next:native' ? ['--task', 'next:native'] : ['--all']);
+            expect(result.slice(3)).toEqual(options.at(-1) === 'native' ? ['--task', 'native'] : ['--all']);
         }
     } finally {
         rmSync(directory, { recursive: true, force: true });

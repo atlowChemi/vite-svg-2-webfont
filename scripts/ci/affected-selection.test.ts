@@ -185,7 +185,7 @@ describe('affected CI', () => {
     );
     it('routes selected script tests through the scripts coverage task', () => {
         expect(workflow.jobs['test-scripts'].needs).toEqual(['affected-selection']);
-        expect(workflow.jobs['test-scripts'].steps.find((step: { id?: string }) => step.id === 'tests').run).toContain('vp run coverage:scripts');
+        expect(workflow.jobs['test-scripts'].steps.find((step: { id?: string }) => step.id === 'tests').run).toContain('pnpm pipeline scripts-coverage --full');
     });
     it.each(['Cargo.lock', 'pnpm-lock.yaml', 'package.json', 'Cargo.toml', 'unknown/file'])('broadens shared changes: %s', file => {
         expect(scenario([file], [packageNames.root]).full).toBe(true);

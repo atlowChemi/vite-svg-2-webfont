@@ -27,10 +27,10 @@ jobs:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: true
+                  require-lockfile: true
                   cache: true
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
@@ -43,8 +43,9 @@ jobs:
                   # The plugin and engine validate entries; restore the latest cache across commits.
                   key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
                   restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
+            - uses: ./.github/actions/pipeline-cache
             - name: build docs
-              run: vp run @atlowchemi/vite-svg-webfont-docs#build
+              run: pnpm pipeline docs --full
             - name: upload pages artifact
               uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
               with:
