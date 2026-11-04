@@ -5,7 +5,7 @@ tools: Bash
 color: cyan
 ---
 
-Run `vp exec pnpm pipeline native --full` from the repository root.
+Run `pnpm pipeline native --full` from the repository root.
 
 This command may update generated binding artifacts. Do not make manual edits. Return only:
 

@@ -2,12 +2,12 @@
 
 ## Tooling
 
-- Use `pnpm pipeline NAME --full` for task orchestration; `vp exec pnpm` uses the bootstrapped pnpm in CI. Keep `vp install`, `vp check`, and `vp fmt` for installation and tooling. Vite+ run tasks have been removed.
+- Use `pnpm install` and `pnpm pipeline NAME --full` for installation and task orchestration. Invoke workspace-pinned Vite+ tooling with `pnpm exec vp check` / `pnpm exec vp fmt`; bare `vp` is fine inside package scripts. No global Vite+ installation is required.
 - Keep `--full`: use the conservative CI selector before invoking a pipeline, not pnpm's task-level affected selection. `pnpm run` scripts are raw commands without prerequisites; use them only when prerequisites are already supplied or for forwarding tool arguments.
 - Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/test`), not from direct `vite` or `vitest` packages.
-- After pulling remote changes, run `vp install` before validation.
-- Unified `vp install` requires Rust first. Use `vp add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `vp update crate:…` does not update them in pnpm 12.6.0.
-- Use Conventional Commit messages and PR titles: `type(scope): description` or `type: description`. Before creating or editing either, read `scope-enum` in `commitlint.config.js`; use a listed scope or omit it when none fits. Validate the proposed message/title with `printf '%s\n' 'your title' | vp exec commitlint` before committing or submitting it.
+- After pulling remote changes, run `pnpm install` before validation.
+- Unified `pnpm install` requires Rust first. Use `pnpm add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `pnpm update crate:…` does not update them in pnpm 12.6.0.
+- Use Conventional Commit messages and PR titles: `type(scope): description` or `type: description`. Before creating or editing either, read `scope-enum` in `commitlint.config.js`; use a listed scope or omit it when none fits. Validate the proposed message/title with `printf '%s\n' 'your title' | pnpm exec commitlint` before committing or submitting it.
 
 ## Focused Commands
 
@@ -31,8 +31,8 @@
 ## Verification Subagents
 
 - Prefer verification subagents for long/noisy commands so logs stay out of the main context.
-- Use `vp-check` for `vp check`.
-- Use `fmt-runner` for isolated `vp fmt` runs.
+- Use `vp-check` for `pnpm exec vp check`.
+- Use `fmt-runner` for isolated `pnpm exec vp fmt` runs.
 - Use `rust-check-runner` after changing Rust code.
 - Use `test-runner` for `pnpm pipeline test --full`.
 - Use `coverage-runner` for `pnpm pipeline coverage --full`.

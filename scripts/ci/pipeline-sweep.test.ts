@@ -11,7 +11,7 @@ it('discovers new pipelines and rejects stale exclusions before execution', () =
     const { pipelines } = parse(readFileSync(new URL('../../pnpm-tasks.yaml', import.meta.url), 'utf8'));
     const directory = mkdtempSync(join(tmpdir(), 'pipeline-sweep-'));
     try {
-        writeFileSync(join(directory, 'vp'), '#!/bin/sh\ncat "$PIPELINES_FIXTURE"\n', { mode: 0o755 });
+        writeFileSync(join(directory, 'pnpm'), '#!/bin/sh\ncat "$PIPELINES_FIXTURE"\n', { mode: 0o755 });
         const fixture = join(directory, 'fixture.json');
         const env = { ...process.env, PATH: `${directory}:${process.env.PATH}`, PIPELINES_FIXTURE: fixture };
         writeFileSync(fixture, JSON.stringify({ ...pipelines, 'new-validation': ['new'] }));

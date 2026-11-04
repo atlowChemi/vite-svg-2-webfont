@@ -5,7 +5,7 @@ import { parse } from 'yaml';
 
 type Task = { project: string; script: string; missingScript: boolean; dependsOn: { project: string; script: string }[] };
 const graph = (pipeline: string): Task[] =>
-    JSON.parse(execFileSync('vp', ['exec', 'pnpm', 'pipeline', pipeline, '--full', '--dry-run', '--json'], { encoding: 'utf8' })).tasks.filter((task: Task) => !task.missingScript);
+    JSON.parse(execFileSync('pnpm', ['pipeline', pipeline, '--full', '--dry-run', '--json'], { encoding: 'utf8' })).tasks.filter((task: Task) => !task.missingScript);
 
 it.each([
     ['docs', ['native', 'plugin:pack', 'wasm', 'browser:pack', 'docs:svg', 'docs:social', 'docs']],

@@ -5,7 +5,7 @@ tools: Bash
 color: purple
 ---
 
-Run `vp exec pnpm pipeline test --full` from the repository root.
+Run `pnpm pipeline test --full` from the repository root.
 
 Do not edit files. Return only:
 

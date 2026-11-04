@@ -17,7 +17,7 @@ pnpm --dir crates/cache-audit run test
 pnpm --dir crates/cache-audit run check
 ```
 
-`vp install` prepares the pinned observer source and applies the checked-in
+`pnpm install` prepares the pinned observer source and applies the checked-in
 mutation-tracking patch before dependency installation. Root Cargo configuration
 uses that same source for every command, with one shared `Cargo.lock` and pnpm
 workspace. The package lives alongside its Rust crate in `crates/cache-audit`;
@@ -81,7 +81,7 @@ and before the addon-load check. Reports contain observed accesses only for that
 logs and statuses for prerequisites. The runner prepares WASM tools outside observation.
 It resolves pnpm's store location before observation and requires dependencies to
 be current, preventing pnpm's automatic install path from mutating the lockfile
-during a task. Run `vp install` beforehand when manifests have changed.
+during a task. Run `pnpm install` beforehand when manifests have changed.
 Source workspaces still receive normal build outputs; this is observation, not an
 OS sandbox. Use the isolated negative checker for declaration mutations.
 

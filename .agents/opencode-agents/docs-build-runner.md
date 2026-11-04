@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp exec pnpm pipeline docs --full*'
+      resource: 'pnpm pipeline docs --full*'
       effect: allow
 ---
 
-Run `vp exec pnpm pipeline docs --full` from the repository root.
+Run `pnpm pipeline docs --full` from the repository root.
 
 Do not edit files. Return only:
 

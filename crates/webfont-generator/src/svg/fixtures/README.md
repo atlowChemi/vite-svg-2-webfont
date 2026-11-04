@@ -42,7 +42,7 @@ Other useful commands:
 | `pnpm pipeline rust-test --full`      | Run all RS tests                              |
 | `pnpm pipeline test --full`           | Run all JS tests (includes compat suite)      |
 | `pnpm pipeline engine-bench --full`   | Run Rust Criterion benchmarks                 |
-| `vp test bench`                       | Run Vitest benchmarks (upstream vs new core)  |
+| `pnpm pipeline bench --full`          | Run Vitest benchmarks (upstream vs new core)  |
 
 When `UPDATE_SVG_FIXTURES=1` is set, the Rust tests rewrite every matching file in `expected/` from the current implementation before asserting.
 The tests read inputs from `icons/` and `unit/`. The small `unit/` fixtures are engine-owned copies of the original plugin examples so the engine's snapshots do not depend on downstream packages. They can evolve independently of the plugin fixtures.
