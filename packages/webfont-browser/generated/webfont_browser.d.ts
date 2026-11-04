@@ -34,7 +34,7 @@ export class FontSession {
      * `cache` keep the timestamp of the session that created them. `cache` enables the
      * persistent cache with bytes from an earlier `cacheBytes()` (empty to start cold).
      */
-    constructor(options: string, cache?: Uint8Array | null);
+    constructor(options: string, cache?: Uint8Array | number[] | null);
     /**
      * Copy requested fonts and enabled companions into an object keyed by output kind.
      */
@@ -78,8 +78,8 @@ export interface InitOutput {
     readonly __wbindgen_externrefs: WebAssembly.Table;
     readonly __wbindgen_malloc: (a: number, b: number) => number;
     readonly __wbindgen_realloc: (a: number, b: number, c: number, d: number) => number;
-    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_free: (a: number, b: number, c: number) => void;
+    readonly __externref_table_dealloc: (a: number) => void;
     readonly __wbindgen_start: () => void;
 }
 
