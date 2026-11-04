@@ -27,10 +27,10 @@ jobs:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: true
+                  require-lockfile: true
                   cache: true
             - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
@@ -51,7 +51,7 @@ jobs:
               working-directory: packages/docs
               run: vp exec playwright install --with-deps --only-shell chromium
             - name: build docs
-              run: vp exec pnpm pipeline docs --full
+              run: pnpm pipeline docs --full
             - name: upload pages artifact
               uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
               with:

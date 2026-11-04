@@ -111,7 +111,7 @@ export function resolveSelection(baseSha: string | undefined, run: CommandRunner
             filters.push(packageNames.docs);
         }
         const ignored = buildInertFiles.flatMap(file => ['--changed-files-ignore-pattern', file]);
-        const projects: unknown = JSON.parse(run('vp', ['exec', 'pnpm', 'list', '--depth', '-1', '--json', ...filters.flatMap(filter => ['--filter', filter]), ...ignored]));
+        const projects: unknown = JSON.parse(run('pnpm', ['list', '--depth', '-1', '--json', ...filters.flatMap(filter => ['--filter', filter]), ...ignored]));
         if (!Array.isArray(projects) || projects.some(project => !project || typeof project.name !== 'string')) {
             throw new Error('Invalid pnpm package list');
         }

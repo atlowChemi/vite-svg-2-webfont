@@ -5,7 +5,7 @@ tools: Bash
 color: red
 ---
 
-Run `vp exec pnpm pipeline fixtures-refresh --full` from the repository root.
+Run `pnpm pipeline fixtures-refresh --full` from the repository root.
 
 This command may edit generated fixture files. Do not make manual edits. Return only:
 
