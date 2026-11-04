@@ -160,22 +160,35 @@ describe('output cache', () => {
         expect(warm.fonts.every(font => font.length > 0)).toBe(true);
     });
 
-    it('regenerates a dev entry written before module CSS was cached', async () => {
+    it.each(['dev', 'build'] as const)('regenerates a %s entry without module CSS', async mode => {
         await using p = await project();
-        const server = await createServer({ ...p.config(), server: { port: 0 } });
-        await server.listen();
-        await server.close();
+        const run = async () => {
+            if (mode === 'build') {
+                await p.run();
+                return;
+            }
+            const server = await createServer({ ...p.config(), server: { port: 0 } });
+            await server.listen();
+            await server.close();
+        };
+        await run();
         const path = join(p.cacheFolder, 'iconfont.json');
         const manifest = JSON.parse(await readFile(path, 'utf8'));
-        expect(manifest.dev.moduleCss).toContain('__VSW_CACHE__/iconfont.woff2?');
-        delete manifest.dev.moduleCss;
-        await writeFile(path, JSON.stringify({ ...manifest, version: 1 }));
+        expect(manifest[mode].moduleCss).toContain('__VSW_CACHE__/iconfont');
+        delete manifest[mode].moduleCss;
+        await writeFile(path, JSON.stringify(manifest));
 
-        const restart = await createServer({ ...p.config(), server: { port: 0 } });
-        await restart.listen();
-        await restart.close();
+        await run();
         expect(generate).toHaveBeenCalledTimes(2);
-        expect(JSON.parse(await readFile(path, 'utf8')).dev.moduleCss).toContain('__VSW_CACHE__/iconfont.woff2?');
+        expect(JSON.parse(await readFile(path, 'utf8'))[mode].moduleCss).toContain('__VSW_CACHE__/iconfont');
+    });
+
+    it('reuses an inline entry, which needs no module CSS', async () => {
+        await using p = await project();
+        await p.run({ inline: true });
+        expect(JSON.parse(await readFile(join(p.cacheFolder, 'iconfont.json'), 'utf8')).build.moduleCss).toBeUndefined();
+        await p.run({ inline: true });
+        expect(generate).toHaveBeenCalledOnce();
     });
 
     it('bypasses the cache when cssContext is set', async () => {

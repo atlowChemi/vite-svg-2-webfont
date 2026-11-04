@@ -269,7 +269,9 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         // Waiting only before assigning the replacement would still allow a stale overwrite.
         await generatedFonts?.flushCache().catch(() => undefined);
         if (ac.signal.aborted) return;
-        if (hit?.entry.ts !== undefined) {
+        // A hit replaces the engine's result, so it must carry every output rendered from that result: entries from
+        // before TypeScript metadata or module CSS were cached regenerate instead.
+        if (hit?.entry.ts !== undefined && (options.inline || hit.entry.moduleCss !== undefined)) {
             generatedFonts = undefined;
             outputs = hit.entry;
             generatedFontBuffers.clear();
