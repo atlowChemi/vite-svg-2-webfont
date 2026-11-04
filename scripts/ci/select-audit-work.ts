@@ -9,7 +9,7 @@ export function selectAuditWork(
     scripts: Record<string, string>,
     projects: Record<string, string>,
     auditTasks: string[],
-) {
+): { workers: { id: number; pipelines: string[]; audits: string[] }[]; selection: Selection } {
     const job = (name: string) => selection.jobs[name] === true;
     const affected = (task: string): boolean => {
         if (selection.full) return true;
