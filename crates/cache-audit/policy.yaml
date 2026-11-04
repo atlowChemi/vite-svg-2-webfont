@@ -61,6 +61,9 @@ tasks:
             - *external
             - *directories
             - *discovery
+            - pattern: '{crates/cache-audit,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}/{benches,examples,src/bin,tests}'
+              kinds: [read]
+              reason: 'Cargo target-directory discovery, including absent optional target directories; source files beneath them are keyed and independently checked'
             - pattern: 'packages/webfont-browser/generated/**'
               kinds: [read]
               reason: 'wasm-bindgen replaces generated files from freshly compiled WASM; writes remain checked'
@@ -83,7 +86,7 @@ tasks:
         missingInputs:
             - pattern: '**/.gitignore'
               reason: 'Git discovery probes; existing and future ignore configuration is keyed'
-            - pattern: '{crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**/*.rs'
+            - pattern: '{crates/cache-audit,crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**/*.rs'
               reason: 'Rust module alternatives and Cargo target source-file discovery; these are regular-file inputs if present'
             - pattern: '**/Cargo.toml'
               reason: 'Cargo manifest file discovery'
@@ -104,13 +107,20 @@ tasks:
             - pattern: 'pnpm11/pnpm/package.json'
               reason: 'pnpm executable package-manifest lookup'
         ignore:
-            - pattern: '{.,crates,packages,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}'
+            - pattern: '**'
+              kinds: [read]
+              directory: true
+              reason: 'Directory metadata only; regular-file reads remain independently checked'
+            - pattern: '{crates/cache-audit,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}/{benches,examples,src/bin,tests}'
+              kinds: [read, read_dir]
+              reason: 'Cargo target-directory discovery, including absent optional target directories; source files beneath them are keyed and independently checked'
+            - pattern: '{.,crates,packages,crates/cache-audit,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}'
               kinds: [read]
               reason: 'Workspace and package directory metadata; file contents remain independently checked'
             - pattern: '{.,crates,packages}'
               kinds: [read_dir]
               reason: 'Workspace member discovery; root workspace configuration and member manifests are inputs'
-            - pattern: '{crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**'
+            - pattern: '{crates/cache-audit,crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**'
               kinds: [read_dir]
               reason: 'Cargo target and NAPI package discovery; discovered file reads and missing-file probes are checked independently'
             - pattern: 'packages/{.git,webfont-generator/.git}'
