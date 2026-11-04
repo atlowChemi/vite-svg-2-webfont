@@ -812,18 +812,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn native_policy_patterns_compile() {
-        for source in [
-            include_str!("../policy.native.yaml"),
-            include_str!("../policy.build.yaml"),
-        ] {
-            let policies: Policies = serde_yaml_ng::from_str(source).unwrap();
-            for policy in policies.tasks.into_values() {
-                rules(policy.ignore).unwrap();
-                rules(policy.never_cache).unwrap();
-                rules(policy.missing_inputs).unwrap();
-                rules(policy.cleanup_outputs).unwrap();
-            }
+    fn policy_patterns_compile() {
+        let policies: Policies = serde_yaml_ng::from_str(include_str!("../policy.yaml")).unwrap();
+        for policy in policies.tasks.into_values() {
+            rules(policy.ignore).unwrap();
+            rules(policy.never_cache).unwrap();
+            rules(policy.missing_inputs).unwrap();
+            rules(policy.cleanup_outputs).unwrap();
         }
     }
 }

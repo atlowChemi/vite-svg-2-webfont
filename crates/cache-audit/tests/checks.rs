@@ -33,7 +33,7 @@ fn isolated_cache_compatibility_and_negative_checks_preserve_source_workspace() 
     let tasks = "tasks:\n  next:native:\n    cache: false\n    dependsOn: []\n    inputs: [package.json, pnpm-workspace.yaml, tasks.yaml, 'packages/*/package.json', 'crates/webfont-generator/**']\n    outputs: [packages/webfont-generator/binding.js, packages/webfont-generator/binding.d.ts]\n";
     fs::write(root.join("tasks.yaml"), tasks).unwrap();
     fs::write(root.join("pnpm-workspace.yaml"), yaml).unwrap();
-    fs::write(root.join("crates/cache-audit/policy.native.yaml"), "version: 1\ntasks:\n  '.#next:native':\n    ignore:\n      - {pattern: '/**', reason: 'External fixture paths'}\n").unwrap();
+    fs::write(root.join("crates/cache-audit/policy.yaml"), "version: 1\ntasks:\n  '.#next:native':\n    ignore:\n      - {pattern: '/**', reason: 'External fixture paths'}\n").unwrap();
     let install = Command::new("pnpm")
         .args(["install", "--ignore-scripts"])
         .current_dir(&root)
