@@ -260,6 +260,7 @@ jobs:
                   node-version-file: .node-version
                   require-lockfile: true
                   cache: true
+            - uses: ./.github/actions/pipeline-cache
             - name: Stage publish from tarball
               run: |
                   echo '## Staged: @atlowchemi/webfont-browser-generator' >> "$GITHUB_STEP_SUMMARY"

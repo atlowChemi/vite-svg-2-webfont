@@ -101,6 +101,7 @@ jobs:
                   node-version-file: .node-version
                   require-lockfile: true
                   cache: true
+            - uses: ./.github/actions/pipeline-cache
             # These shell checks can overlap; JSON-reading actions cannot (actions/runner#4641).
             - parallel:
                   - run: pnpm exec vp check
@@ -260,6 +261,7 @@ jobs:
                   # The plugin and engine validate entries; restore the latest cache across commits.
                   key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
                   restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
+            - uses: ./.github/actions/pipeline-cache
             - run: pnpm pipeline docs --full
             # Picked up by docs-preview.yaml, which deploys it with Cloudflare credentials this run never sees.
             - name: Upload docs site
@@ -285,6 +287,7 @@ jobs:
                   node-version-file: .node-version
                   require-lockfile: true
                   cache: true
+            - uses: ./.github/actions/pipeline-cache
             - name: Install browsers
               id: browsers
               background: true
@@ -346,6 +349,7 @@ jobs:
               with:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
+            - uses: ./.github/actions/pipeline-cache
             - run: pnpm exec playwright install --with-deps chromium firefox webkit
               id: browsers
               background: true

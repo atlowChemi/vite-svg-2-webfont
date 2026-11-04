@@ -146,6 +146,7 @@ separate `fmt:rust` pipeline task to keep engine-only cache dependencies narrow.
 Dependency caches, Cargo build outputs, and pnpm task outputs serve different purposes:
 
 - `pnpm install` reuses downloaded dependencies; this does not mean a build or test ran.
+- CI persists pipeline results through `.github/actions/pipeline-cache`, separately from the install store. Keys isolate workflow/job, OS/architecture, runner image, Node/pnpm/Rust versions and the lockfile. Bump the action's generation for untracked external-tool upgrades. Report tasks remain uncached; filesystem audits use fresh execution.
 - Cargo reuses compiled work under the workspace `target/` directory.
 - pnpm task-cache hits restore task outputs and replay logs. The native build caches
   the platform `.node` file and `binding.js` / `binding.d.ts`; the plugin pack task

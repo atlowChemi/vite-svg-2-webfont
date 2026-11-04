@@ -1,9 +1,39 @@
 import { execFileSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { expect, it } from 'vite-plus/test';
 import { parse } from 'yaml';
 
 type Task = { project: string; script: string; missingScript: boolean; dependsOn: { project: string; script: string }[] };
+
+it('restores pipeline outputs using only the persisted pipeline directory', () => {
+    const directory = mkdtempSync(join(tmpdir(), 'pipeline-cache-'));
+    try {
+        writeFileSync(join(directory, 'package.json'), JSON.stringify({ name: 'cache-probe', scripts: { build: 'node build.cjs' } }));
+        writeFileSync(join(directory, 'build.cjs'), "require('node:fs').writeFileSync('output.txt', String(Date.now()))");
+        writeFileSync(
+            join(directory, 'pnpm-workspace.yaml'),
+            'packages: [.]\npipelines:\n  build: [build]\ntasks:\n  build:\n    cache: true\n    inputs: [build.cjs]\n    outputs: [output.txt]\n',
+        );
+        const cache = join(directory, 'cache');
+        const options = { cwd: directory, env: { ...process.env, PNPM_CONFIG_CACHE_DIR: cache }, encoding: 'utf8' as const };
+        execFileSync('pnpm', ['install', '--ignore-scripts'], options);
+        execFileSync('git', ['init', '--quiet'], options);
+        execFileSync('git', ['add', 'package.json', 'pnpm-workspace.yaml', 'pnpm-lock.yaml', 'build.cjs'], options);
+        execFileSync('pnpm', ['pipeline', 'build', '--full'], options);
+        const output = readFileSync(join(directory, 'output.txt'), 'utf8');
+        expect(existsSync(join(cache, 'pipeline'))).toBe(true);
+        for (const entry of readdirSync(cache)) {
+            if (entry !== 'pipeline') rmSync(join(cache, entry), { recursive: true, force: true });
+        }
+        rmSync(join(directory, 'output.txt'));
+        expect(execFileSync('pnpm', ['pipeline', 'build', '--full'], options)).toContain('1 from cache');
+        expect(readFileSync(join(directory, 'output.txt'), 'utf8')).toBe(output);
+    } finally {
+        rmSync(directory, { recursive: true, force: true });
+    }
+});
 const graph = (pipeline: string): Task[] =>
     JSON.parse(execFileSync('pnpm', ['pipeline', pipeline, '--full', '--dry-run', '--json'], { encoding: 'utf8' })).tasks.filter((task: Task) => !task.missingScript);
 

@@ -43,6 +43,7 @@ jobs:
                   # The plugin and engine validate entries; restore the latest cache across commits.
                   key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
                   restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
+            - uses: ./.github/actions/pipeline-cache
             - name: build docs
               run: pnpm pipeline docs --full
             - name: upload pages artifact
