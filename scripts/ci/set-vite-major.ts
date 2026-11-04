@@ -20,7 +20,7 @@ if (!Number.isInteger(viteMajor) || viteMajor < 1) {
     fail(`Invalid Vite major "${viteMajorArg}"`);
 }
 
-// Vite+ requires its branded vite alias. Install the consumer's Vite separately;
+// Keep Vitest's Vite version stable. Install the consumer's Vite separately;
 // the plugin test project redirects its Vite imports when VITE_COMPAT_MAJOR is set.
 const viteSpecifier = `npm:vite@^${viteMajor}.0.0`;
 // Run from the workspace root, including before dependencies are installed.

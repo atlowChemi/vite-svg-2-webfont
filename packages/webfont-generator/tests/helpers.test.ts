@@ -1,7 +1,7 @@
 import { mkdtemp, writeFile, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 import { generateWebfonts } from '../index.js';
 
 const svg = (width: number) => `<svg viewBox="0 0 24 24"><path d="M0 0H${width}V24H0Z"/></svg>`;

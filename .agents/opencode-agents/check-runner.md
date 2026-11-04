@@ -1,5 +1,5 @@
 ---
-description: Runs vp check and reports concise failures.
+description: Runs standalone formatting, lint and type checks and reports concise failures.
 mode: subagent
 color: '#56b6c2'
 permissions:
@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'pnpm exec vp check*'
+      resource: 'pnpm run check*'
       effect: allow
 ---
 
-Run `pnpm exec vp check` from the repository root.
+Run `pnpm run check` from the repository root.
 
 Do not edit files. Return only:
 

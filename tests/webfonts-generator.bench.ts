@@ -5,7 +5,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { createRequire } from 'node:module';
 import { mkdtemp, writeFile } from 'node:fs/promises';
-import { describe, expect, it, type BenchRunOptions as BenchOptions } from 'vite-plus/test';
+import { describe, expect, it, type BenchRunOptions as BenchOptions } from 'vitest';
 import { generateWebfonts, type GenerateWebfontsFileOptions as GenerateWebfontsInputOptions } from '@atlowchemi/webfont-generator';
 
 const require = createRequire(import.meta.url);

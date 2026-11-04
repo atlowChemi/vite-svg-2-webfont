@@ -1,5 +1,5 @@
-import { expectTypeOf, it } from 'vite-plus/test';
-import type { Plugin } from 'vite-plus';
+import { expectTypeOf, it } from 'vitest';
+import type { Plugin } from 'vite';
 import viteSvgToWebfont, { templates, type GeneratedWebfont, type PublicApi, viteSvgToWebfont as namedExport } from './index.js';
 import type { IconPluginOptions } from './index.js';
 

@@ -62,7 +62,7 @@ jobs:
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
               run: |
                   pnpm pipeline binding-regenerate --full
-                  pnpm exec vp fmt
+                  pnpm run fmt
                   git add Cargo.lock pnpm-lock.yaml packages/webfont-generator/binding.js \
                     'crates/*/CHANGELOG.md' 'packages/*/CHANGELOG.md'
                   if ! git diff --cached --quiet; then

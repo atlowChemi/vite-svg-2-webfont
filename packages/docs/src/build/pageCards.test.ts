@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vitest';
 import { pageCard } from './brand.ts';
 import { cardAlt, cardFor, cardPath, renderCard } from './pageCards.ts';
 

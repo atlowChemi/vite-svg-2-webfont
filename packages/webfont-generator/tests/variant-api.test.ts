@@ -1,4 +1,4 @@
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 import { generateWebfonts as native } from '../binding.js';
 import { generateWebfonts } from '../index.js';
 

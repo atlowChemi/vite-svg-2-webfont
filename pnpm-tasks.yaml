@@ -296,7 +296,7 @@ tasks:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
             - '**/{package.json,pnpm-workspace.yaml,.pnp.cjs,tsconfig*.json}'
             - packages/webfont-browser/{src,scripts}/**
-            - packages/webfont-browser/{vite.config.*,tsconfig*.json,.env,.env.*}
+            - packages/webfont-browser/{vite.config.*,tsdown.config.*,tsconfig*.json,.env,.env.*}
             - &postcss-ancestors '{.postcssrc,.postcssrc.*,postcss.config.*,packages/.postcssrc,packages/.postcssrc.*,packages/postcss.config.*,packages/deno.json,packages/deno.jsonc,packages/lerna.json}'
             - packages/webfont-browser/{.postcssrc,.postcssrc.*,postcss.config.*,deno.json,deno.jsonc,lerna.json}
         outputs: [packages/webfont-browser/dist/**]
@@ -321,7 +321,7 @@ tasks:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
             - '**/{package.json,pnpm-workspace.yaml,.pnp.cjs,tsconfig*.json}'
             - packages/vite-svg-2-webfont/{src,scripts}/**
-            - packages/vite-svg-2-webfont/{vite.config.*,tsconfig*.json,.env,.env.*}
+            - packages/vite-svg-2-webfont/{vite.config.*,tsdown.config.*,tsconfig*.json,.env,.env.*}
             - *postcss-ancestors
             - packages/vite-svg-2-webfont/{.postcssrc,.postcssrc.*,postcss.config.*,deno.json,deno.jsonc,lerna.json,rust-toolchain,rust-toolchain.toml}
         outputs: [packages/vite-svg-2-webfont/dist/**]

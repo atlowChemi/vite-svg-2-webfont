@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Linux/macOS native coverage. Never place NAPI_RS_NATIVE_LIBRARY_PATH in the environment:
-# Vite+ uses NAPI too. The coverage config redirects only this package's loader.
+# Other tooling uses NAPI too. The coverage config redirects only this package's loader.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$ROOT/coverage/napi-vitest"
@@ -18,7 +18,7 @@ pnpm exec napi build --platform --esm --js binding.js --dts binding.d.ts --outpu
 export WEBFONT_NATIVE_COVERAGE_DIR="$RUN"
 cd "$ROOT"
 status=0
-vp test --run --config=packages/webfont-generator/vite.coverage.config.ts || status=$?
+pnpm exec vitest --run --config=packages/webfont-generator/vite.coverage.config.ts || status=$?
 # Export partial results even when an executed test fails; retain its exit status.
 test -s "$RUN/junit.xml"
 cp "$RUN/junit.xml" "$OUT/junit.xml"

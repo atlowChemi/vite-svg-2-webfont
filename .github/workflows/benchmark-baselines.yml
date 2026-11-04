@@ -111,7 +111,7 @@ jobs:
                   set -euo pipefail
                   mkdir -p "$(dirname "$VITEST_BENCH_OUTPUT")"
                   /usr/bin/time -v -o benchmark-results/vitest/resources.txt \
-                    pnpm exec vp test bench --run --reporter=verbose --reporter=json --outputFile="$VITEST_BENCH_OUTPUT" \
+                    pnpm exec vitest bench --run --reporter=verbose --reporter=json --outputFile="$VITEST_BENCH_OUTPUT" \
                     2>&1 | tee benchmark-results/vitest/run.log
 
             - name: Upload Vitest benchmark diagnostics
@@ -165,7 +165,7 @@ jobs:
                     printf '}\n'
                   } > benchmark-baselines/metadata.json
 
-                  pnpm exec vp --version > benchmark-baselines/tool-versions.txt
+                  pnpm exec vitest --version > benchmark-baselines/tool-versions.txt
 
             - name: Commit benchmark baselines
               if: github.event_name != 'pull_request'

@@ -2,8 +2,8 @@ import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { API } from 'typescript/unstable/async';
-import { createServer } from 'vite-plus';
-import { expect, it, vi } from 'vite-plus/test';
+import { createServer } from 'vite';
+import { expect, it, vi } from 'vitest';
 import { viteSvgToWebfont } from './index';
 
 const { publication } = vi.hoisted(() => ({ publication: { directory: '' } }));

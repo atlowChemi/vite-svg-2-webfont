@@ -2,9 +2,9 @@
 
 ## Tooling
 
-- Use `pnpm install` and `pnpm pipeline NAME --full` for installation and task orchestration. Invoke workspace-pinned Vite+ tooling with `pnpm exec vp check` / `pnpm exec vp fmt`; bare `vp` is fine inside package scripts. No global Vite+ installation is required.
+- Use `pnpm install` and `pnpm pipeline NAME --full` for installation and task orchestration. Use `pnpm run check` / `pnpm run fmt` for standalone Oxc checks/formatting, and `pnpm exec vitest` for focused tests.
 - Keep `--full`: use the conservative CI selector before invoking a pipeline, not pnpm's task-level affected selection. `pnpm run` scripts are raw commands without prerequisites; use them only when prerequisites are already supplied or for forwarding tool arguments.
-- Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/test`), not from direct `vite` or `vitest` packages.
+- Import Vite APIs from `vite`, test APIs from `vitest`, and test configuration from `vitest/config`. Package bundling uses separate `tsdown.config.ts` files; include them in cached task inputs.
 - After pulling remote changes, run `pnpm install` before validation.
 - Keep `runtimeOnFail: error`: Rust is managed by rustup so installed cross-target libraries and LLVM tools match the compiler used inside pnpm scripts.
 - Unified `pnpm install` requires Rust first. Use `pnpm add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `pnpm update crate:…` does not update them in pnpm 12.6.0.
@@ -32,8 +32,8 @@
 ## Verification Subagents
 
 - Prefer verification subagents for long/noisy commands so logs stay out of the main context.
-- Use `vp-check` for `pnpm exec vp check`.
-- Use `fmt-runner` for isolated `pnpm exec vp fmt` runs.
+- Use `check-runner` for `pnpm run check`.
+- Use `fmt-runner` for isolated `pnpm run fmt` runs.
 - Use `rust-check-runner` after changing Rust code.
 - Use `test-runner` for `pnpm pipeline test --full`.
 - Use `coverage-runner` for `pnpm pipeline coverage --full`.
