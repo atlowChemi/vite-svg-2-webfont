@@ -63,7 +63,7 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
                   RUN_ID: ${{ github.event.workflow_run.id }}
               run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name docs-site --dir packages/docs/.vitepress/dist
-            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+            - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
               with:
                   node-version-file: .node-version
                   run-install: false
@@ -117,7 +117,7 @@ jobs:
                   fi
                   gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name docs-site --dir packages/docs/.vitepress/dist
                   echo found=true >> "$GITHUB_OUTPUT"
-            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+            - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
               if: ${{ steps.site.outputs.found == 'true' }}
               with:
                   node-version-file: .node-version
@@ -201,7 +201,7 @@ jobs:
               if: ${{ steps.comment.outputs.id != '' }}
               with:
                   ref: ${{ github.event.repository.default_branch }}
-            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+            - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
               if: ${{ steps.comment.outputs.id != '' }}
               with:
                   node-version-file: .node-version
