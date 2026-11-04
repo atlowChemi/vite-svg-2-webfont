@@ -37,7 +37,7 @@ jobs:
             - name: Cache docs fonts
               uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: packages/docs/.vitepress/cache/vite-svg-2-webfont
+                  path: packages/docs/.cache/vite-svg-2-webfont
                   # The plugin and engine validate entries; restore the latest cache across commits.
                   key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
                   restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
@@ -46,7 +46,7 @@ jobs:
             - name: upload pages artifact
               uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
               with:
-                  path: packages/docs/.vitepress/dist
+                  path: packages/docs/dist
 
     deploy:
         name: deploy docs

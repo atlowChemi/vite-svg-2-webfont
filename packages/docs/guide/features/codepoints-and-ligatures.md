@@ -2,10 +2,6 @@
 description: How a page reaches each icon in the font, by codepoint through a CSS class or by ligature through its name, when to use each, and how to keep codepoints stable.
 ---
 
-<script setup>
-import SvgAuthoringCompare from '../../.vitepress/theme/components/SvgAuthoringCompare.vue';
-</script>
-
 # Codepoints and Ligatures
 
 A page can reach an icon in the font in two ways:

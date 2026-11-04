@@ -2,14 +2,6 @@
 description: Live vite-svg-2-webfont examples — each shows the Vite config, the input icons, any templates, and the font it generates.
 ---
 
-<script setup>
-import ExampleTabs from '../.vitepress/theme/components/ExampleTabs.vue';
-import ExampleIcons from '../.vitepress/theme/components/ExampleIcons.vue';
-import ExampleOutput from '../.vitepress/theme/components/ExampleOutput.vue';
-import ExampleCss from '../.vitepress/theme/components/ExampleCss.vue';
-import TypedIcon from '../examples/type-safe-component/Icon.vue';
-</script>
-
 # Examples
 
 Each example below is built by `vite-svg-2-webfont` when these docs are built. The **Generated CSS** tab shows the stylesheet the plugin produced, with font URLs shortened to file names; Vite rewrites them to the emitted assets. The **Output** tab renders the font with the example's real class names.
@@ -142,8 +134,8 @@ Choose either option, preserving any existing type references or entries:
 </template>
 <template #output>
 <ExampleOutput example="type-safe-component">
-<figure><TypedIcon name="bell" /><figcaption>&lt;Icon name="bell" /&gt;</figcaption></figure>
-<figure><TypedIcon name="search" /><figcaption>&lt;Icon name="search" /&gt;</figcaption></figure>
+<figure><i class="icon icon-bell" aria-hidden="true"></i><figcaption>&lt;Icon name="bell" /&gt;</figcaption></figure>
+<figure><i class="icon icon-search" aria-hidden="true"></i><figcaption>&lt;Icon name="search" /&gt;</figcaption></figure>
 </ExampleOutput>
 </template>
 </ExampleTabs>

@@ -2,10 +2,6 @@
 description: Prepare SVG icons for webfont generation and fix common problems — backgrounds, holes, clip paths, text, artboards, alignment, precision, file names, and codepoints — with live before/after fonts.
 ---
 
-<script setup>
-import SvgAuthoringCompare from '../.vitepress/theme/components/SvgAuthoringCompare.vue';
-</script>
-
 # SVG Authoring & Troubleshooting
 
 By default, each SVG becomes one single-color glyph in the font. Icons you opt into [color glyphs](/guide/features/color-glyphs) are the exception: they keep their solid fills, so the [color rules](#colors-are-ignored-nested-shapes-become-holes) below don't apply to them. Most icons exported from a design tool work as they are. This page explains what changes when an SVG becomes a glyph, and how to fix the surprises.

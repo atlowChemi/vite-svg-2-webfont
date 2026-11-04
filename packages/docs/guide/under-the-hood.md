@@ -199,9 +199,3 @@ Incremental generation helps within one process. The opt-in [`cacheLocation`](/g
 | Linux    | logos        | TTF + WOFF2 |                    +3.8 |                  −30.4 |
 
 Measured on October 25, 2026, with the same fixtures, Node.js 26.11.1, machine, and Linux container limits as the tables above, from a release build of the engine. Each case ran 6 fresh Node processes; each process warmed up once and measured 3 generations, and the tables report the mean of the process medians. "First run" used a new empty cache directory for every generation, so it includes writing the cache. "One icon edited" changed one SVG before every generation. Memory used the [RSS method](#measurement-method) (one generation per fresh process, 6 processes per case), with "warm" reading a cache filled by an earlier process; the processes also loaded the icon set, so only the differences are shown. Vusion figures come from the uncached tables above, measured separately.
-
-<style scoped>
-.benchmark-winner {
-    color: var(--vp-c-brand-1);
-}
-</style>

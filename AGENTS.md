@@ -2,7 +2,7 @@
 
 ## Tooling
 
-- Use `vp` for normal repo workflows: `vp install`, `vp check`, `vp fmt`, `vp run test`, `vp run coverage`, `vp run <package>#<task>`. Do not call `pnpm`, `vite`, `vitest`, `oxlint`, `oxfmt`, or `vitepress` directly unless a checked-in Vite+ task itself does so.
+- Use `vp` for normal repo workflows: `vp install`, `vp check`, `vp fmt`, `vp run test`, `vp run coverage`, `vp run <package>#<task>`. Do not call `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly unless a checked-in Vite+ task itself does so.
 - Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/test`), not from direct `vite` or `vitest` packages.
 - After pulling remote changes, run `vp install` before validation.
 - Unified `vp install` requires Rust first. Use `vp add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `vp update crate:…` does not update them in pnpm 12.6.0.

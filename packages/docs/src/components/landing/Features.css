@@ -1,0 +1,24 @@
+.landing-features {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.landing-feature h3 {
+    margin: 12px 0 4px;
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.landing-feature p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--vp-c-text-2);
+}
+
+@media (max-width: 720px) {
+    .landing-features {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

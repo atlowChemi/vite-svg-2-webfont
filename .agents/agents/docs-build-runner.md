@@ -1,6 +1,6 @@
 ---
 name: docs-build-runner
-description: Builds the VitePress docs site and summarizes failures.
+description: Builds the docs site and summarizes failures.
 tools: Bash
 color: pink
 ---

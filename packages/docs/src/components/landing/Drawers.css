@@ -1,0 +1,79 @@
+/* The tool drawers: a type case of buttons, the open drawer's snippet, and its guide link. */
+.landing-drawers {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.landing-drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    border: 1px solid var(--vp-c-divider);
+    border-radius: 4px;
+    background: var(--vp-c-bg-soft);
+    color: var(--vp-c-text-1);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.landing-drawer[aria-pressed='true'] {
+    border-color: var(--acc);
+    background: var(--vp-c-bg-alt);
+}
+
+.landing-drawer .drawer-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.landing-drawer .mark {
+    font-size: 26px;
+    color: var(--vp-c-text-2);
+    transition: color 0.3s;
+}
+
+.landing-drawer[aria-pressed='true'] .mark {
+    color: var(--acc);
+}
+
+.landing-drawer .plate {
+    padding: 1px 8px;
+    border-radius: 2px;
+    border: 1px solid var(--vp-c-border);
+    color: var(--vp-c-text-2);
+}
+
+.landing-drawer strong {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.landing-drawer .use {
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--vp-c-text-3);
+}
+
+.landing-more {
+    display: inline-block;
+    margin-top: 12px;
+    color: var(--acc);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* Only the open drawer's link shows; `display` above would otherwise override `hidden`. */
+.landing-more[hidden] {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    .landing-drawers {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}

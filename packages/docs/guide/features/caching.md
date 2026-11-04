@@ -2,10 +2,6 @@
 description: Reuse the engine's work across processes, CI runs, and browser sessions with the persistent cache, in every fonte tool.
 ---
 
-<script setup>
-import CacheFileLayout from '../../.vitepress/theme/components/CacheFileLayout.vue';
-</script>
-
 # Engine Cache
 
 The engine can save its work and reuse it in a later run, so a fresh process starts warm. The cache keeps two kinds of work:

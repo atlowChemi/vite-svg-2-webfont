@@ -8,7 +8,7 @@ import type { Path } from 'opentype.js';
  * - `assets/svg/logo.svg` (copied to `public/` by `optimize-svg`): the T mark, used as the favicon;
  * - `assets/svg/social-card.svg` and `github-social-preview.svg`: the link preview and the repository's social
  *   preview, rendered to PNG by `generate-social-card.ts`;
- * - `.vitepress/theme/wordmark.ts`: the `fonTe` wordmark's shapes for the in-page `FonteWordmark` component, which
+ * - `src/site/wordmark.ts`: the `fonTe` wordmark's shapes for the in-page `Wordmark` component, which
  *   colors them from the site theme;
  * - `assets/brand/`: the READMEs' logos, loaded from the repository rather than the site. `fonte.svg` is the wordmark
  *   with the landing page's pour and waves; each package's emblem casts the T in a mold shaped like its tool's emblem.
@@ -413,7 +413,7 @@ const files = {
         url: 'fonte.atlow.dev/node/configuration',
         tool: 'node',
     }),
-    [resolve(docsDir, '.vitepress', 'theme', 'wordmark.ts')]: component,
+    [resolve(docsDir, 'src', 'site', 'wordmark.ts')]: component,
     [resolve(brandDir, 'fonte.svg')]: animatedWordmark,
     [resolve(brandDir, 'vite.svg')]: viteEmblem(),
     [resolve(brandDir, 'node.svg')]: nodeEmblem(),
