@@ -1,16 +1,16 @@
 import type { Plugin, PluginOption, UserConfig } from 'vite';
-import basic from '../../examples/basic/vite.config.ts';
-import customNaming from '../../examples/custom-naming/vite.config.ts';
-import ligatures from '../../examples/ligatures/vite.config.ts';
-import typeSafeComponent from '../../examples/type-safe-component/vite.config.ts';
-import customCssTemplate from '../../examples/custom-css-template/vite.config.ts';
-import multiWeight from '../../examples/multi-weight/vite.config.ts';
-import colorGlyphs from '../../examples/color-glyphs/vite.config.ts';
-import themeColors from '../../examples/theme-colors/vite.config.ts';
-import pinnedCodepoints from '../../examples/pinned-codepoints/vite.config.ts';
-import inlineFonts from '../../examples/inline-fonts/vite.config.ts';
-import preload from '../../examples/preload/vite.config.ts';
-import writeFiles from '../../examples/write-files/vite.config.ts';
+import basic from '../../src/fonts/examples/basic/vite.config.ts';
+import customNaming from '../../src/fonts/examples/custom-naming/vite.config.ts';
+import ligatures from '../../src/fonts/examples/ligatures/vite.config.ts';
+import typeSafeComponent from '../../src/fonts/examples/type-safe-component/vite.config.ts';
+import customCssTemplate from '../../src/fonts/examples/custom-css-template/vite.config.ts';
+import multiWeight from '../../src/fonts/examples/multi-weight/vite.config.ts';
+import colorGlyphs from '../../src/fonts/examples/color-glyphs/vite.config.ts';
+import themeColors from '../../src/fonts/examples/theme-colors/vite.config.ts';
+import pinnedCodepoints from '../../src/fonts/examples/pinned-codepoints/vite.config.ts';
+import inlineFonts from '../../src/fonts/examples/inline-fonts/vite.config.ts';
+import preload from '../../src/fonts/examples/preload/vite.config.ts';
+import writeFiles from '../../src/fonts/examples/write-files/vite.config.ts';
 import { exampleScope } from '../../src/site/exampleScope.ts';
 
 /** Example slugs and their real configs. Each config must give the plugin a unique `fontName`. */

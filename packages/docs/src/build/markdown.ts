@@ -16,7 +16,10 @@ import { diagramKey, marker, renderDiagrams } from './mermaid.ts';
 // `codeTabs.module.css` and `highlight.module.css`.
 
 // This module runs from `src/build` in dev and from `.cache/server` once built: both two folders below the docs.
-export const docsRoot = join(import.meta.dirname, '../..');
+/** The docs' sources; `@/` in an include or snippet path. */
+export const srcRoot = join(import.meta.dirname, '../../src');
+/** The pages: a Markdown file's path under here is its route. */
+export const pagesRoot = join(srcRoot, 'pages');
 
 export interface Heading {
     level: number;
@@ -159,13 +162,13 @@ interface Env extends MarkdownEnv {
 const md = createMarkdown();
 const blockMarker = (i: number) => `<!--fonte-block:${i}-->`;
 
-export async function renderMarkdown(file: string, renderBlock: BlockRenderer, blockNames: Set<string>): Promise<Markdown> {
-    const path = join(docsRoot, file);
+/** Renders the Markdown file at `path`. */
+export async function renderMarkdown(path: string, renderBlock: BlockRenderer, blockNames: Set<string>): Promise<Markdown> {
     const deps = new Set([path]);
     const raw = readFileSync(path, 'utf8');
     const head = /^---\n([\s\S]*?)\n---\n/.exec(raw);
     const frontmatter = (head ? parseYaml(head[1]!) : {}) as Frontmatter;
-    const source = expandIncludes(raw.slice(head?.[0].length ?? 0), path, docsRoot, deps);
+    const source = expandIncludes(raw.slice(head?.[0].length ?? 0), path, srcRoot, deps);
 
     const shiki = await loadLanguages([...source.matchAll(/^[ \t]*(?:`{3,}|~{3,})\s*([\w-]+)/gm)].map(m => m[1]!));
     const diagrams = new Map<string, string>();

@@ -25,7 +25,7 @@ Glob or array of globs for SVG files inside [`context`](#context).
 
 ### `variants`
 
-<!--@include: @/_shared/options/variants.md-->
+<!--@include: @/includes/options/variants.md-->
 
 - Type: `IconPluginVariant[]`
 - Default: omitted (ordinary single-design mode)
@@ -46,7 +46,7 @@ See [multi-weight usage](/vite/usage#multi-weight-icon-families) and [variants](
 
 ### `variantClassPrefix`
 
-<!--@include: @/_shared/options/variant-class-prefix.md-->
+<!--@include: @/includes/options/variant-class-prefix.md-->
 
 - Type: `string`
 - Availability: variant mode only
@@ -54,7 +54,7 @@ See [multi-weight usage](/vite/usage#multi-weight-icon-families) and [variants](
 
 ### `missingGlyphs`
 
-<!--@include: @/_shared/options/missing-glyphs.md-->
+<!--@include: @/includes/options/missing-glyphs.md-->
 
 - Type: `{ behavior: 'error' | 'blank' | 'fallback'; variant?: string }`
 - Availability: variant mode only
@@ -65,14 +65,14 @@ Fonts reach the page through the virtual CSS module and Vite's asset pipeline. T
 
 ### `fontName`
 
-<!--@include: @/_shared/options/font-name.md-->
+<!--@include: @/includes/options/font-name.md-->
 
 - Type: `string`
 - Default: `'iconfont'`
 
 ### `types`
 
-<!--@include: @/_shared/options/types.md-->
+<!--@include: @/includes/options/types.md-->
 
 - Type: `string | string[]`
 - Default: `['eot', 'woff', 'woff2', 'ttf', 'svg']`, or `['woff', 'woff2']` for families
@@ -147,7 +147,7 @@ Enable writing with [`generateFiles`](#generatefiles). With `generateFiles: true
 
 ### `cssFontsUrl`
 
-<!--@include: @/_shared/options/css-fonts-url.md-->
+<!--@include: @/includes/options/css-fonts-url.md-->
 
 - Type: `string`
 - Default: value derived from `cssDest`
@@ -190,7 +190,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `cssTemplate`
 
-<!--@include: @/_shared/options/css-template.md-->
+<!--@include: @/includes/options/css-template.md-->
 
 - Type: `string`
 - Template context also includes:
@@ -200,7 +200,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `htmlTemplate`
 
-<!--@include: @/_shared/options/html-template.md-->
+<!--@include: @/includes/options/html-template.md-->
 
 - Type: `string`
 - Template context also includes:
@@ -236,55 +236,55 @@ Base selector to which the font styles are applied.
 
 ### `codepoints`
 
-<!--@include: @/_shared/options/codepoints.md-->
+<!--@include: @/includes/options/codepoints.md-->
 
 - Type: `{ [key: string]: number }`
 
 ### `ligature`
 
-<!--@include: @/_shared/options/ligature.md-->
+<!--@include: @/includes/options/ligature.md-->
 
 - Type: `boolean`
 - Default: `true`
 
 ### `fontHeight`
 
-<!--@include: @/_shared/options/font-height.md-->
+<!--@include: @/includes/options/font-height.md-->
 
 - Type: `number`
 - Default: `1000` (the plugin's default; the generator alone defaults to the tallest icon's height)
 
 ### `descent`
 
-<!--@include: @/_shared/options/descent.md-->
+<!--@include: @/includes/options/descent.md-->
 
 - Type: `number`
 - Default: `0`
 
 ### `normalize`
 
-<!--@include: @/_shared/options/normalize.md-->
+<!--@include: @/includes/options/normalize.md-->
 
 - Type: `boolean`
 - Default: `true` (the generator default; the plugin forwards the option only when you set it)
 
 ### `fixedWidth`
 
-<!--@include: @/_shared/options/fixed-width.md-->
+<!--@include: @/includes/options/fixed-width.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `centerHorizontally`
 
-<!--@include: @/_shared/options/center-horizontally.md-->
+<!--@include: @/includes/options/center-horizontally.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `centerVertically`
 
-<!--@include: @/_shared/options/center-vertically.md-->
+<!--@include: @/includes/options/center-vertically.md-->
 
 - Type: `boolean`
 - Default: `false`
@@ -292,14 +292,14 @@ Base selector to which the font styles are applied.
 
 ### `round`
 
-<!--@include: @/_shared/options/round.md-->
+<!--@include: @/includes/options/round.md-->
 
 - Type: `number`
 - Default: `10e12`
 
 ### `optimizeOutput`
 
-<!--@include: @/_shared/options/optimize-output.md-->
+<!--@include: @/includes/options/optimize-output.md-->
 
 - Type: `boolean`
 - Default: `false`
@@ -326,7 +326,7 @@ Paint-only edits update the font and virtual CSS during development, including i
 
 ### `colorSlots`
 
-<!--@include: @/_shared/options/color-slots.md-->
+<!--@include: @/includes/options/color-slots.md-->
 
 - Type: `Record<string, string>`
 - Default: omitted
@@ -335,7 +335,7 @@ Paint-only edits update the font and virtual CSS during development, including i
 
 ### `formatOptions`
 
-<!--@include: @/_shared/options/format-options.md-->
+<!--@include: @/includes/options/format-options.md-->
 
 - Type: `FormatOptions`
 - Note: `formatOptions.ttf.ts` is ignored. Like upstream `@vusion/webfonts-generator`, the generator always writes a fixed TTF timestamp, so builds are reproducible.

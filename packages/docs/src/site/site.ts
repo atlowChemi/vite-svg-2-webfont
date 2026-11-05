@@ -16,7 +16,7 @@ export const site = {
     subtitle: 'SVG icons, cast into fonts',
     description: 'A Rust engine that casts SVG icons into fonts, with a CLI, Node and browser bindings, and a Vite plugin.',
     github: repo,
-    editPattern: `${repo}/edit/main/packages/docs/:path`,
+    editPattern: `${repo}/edit/main/packages/docs/src/pages/:path`,
 };
 
 const npm = (name: string) => `https://www.npmjs.com/package/${name}`;

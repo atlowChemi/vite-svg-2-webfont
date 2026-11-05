@@ -1,7 +1,7 @@
 // The server side of the build: Markdown in, finished HTML documents out. Vite builds this module for Node, and the
 // plugin in `config/staticSite.ts` calls it, for every page during the build and per request in dev.
 import { readdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import generatedCss from 'virtual:docs-examples-css';
@@ -19,7 +19,7 @@ import { pageNav } from '../site/nav.ts';
 import { site } from '../site/site.ts';
 import type { Block } from './blocks.ts';
 import { loadLanguages } from './highlight.ts';
-import { docsRoot, renderMarkdown, type Frontmatter, type Heading } from './markdown.ts';
+import { pagesRoot, renderMarkdown, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
 import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, searchIndex } from './outputs.ts';
 import { specimens } from './specimens.ts';
@@ -81,22 +81,12 @@ const blocks: Record<string, BlockComponent> = {
 };
 const blockNames = new Set(Object.keys(blocks));
 
-/** Every page by route, from the Markdown files: `guide/index.md` is `/guide/`, `guide/engine.md` is `/guide/engine`. */
+/** Every page by route, from `src/pages`: `guide/index.md` is `/guide/`, `guide/engine.md` is `/guide/engine`. */
 function discover(): Record<string, string> {
     const pages: Record<string, string> = {};
-    const skip = new Set(['node_modules', 'public', 'src', 'dist', 'examples', 'scripts', 'assets', 'site-icons', 'svg-authoring-fixtures']);
-    const walk = (dir: string) => {
-        for (const entry of readdirSync(dir, { withFileTypes: true })) {
-            if (entry.name.startsWith('.') || entry.name.startsWith('_') || skip.has(entry.name)) continue;
-            const path = join(dir, entry.name);
-            if (entry.isDirectory()) walk(path);
-            else if (entry.name.endsWith('.md')) {
-                const file = relative(docsRoot, path);
-                pages[`/${file.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')}`] = file;
-            }
-        }
-    };
-    walk(docsRoot);
+    for (const file of readdirSync(pagesRoot, { recursive: true, encoding: 'utf8' }).filter(f => f.endsWith('.md'))) {
+        pages[`/${file.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')}`] = file;
+    }
     return pages;
 }
 
@@ -119,7 +109,7 @@ export async function loadPage(route: string): Promise<Page | undefined> {
         // Each block is its own render, so its `useId`s get a prefix of their own: unique on the page and beside the shell's.
         return renderToStaticMarkup(component.render(block.props, slots), { identifierPrefix: `b${++rendered}-` });
     };
-    const markdown = await renderMarkdown(file, renderBlock, blockNames);
+    const markdown = await renderMarkdown(join(pagesRoot, file), renderBlock, blockNames);
     const html = markdown.frontmatter.layout === 'page' ? markdown.html : specimens(markdown.html, route.split('/')[1] ?? '');
     return { route, file, description: markdown.frontmatter.description, ...markdown, html, entries };
 }

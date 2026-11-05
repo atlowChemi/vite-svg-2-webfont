@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseHTML } from 'linkedom';
 import { optionKey } from '../site/optionKey.ts';
-import { docsRoot, slug } from './markdown.ts';
+import { pagesRoot, slug } from './markdown.ts';
 import { tools } from '../site/site.ts';
 import markdownStyles from './markdown.module.css';
 import styles from './specimens.module.css';
@@ -23,10 +23,10 @@ let registry: Map<string, OptionRef[]> | undefined;
 function optionRegistry(): Map<string, OptionRef[]> {
     if (registry) return registry;
     registry = new Map();
-    for (const tool of readdirSync(docsRoot)) {
+    for (const tool of readdirSync(pagesRoot)) {
         let source: string;
         try {
-            source = readFileSync(join(docsRoot, tool, 'configuration.md'), 'utf8');
+            source = readFileSync(join(pagesRoot, tool, 'configuration.md'), 'utf8');
         } catch {
             continue;
         }

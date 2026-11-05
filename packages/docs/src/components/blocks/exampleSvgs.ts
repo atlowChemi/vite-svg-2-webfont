@@ -1,4 +1,4 @@
-const sources = import.meta.glob<string>(['../../../examples/icons/*.svg', '../../../examples/*/icons/**/*.svg'], { query: '?raw', import: 'default', eager: true });
+const sources = import.meta.glob<string>(['../../fonts/examples/icons/*.svg', '../../fonts/examples/*/icons/**/*.svg'], { query: '?raw', import: 'default', eager: true });
 
 /** One input SVG of an example, keyed by its path inside `icons/`. */
 export interface ExampleIcon {
@@ -13,8 +13,8 @@ const SHARED = '';
 export const sourceMap = Object.groupBy(
     Object.entries(sources)
         .map(([path, svg]) => {
-            const example = path.match(/\.{2}\/\.{2}\/\.{2}\/examples\/([^/]+)\/icons\//)?.[1] ?? SHARED;
-            const folder = example === SHARED ? '../../../examples/icons/' : `../../../examples/${example}/icons/`;
+            const example = path.match(/^\.\.\/\.\.\/fonts\/examples\/([^/]+)\/icons\//)?.[1] ?? SHARED;
+            const folder = example === SHARED ? '../../fonts/examples/icons/' : `../../fonts/examples/${example}/icons/`;
             return { example, file: path.slice(folder.length), svg } satisfies ExampleIcon;
         })
         .toSorted((a, b) => a.file.localeCompare(b.file)),

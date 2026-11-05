@@ -10,14 +10,14 @@ Options for [`generateWebfonts()`](/node/api#generatewebfonts-options). `dest` a
 
 ### `files`
 
-<!--@include: @/_shared/options/files.md-->
+<!--@include: @/includes/options/files.md-->
 
 - Type: `string[]`
 - Required unless `variants` is set
 
 ### `variants`
 
-<!--@include: @/_shared/options/variants.md-->
+<!--@include: @/includes/options/variants.md-->
 
 - Type: `FontVariant[]`, each `{ name: string; files: string[]; weight?: number; default?: boolean }`
 - Default: omitted (a single-design font)
@@ -26,7 +26,7 @@ Design names are escaped in the generated selectors, and don't change output fil
 
 ### `variantClassPrefix`
 
-<!--@include: @/_shared/options/variant-class-prefix.md-->
+<!--@include: @/includes/options/variant-class-prefix.md-->
 
 - Type: `string`
 - Default: `'icon--'`
@@ -35,7 +35,7 @@ Whitespace, NUL, and the old `templateOptions.variantClassPrefix` location are r
 
 ### `missingGlyphs`
 
-<!--@include: @/_shared/options/missing-glyphs.md-->
+<!--@include: @/includes/options/missing-glyphs.md-->
 
 - Type: `{ behavior: 'blank' | 'error' | 'fallback'; variant?: string }`
 - Default: `{ behavior: 'blank' }`
@@ -59,21 +59,21 @@ Derive each icon's name from its file path. Names become [class names](/guide/sv
 
 ### `dest`
 
-<!--@include: @/_shared/options/dest.md-->
+<!--@include: @/includes/options/dest.md-->
 
 - Type: `string`
 - Required
 
 ### `fontName`
 
-<!--@include: @/_shared/options/font-name.md-->
+<!--@include: @/includes/options/font-name.md-->
 
 - Type: `string`
 - Default: `'iconfont'`
 
 ### `types`
 
-<!--@include: @/_shared/options/types.md-->
+<!--@include: @/includes/options/types.md-->
 
 - Type: `FontType[]`
 - Default: `['eot', 'woff', 'woff2']`, or `['woff', 'woff2']` for families
@@ -82,14 +82,14 @@ A literal list also narrows which result getters TypeScript treats as present; s
 
 ### `order`
 
-<!--@include: @/_shared/options/order.md-->
+<!--@include: @/includes/options/order.md-->
 
 - Type: `FontType[]`
 - Default: `['eot', 'woff2', 'woff', 'ttf', 'svg']`, filtered to `types`
 
 ### `writeFiles`
 
-<!--@include: @/_shared/options/write-files.md-->
+<!--@include: @/includes/options/write-files.md-->
 
 - Type: `boolean`
 - Default: `true`
@@ -98,42 +98,42 @@ The result holds every output either way.
 
 ### `css`
 
-<!--@include: @/_shared/options/css.md-->
+<!--@include: @/includes/options/css.md-->
 
 - Type: `boolean`
 - Default: `true`
 
 ### `cssDest`
 
-<!--@include: @/_shared/options/css-dest.md-->
+<!--@include: @/includes/options/css-dest.md-->
 
 - Type: `string`
 - Default: `<dest>/<fontName>.css`
 
 ### `cssFontsUrl`
 
-<!--@include: @/_shared/options/css-fonts-url.md-->
+<!--@include: @/includes/options/css-fonts-url.md-->
 
 - Type: `string`
 - Default: the relative path from `cssDest` to `dest`
 
 ### `html`
 
-<!--@include: @/_shared/options/html.md-->
+<!--@include: @/includes/options/html.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `htmlDest`
 
-<!--@include: @/_shared/options/html-dest.md-->
+<!--@include: @/includes/options/html-dest.md-->
 
 - Type: `string`
 - Default: `<dest>/<fontName>.html`
 
 ### `ts`
 
-<!--@include: @/_shared/options/ts.md-->
+<!--@include: @/includes/options/ts.md-->
 
 - Type: `boolean`
 - Default: `false`
@@ -142,7 +142,7 @@ The result holds every output either way.
 
 ### `tsDest`
 
-<!--@include: @/_shared/options/ts-dest.md-->
+<!--@include: @/includes/options/ts-dest.md-->
 
 - Type: `string`
 - Default: `<dest>/<fontName>.ts`
@@ -155,7 +155,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `cssTemplate`
 
-<!--@include: @/_shared/options/css-template.md-->
+<!--@include: @/includes/options/css-template.md-->
 
 - Type: `string`
 - Default: the built-in CSS template
@@ -164,14 +164,14 @@ The built-in templates' paths are exported for use as a starting point; see [tem
 
 ### `htmlTemplate`
 
-<!--@include: @/_shared/options/html-template.md-->
+<!--@include: @/includes/options/html-template.md-->
 
 - Type: `string`
 - Default: the built-in HTML template
 
 ### `templateOptions`
 
-<!--@include: @/_shared/options/template-options.md-->
+<!--@include: @/includes/options/template-options.md-->
 
 - Type: `Record<string, any>`
 - Default: `{}`
@@ -196,87 +196,87 @@ Results created with this callback can't be [updated incrementally](/guide/featu
 
 ### `codepoints`
 
-<!--@include: @/_shared/options/codepoints.md-->
+<!--@include: @/includes/options/codepoints.md-->
 
 - Type: `Record<string, number>`
 - Default: `{}`
 
 ### `startCodepoint`
 
-<!--@include: @/_shared/options/start-codepoint.md-->
+<!--@include: @/includes/options/start-codepoint.md-->
 
 - Type: `number`
 - Default: `0xF101`
 
 ### `ligature`
 
-<!--@include: @/_shared/options/ligature.md-->
+<!--@include: @/includes/options/ligature.md-->
 
 - Type: `boolean`
 - Default: `true`
 
 ### `fontHeight`
 
-<!--@include: @/_shared/options/font-height.md-->
+<!--@include: @/includes/options/font-height.md-->
 
 - Type: `number`
 - Default: the tallest icon's height
 
 ### `ascent`
 
-<!--@include: @/_shared/options/ascent.md-->
+<!--@include: @/includes/options/ascent.md-->
 
 - Type: `number`
 
 ### `descent`
 
-<!--@include: @/_shared/options/descent.md-->
+<!--@include: @/includes/options/descent.md-->
 
 - Type: `number`
 
 ### `normalize`
 
-<!--@include: @/_shared/options/normalize.md-->
+<!--@include: @/includes/options/normalize.md-->
 
 - Type: `boolean`
 - Default: `true`
 
 ### `fixedWidth`
 
-<!--@include: @/_shared/options/fixed-width.md-->
+<!--@include: @/includes/options/fixed-width.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `centerHorizontally`
 
-<!--@include: @/_shared/options/center-horizontally.md-->
+<!--@include: @/includes/options/center-horizontally.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `centerVertically`
 
-<!--@include: @/_shared/options/center-vertically.md-->
+<!--@include: @/includes/options/center-vertically.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `preserveAspectRatio`
 
-<!--@include: @/_shared/options/preserve-aspect-ratio.md-->
+<!--@include: @/includes/options/preserve-aspect-ratio.md-->
 
 - Type: `boolean`
 
 ### `round`
 
-<!--@include: @/_shared/options/round.md-->
+<!--@include: @/includes/options/round.md-->
 
 - Type: `number`
 
 ### `optimizeOutput`
 
-<!--@include: @/_shared/options/optimize-output.md-->
+<!--@include: @/includes/options/optimize-output.md-->
 
 - Type: `boolean`
 - Default: `false`
@@ -285,7 +285,7 @@ Results created with this callback can't be [updated incrementally](/guide/featu
 
 ### `colorGlyphs`
 
-<!--@include: @/_shared/options/color-glyphs.md-->
+<!--@include: @/includes/options/color-glyphs.md-->
 
 - Type: `true | string[]`
 - Default: omitted (single-color)
@@ -294,7 +294,7 @@ See [color selection](/node/usage#color-selection) for examples.
 
 ### `colorSlots`
 
-<!--@include: @/_shared/options/color-slots.md-->
+<!--@include: @/includes/options/color-slots.md-->
 
 - Type: `Record<string, string>`
 - Default: omitted
@@ -305,19 +305,19 @@ The `cssContext` callback receives `colorSlots` too. It overrides a `templateOpt
 
 ### `fontStyle`
 
-<!--@include: @/_shared/options/font-style.md-->
+<!--@include: @/includes/options/font-style.md-->
 
 - Type: `string`
 
 ### `fontWeight`
 
-<!--@include: @/_shared/options/font-weight.md-->
+<!--@include: @/includes/options/font-weight.md-->
 
 - Type: `string`
 
 ### `formatOptions`
 
-<!--@include: @/_shared/options/format-options.md-->
+<!--@include: @/includes/options/format-options.md-->
 
 - Type: `FormatOptions`
 
@@ -340,7 +340,7 @@ interface FormatOptions {
 
 ### `incremental`
 
-<!--@include: @/_shared/options/incremental.md-->
+<!--@include: @/includes/options/incremental.md-->
 
 - Type: `boolean`
 - Default: `false`
@@ -349,7 +349,7 @@ Update the result with [`regenerate()`, `regenerateAsync()`, or the single-file 
 
 ### `cacheLocation`
 
-<!--@include: @/_shared/options/cache-location.md-->
+<!--@include: @/includes/options/cache-location.md-->
 
 - Type: `string`
 - Default: omitted (no persistent cache)
@@ -362,7 +362,7 @@ Update the result with [`regenerate()`, `regenerateAsync()`, or the single-file 
 
 ### `threads`
 
-<!--@include: @/_shared/options/threads.md-->
+<!--@include: @/includes/options/threads.md-->
 
 - Type: `number` (a positive integer)
 - Default: one per CPU core

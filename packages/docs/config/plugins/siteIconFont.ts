@@ -6,7 +6,7 @@ import { siteIcons } from '../../src/site/siteIcons.ts';
 /** The site's icon font, imported by the theme as `virtual:site-icons.css`. */
 export function siteIconFont(): Plugin {
     return viteSvgToWebfont({
-        context: resolve(import.meta.dirname, '../..', 'site-icons'),
+        context: resolve(import.meta.dirname, '../../src/fonts/site-icons'),
         fontName: 'fonte-site-icons',
         moduleId: 'site-icons.css',
         baseSelector: '.site-icon',

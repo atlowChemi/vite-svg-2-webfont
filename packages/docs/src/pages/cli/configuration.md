@@ -20,7 +20,7 @@ On the command line, inputs must be explicit paths such as `./icons/` or `../sha
 
 ### `variants`
 
-<!--@include: @/_shared/options/variants.md-->
+<!--@include: @/includes/options/variants.md-->
 
 - Flag: none, manifest only
 - Type: `{ name: string; files: string[]; weight?: number; default?: boolean }[]`
@@ -30,7 +30,7 @@ Each design's `files` takes files and directories like the top-level `files`. Th
 
 ### `variantClassPrefix`
 
-<!--@include: @/_shared/options/variant-class-prefix.md-->
+<!--@include: @/includes/options/variant-class-prefix.md-->
 
 - Flag: none, manifest only
 - Type: `string`
@@ -38,7 +38,7 @@ Each design's `files` takes files and directories like the top-level `files`. Th
 
 ### `missingGlyphs`
 
-<!--@include: @/_shared/options/missing-glyphs.md-->
+<!--@include: @/includes/options/missing-glyphs.md-->
 
 - Flag: none, manifest only
 - Type: `{ behavior: 'blank' | 'error' | 'fallback'; variant?: string }`
@@ -48,7 +48,7 @@ Each design's `files` takes files and directories like the top-level `files`. Th
 
 ### `dest`
 
-<!--@include: @/_shared/options/dest.md-->
+<!--@include: @/includes/options/dest.md-->
 
 - Flag: `-d, --dest <DEST>`
 - Type: `string`
@@ -56,7 +56,7 @@ Each design's `files` takes files and directories like the top-level `files`. Th
 
 ### `fontName`
 
-<!--@include: @/_shared/options/font-name.md-->
+<!--@include: @/includes/options/font-name.md-->
 
 - Flag: `-n, --font-name <NAME>`
 - Type: `string`
@@ -64,7 +64,7 @@ Each design's `files` takes files and directories like the top-level `files`. Th
 
 ### `types`
 
-<!--@include: @/_shared/options/types.md-->
+<!--@include: @/includes/options/types.md-->
 
 - Flag: `-t, --types <TYPES>`, comma-separated, such as `woff2,woff`
 - Type: `FontType[]`
@@ -72,7 +72,7 @@ Each design's `files` takes files and directories like the top-level `files`. Th
 
 ### `order`
 
-<!--@include: @/_shared/options/order.md-->
+<!--@include: @/includes/options/order.md-->
 
 - Flag: none, manifest only
 - Type: `FontType[]`
@@ -80,7 +80,7 @@ Each design's `files` takes files and directories like the top-level `files`. Th
 
 ### `writeFiles`
 
-<!--@include: @/_shared/options/write-files.md-->
+<!--@include: @/includes/options/write-files.md-->
 
 - Flag: `--write` / `--no-write`
 - Type: `boolean`
@@ -90,7 +90,7 @@ With `--no-write`, the CLI generates everything and writes nothing: a dry run th
 
 ### `css`
 
-<!--@include: @/_shared/options/css.md-->
+<!--@include: @/includes/options/css.md-->
 
 - Flag: `--css` / `--no-css`
 - Type: `boolean`
@@ -98,7 +98,7 @@ With `--no-write`, the CLI generates everything and writes nothing: a dry run th
 
 ### `cssDest`
 
-<!--@include: @/_shared/options/css-dest.md-->
+<!--@include: @/includes/options/css-dest.md-->
 
 - Flag: none, manifest only
 - Type: `string`
@@ -106,7 +106,7 @@ With `--no-write`, the CLI generates everything and writes nothing: a dry run th
 
 ### `cssFontsUrl`
 
-<!--@include: @/_shared/options/css-fonts-url.md-->
+<!--@include: @/includes/options/css-fonts-url.md-->
 
 - Flag: `--css-fonts-url <URL>`
 - Type: `string`
@@ -114,7 +114,7 @@ With `--no-write`, the CLI generates everything and writes nothing: a dry run th
 
 ### `html`
 
-<!--@include: @/_shared/options/html.md-->
+<!--@include: @/includes/options/html.md-->
 
 - Flag: `--html` / `--no-html`
 - Type: `boolean`
@@ -122,7 +122,7 @@ With `--no-write`, the CLI generates everything and writes nothing: a dry run th
 
 ### `htmlDest`
 
-<!--@include: @/_shared/options/html-dest.md-->
+<!--@include: @/includes/options/html-dest.md-->
 
 - Flag: none, manifest only
 - Type: `string`
@@ -130,7 +130,7 @@ With `--no-write`, the CLI generates everything and writes nothing: a dry run th
 
 ### `ts`
 
-<!--@include: @/_shared/options/ts.md-->
+<!--@include: @/includes/options/ts.md-->
 
 - Flag: `--ts` / `--no-ts`
 - Type: `boolean`
@@ -138,7 +138,7 @@ With `--no-write`, the CLI generates everything and writes nothing: a dry run th
 
 ### `tsDest`
 
-<!--@include: @/_shared/options/ts-dest.md-->
+<!--@include: @/includes/options/ts-dest.md-->
 
 - Flag: `--ts-dest <PATH>`
 - Type: `string`
@@ -152,7 +152,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `cssTemplate`
 
-<!--@include: @/_shared/options/css-template.md-->
+<!--@include: @/includes/options/css-template.md-->
 
 - Flag: `--css-template <PATH>`
 - Type: `string`
@@ -160,7 +160,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `htmlTemplate`
 
-<!--@include: @/_shared/options/html-template.md-->
+<!--@include: @/includes/options/html-template.md-->
 
 - Flag: `--html-template <PATH>`
 - Type: `string`
@@ -168,7 +168,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `templateOptions`
 
-<!--@include: @/_shared/options/template-options.md-->
+<!--@include: @/includes/options/template-options.md-->
 
 - Flag: none, manifest only
 - Type: `object`
@@ -178,7 +178,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `codepoints`
 
-<!--@include: @/_shared/options/codepoints.md-->
+<!--@include: @/includes/options/codepoints.md-->
 
 - Flag: none, manifest only
 - Type: `Record<string, number>`
@@ -188,7 +188,7 @@ JSON has no hexadecimal numbers, so write codepoints in decimal: `61697` is `0xF
 
 ### `startCodepoint`
 
-<!--@include: @/_shared/options/start-codepoint.md-->
+<!--@include: @/includes/options/start-codepoint.md-->
 
 - Flag: `--start-codepoint <HEX>`, such as `0xE000`
 - Type: `number`
@@ -198,7 +198,7 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `ligature`
 
-<!--@include: @/_shared/options/ligature.md-->
+<!--@include: @/includes/options/ligature.md-->
 
 - Flag: `--ligature` / `--no-ligature`
 - Type: `boolean`
@@ -206,7 +206,7 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `fontHeight`
 
-<!--@include: @/_shared/options/font-height.md-->
+<!--@include: @/includes/options/font-height.md-->
 
 - Flag: `--font-height <N>`
 - Type: `number`
@@ -214,21 +214,21 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `ascent`
 
-<!--@include: @/_shared/options/ascent.md-->
+<!--@include: @/includes/options/ascent.md-->
 
 - Flag: `--ascent <N>`
 - Type: `number`
 
 ### `descent`
 
-<!--@include: @/_shared/options/descent.md-->
+<!--@include: @/includes/options/descent.md-->
 
 - Flag: `--descent <N>`
 - Type: `number`
 
 ### `normalize`
 
-<!--@include: @/_shared/options/normalize.md-->
+<!--@include: @/includes/options/normalize.md-->
 
 - Flag: none, manifest only
 - Type: `boolean`
@@ -236,7 +236,7 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `fixedWidth`
 
-<!--@include: @/_shared/options/fixed-width.md-->
+<!--@include: @/includes/options/fixed-width.md-->
 
 - Flag: none, manifest only
 - Type: `boolean`
@@ -244,7 +244,7 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `centerHorizontally`
 
-<!--@include: @/_shared/options/center-horizontally.md-->
+<!--@include: @/includes/options/center-horizontally.md-->
 
 - Flag: none, manifest only
 - Type: `boolean`
@@ -252,7 +252,7 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `centerVertically`
 
-<!--@include: @/_shared/options/center-vertically.md-->
+<!--@include: @/includes/options/center-vertically.md-->
 
 - Flag: none, manifest only
 - Type: `boolean`
@@ -260,21 +260,21 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `preserveAspectRatio`
 
-<!--@include: @/_shared/options/preserve-aspect-ratio.md-->
+<!--@include: @/includes/options/preserve-aspect-ratio.md-->
 
 - Flag: none, manifest only
 - Type: `boolean`
 
 ### `round`
 
-<!--@include: @/_shared/options/round.md-->
+<!--@include: @/includes/options/round.md-->
 
 - Flag: none, manifest only
 - Type: `number`
 
 ### `optimizeOutput`
 
-<!--@include: @/_shared/options/optimize-output.md-->
+<!--@include: @/includes/options/optimize-output.md-->
 
 - Flag: none, manifest only
 - Type: `boolean`
@@ -284,7 +284,7 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `colorGlyphs`
 
-<!--@include: @/_shared/options/color-glyphs.md-->
+<!--@include: @/includes/options/color-glyphs.md-->
 
 - Flag: none, manifest only
 - Type: `true | string[]`
@@ -292,7 +292,7 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `colorSlots`
 
-<!--@include: @/_shared/options/color-slots.md-->
+<!--@include: @/includes/options/color-slots.md-->
 
 - Flag: none, manifest only
 - Type: `Record<string, string>`
@@ -302,21 +302,21 @@ The flag takes hexadecimal; the manifest takes a decimal number, such as `57344`
 
 ### `fontStyle`
 
-<!--@include: @/_shared/options/font-style.md-->
+<!--@include: @/includes/options/font-style.md-->
 
 - Flag: none, manifest only
 - Type: `string`
 
 ### `fontWeight`
 
-<!--@include: @/_shared/options/font-weight.md-->
+<!--@include: @/includes/options/font-weight.md-->
 
 - Flag: none, manifest only
 - Type: `string`
 
 ### `formatOptions`
 
-<!--@include: @/_shared/options/format-options.md-->
+<!--@include: @/includes/options/format-options.md-->
 
 - Flag: none, manifest only
 - Type: `object`
@@ -327,7 +327,7 @@ The CLI doesn't fix `ttf.ts`, so each run records the current time in the font. 
 
 ### `cacheLocation`
 
-<!--@include: @/_shared/options/cache-location.md-->
+<!--@include: @/includes/options/cache-location.md-->
 
 - Flag: `--cache-location <DIR>`
 - Type: `string`
@@ -337,7 +337,7 @@ Remove the files the engine created with [`clear-cache`](/cli/usage#subcommands)
 
 ### `threads`
 
-<!--@include: @/_shared/options/threads.md-->
+<!--@include: @/includes/options/threads.md-->
 
 - Flag: `--threads <N>`
 - Type: `number` (a positive integer)

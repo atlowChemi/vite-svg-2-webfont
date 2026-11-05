@@ -3,7 +3,7 @@ import { dirname, extname, resolve } from 'node:path';
 
 // VitePress's source-level includes, resolved before parsing so every consumer (pages, search, llms.txt) sees the same text:
 // `<!--@include: path-->` splices another Markdown file in (`path{2,}` only some of its lines), and `<<< path` turns a source file into a code block.
-// `@/` is the docs root; anything else is relative to the including file.
+// `@/` is the docs' `src/`; anything else is relative to the including file.
 
 const INCLUDE = /^[ \t]*<!--\s*@include:\s*([^\s{]+?)(?:\{(\d*),(\d*)\})?\s*-->[ \t]*$/gm;
 const SNIPPET = /^[ \t]*<<<\s+([^\s{]+)(?:\{([^}]*)\})?(?:\s+\[([^\]]+)\])?[ \t]*$/gm;

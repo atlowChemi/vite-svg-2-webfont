@@ -13,4 +13,4 @@ improvements documented on that page.
 For the `vite-svg-2-webfont` Vite plugin changelog, see [Plugin Changelog](/vite/changelog).
 :::
 
-<!--@include: ../../webfont-generator/CHANGELOG.md{2,}-->
+<!--@include: ../../../../webfont-generator/CHANGELOG.md{2,}-->

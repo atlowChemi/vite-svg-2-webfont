@@ -23,14 +23,14 @@ Descriptions shared with the other tools name fields in camelCase, as the [CLI m
 
 ### `files`
 
-<!--@include: @/_shared/options/files.md-->
+<!--@include: @/includes/options/files.md-->
 
 - Type: `Vec<String>`
 - Default: empty; required unless `variants` is set
 
 ### `variants`
 
-<!--@include: @/_shared/options/variants.md-->
+<!--@include: @/includes/options/variants.md-->
 
 - Type: `Option<Vec<FontVariant>>`
 - Default: `None` (a single-design font)
@@ -50,14 +50,14 @@ let light = FontVariant {
 
 ### `variant_class_prefix`
 
-<!--@include: @/_shared/options/variant-class-prefix.md-->
+<!--@include: @/includes/options/variant-class-prefix.md-->
 
 - Type: `Option<String>`
 - Default: `"icon--"`
 
 ### `missing_glyphs`
 
-<!--@include: @/_shared/options/missing-glyphs.md-->
+<!--@include: @/includes/options/missing-glyphs.md-->
 
 - Type: `Option<MissingGlyphOptions>`
 - Default: `MissingGlyphBehavior::Blank` for families
@@ -68,35 +68,35 @@ See [`MissingGlyphOptions`](/rust/api#missingglyphoptions).
 
 ### `dest`
 
-<!--@include: @/_shared/options/dest.md-->
+<!--@include: @/includes/options/dest.md-->
 
 - Type: `String`
 - Required
 
 ### `font_name`
 
-<!--@include: @/_shared/options/font-name.md-->
+<!--@include: @/includes/options/font-name.md-->
 
 - Type: `Option<String>`
 - Default: `"iconfont"`
 
 ### `types`
 
-<!--@include: @/_shared/options/types.md-->
+<!--@include: @/includes/options/types.md-->
 
 - Type: `Option<Vec<FontType>>`
 - Default: `[Eot, Woff, Woff2]`, or `[Woff, Woff2]` for families
 
 ### `order`
 
-<!--@include: @/_shared/options/order.md-->
+<!--@include: @/includes/options/order.md-->
 
 - Type: `Option<Vec<FontType>>`
 - Default: `[Eot, Woff2, Woff, Ttf, Svg]`, filtered to `types`
 
 ### `write_files`
 
-<!--@include: @/_shared/options/write-files.md-->
+<!--@include: @/includes/options/write-files.md-->
 
 - Type: `Option<bool>`
 - Default: `true`
@@ -105,42 +105,42 @@ The result holds every output either way.
 
 ### `css`
 
-<!--@include: @/_shared/options/css.md-->
+<!--@include: @/includes/options/css.md-->
 
 - Type: `Option<bool>`
 - Default: `true`
 
 ### `css_dest`
 
-<!--@include: @/_shared/options/css-dest.md-->
+<!--@include: @/includes/options/css-dest.md-->
 
 - Type: `Option<String>`
 - Default: `<dest>/<font_name>.css`
 
 ### `css_fonts_url`
 
-<!--@include: @/_shared/options/css-fonts-url.md-->
+<!--@include: @/includes/options/css-fonts-url.md-->
 
 - Type: `Option<String>`
 - Default: the relative path from `css_dest` to `dest`
 
 ### `html`
 
-<!--@include: @/_shared/options/html.md-->
+<!--@include: @/includes/options/html.md-->
 
 - Type: `Option<bool>`
 - Default: `false`
 
 ### `html_dest`
 
-<!--@include: @/_shared/options/html-dest.md-->
+<!--@include: @/includes/options/html-dest.md-->
 
 - Type: `Option<String>`
 - Default: `<dest>/<font_name>.html`
 
 ### `ts`
 
-<!--@include: @/_shared/options/ts.md-->
+<!--@include: @/includes/options/ts.md-->
 
 - Type: `Option<bool>`
 - Default: `false`
@@ -149,7 +149,7 @@ The result holds every output either way.
 
 ### `ts_dest`
 
-<!--@include: @/_shared/options/ts-dest.md-->
+<!--@include: @/includes/options/ts-dest.md-->
 
 - Type: `Option<String>`
 - Default: `<dest>/<font_name>.ts`
@@ -162,21 +162,21 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `css_template`
 
-<!--@include: @/_shared/options/css-template.md-->
+<!--@include: @/includes/options/css-template.md-->
 
 - Type: `Option<String>`
 - Default: the built-in CSS template
 
 ### `html_template`
 
-<!--@include: @/_shared/options/html-template.md-->
+<!--@include: @/includes/options/html-template.md-->
 
 - Type: `Option<String>`
 - Default: the built-in HTML template
 
 ### `template_options`
 
-<!--@include: @/_shared/options/template-options.md-->
+<!--@include: @/includes/options/template-options.md-->
 
 - Type: `Option<serde_json::Map<String, Value>>`
 - Default: `None`
@@ -185,87 +185,87 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `codepoints`
 
-<!--@include: @/_shared/options/codepoints.md-->
+<!--@include: @/includes/options/codepoints.md-->
 
 - Type: `Option<HashMap<String, u32>>`
 - Default: `None`
 
 ### `start_codepoint`
 
-<!--@include: @/_shared/options/start-codepoint.md-->
+<!--@include: @/includes/options/start-codepoint.md-->
 
 - Type: `Option<u32>`
 - Default: `0xF101`
 
 ### `ligature`
 
-<!--@include: @/_shared/options/ligature.md-->
+<!--@include: @/includes/options/ligature.md-->
 
 - Type: `Option<bool>`
 - Default: `true`
 
 ### `font_height`
 
-<!--@include: @/_shared/options/font-height.md-->
+<!--@include: @/includes/options/font-height.md-->
 
 - Type: `Option<f64>`
 - Default: the tallest icon's height
 
 ### `ascent`
 
-<!--@include: @/_shared/options/ascent.md-->
+<!--@include: @/includes/options/ascent.md-->
 
 - Type: `Option<f64>`
 
 ### `descent`
 
-<!--@include: @/_shared/options/descent.md-->
+<!--@include: @/includes/options/descent.md-->
 
 - Type: `Option<f64>`
 
 ### `normalize`
 
-<!--@include: @/_shared/options/normalize.md-->
+<!--@include: @/includes/options/normalize.md-->
 
 - Type: `Option<bool>`
 - Default: `true`
 
 ### `fixed_width`
 
-<!--@include: @/_shared/options/fixed-width.md-->
+<!--@include: @/includes/options/fixed-width.md-->
 
 - Type: `Option<bool>`
 - Default: `false`
 
 ### `center_horizontally`
 
-<!--@include: @/_shared/options/center-horizontally.md-->
+<!--@include: @/includes/options/center-horizontally.md-->
 
 - Type: `Option<bool>`
 - Default: `false`
 
 ### `center_vertically`
 
-<!--@include: @/_shared/options/center-vertically.md-->
+<!--@include: @/includes/options/center-vertically.md-->
 
 - Type: `Option<bool>`
 - Default: `false`
 
 ### `preserve_aspect_ratio`
 
-<!--@include: @/_shared/options/preserve-aspect-ratio.md-->
+<!--@include: @/includes/options/preserve-aspect-ratio.md-->
 
 - Type: `Option<bool>`
 
 ### `round`
 
-<!--@include: @/_shared/options/round.md-->
+<!--@include: @/includes/options/round.md-->
 
 - Type: `Option<f64>`
 
 ### `optimize_output`
 
-<!--@include: @/_shared/options/optimize-output.md-->
+<!--@include: @/includes/options/optimize-output.md-->
 
 - Type: `Option<bool>`
 - Default: `false`
@@ -274,7 +274,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `color_glyphs`
 
-<!--@include: @/_shared/options/color-glyphs.md-->
+<!--@include: @/includes/options/color-glyphs.md-->
 
 - Type: `Option<ColorGlyphSelection>`
 - Default: `None` (single-color)
@@ -283,7 +283,7 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `color_slots`
 
-<!--@include: @/_shared/options/color-slots.md-->
+<!--@include: @/includes/options/color-slots.md-->
 
 - Type: `Option<HashMap<String, String>>`
 - Default: `None`
@@ -292,19 +292,19 @@ See [Templates](/guide/templates) for the built-in templates and the context the
 
 ### `font_style`
 
-<!--@include: @/_shared/options/font-style.md-->
+<!--@include: @/includes/options/font-style.md-->
 
 - Type: `Option<String>`
 
 ### `font_weight`
 
-<!--@include: @/_shared/options/font-weight.md-->
+<!--@include: @/includes/options/font-weight.md-->
 
 - Type: `Option<String>`
 
 ### `format_options`
 
-<!--@include: @/_shared/options/format-options.md-->
+<!--@include: @/includes/options/format-options.md-->
 
 - Type: `Option<FormatOptions>`
 
@@ -314,7 +314,7 @@ The Rust types are `FormatOptions` with `svg`, `ttf`, `woff`, and `woff2` fields
 
 ### `incremental`
 
-<!--@include: @/_shared/options/incremental.md-->
+<!--@include: @/includes/options/incremental.md-->
 
 - Type: `Option<bool>`
 - Default: `false`
@@ -323,7 +323,7 @@ Update the result with the [`regenerate` methods](/rust/api#updating-a-file-resu
 
 ### `cache_location`
 
-<!--@include: @/_shared/options/cache-location.md-->
+<!--@include: @/includes/options/cache-location.md-->
 
 - Type: `Option<String>`
 - Default: `None` (no persistent cache)
@@ -332,7 +332,7 @@ Remove the files the engine created with [`clear_cache()`](/rust/api#clear-cache
 
 ### `threads`
 
-<!--@include: @/_shared/options/threads.md-->
+<!--@include: @/includes/options/threads.md-->
 
 - Type: `Option<NonZeroUsize>`
 - Default: one per CPU core

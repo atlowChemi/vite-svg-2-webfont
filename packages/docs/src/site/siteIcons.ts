@@ -1,4 +1,4 @@
-// The site's own icon font: fonte casts the SVGs in `site-icons/` into it during the docs build (see `siteIconFont.ts`).
+// The site's own icon font: fonte casts the SVGs in `src/fonts/site-icons/` into it during the docs build (see `siteIconFont.ts`).
 // home, star, bolt, bell, search, heart, arrow-down, chevron-down: Tabler Icons 3.19.0 (outline), MIT license,
 // https://tabler.io/icons. They stay stroked; the engine expands strokes into filled outlines.
 // rust, node, wasm, vite: Simple Icons 13.0.0, CC0 1.0, https://simpleicons.org.

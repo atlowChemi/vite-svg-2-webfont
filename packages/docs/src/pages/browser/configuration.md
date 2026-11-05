@@ -19,7 +19,7 @@ Names use Unicode letters, digits, hyphens, and underscores; other names are rej
 
 ### `variants`
 
-<!--@include: @/_shared/options/variants.md-->
+<!--@include: @/includes/options/variants.md-->
 
 - Type: `SourceFontVariant[]`, each `{ name: string; sources: SvgSource[]; weight?: number; default?: boolean }`
 - Default: omitted (a single-design font)
@@ -28,14 +28,14 @@ Sources with the same `name` are the same icon in each design; each keeps its ow
 
 ### `variantClassPrefix`
 
-<!--@include: @/_shared/options/variant-class-prefix.md-->
+<!--@include: @/includes/options/variant-class-prefix.md-->
 
 - Type: `string`
 - Default: `'icon--'`
 
 ### `missingGlyphs`
 
-<!--@include: @/_shared/options/missing-glyphs.md-->
+<!--@include: @/includes/options/missing-glyphs.md-->
 
 - Type: `{ behavior: 'blank' | 'error' | 'fallback'; variant?: string }`
 - Default: `{ behavior: 'blank' }`
@@ -46,21 +46,21 @@ Nothing is written to disk: every output stays on the [result](/browser/api#webf
 
 ### `fontName`
 
-<!--@include: @/_shared/options/font-name.md-->
+<!--@include: @/includes/options/font-name.md-->
 
 - Type: `string`
 - Default: `'iconfont'`
 
 ### `types`
 
-<!--@include: @/_shared/options/types.md-->
+<!--@include: @/includes/options/types.md-->
 
 - Type: `FontType[]`
 - Default: `['eot', 'woff', 'woff2']`, or `['woff', 'woff2']` for families
 
 ### `order`
 
-<!--@include: @/_shared/options/order.md-->
+<!--@include: @/includes/options/order.md-->
 
 - Type: `FontType[]`
 - Default: `['eot', 'woff2', 'woff', 'ttf', 'svg']`, filtered to `types`
@@ -88,7 +88,7 @@ Whether [`collectOutputs()`](/browser/api#collectoutputs) includes the [TypeScri
 
 ### `cssFontsUrl`
 
-<!--@include: @/_shared/options/css-fonts-url.md-->
+<!--@include: @/includes/options/css-fonts-url.md-->
 
 - Type: `string`
 - Default: none, so the CSS refers to the bare file names, such as `iconfont.woff2?…`
@@ -115,7 +115,7 @@ Text of a custom Handlebars template for the HTML preview, not a file path.
 
 ### `templateOptions`
 
-<!--@include: @/_shared/options/template-options.md-->
+<!--@include: @/includes/options/template-options.md-->
 
 - Type: `Record<string, JsonValue>`
 - Default: `{}`
@@ -126,87 +126,87 @@ Values must be JSON: there are no JavaScript callbacks in the browser.
 
 ### `codepoints`
 
-<!--@include: @/_shared/options/codepoints.md-->
+<!--@include: @/includes/options/codepoints.md-->
 
 - Type: `Record<string, number>`
 - Default: `{}`
 
 ### `startCodepoint`
 
-<!--@include: @/_shared/options/start-codepoint.md-->
+<!--@include: @/includes/options/start-codepoint.md-->
 
 - Type: `number`
 - Default: `0xF101`
 
 ### `ligature`
 
-<!--@include: @/_shared/options/ligature.md-->
+<!--@include: @/includes/options/ligature.md-->
 
 - Type: `boolean`
 - Default: `true`
 
 ### `fontHeight`
 
-<!--@include: @/_shared/options/font-height.md-->
+<!--@include: @/includes/options/font-height.md-->
 
 - Type: `number`
 - Default: the tallest icon's height
 
 ### `ascent`
 
-<!--@include: @/_shared/options/ascent.md-->
+<!--@include: @/includes/options/ascent.md-->
 
 - Type: `number`
 
 ### `descent`
 
-<!--@include: @/_shared/options/descent.md-->
+<!--@include: @/includes/options/descent.md-->
 
 - Type: `number`
 
 ### `normalize`
 
-<!--@include: @/_shared/options/normalize.md-->
+<!--@include: @/includes/options/normalize.md-->
 
 - Type: `boolean`
 - Default: `true`
 
 ### `fixedWidth`
 
-<!--@include: @/_shared/options/fixed-width.md-->
+<!--@include: @/includes/options/fixed-width.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `centerHorizontally`
 
-<!--@include: @/_shared/options/center-horizontally.md-->
+<!--@include: @/includes/options/center-horizontally.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `centerVertically`
 
-<!--@include: @/_shared/options/center-vertically.md-->
+<!--@include: @/includes/options/center-vertically.md-->
 
 - Type: `boolean`
 - Default: `false`
 
 ### `preserveAspectRatio`
 
-<!--@include: @/_shared/options/preserve-aspect-ratio.md-->
+<!--@include: @/includes/options/preserve-aspect-ratio.md-->
 
 - Type: `boolean`
 
 ### `round`
 
-<!--@include: @/_shared/options/round.md-->
+<!--@include: @/includes/options/round.md-->
 
 - Type: `number`
 
 ### `optimizeOutput`
 
-<!--@include: @/_shared/options/optimize-output.md-->
+<!--@include: @/includes/options/optimize-output.md-->
 
 - Type: `boolean`
 - Default: `false`
@@ -215,14 +215,14 @@ Values must be JSON: there are no JavaScript callbacks in the browser.
 
 ### `colorGlyphs`
 
-<!--@include: @/_shared/options/color-glyphs.md-->
+<!--@include: @/includes/options/color-glyphs.md-->
 
 - Type: `true | string[]`
 - Default: omitted (single-color)
 
 ### `colorSlots`
 
-<!--@include: @/_shared/options/color-slots.md-->
+<!--@include: @/includes/options/color-slots.md-->
 
 - Type: `Record<string, string>`
 - Default: omitted
@@ -231,19 +231,19 @@ Values must be JSON: there are no JavaScript callbacks in the browser.
 
 ### `fontStyle`
 
-<!--@include: @/_shared/options/font-style.md-->
+<!--@include: @/includes/options/font-style.md-->
 
 - Type: `string`
 
 ### `fontWeight`
 
-<!--@include: @/_shared/options/font-weight.md-->
+<!--@include: @/includes/options/font-weight.md-->
 
 - Type: `string`
 
 ### `formatOptions`
 
-<!--@include: @/_shared/options/format-options.md-->
+<!--@include: @/includes/options/format-options.md-->
 
 - Type: `FormatOptions`
 
@@ -255,7 +255,7 @@ Generation runs in a worker, so it never blocks the page.
 
 ### `incremental`
 
-<!--@include: @/_shared/options/incremental.md-->
+<!--@include: @/includes/options/incremental.md-->
 
 - Type: `boolean`
 - Default: `false`

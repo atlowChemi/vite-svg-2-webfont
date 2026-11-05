@@ -1,8 +1,9 @@
+import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import styles from './markdown.module.css';
 import { renderMarkdown } from './markdown.ts';
 
-const render = () => renderMarkdown('src/build/fixtures/markdown.md', () => '', new Set());
+const render = () => renderMarkdown(join(import.meta.dirname, 'fixtures/markdown.md'), () => '', new Set());
 
 describe('renderMarkdown', () => {
     it('takes a heading id from a trailing {#id}, without showing it', async () => {

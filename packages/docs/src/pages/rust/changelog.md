@@ -8,4 +8,4 @@ Engine changes also reach npm users through `@atlowchemi/webfont-generator`, who
 is synchronized with the engine. See the [npm Adapter Changelog](/node/changelog) for Node.js
 integration changes, or [engine GitHub releases](https://github.com/atlowChemi/vite-svg-2-webfont/releases?q=webfont-engine-v).
 
-<!--@include: ../../../crates/webfont-generator/CHANGELOG.md{2,}-->
+<!--@include: ../../../../../crates/webfont-generator/CHANGELOG.md{2,}-->

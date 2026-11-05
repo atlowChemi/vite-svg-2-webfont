@@ -3,7 +3,7 @@ import { svgAuthoringFonts } from '../../site/svgAuthoringCases.ts';
 import { cx } from '../cx.ts';
 import styles from './SvgAuthoringCompare.module.css';
 
-const sources = import.meta.glob<string>('../../../svg-authoring-fixtures/**/*.svg', { query: '?raw', import: 'default', eager: true });
+const sources = import.meta.glob<string>('../../fonts/svg-authoring/**/*.svg', { query: '?raw', import: 'default', eager: true });
 
 interface Props {
     /** Fonts to compare, in display order. */

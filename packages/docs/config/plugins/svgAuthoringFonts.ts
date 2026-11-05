@@ -3,7 +3,7 @@ import type { Plugin } from 'vite';
 import viteSvgToWebfont from 'vite-svg-2-webfont';
 import { svgAuthoringFonts } from '../../src/site/svgAuthoringCases.ts';
 
-const fixtures = resolve(import.meta.dirname, '../..', 'svg-authoring-fixtures');
+const fixtures = resolve(import.meta.dirname, '../../src/fonts/svg-authoring');
 const allFontsModule = 'virtual:svg-authoring-fonts';
 
 /** Every case becomes its own inline WOFF2 font, scoped by a per-case base selector and class prefix. */
