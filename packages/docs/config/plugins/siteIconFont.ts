@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import viteSvgToWebfont from 'vite-svg-2-webfont';
-import { siteIcons } from '../site/siteIcons.ts';
+import { siteIcons } from '../../src/site/siteIcons.ts';
 
 /** The site's icon font, imported by the theme as `virtual:site-icons.css`. */
 export function siteIconFont(): Plugin {

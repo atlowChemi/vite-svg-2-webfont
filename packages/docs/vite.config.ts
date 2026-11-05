@@ -2,7 +2,7 @@ import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 import { keepCssModules, scopedName } from './config/cssModules.ts';
 import { loadedSitePlugins } from './config/sitePlugins.ts';
 import { fonteDocs } from './config/staticSite.ts';
-import { iconCss } from './src/build/iconCss.ts';
+import { iconCss } from './config/plugins/iconCss.ts';
 
 // The docs as static pages: see `config/staticSite.ts` for the build and the dev server.
 
@@ -13,7 +13,7 @@ const config: UserProjectConfigExport = defineProject({
     plugins: [fonteDocs(), keepCssModules(), ...loadedSitePlugins()],
     test: {
         name: 'docs',
-        include: ['src/**/*.test.{ts,tsx}'],
+        include: ['config/**/*.test.ts', 'src/**/*.test.{ts,tsx}'],
     },
     run: {
         tasks: {

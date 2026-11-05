@@ -1,7 +1,7 @@
 import { resolve } from 'node:path';
 import type { Plugin } from 'vite';
 import viteSvgToWebfont from 'vite-svg-2-webfont';
-import { svgAuthoringFonts } from '../site/svgAuthoringCases.ts';
+import { svgAuthoringFonts } from '../../src/site/svgAuthoringCases.ts';
 
 const fixtures = resolve(import.meta.dirname, '../..', 'svg-authoring-fixtures');
 const allFontsModule = 'virtual:svg-authoring-fonts';

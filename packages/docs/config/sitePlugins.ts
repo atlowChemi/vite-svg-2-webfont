@@ -5,11 +5,11 @@ import { pathToFileURL } from 'node:url';
 // the Vite config before those are built, so the plugins load here, and only `dev` and `build` (which depend on the
 // build) require them.
 
-type SitePlugins = typeof import('../src/build/plugins.ts');
+type SitePlugins = typeof import('./plugins/index.ts');
 let site: SitePlugins | undefined;
 let siteError: unknown;
 try {
-    site = (await import(pathToFileURL(join(import.meta.dirname, '../src/build/plugins.ts')).href)) as SitePlugins;
+    site = (await import(pathToFileURL(join(import.meta.dirname, 'plugins/index.ts')).href)) as SitePlugins;
 } catch (error) {
     siteError = error;
 }

@@ -11,7 +11,7 @@ import pinnedCodepoints from '../../examples/pinned-codepoints/vite.config.ts';
 import inlineFonts from '../../examples/inline-fonts/vite.config.ts';
 import preload from '../../examples/preload/vite.config.ts';
 import writeFiles from '../../examples/write-files/vite.config.ts';
-import { exampleScope } from '../site/exampleScope.ts';
+import { exampleScope } from '../../src/site/exampleScope.ts';
 
 /** Example slugs and their real configs. Each config must give the plugin a unique `fontName`. */
 const examples: Record<string, UserConfig> = {
