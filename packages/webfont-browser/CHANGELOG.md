@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-browser-generator-v0.2.0...webfont-browser-generator-v0.3.0) (2026-11-05)
+
+
+### Features
+
+* **webfont-browser:** reuse one worker across results and warm the playground ([#678](https://github.com/atlowChemi/vite-svg-2-webfont/issues/678)) ([f0733d6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/f0733d6ebea26cf4dba8be61bf1b1b55ab20b555))
+
+
+### Bug Fixes
+
+* **deps:** update rust-wasm-bindgen monorepo ([#704](https://github.com/atlowChemi/vite-svg-2-webfont/issues/704)) ([3926c5e](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3926c5e29732bcb2280efe22b56f2d43d5a83f31))
+* **docs:** serve the docs site from fonte.atlow.dev ([#663](https://github.com/atlowChemi/vite-svg-2-webfont/issues/663)) ([3e565f0](https://github.com/atlowChemi/vite-svg-2-webfont/commit/3e565f04c8f49c3879e6eebb39916276c36c2c1e))
+* **webfont-browser:** regenerate bindings for wasm-bindgen 0.2.130 ([#710](https://github.com/atlowChemi/vite-svg-2-webfont/issues/710)) ([1a7a7e6](https://github.com/atlowChemi/vite-svg-2-webfont/commit/1a7a7e67b3a49b90c2829ac0ed1af024befd68e8))
+
 ## [0.2.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-browser-generator-v0.1.0...webfont-browser-generator-v0.2.0) (2026-10-28)
 
 ### Features
