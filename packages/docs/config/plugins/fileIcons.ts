@@ -48,22 +48,22 @@ function svgUrl(name: string): string {
 
 const selector = (label: string) => `[data-title='${label.replace(/['\\]/g, '\\$&')}']::before`;
 const rule = (prefix: string, labels: string[], name: string) =>
-    `${labels.map(label => prefix + selector(label)).join(',\n')} {\n    content: '';\n    --icon: ${svgUrl(name)};\n}\n`;
+    `${labels
+        .values()
+        .map(label => prefix + selector(label))
+        .reduce((list, next) => `${list},\n${next}`)} {\n    content: '';\n    --icon: ${svgUrl(name)};\n}\n`;
 
 /** The stylesheet for these labels: one rule per icon, in a fixed order whatever order the labels came in. */
 export function fileIconCss(labels: Iterable<string>): string {
-    const byIcon = new Map<string, { icon: Icon; labels: string[] }>();
-    for (const label of [...new Set(labels)].toSorted()) {
-        const icon = iconFor(label);
-        if (!icon) continue;
-        const key = JSON.stringify(icon);
-        const entry = byIcon.get(key) ?? { icon, labels: [] };
-        entry.labels.push(label);
-        byIcon.set(key, entry);
-    }
-    return [...byIcon.values()]
-        .map(({ icon, labels: group }) => (typeof icon === 'string' ? rule('', group, icon) : rule('', group, icon.light) + rule('html.dark ', group, icon.dark)))
-        .join('');
+    // oxlint-disable-next-line unicorn/no-array-sort -- The one array, just allocated by Array.from(); sorting a copy would add another.
+    const sorted = Array.from(new Set(labels)).sort();
+    // Grouped by the rule's own icon object, so labels a rule matches share one CSS rule; `undefined` holds the rest.
+    return Map.groupBy(sorted, iconFor)
+        .entries()
+        .reduce((css, [icon, group]) => {
+            if (!icon) return css;
+            return css + (typeof icon === 'string' ? rule('', group, icon) : rule('', group, icon.light) + rule('html.dark ', group, icon.dark));
+        }, '');
 }
 
 const ID = 'virtual:file-icons.css';
