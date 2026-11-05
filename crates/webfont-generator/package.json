@@ -2,5 +2,15 @@
     "name": "@atlowchemi/webfont-engine",
     "version": "0.0.0-internal-only",
     "private": true,
-    "type": "module"
+    "type": "module",
+    "scripts": {
+        "next:bench": "cargo bench -p webfont-generator --features bench",
+        "next:test:coverage": "bash ../../scripts/ci/rust-coverage.sh engine",
+        "next:test:coverage:cli": "bash ../../scripts/ci/rust-coverage.sh cli",
+        "next:test:doctests": "node ../../scripts/ci/doctests.mjs",
+        "next:test:color-proof": "cargo test -p webfont-generator color_proof -- --nocapture",
+        "next:check": "cargo clippy -p webfont-generator -- -D warnings && cargo clippy -p webfont-generator --features cli -- -D warnings && cargo clippy -p webfont-generator --no-default-features -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features async -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features fs -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features in_memory -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features in_memory,async -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features cli -- -D warnings && cargo clippy -p webfont-generator --no-default-features --features bench -- -D warnings",
+        "next:test": "cargo test -p webfont-generator && cargo test -p webfont-generator --features cli",
+        "next:test:features": "cargo test -p webfont-generator --no-default-features --features fs && cargo test -p webfont-generator --no-default-features --features in_memory && cargo test -p webfont-generator --no-default-features --features in_memory,async && cargo test -p webfont-generator --no-default-features --features cli"
+    }
 }

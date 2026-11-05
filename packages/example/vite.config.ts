@@ -32,11 +32,11 @@ const config: UserProjectConfigExport = defineProject({
         tasks: {
             dev: {
                 command: 'vp dev',
-                dependsOn: ['vite-svg-2-webfont#pack'],
+                dependsOn: ['vite-svg-2-webfont#pack', '@atlowchemi/vite-svg-webfont-docs#optimize-svg'],
             },
             build: {
                 command: 'vp build',
-                dependsOn: ['vite-svg-2-webfont#pack'],
+                dependsOn: ['vite-svg-2-webfont#pack', '@atlowchemi/vite-svg-webfont-docs#optimize-svg'],
             },
             preview: {
                 command: 'vp preview',
