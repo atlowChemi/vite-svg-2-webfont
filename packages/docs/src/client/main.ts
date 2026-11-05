@@ -4,7 +4,7 @@ import '@fontsource-variable/inter/wght.css';
 import '@fontsource/zilla-slab/600.css';
 import '@fontsource/jetbrains-mono/400.css';
 import 'virtual:site-icons.css';
-import 'virtual:group-icons.css';
+import 'virtual:file-icons.css';
 import '../styles/tokens.css';
 import '../styles/base.css';
 import '../components/Wordmark.module.css';

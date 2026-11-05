@@ -1,4 +1,4 @@
-declare module 'virtual:group-icons.css';
+declare module 'virtual:file-icons.css';
 
 declare module 'virtual:site-icons.css';
 

@@ -207,5 +207,5 @@ export function siteFiles(all: Page[]): Map<string, string> {
     ]);
 }
 
-/** Every code-group and example-tab label, for the file icons in `virtual:group-icons.css`. */
+/** Every code-group and example-tab label, for the file icons in `virtual:file-icons.css`. */
 export const tabLabels = (all: Page[]) => [...new Set(all.flatMap(p => [...p.html.matchAll(/data-title="([^"]*)"/g)].map(m => m[1]!)))];

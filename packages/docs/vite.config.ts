@@ -2,14 +2,13 @@ import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 import { keepCssModules, scopedName } from './config/cssModules.ts';
 import { loadedSitePlugins } from './config/sitePlugins.ts';
 import { fonteDocs } from './config/staticSite.ts';
-import { iconCss } from './config/plugins/iconCss.ts';
 
 // The docs as static pages: see `config/staticSite.ts` for the build and the dev server.
 
 const config: UserProjectConfigExport = defineProject({
     // Holds the engine cache the icon fonts build into, kept across CI runs (see main.yaml and docs.yaml).
     cacheDir: '.cache',
-    css: { postcss: iconCss, modules: { generateScopedName: scopedName } },
+    css: { modules: { generateScopedName: scopedName } },
     plugins: [fonteDocs(), keepCssModules(), ...loadedSitePlugins()],
     test: {
         name: 'docs',

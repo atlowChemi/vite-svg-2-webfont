@@ -59,7 +59,7 @@ export function fonteDocs(): Plugin {
                     await builder.build(builder.environments.ssr!);
                     const render = (await import(pathToFileURL(join(builder.config.root, serverDir, 'render.js')).href)) as Renderer;
                     const pages = await loadAll(render);
-                    await requireSite().tellGroupIcons(render.tabLabels(pages));
+                    requireSite().setFileIconLabels(render.tabLabels(pages));
                     client.config.build.rolldownOptions.input = Object.values(render.clientEntries);
                     await builder.build(client);
                     const manifest = JSON.parse(await readFile(join(outDir, '.vite/manifest.json'), 'utf8')) as Manifest;
@@ -106,11 +106,11 @@ export function fonteDocs(): Plugin {
                 if (file.endsWith('.md')) dev.ws.send({ type: 'full-reload' });
             });
         },
-        // Dev: the group icons learn every label from the rendered pages before their CSS is first served.
+        // Dev: the file icons learn every label from the rendered pages before their CSS is first served.
         async load(id) {
-            if (!server || id !== '\0virtual:group-icons.css') return undefined;
+            if (!server || id !== '\0virtual:file-icons.css') return undefined;
             const render = (await server.ssrLoadModule(`/${renderer}`)) as Renderer;
-            await requireSite().tellGroupIcons(render.tabLabels(await loadAll(render)));
+            requireSite().setFileIconLabels(render.tabLabels(await loadAll(render)));
             return undefined;
         },
     };
