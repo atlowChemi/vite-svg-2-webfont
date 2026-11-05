@@ -18,6 +18,7 @@ import { DocShell, PageShell } from '../components/shell/DocShell.tsx';
 import { pageNav } from '../site/nav.ts';
 import { site } from '../site/site.ts';
 import type { Block } from './blocks.ts';
+import { loadLanguages } from './highlight.ts';
 import { docsRoot, renderMarkdown, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
 import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, searchIndex } from './outputs.ts';
@@ -51,12 +52,17 @@ export interface Page {
     entries: Set<ClientEntry>;
 }
 
+const cssHighlighter = await loadLanguages(['css']);
+
 // Components the Markdown can use, rendered to static HTML at build time, and the browser entry each one needs.
 type BlockComponent = { entry?: ClientEntry; render: (props: Record<string, unknown>, slots: Record<string, string>) => ReactNode };
 const blocks: Record<string, BlockComponent> = {
     ExampleTabs: { entry: 'examples', render: (p, slots) => <ExampleTabs tabs={p.tabs as Record<string, string>} slots={slots} /> },
     ExampleIcons: { entry: 'examples', render: p => <ExampleIcons example={p.example as string} /> },
-    ExampleCss: { entry: 'examples', render: p => <ExampleCss html={generatedCss[p.example as string] ?? ''} highlight={p.highlight as string[] | undefined} /> },
+    ExampleCss: {
+        entry: 'examples',
+        render: p => <ExampleCss css={generatedCss[p.example as string] ?? ''} highlight={p.highlight as string[] | undefined} shiki={cssHighlighter} />,
+    },
     ExampleOutput: { entry: 'examples', render: (p, slots) => <ExampleOutput {...(p as { example: string })} slots={slots} /> },
     SvgAuthoringCompare: {
         entry: 'svg-authoring',
@@ -71,7 +77,7 @@ const blocks: Record<string, BlockComponent> = {
     },
     CacheFileLayout: { render: () => <CacheFileLayout /> },
     FonteLanding: { entry: 'landing', render: (_, slots) => <Landing install={slots} /> },
-    Playground: { entry: 'playground', render: () => <PlaygroundPage /> },
+    Playground: { entry: 'playground', render: (_, slots) => <PlaygroundPage intro={slots.default ?? ''} /> },
 };
 const blockNames = new Set(Object.keys(blocks));
 
@@ -183,11 +189,9 @@ export function renderDocument(page: Page, assets: Assets, docsUrl: string): str
                 <link rel="describedby" href="/llms.txt" />
                 <script dangerouslySetInnerHTML={{ __html: themeScript }} />
                 <script type="speculationrules" dangerouslySetInnerHTML={{ __html: speculation }} />
-                {linked
-                    .flatMap(a => a.css)
-                    .map(href => (
-                        <link key={href} rel="stylesheet" href={href} />
-                    ))}
+                {[...new Set(linked.flatMap(a => a.css))].map(href => (
+                    <link key={href} rel="stylesheet" href={href} />
+                ))}
                 {linked
                     .flatMap(a => a.js)
                     .map(src => (

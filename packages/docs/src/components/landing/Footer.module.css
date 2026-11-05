@@ -1,0 +1,45 @@
+.footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 22px;
+    padding: 22px var(--gutter) 26px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-sunken);
+}
+
+.footer .name {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.footer a {
+    color: var(--acc);
+    text-decoration: none;
+    transition: color 0.25s;
+}
+
+/* Footer links sit at the coldest point of the page; hovering heats them back up. */
+.footer a:hover {
+    color: var(--accent-text);
+}
+
+.footer .license {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+}
+
+@media (max-width: 720px) {
+    .footer {
+        gap: 16px;
+        padding: 20px 16px 24px;
+    }
+
+    .footer .license {
+        width: 100%;
+        margin-left: 0;
+    }
+}

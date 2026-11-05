@@ -1,16 +1,16 @@
-import { useEffect, useEffectEvent, useRef, useState, type ComponentProps } from 'react';
+import { useEffect, useEffectEvent, useRef, useState, type ComponentProps, type FC } from 'react';
 
-type CommitInputProps = Omit<ComponentProps<'input'>, 'value' | 'defaultValue' | 'onChange'> & {
+interface CommitInputProps extends Omit<ComponentProps<'input'>, 'value' | 'defaultValue' | 'onChange'> {
     value: string;
     /** Called with the typed text once it is committed (Enter, or leaving a changed field), not on every keystroke. */
     onCommit: (text: string) => void;
-};
+}
 
 /**
  * A text field that edits a draft and commits it on the DOM's `change` event, which React's `onChange` does not
  * expose. A rejected draft stays in the field; it resets whenever `value` changes.
  */
-export function CommitInput({ value, onCommit, ...props }: CommitInputProps) {
+export const CommitInput: FC<CommitInputProps> = ({ value, onCommit, ...props }) => {
     const [draft, setDraft] = useState(value);
     const [shown, setShown] = useState(value);
     if (value !== shown) {
@@ -26,4 +26,4 @@ export function CommitInput({ value, onCommit, ...props }: CommitInputProps) {
         return () => field.removeEventListener('change', listener);
     }, []);
     return <input {...props} ref={input} value={draft} onChange={event => setDraft(event.target.value)} />;
-}
+};

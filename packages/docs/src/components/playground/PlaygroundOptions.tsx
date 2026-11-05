@@ -1,8 +1,11 @@
-import { Fragment, useState } from 'react';
+import { Fragment, useState, type FC } from 'react';
 import builtInCss from '../../../../webfont-generator/templates/css.hbs?raw';
 import builtInHtml from '../../../../webfont-generator/templates/html.hbs?raw';
+import { cx } from '../cx.ts';
 import { CommitInput } from './CommitInput.tsx';
+import styles from './PlaygroundOptions.module.css';
 import { formatCodepoint, parseCodepoint } from './codepoints.ts';
+import controls from './controls.module.css';
 import { ALL_TYPES, selectedTypes, unavailableTypes, type ColorMode, type PlaygroundSettings } from './options.ts';
 import { movedFormat, parseOptionalNumber, toggled, type NumberSetting } from './settingsEdits.ts';
 
@@ -16,16 +19,16 @@ type TemplateSetting = 'cssTemplate' | 'htmlTemplate';
 
 const BUILT_IN_TEMPLATES: Record<TemplateSetting, string> = { cssTemplate: builtInCss, htmlTemplate: builtInHtml };
 
-export type PlaygroundOptionsProps = {
+export interface PlaygroundOptionsProps {
     settings: PlaygroundSettings;
     iconNames: string[];
     onChange: (patch: Partial<PlaygroundSettings>) => void;
     onReassign: () => void;
     onReset: () => void;
-};
+}
 
 /** Every generator option, grouped like the docs' option pages. */
-export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, onReset }: PlaygroundOptionsProps) {
+export const PlaygroundOptions: FC<PlaygroundOptionsProps> = ({ settings, iconNames, onChange, onReassign, onReset }) => {
     const unavailable = unavailableTypes(settings);
     const ordered = selectedTypes(settings);
     const [startError, setStartError] = useState<string>();
@@ -55,10 +58,10 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
     }
 
     return (
-        <div className="pg-options">
-            <div className="pg-options-header">
+        <div className={styles.options}>
+            <div className={styles.header}>
                 <h2>Options</h2>
-                <button type="button" className="pg-link" onClick={onReset}>
+                <button type="button" className={controls.link} onClick={onReset}>
                     Reset all
                 </button>
             </div>
@@ -78,7 +81,7 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
 
             <details open>
                 <summary>Formats</summary>
-                <div className="pg-checks">
+                <div className={styles.checks}>
                     {ALL_TYPES.map(type => (
                         <label key={type} title={unavailable.includes(type) ? 'Color glyphs need TTF, WOFF, or WOFF2' : undefined}>
                             <input
@@ -91,8 +94,8 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
                         </label>
                     ))}
                 </div>
-                <p className="pg-hint">Order in the generated CSS:</p>
-                <ol className="pg-order">
+                <p className={controls.hint}>Order in the generated CSS:</p>
+                <ol className={styles.order}>
                     {ordered.map((type, index) => (
                         <li key={type}>
                             {type.toUpperCase()}
@@ -133,22 +136,22 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
                 <label>
                     Rounding <CommitInput {...number('round')} placeholder="10e12" />
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('normalize')} /> Normalize to the same height
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('fixedWidth')} /> Fixed width
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('centerHorizontally')} /> Center horizontally
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('centerVertically')} /> Center vertically
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('preserveAspectRatio')} /> Preserve aspect ratio
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('optimizeOutput')} /> Optimize SVG paths
                 </label>
             </details>
@@ -164,13 +167,13 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
                 <label>
                     Font URL prefix <input {...text('cssFontsUrl')} placeholder="Relative to the CSS file" spellCheck={false} />
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('css')} /> Include CSS in downloads
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('html')} /> Include HTML preview in downloads
                 </label>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('ts')} /> Include TypeScript metadata in downloads
                 </label>
                 <label>
@@ -181,23 +184,23 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
 
             <details>
                 <summary>Codepoints and ligatures</summary>
-                <label className="pg-toggle">
+                <label className={styles.toggle}>
                     <input {...check('ligature')} /> Ligatures
                 </label>
                 <label>
                     Start codepoint
                     <CommitInput value={formatCodepoint(settings.startCodepoint)} spellCheck={false} aria-invalid={Boolean(startError)} onCommit={setStart} />
                 </label>
-                {startError && <small className="pg-options-error">{startError}</small>}
-                <p className="pg-hint">New icons get the next free codepoint from here. Edit any icon's codepoint on its card.</p>
-                <button type="button" className="pg-button" onClick={onReassign}>
+                {startError && <small className={styles.error}>{startError}</small>}
+                <p className={controls.hint}>New icons get the next free codepoint from here. Edit any icon's codepoint on its card.</p>
+                <button type="button" className={cx(controls.button, styles.reassign)} onClick={onReassign}>
                     Reassign all from the start codepoint
                 </button>
             </details>
 
             <details>
                 <summary>Color glyphs</summary>
-                <div className="pg-checks">
+                <div className={styles.checks}>
                     <label>
                         <input {...colorMode('off')} /> Off
                     </label>
@@ -209,7 +212,7 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
                     </label>
                 </div>
                 {settings.colorMode === 'selected' && (
-                    <div className="pg-checks pg-color-names">
+                    <div className={cx(styles.checks, styles.colorNames)}>
                         {iconNames.map(name => (
                             <label key={name}>
                                 <input
@@ -222,7 +225,7 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
                         ))}
                     </div>
                 )}
-                <p className="pg-hint">Keeps solid SVG colors. Some platforms show the single-color version instead.</p>
+                <p className={controls.hint}>Keeps solid SVG colors. Some platforms show the single-color version instead.</p>
             </details>
 
             <details>
@@ -231,20 +234,20 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
                     const template = settings[key];
                     return (
                         <Fragment key={key}>
-                            <div className="pg-template">
+                            <div className={styles.template}>
                                 <span>{key === 'cssTemplate' ? 'CSS' : 'HTML'} template</span>
                                 {template === undefined ? (
-                                    <button type="button" className="pg-link" onClick={() => onChange({ [key]: BUILT_IN_TEMPLATES[key] })}>
+                                    <button type="button" className={controls.link} onClick={() => onChange({ [key]: BUILT_IN_TEMPLATES[key] })}>
                                         Customize
                                     </button>
                                 ) : (
-                                    <button type="button" className="pg-link" onClick={() => onChange({ [key]: undefined })}>
+                                    <button type="button" className={controls.link} onClick={() => onChange({ [key]: undefined })}>
                                         Use built-in
                                     </button>
                                 )}
                             </div>
                             {template !== undefined && (
-                                <textarea value={template} rows={10} spellCheck={false} className="pg-code" onChange={event => onChange({ [key]: event.target.value })} />
+                                <textarea value={template} rows={10} spellCheck={false} className={controls.code} onChange={event => onChange({ [key]: event.target.value })} />
                             )}
                         </Fragment>
                     );
@@ -281,4 +284,4 @@ export function PlaygroundOptions({ settings, iconNames, onChange, onReassign, o
             </details>
         </div>
     );
-}
+};

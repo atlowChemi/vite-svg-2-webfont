@@ -1,7 +1,14 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FC } from 'react';
+import { cx } from '../cx.ts';
+import styles from './PlaygroundViewer.module.css';
+import controls from './controls.module.css';
 import { highlight } from './highlight.ts';
 import { useClipboard } from './useClipboard.ts';
 import type { WebfontBuild } from './webfontBuilder.ts';
+
+interface Props {
+    build: WebfontBuild;
+}
 
 type ViewerTab = 'css' | 'html' | 'svg' | 'ts';
 
@@ -9,7 +16,7 @@ type ViewerTab = 'css' | 'html' | 'svg' | 'ts';
 const HIGHLIGHT_LIMIT = 200_000;
 
 /** The generated CSS, HTML, SVG font and TypeScript, in tabs, highlighted like the site's code blocks. */
-export function PlaygroundViewer({ build }: { build: WebfontBuild }) {
+export const PlaygroundViewer: FC<Props> = ({ build }) => {
     const [viewer, setViewer] = useState<ViewerTab>('css');
     const { copied, copy } = useClipboard();
 
@@ -38,26 +45,26 @@ export function PlaygroundViewer({ build }: { build: WebfontBuild }) {
     const tabProps = (name: ViewerTab) => ({ type: 'button' as const, role: 'tab', 'data-title': `output.${name}`, 'aria-selected': tab === name, onClick: () => setViewer(name) });
 
     return (
-        <div className="pg-viewer">
-            <div className="pg-viewer-tabs">
+        <div className={styles.viewer}>
+            <div className={styles.tabs}>
                 {/* A tab list holds only tabs; Copy sits beside it. */}
-                <div className="pg-viewer-tablist" role="tablist" aria-label="Generated code">
+                <div className={styles.tablist} role="tablist" aria-label="Generated code">
                     <button {...tabProps('css')}>CSS</button>
                     <button {...tabProps('html')}>HTML</button>
                     {svgFont && <button {...tabProps('svg')}>SVG font</button>}
                     <button {...tabProps('ts')}>TypeScript</button>
                 </div>
-                <button type="button" className="pg-link" onClick={() => void copy('source', viewerText)}>
+                <button type="button" className={cx(controls.link, styles.copy)} onClick={() => void copy('source', viewerText)}>
                     {copied === 'source' ? 'Copied!' : 'Copy'}
                 </button>
             </div>
             {highlighted?.text === viewerText ? (
-                <div className="pg-code pg-code-highlighted" dangerouslySetInnerHTML={{ __html: highlighted.html }} />
+                <div className={cx(controls.code, styles.codeHighlighted)} dangerouslySetInnerHTML={{ __html: highlighted.html }} />
             ) : (
-                <pre className="pg-code">
+                <pre className={controls.code}>
                     <code>{viewerText}</code>
                 </pre>
             )}
         </div>
     );
-}
+};

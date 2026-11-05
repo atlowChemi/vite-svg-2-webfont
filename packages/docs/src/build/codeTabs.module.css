@@ -1,0 +1,85 @@
+/*
+ * Tabs over panels: a Markdown code group (`markdown.ts`) or an `<ExampleTabs>` block. Each tab is a radio, so the
+ * choice works before the page script runs; the script shows the checked tab's panel and hides the rest.
+ */
+.group {
+    margin: 16px 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface-sunken);
+}
+
+.tabs {
+    position: relative;
+    display: flex;
+    padding: 0 0.75rem;
+    border-bottom: 1px solid var(--line);
+    overflow: auto hidden;
+}
+
+.tabs input {
+    position: fixed;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tabs label {
+    position: relative;
+    display: inline-block;
+    padding: 0 0.75rem;
+    border-bottom: 1px solid transparent;
+    line-height: 3.4285714;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        color 0.2s ease,
+        border-color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.tabs label::after {
+    content: '';
+    position: absolute;
+    right: 0.5rem;
+    bottom: -1px;
+    left: 0.5rem;
+    z-index: 1;
+    height: 2px;
+    border-radius: 2px;
+    background-color: transparent;
+    transition: background-color 0.25s;
+}
+
+.tabs label:hover,
+.tabs input:checked + label {
+    color: var(--accent-text);
+}
+
+.tabs input:checked + label {
+    border-bottom-color: var(--fonte-molten);
+}
+
+.tabs input:checked + label::after {
+    background-color: var(--accent-text);
+}
+
+/* The file's icon, from `virtual:group-icons.css`, which sets `--icon` per label. */
+.tabs label[data-title]::before {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5em;
+    margin-bottom: -0.2em;
+    background: var(--icon) no-repeat center / contain;
+}
+
+/* The group draws the frame; a panel that brings its own (a code block) drops it, whichever stylesheet loads first. */
+.group > .panels > * {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+}

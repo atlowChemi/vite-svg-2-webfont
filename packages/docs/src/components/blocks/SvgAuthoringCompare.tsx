@@ -1,6 +1,7 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, FC } from 'react';
 import { svgAuthoringFonts } from '../../site/svgAuthoringCases.ts';
-import { Html } from './Html.tsx';
+import { cx } from '../cx.ts';
+import styles from './SvgAuthoringCompare.module.css';
 
 const sources = import.meta.glob<string>('../../../svg-authoring-fixtures/**/*.svg', { query: '?raw', import: 'default', eager: true });
 
@@ -15,7 +16,7 @@ interface Props {
     size?: number;
 }
 
-/** Class names exactly as an app would write them, mapped onto this case's scoped prefix. */
+/** Class names exactly as an app would write them, mapped onto this case's font, whose CSS is global. */
 const classes = (id: string, name: string) => `sa-${id} sa-${id}-${name}`;
 const displayName = (name: string) => name.replace(/^[a-z]-/, '');
 const hex = (codepoint: number) => `U+${codepoint.toString(16).toUpperCase()}`;
@@ -35,58 +36,56 @@ function iconsOf(id: string) {
 }
 
 /** Source SVGs beside the glyphs fonte cast from them, one column per font case, each case its own live font. */
-export function SvgAuthoringCompare({ cases, text, codepoints, size = 48 }: Props) {
-    return (
-        <div className={text ? 'sa-compare sa-stacked' : 'sa-compare'} style={{ '--sa-size': `${size}px` } as CSSProperties}>
-            {cases.map(({ id, label }) => {
-                const icons = iconsOf(id);
-                return (
-                    <section key={id} className="sa-column">
-                        <h4 className="sa-label">{label}</h4>
-                        {text ? (
-                            <p className="sa-text">
-                                {text[0]}{' '}
-                                {icons.map(icon => (
-                                    <span key={icon.name}>
-                                        <i className={`${classes(id, icon.name)} sa-glyph-box`} />{' '}
+export const SvgAuthoringCompare: FC<Props> = ({ cases, text, codepoints, size = 48 }) => (
+    <div className={cx(styles.compare, text && styles.stacked)} style={{ '--glyph-size': `${size}px` } as CSSProperties}>
+        {cases.map(({ id, label }) => {
+            const icons = iconsOf(id);
+            return (
+                <section key={id} className={styles.column}>
+                    <h4 className={styles.label}>{label}</h4>
+                    {text ? (
+                        <p className={styles.text}>
+                            {text[0]}{' '}
+                            {icons.map(icon => (
+                                <span key={icon.name}>
+                                    <i className={cx(classes(id, icon.name), styles.glyphBox)} />{' '}
+                                </span>
+                            ))}
+                            {text[1]}
+                        </p>
+                    ) : codepoints ? (
+                        <div className={styles.grid}>
+                            {codepoints.map(codepoint => (
+                                <figure key={codepoint} className={styles.card}>
+                                    <span className={styles.glyph} style={{ fontFamily: `sa-${id}` }}>
+                                        {String.fromCodePoint(codepoint)}
                                     </span>
-                                ))}
-                                {text[1]}
-                            </p>
-                        ) : codepoints ? (
-                            <div className="sa-grid">
-                                {codepoints.map(codepoint => (
-                                    <figure key={codepoint} className="sa-card">
-                                        <span className="sa-glyph" style={{ fontFamily: `sa-${id}` }}>
-                                            {String.fromCodePoint(codepoint)}
+                                    <figcaption>
+                                        <code>{hex(codepoint)}</code>
+                                    </figcaption>
+                                </figure>
+                            ))}
+                        </div>
+                    ) : (
+                        <div className={styles.grid}>
+                            {icons.map(icon => (
+                                <figure key={icon.name} className={styles.card}>
+                                    <div className={styles.pair}>
+                                        <div className={styles.source} title={`${icon.name}.svg in the browser`} dangerouslySetInnerHTML={{ __html: icon.svg }} />
+                                        <span className={styles.arrow} aria-hidden="true">
+                                            →
                                         </span>
-                                        <figcaption>
-                                            <code>{hex(codepoint)}</code>
-                                        </figcaption>
-                                    </figure>
-                                ))}
-                            </div>
-                        ) : (
-                            <div className="sa-grid">
-                                {icons.map(icon => (
-                                    <figure key={icon.name} className="sa-card">
-                                        <div className="sa-pair">
-                                            <Html className="sa-source" title={`${icon.name}.svg in the browser`} html={icon.svg} />
-                                            <span className="sa-arrow" aria-hidden="true">
-                                                →
-                                            </span>
-                                            <i className={`${classes(id, icon.name)} sa-glyph`} title={`${icon.name} in the font`} />
-                                        </div>
-                                        <figcaption>
-                                            <code>icon-{displayName(icon.name)}</code>
-                                        </figcaption>
-                                    </figure>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-                );
-            })}
-        </div>
-    );
-}
+                                        <i className={cx(classes(id, icon.name), styles.glyph)} title={`${icon.name} in the font`} />
+                                    </div>
+                                    <figcaption>
+                                        <code>icon-{displayName(icon.name)}</code>
+                                    </figcaption>
+                                </figure>
+                            ))}
+                        </div>
+                    )}
+                </section>
+            );
+        })}
+    </div>
+);

@@ -1,3 +1,6 @@
+import type { FC } from 'react';
+import styles from './CacheFileLayout.module.css';
+
 // The persistent cache file's layout, top to bottom, as the engine writes it (crates/webfont-generator/src/cache).
 interface Field {
     name: string;
@@ -55,39 +58,36 @@ const blocks: Block[] = [
     },
 ];
 
-function Fields({ fields }: { fields: Field[] }) {
-    return fields.map(field => (
-        <div key={field.name} className="field">
+const Fields: FC<{ fields: Field[] }> = ({ fields }) =>
+    fields.map(field => (
+        <div key={field.name} className={styles.field}>
             <span>{field.name}</span>
             <code>{field.size}</code>
         </div>
     ));
-}
 
 /** The `.wfcache` file's sections and fields, drawn as stacked blocks. */
-export function CacheFileLayout() {
-    return (
-        <figure className="cache-layout" aria-label="Layout of a .wfcache file">
-            {blocks.map(block => (
-                <div key={block.title} className="block">
-                    <div className="head">
-                        <span className="title">{block.title}</span>
-                        <span className="note">{block.note}</span>
-                    </div>
-                    <div className="fields">
-                        <Fields fields={block.fields} />
-                        {block.repeat && (
-                            <div className="repeat">
-                                <span className="label">{block.repeat.label}</span>
-                                <Fields fields={block.repeat.fields} />
-                            </div>
-                        )}
-                    </div>
+export const CacheFileLayout: FC = () => (
+    <figure className={styles.layout} aria-label="Layout of a .wfcache file">
+        {blocks.map(block => (
+            <div key={block.title} className={styles.block}>
+                <div className={styles.head}>
+                    <span className={styles.title}>{block.title}</span>
+                    <span className={styles.note}>{block.note}</span>
                 </div>
-            ))}
-            <figcaption>
-                <code>icons.3f2a9c41d0b7e8a5.wfcache</code>, little-endian, top to bottom
-            </figcaption>
-        </figure>
-    );
-}
+                <div className={styles.fields}>
+                    <Fields fields={block.fields} />
+                    {block.repeat && (
+                        <div className={styles.repeat}>
+                            <span className={styles.label}>{block.repeat.label}</span>
+                            <Fields fields={block.repeat.fields} />
+                        </div>
+                    )}
+                </div>
+            </div>
+        ))}
+        <figcaption>
+            <code>icons.3f2a9c41d0b7e8a5.wfcache</code>, little-endian, top to bottom
+        </figcaption>
+    </figure>
+);

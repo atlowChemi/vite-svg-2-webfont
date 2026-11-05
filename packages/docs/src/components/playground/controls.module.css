@@ -1,0 +1,74 @@
+/*
+ * The Playground's shared controls: buttons, links, hints, errors, code areas and the visually hidden helper, used by
+ * several of its components (and the hint by the page's no-JavaScript fallback too).
+ */
+.visuallyHidden {
+    position: absolute;
+    width: 1px !important;
+    height: 1px;
+    padding: 0 !important;
+    border: 0 !important;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+/* The landing page's buttons: molten for the main action, outlined for the rest. */
+.button {
+    display: inline-flex;
+    align-items: center;
+    padding: 7px 16px;
+    border: 1px solid transparent;
+    border-radius: var(--playground-radius);
+    background: var(--button-bg);
+    color: var(--button-text);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.button:hover {
+    background: var(--button-bg-hover);
+}
+
+.buttonAlt {
+    border-color: var(--line-strong);
+    background: transparent;
+    color: var(--text);
+}
+
+.buttonAlt:hover {
+    border-color: var(--accent-text);
+    background: transparent;
+}
+
+.link {
+    color: var(--accent-text);
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.hint {
+    margin: 4px 0 0;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.error {
+    padding: 8px 12px;
+    white-space: pre-wrap;
+    font-family: var(--font-mono);
+    font-size: 13px !important;
+    border-radius: var(--playground-radius);
+    background: var(--danger-tint);
+    color: var(--danger-text);
+}
+
+.code {
+    margin: 0;
+    max-height: 360px;
+    padding: 16px;
+    overflow: auto;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    line-height: 1.6;
+}

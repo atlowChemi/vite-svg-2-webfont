@@ -1,0 +1,89 @@
+/* The frame around every page: its bar heights, the skip link, and the doc pages' rail and column. */
+.frame {
+    --doc-top: 60px;
+    --doc-strip: 46px;
+    --doc-rail: 220px;
+    --doc-column: 780px;
+    min-height: 100vh;
+    background: var(--surface);
+}
+
+/* A jump to a heading lands below the bars. */
+:global(html):has(.frame) {
+    scroll-padding-top: calc(var(--doc-top, 60px) + var(--doc-strip, 46px) + 20px);
+}
+
+.skip {
+    position: fixed;
+    top: 8px;
+    left: 8px;
+    z-index: 60;
+    padding: 8px 14px;
+    border-radius: 6px;
+    background: var(--surface-raised);
+    box-shadow: 0 0 0 2px var(--fonte-molten);
+    color: var(--text);
+    transform: translateY(-200%);
+}
+
+.skip:focus {
+    transform: none;
+}
+
+/* The rail on the left, one column of content, no right-hand outline. */
+.layout {
+    display: grid;
+    grid-template-columns: var(--doc-rail) minmax(0, var(--doc-column));
+    gap: 64px;
+    justify-content: center;
+    padding: 0 24px;
+}
+
+.main {
+    min-width: 0;
+    padding: 40px 0 120px;
+}
+
+.main:focus,
+.wideMain:focus {
+    outline: none;
+}
+
+.edit {
+    display: inline-block;
+    margin-top: 64px;
+    font: 13px var(--font-mono);
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.edit:hover {
+    color: var(--accent-text);
+}
+
+/* The Playground and 404 end in the site's footer, held to the bottom of short pages. */
+.footed {
+    display: flex;
+    flex-direction: column;
+}
+
+.footed .wideMain {
+    flex: 1;
+}
+
+@media (max-width: 960px) {
+    .frame {
+        --doc-top: 56px;
+        --doc-strip: 0px;
+    }
+
+    .layout {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 0;
+        padding: 0 16px;
+    }
+
+    .main {
+        padding-top: 28px;
+    }
+}

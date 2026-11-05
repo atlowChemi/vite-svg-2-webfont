@@ -1,5 +1,7 @@
+import type { FC } from 'react';
 import type { SiteIcon as IconName } from '../../site/siteIcons.ts';
 import { SiteIcon } from '../SiteIcon.tsx';
+import styles from './Drawers.module.css';
 
 export interface Drawer {
     /** The snippet's slot name in index.md. */
@@ -18,36 +20,39 @@ export const toolDrawers: Drawer[] = [
     { key: 'vite', mark: 'vite', plate: 'Vite', title: 'Plugin', use: 'Runs inside the dev server, icon edits hot-reload on save', link: '/vite/' },
 ];
 
+interface Props {
+    drawers: Drawer[];
+    snippets: Record<string, string>;
+}
+
 /**
  * The type case's drawers, one per way to run the engine, each with its install snippet and guide link. Every panel is
  * in the markup and the first is open; the landing script switches them.
  */
-export function ToolDrawers({ drawers, snippets }: { drawers: Drawer[]; snippets: Record<string, string> }) {
-    return (
-        <>
-            <div className="landing-drawers">
-                {drawers.map((drawer, i) => (
-                    <button key={drawer.key} className="landing-drawer" type="button" aria-pressed={i === 0} data-drawer={drawer.key}>
-                        <span className="drawer-top">
-                            <SiteIcon name={drawer.mark} className="mark" />
-                            <span className="plate mono">{drawer.plate}</span>
-                        </span>
-                        <strong>{drawer.title}</strong>
-                        <span className="use">{drawer.use}</span>
-                    </button>
-                ))}
-            </div>
-            {/* Snippets come from index.md as slots, so they are highlighted like any other docs code block. */}
-            <div className="landing-snippet vp-doc" aria-live="polite">
-                {drawers.map((drawer, i) => (
-                    <div key={drawer.key} data-drawer-panel={drawer.key} hidden={i !== 0} dangerouslySetInnerHTML={{ __html: snippets[drawer.key] ?? '' }} />
-                ))}
-            </div>
+export const ToolDrawers: FC<Props> = ({ drawers, snippets }) => (
+    <>
+        <div className={styles.drawers}>
             {drawers.map((drawer, i) => (
-                <a key={drawer.key} className="landing-more" href={drawer.link} data-drawer-link={drawer.key} hidden={i !== 0}>
-                    Read the {drawer.title} guide →
-                </a>
+                <button key={drawer.key} className={styles.drawer} type="button" aria-pressed={i === 0} data-drawer={drawer.key}>
+                    <span className={styles.top}>
+                        <SiteIcon name={drawer.mark} className={styles.mark} />
+                        <span className={styles.plate}>{drawer.plate}</span>
+                    </span>
+                    <strong>{drawer.title}</strong>
+                    <span className={styles.use}>{drawer.use}</span>
+                </button>
             ))}
-        </>
-    );
-}
+        </div>
+        {/* Snippets come from index.md as slots, so they are highlighted like any other docs code block. */}
+        <div className={styles.snippet} aria-live="polite">
+            {drawers.map((drawer, i) => (
+                <div key={drawer.key} className={styles.panel} data-drawer-panel={drawer.key} hidden={i !== 0} dangerouslySetInnerHTML={{ __html: snippets[drawer.key] ?? '' }} />
+            ))}
+        </div>
+        {drawers.map((drawer, i) => (
+            <a key={drawer.key} className={styles.more} href={drawer.link} data-drawer-link={drawer.key} hidden={i !== 0}>
+                Read the {drawer.title} guide →
+            </a>
+        ))}
+    </>
+);

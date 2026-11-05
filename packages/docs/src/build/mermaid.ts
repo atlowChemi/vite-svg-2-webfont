@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
+import styles from './mermaid.module.css';
 
 // Mermaid lays text out against a real DOM, so diagrams render in headless Chromium at build time and readers download no
 // Mermaid at all. Mermaid derives shades from its theme colors and rejects `var(--…)`, so each diagram is drawn once with
@@ -13,42 +14,42 @@ export const marker = (key: string) => `<!--fonte-mermaid:${key}-->`;
 // Each theme color Mermaid uses, as a placeholder and the token that replaces it. Nodes are drawn like the type case's
 // compartments, edges in the brand color.
 const tokens: Record<string, string> = {
-    background: '--vp-c-bg',
-    primaryColor: '--vp-c-bg-soft',
+    background: '--surface',
+    primaryColor: '--surface-muted',
     primaryBorderColor: '--fonte-mold',
-    primaryTextColor: '--vp-c-text-1',
-    secondaryColor: '--vp-c-bg-soft',
+    primaryTextColor: '--text',
+    secondaryColor: '--surface-muted',
     secondaryBorderColor: '--fonte-mold',
-    secondaryTextColor: '--vp-c-text-1',
-    tertiaryColor: '--vp-c-bg-alt',
-    tertiaryBorderColor: '--vp-c-divider',
-    tertiaryTextColor: '--vp-c-text-1',
-    mainBkg: '--vp-c-bg-soft',
+    secondaryTextColor: '--text',
+    tertiaryColor: '--surface-sunken',
+    tertiaryBorderColor: '--line',
+    tertiaryTextColor: '--text',
+    mainBkg: '--surface-muted',
     nodeBorder: '--fonte-mold',
-    nodeTextColor: '--vp-c-text-1',
-    textColor: '--vp-c-text-1',
-    lineColor: '--vp-c-brand-1',
-    arrowheadColor: '--vp-c-brand-1',
-    edgeLabelBackground: '--vp-c-bg',
-    clusterBkg: '--vp-c-bg-alt',
-    clusterBorder: '--vp-c-divider',
-    titleColor: '--vp-c-text-2',
-    labelBackground: '--vp-c-bg',
-    actorBkg: '--vp-c-bg-soft',
+    nodeTextColor: '--text',
+    textColor: '--text',
+    lineColor: '--accent-text',
+    arrowheadColor: '--accent-text',
+    edgeLabelBackground: '--surface',
+    clusterBkg: '--surface-sunken',
+    clusterBorder: '--line',
+    titleColor: '--text-muted',
+    labelBackground: '--surface',
+    actorBkg: '--surface-muted',
     actorBorder: '--fonte-mold',
-    actorTextColor: '--vp-c-text-1',
-    actorLineColor: '--vp-c-divider',
-    signalColor: '--vp-c-brand-1',
-    signalTextColor: '--vp-c-text-1',
-    labelBoxBkgColor: '--vp-c-bg-soft',
+    actorTextColor: '--text',
+    actorLineColor: '--line',
+    signalColor: '--accent-text',
+    signalTextColor: '--text',
+    labelBoxBkgColor: '--surface-muted',
     labelBoxBorderColor: '--fonte-mold',
-    labelTextColor: '--vp-c-text-1',
-    loopTextColor: '--vp-c-text-1',
-    noteBkgColor: '--vp-c-bg-alt',
-    noteBorderColor: '--vp-c-divider',
-    noteTextColor: '--vp-c-text-1',
-    activationBkgColor: '--vp-c-bg-alt',
-    activationBorderColor: '--vp-c-divider',
+    labelTextColor: '--text',
+    loopTextColor: '--text',
+    noteBkgColor: '--surface-sunken',
+    noteBorderColor: '--line',
+    noteTextColor: '--text',
+    activationBkgColor: '--surface-sunken',
+    activationBorderColor: '--line',
 };
 const placeholder = (i: number) => `#${(0x0d0000 + i * 0x010101).toString(16).padStart(6, '0')}`;
 const placeholders = Object.fromEntries(Object.keys(tokens).map((name, i) => [name, placeholder(i)]));
@@ -102,9 +103,9 @@ export async function renderDiagrams(sources: Map<string, string>): Promise<Map<
                         mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', htmlLabels: false, theme: 'base', themeVariables });
                         return (await mermaid.render(id, code)).svg;
                     },
-                    { id: `mermaid-${key}`, code: source, themeVariables: { fontFamily: 'var(--vp-font-family-base)', fontSize: '14px', ...placeholders } },
+                    { id: `mermaid-${key}`, code: source, themeVariables: { fontFamily: 'var(--font-sans)', fontSize: '14px', ...placeholders } },
                 );
-                cache.set(key, `<div class="fonte-mermaid">${themed(svg, key)}</div>`);
+                cache.set(key, `<div class="${styles.diagram}">${themed(svg, key)}</div>`);
             }
         } finally {
             await browser.close();

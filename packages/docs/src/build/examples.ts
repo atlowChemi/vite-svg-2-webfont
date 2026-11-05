@@ -1,5 +1,4 @@
 import type { Plugin, PluginOption, UserConfig } from 'vite';
-import { highlight, loadLanguages } from './highlight.ts';
 import basic from '../../examples/basic/vite.config.ts';
 import customNaming from '../../examples/custom-naming/vite.config.ts';
 import ligatures from '../../examples/ligatures/vite.config.ts';
@@ -12,6 +11,7 @@ import pinnedCodepoints from '../../examples/pinned-codepoints/vite.config.ts';
 import inlineFonts from '../../examples/inline-fonts/vite.config.ts';
 import preload from '../../examples/preload/vite.config.ts';
 import writeFiles from '../../examples/write-files/vite.config.ts';
+import { exampleScope } from '../site/exampleScope.ts';
 
 /** Example slugs and their real configs. Each config must give the plugin a unique `fontName`. */
 const examples: Record<string, UserConfig> = {
@@ -74,11 +74,6 @@ export function displayCss(css: string): string {
     });
 }
 
-/** CSS highlighted like every other code block on the site. */
-async function highlightCss(code: string): Promise<string> {
-    return highlight(await loadLanguages(['css']), code.trimEnd(), 'css');
-}
-
 type IsolatedExample = { plugin: Plugin; generatedCss: (context: unknown) => Promise<string> };
 
 /** Serve one example's plugin instance under its own virtual module, with its CSS scoped to the example. */
@@ -104,7 +99,7 @@ function isolate(plugin: Plugin, slug: string): IsolatedExample {
         async transform(code, id) {
             if (id !== resolvedId) return undefined;
             const css = await callHook<string>(plugin.transform as Hook, this, code, await ownId(this));
-            return scopeCss(css, `vp-example-${slug}`);
+            return scopeCss(css, exampleScope(slug));
         },
     };
     return { plugin: isolated, generatedCss };
@@ -122,7 +117,7 @@ function findPlugin(options: PluginOption[] | undefined, slug: string): Plugin {
 
 /**
  * One isolated plugin instance per example, a module importing every example's CSS, and a module with each
- * example's generated CSS highlighted for display.
+ * example's generated CSS as a reader would see it.
  */
 export function examplePlugins(): Plugin[] {
     const isolated = Object.entries(examples).map(([slug, config]) => [slug, isolate(findPlugin(config.plugins, slug), slug)] as const);
@@ -133,7 +128,7 @@ export function examplePlugins(): Plugin[] {
         async load(id) {
             if (id === `\0${ALL_EXAMPLES_MODULE}`) return imports;
             if (id !== `\0${GENERATED_CSS_MODULE}`) return undefined;
-            const entries = await Promise.all(isolated.map(async ([slug, { generatedCss }]) => [slug, await highlightCss(displayCss(await generatedCss(this)))]));
+            const entries = await Promise.all(isolated.map(async ([slug, { generatedCss }]) => [slug, displayCss(await generatedCss(this)).trimEnd()]));
             return `export default ${JSON.stringify(Object.fromEntries(entries))};`;
         },
     };

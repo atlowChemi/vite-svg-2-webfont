@@ -1,0 +1,43 @@
+/* An example's live icons. Slot content from the Markdown (figures, captions, code) is styled here too. */
+.output {
+    padding: 24px;
+    color: var(--text);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(144px, 1fr));
+    gap: 20px;
+}
+
+.output figure {
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    font-size: 32px;
+}
+
+.output figcaption {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.extra {
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid var(--line);
+}
+
+.label {
+    margin: 0 0 12px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
+.grid + .label {
+    margin-top: 24px;
+}

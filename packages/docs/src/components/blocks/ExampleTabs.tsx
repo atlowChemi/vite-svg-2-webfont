@@ -1,16 +1,24 @@
-import { Fragment, useId } from 'react';
-import { Html } from './Html.tsx';
+import { Fragment, useId, type FC } from 'react';
+import tabs from '../../build/codeTabs.module.css';
+import styles from './ExampleTabs.module.css';
+
+interface Props {
+    /** Each slot's tab label, by slot name, in display order. */
+    tabs: Record<string, string>;
+    /** Each slot's rendered HTML. */
+    slots: Record<string, string>;
+}
 
 /**
- * A code group whose tabs can hold any content, not only code blocks. `tabs` maps each slot name to its tab label, in
- * display order; the first tab starts active, and the page script switches tabs as it does for code groups.
+ * Tabs like a code group's, whose panels hold any content, not only code. The first tab starts selected; the page
+ * script switches panels as it does for code groups.
  */
-export function ExampleTabs({ tabs, slots }: { tabs: Record<string, string>; slots: Record<string, string> }) {
+export const ExampleTabs: FC<Props> = ({ tabs: labels, slots }) => {
     const group = useId();
-    const entries = Object.entries(tabs);
+    const entries = Object.entries(labels);
     return (
-        <div className="vp-code-group example-tabs">
-            <div className="tabs">
+        <div className={tabs.group}>
+            <div className={tabs.tabs}>
                 {entries.map(([slot, label], i) => (
                     <Fragment key={slot}>
                         <input id={`${group}-${i}`} type="radio" name={group} defaultChecked={i === 0} />
@@ -20,11 +28,11 @@ export function ExampleTabs({ tabs, slots }: { tabs: Record<string, string>; slo
                     </Fragment>
                 ))}
             </div>
-            <div className="blocks">
+            <div className={tabs.panels}>
                 {entries.map(([slot], i) => (
-                    <Html key={slot} className={i === 0 ? 'vp-block active' : 'vp-block'} html={slots[slot] ?? ''} />
+                    <div key={slot} className={styles.panel} hidden={i > 0} dangerouslySetInnerHTML={{ __html: slots[slot] ?? '' }} />
                 ))}
             </div>
         </div>
     );
-}
+};

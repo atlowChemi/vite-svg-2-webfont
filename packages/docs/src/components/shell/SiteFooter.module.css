@@ -1,0 +1,46 @@
+/* The foot of the full-width pages, held to the bottom of short ones by the page frame. */
+.footer {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 12px 28px;
+    padding: 24px max(16px, calc((100% - 1152px) / 2)) 28px;
+    border-top: 1px solid var(--line);
+    background: var(--surface-sunken);
+    font-size: 14px;
+}
+
+.links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 16px;
+}
+
+.plate {
+    font: 11px var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-subtle);
+}
+
+.links a {
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.links a:hover {
+    color: var(--accent-text);
+}
+
+.license {
+    margin: 0 0 0 auto;
+    color: var(--text-subtle);
+}
+
+@media (max-width: 720px) {
+    .license {
+        width: 100%;
+        margin-left: 0;
+    }
+}

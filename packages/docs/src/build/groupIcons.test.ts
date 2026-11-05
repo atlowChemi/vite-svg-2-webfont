@@ -19,6 +19,12 @@ async function render(labels: string[]) {
     return (await preprocessCSS(css, 'group-icons.css', config)).code;
 }
 
+it('keeps only the icon rules, without the layout written for VitePress', async () => {
+    const css = await render(['alpha']);
+    expect(css).toContain('--icon');
+    expect(css).not.toMatch(/vp-|custom-block|language-/);
+});
+
 it('generates identical icon CSS regardless of Markdown transform order', async () => {
     const forward = await render(['alpha', 'zeta', 'gamma']);
     expect(forward).toContain("[data-title='alpha']");

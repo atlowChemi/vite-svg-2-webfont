@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
+import styles from './markdown.module.css';
 import { renderMarkdown } from './markdown.ts';
 
 const render = () => renderMarkdown('src/build/fixtures/markdown.md', () => '', new Set());
@@ -6,7 +7,7 @@ const render = () => renderMarkdown('src/build/fixtures/markdown.md', () => '', 
 describe('renderMarkdown', () => {
     it('takes a heading id from a trailing {#id}, without showing it', async () => {
         const { html, headings } = await render();
-        expect(html).toContain('<h2 id="generator-dispose" tabindex="-1"><code>dispose()</code> <a class="header-anchor" href="#generator-dispose"');
+        expect(html).toContain(`<h2 id="generator-dispose" tabindex="-1"><code>dispose()</code> <a class="${styles.anchor}" href="#generator-dispose"`);
         expect(html).not.toContain('{#');
         expect(headings[0]).toMatchObject({ title: 'dispose()', slug: 'generator-dispose' });
     });

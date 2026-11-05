@@ -1,0 +1,97 @@
+/* The current group's pages, numbered. Every tool has the same pages, so switching tools keeps your place. */
+.strip {
+    position: sticky;
+    top: var(--doc-top);
+    z-index: 29;
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+    height: var(--doc-strip);
+    padding: 0 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    overflow-x: auto;
+    scrollbar-width: none;
+    /* Stays put while the browser cross-fades between pages. */
+    view-transition-name: page-strip;
+}
+
+.page {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: 14px;
+    white-space: nowrap;
+    text-decoration: none;
+}
+
+.page:hover {
+    color: var(--text);
+}
+
+.page[aria-current='page'] {
+    border-bottom-color: var(--fonte-molten);
+    color: var(--text);
+}
+
+.number {
+    font: 11px var(--font-mono);
+    color: var(--text-subtle);
+}
+
+.page[aria-current='page'] .number {
+    color: var(--accent-text);
+}
+
+.guide {
+    margin-left: auto;
+    color: var(--text-subtle);
+}
+
+/* The guide's two shelves. Stays in view while the shelf's pages scroll under it. */
+.shelves {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    display: flex;
+    flex: none;
+    align-self: center;
+    gap: 2px;
+    margin-right: 12px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--surface-sunken);
+    box-shadow:
+        -24px 0 0 var(--surface),
+        8px 0 8px -4px var(--surface);
+}
+
+.shelf {
+    flex: none;
+    padding: 3px 10px;
+    white-space: nowrap;
+    border-radius: 5px;
+    font: 600 14px var(--font-display);
+    color: var(--text-muted);
+    text-decoration: none;
+}
+
+.shelf[aria-current='true'] {
+    background: var(--surface);
+    box-shadow:
+        0 1px 2px rgb(0 0 0 / 0.12),
+        inset 0 -2px 0 var(--fonte-molten);
+    color: var(--text);
+}
+
+/* Phones: pages live in the tools sheet instead of a clipped strip. */
+@media (max-width: 960px) {
+    .strip {
+        display: none;
+    }
+}

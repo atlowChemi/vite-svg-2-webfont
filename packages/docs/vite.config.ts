@@ -1,5 +1,6 @@
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
-import { dirname, join } from 'node:path';
+import { basename, dirname, join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { defineProject, type Plugin, type UserProjectConfigExport, type ViteDevServer } from 'vite-plus';
 import { iconCss } from './src/build/iconCss.ts';
@@ -23,6 +24,19 @@ async function loadAll(render: Renderer) {
     // oxlint-disable-next-line no-await-in-loop
     for (const route of render.routes) pages.push((await render.loadPage(route))!);
     return pages;
+}
+
+type Manifest = Record<string, { file: string; css?: string[]; imports?: string[] }>;
+
+/**
+ * An entry's stylesheets, including those of the chunks it imports: CSS modules that several entries import (the
+ * wordmark's, for one) land in a shared chunk of their own. Imported chunks' styles come first, as they load first.
+ */
+function stylesheets(manifest: Manifest, key: string, seen = new Set<string>()): string[] {
+    if (seen.has(key)) return [];
+    seen.add(key);
+    const chunk = manifest[key]!;
+    return [...(chunk.imports ?? []).flatMap(imported => stylesheets(manifest, imported, seen)), ...(chunk.css ?? [])];
 }
 
 const htmlPath = (route: string) => (route === '/404' ? '404.html' : route.endsWith('/') ? `${route}index.html` : `${route}.html`).replace(/^\//, '');
@@ -64,11 +78,11 @@ function fonteDocs(): Plugin {
                     await sitePlugins().tellGroupIcons(render.tabLabels(pages));
                     client.config.build.rolldownOptions.input = Object.values(render.clientEntries);
                     await builder.build(client);
-                    const manifest = JSON.parse(await readFile(join(outDir, '.vite/manifest.json'), 'utf8')) as Record<string, { file: string; css?: string[] }>;
+                    const manifest = JSON.parse(await readFile(join(outDir, '.vite/manifest.json'), 'utf8')) as Manifest;
                     const assets = Object.fromEntries(
                         Object.entries(render.clientEntries).map(([name, entry]) => {
                             const chunk = manifest[entry]!;
-                            return [name, { css: (chunk.css ?? []).map(f => `/${f}`), js: render.styleOnly.has(name as keyof Assets) ? [] : [`/${chunk.file}`] }];
+                            return [name, { css: stylesheets(manifest, entry).map(f => `/${f}`), js: render.styleOnly.has(name as keyof Assets) ? [] : [`/${chunk.file}`] }];
                         }),
                     ) as Assets;
                     const files = new Map(pages.map(page => [htmlPath(page.route), render.renderDocument(page, assets, docsUrl)]));
@@ -135,11 +149,34 @@ async function serve(server: ViteDevServer, url: string): Promise<{ type: string
     return { type: 'text/html', body: await server.transformIndexHtml(url, html), status: route ? 200 : 404 };
 }
 
+/**
+ * A CSS module class's name: its file, its own name, and a hash of the file's path. The renderer (built for Node) and the
+ * browser entries import the same modules in separate builds, so names depend on nothing but the path and the class.
+ */
+const scopedName = (name: string, file: string) => {
+    const path = relative(import.meta.dirname, file.split('?')[0]!);
+    const stem = basename(path).replace(/\.module\.css$/, '');
+    return `${stem}_${name}_${createHash('sha256').update(path).digest('base64url').slice(0, 5)}`;
+};
+
+/**
+ * Vite drops a CSS module that is imported only for its styles, as if it were unused JS. Each entry imports the modules
+ * its page's components render with, so their styles must stay.
+ */
+const keepCssModules = (): Plugin => ({
+    name: 'keep-css-modules',
+    enforce: 'post',
+    transform(code, id) {
+        if (/\.module\.css(?:\?|$)/.test(id)) return { code, map: null, moduleSideEffects: 'no-treeshake' };
+        return undefined;
+    },
+});
+
 const config: UserProjectConfigExport = defineProject({
     // Holds the engine cache the icon fonts build into, kept across CI runs (see main.yaml and docs.yaml).
     cacheDir: '.cache',
-    css: { postcss: iconCss },
-    plugins: [fonteDocs(), ...(site?.sitePlugins() ?? [])],
+    css: { postcss: iconCss, modules: { generateScopedName: scopedName } },
+    plugins: [fonteDocs(), keepCssModules(), ...(site?.sitePlugins() ?? [])],
     test: {
         name: 'docs',
         include: ['src/**/*.test.{ts,tsx}'],

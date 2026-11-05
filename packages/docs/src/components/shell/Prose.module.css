@@ -1,0 +1,202 @@
+/*
+ * A doc page's rendered Markdown: plain elements, styled from the article down. In a layer, so the components inside the
+ * article (callouts, code blocks, option specimens) win over these element rules whatever their specificity.
+ */
+@layer prose {
+    .prose :is(h1, h2, h3, h4, h5, h6) {
+        position: relative;
+        font-weight: 600;
+        outline: none;
+    }
+
+    /* The page's own heading and sections, in the landing page's specimen style. */
+    .prose h1 {
+        font: 600 46px/1.1 var(--font-display);
+        letter-spacing: -0.01em;
+    }
+
+    .prose h1 + p {
+        font-size: 18px;
+        color: var(--text-muted);
+    }
+
+    /* Ruled sections with a molten tick, like the landing page's. */
+    .prose h2 {
+        margin: 72px 0 1rem;
+        padding-top: 20px;
+        border-top: 1px solid var(--line);
+        letter-spacing: -0.02em;
+        line-height: 1.3333333;
+        font-size: 30px;
+    }
+
+    .prose h2::before {
+        content: '';
+        position: absolute;
+        top: -2px;
+        left: 0;
+        width: 28px;
+        height: 3px;
+        background: var(--fonte-molten);
+    }
+
+    .prose h3 {
+        margin: 2rem 0 0;
+        letter-spacing: -0.01em;
+        line-height: 1.4;
+        font-size: 1.25rem;
+    }
+
+    .prose h4 {
+        margin: 1.5rem 0 0;
+        letter-spacing: -0.01em;
+        line-height: 1.3333333;
+        font-size: 1.125rem;
+    }
+
+    .prose :is(h2, h3) a:hover {
+        color: var(--accent-text);
+    }
+
+    .prose :is(h1, h2, h3, h4) > code {
+        font-size: 0.9em;
+    }
+
+    .prose :is(p, img, summary) {
+        margin: 1rem 0;
+    }
+
+    .prose p {
+        line-height: 1.75;
+    }
+
+    .prose blockquote {
+        margin: 1rem 0;
+        padding-left: 1rem;
+        border-left: 2px solid var(--line);
+        color: var(--text-muted);
+    }
+
+    .prose blockquote > p {
+        margin: 0;
+        font-size: 1rem;
+    }
+
+    .prose a {
+        font-weight: 500;
+        color: var(--accent-text);
+        text-decoration: underline;
+        text-underline-offset: 0.125rem;
+        transition:
+            color 0.25s,
+            opacity 0.25s;
+    }
+
+    .prose a:hover {
+        color: var(--accent-text-hover);
+        text-decoration-color: rgb(255 106 19 / 0.85);
+    }
+
+    /* Links that leave the site end in an arrow. */
+    .prose :is(a[href*='://'], a[target='_blank']):not(svg a, :has(img, svg))::after {
+        --icon: url("data:image/svg+xml, %3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' %3E%3Cpath d='M0 0h24v24H0V0z' fill='none' /%3E%3Cpath d='M9 5v2h6.59L4 18.59 5.41 20 17 8.41V15h2V5H9z' /%3E%3C/svg%3E");
+        display: inline;
+        flex-shrink: 0;
+        margin-left: 0.25rem;
+        padding-left: 0.6875rem;
+        background: currentColor;
+        color: var(--text-subtle);
+        mask: var(--icon) center / 100% 100% no-repeat;
+        vertical-align: middle;
+        font-size: 0.5625rem;
+    }
+
+    .prose :is(ul, ol) {
+        margin: 1rem 0;
+        padding-left: 1.25rem;
+    }
+
+    .prose ul {
+        list-style: disc;
+    }
+
+    .prose ol {
+        list-style: decimal;
+    }
+
+    .prose li + li {
+        margin-top: 0.5rem;
+    }
+
+    .prose li > :is(ol, ul) {
+        margin: 0.5rem 0 0;
+    }
+
+    .prose li > p:first-child {
+        margin-top: 0;
+    }
+
+    .prose li > p:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Wide tables scroll sideways inside the column. */
+    .prose table {
+        display: block;
+        margin: 1.25rem 0;
+        overflow-x: auto;
+    }
+
+    .prose tr {
+        border-top: 1px solid var(--line);
+        background-color: var(--surface);
+    }
+
+    .prose :is(th, td) {
+        padding: 0.5rem 1rem;
+        border: 1px solid var(--line);
+    }
+
+    /* Mono labels, like the landing page's section rails. */
+    .prose th {
+        background-color: var(--surface-muted);
+        text-align: left;
+        font: 400 12px var(--font-mono);
+        letter-spacing: 0.03em;
+        color: var(--text-subtle);
+    }
+
+    .prose td {
+        font-size: 0.875rem;
+    }
+
+    .prose hr {
+        margin: 1rem 0;
+        border-top: 1px solid var(--line);
+    }
+
+    .prose :not(pre) > code {
+        padding: 0.1875rem 0.375rem;
+        border-radius: 0.25rem;
+        background-color: var(--tint);
+    }
+
+    .prose :not(pre, h1, h2, h3, h4, h5, h6) > code {
+        font-size: 0.875em;
+        color: var(--accent-text);
+    }
+
+    .prose a:hover > code {
+        color: var(--accent-text-hover);
+    }
+
+    /* Inline code in a header sits on the header's tint; the code's own would drop it below 4.5:1. */
+    .prose th code {
+        background: transparent;
+    }
+
+    /* Under the Hood: the fastest result in each benchmark row. */
+    .prose :global(.benchmark-winner) {
+        color: var(--accent-text);
+    }
+}

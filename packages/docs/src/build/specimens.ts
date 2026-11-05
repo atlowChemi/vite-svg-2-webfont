@@ -4,6 +4,10 @@ import { parseHTML } from 'linkedom';
 import { optionKey } from '../site/optionKey.ts';
 import { docsRoot, slug } from './markdown.ts';
 import { tools } from '../site/site.ts';
+import markdownStyles from './markdown.module.css';
+import styles from './specimens.module.css';
+
+const anchor = markdownStyles.anchor!;
 
 // Options become specimens: the description on the left, a spec card (type, default, flag, other tools) on the right.
 // The card takes the facts from an option's "Type: …" list (the first list that opens with one); notes in the same list
@@ -43,22 +47,22 @@ export function specimens(html: string, section: string): string {
     const root = document.getElementById('root')!;
     for (const h3 of root.querySelectorAll('h3')) {
         const [first, ...rest] = h3.children;
-        if (first?.tagName !== 'CODE' || h3.firstChild !== first || rest.length !== 1 || !rest[0]!.matches('.header-anchor')) continue;
+        if (first?.tagName !== 'CODE' || h3.firstChild !== first || rest.length !== 1 || !rest[0]!.matches(`.${anchor}`)) continue;
         const article = document.createElement('article');
-        article.className = 'doc-option';
+        article.className = styles.option!;
         article.setAttribute('aria-labelledby', h3.id);
         const desc = document.createElement('div');
-        desc.className = 'doc-desc';
+        desc.className = styles.description!;
         h3.before(article);
         article.append(h3, desc);
         let spec: Element | undefined;
-        while (article.nextElementSibling && !article.nextElementSibling.matches('h2, h3, .doc-option')) {
+        while (article.nextElementSibling && !article.nextElementSibling.matches(`h2, h3, .${styles.option}`)) {
             const el = article.nextElementSibling;
             if (!spec && el.matches('ul') && SPEC.test(el.firstElementChild?.textContent ?? '')) spec = el;
             desc.append(el);
         }
         const dl = document.createElement('dl');
-        dl.className = 'doc-spec';
+        dl.className = styles.spec!;
         for (const li of spec ? [...spec.children] : []) {
             const text = (li.textContent ?? '').trim();
             const key = SPEC.exec(text)?.[1];
@@ -75,7 +79,7 @@ export function specimens(html: string, section: string): string {
         const others = (optionRegistry().get(optionKey(name)) ?? []).filter(o => o.tool !== section);
         if (others.length) {
             const row = document.createElement('div');
-            row.className = 'also';
+            row.className = styles.also!;
             row.innerHTML = `<dt>Also in</dt><dd>${others
                 .map(
                     o =>
@@ -85,7 +89,7 @@ export function specimens(html: string, section: string): string {
             dl.append(row);
         }
         if (dl.children.length) article.append(dl);
-        else article.classList.add('bare');
+        else article.classList.add(styles.bare!);
     }
     return root.innerHTML;
 }

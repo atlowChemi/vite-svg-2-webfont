@@ -1,31 +1,19 @@
-import { Html } from './Html.tsx';
+import type { FC } from 'react';
+import type { Highlighter } from 'shiki';
+import { highlight } from '../../build/highlight.ts';
+import styles from './ExampleCss.module.css';
 
-const ENTITIES: Record<string, string> = { '&quot;': '"', '&#x27;': "'", '&#39;': "'", '&lt;': '<', '&gt;': '>', '&amp;': '&' };
-/** A highlighted line's text, for matching snippets: its tags removed (repeatedly, so none can re-form) and entities decoded. */
-function lineText(line: string): string {
-    let previous;
-    let text = line;
-    do {
-        previous = text;
-        text = text.replaceAll(/<[^>]+>/g, '');
-    } while (text !== previous);
-    return text.replaceAll(/&(?:quot|#x27|#39|lt|gt|amp);/g, entity => ENTITIES[entity]!);
+interface Props {
+    /** The CSS the plugin generated for one example. */
+    css: string;
+    /** Lines containing any of these snippets are highlighted, matching the config tab's highlights. */
+    highlight?: string[];
+    /** A highlighter with CSS loaded. */
+    shiki: Highlighter;
 }
 
-/**
- * The CSS the plugin generated for one example, highlighted at build time (`html`). Lines containing any `highlight`
- * snippet get the highlighted-line style, matching the config tab's highlights.
- */
-export function ExampleCss({ html, highlight = [] }: { html: string; highlight?: string[] }) {
-    const marked = highlight.length
-        ? html
-              .split('\n')
-              .map(line =>
-                  line.includes('<span class="line">') && highlight.some(snippet => lineText(line).includes(snippet))
-                      ? line.replace('<span class="line">', '<span class="line highlighted">')
-                      : line,
-              )
-              .join('\n')
-        : html;
-    return <Html className="example-css" html={marked} />;
-}
+/** An example's generated CSS, highlighted like every other code block. */
+export const ExampleCss: FC<Props> = ({ css, highlight: snippets = [], shiki }) => {
+    const lines = new Set(css.split('\n').flatMap((line, i) => (snippets.some(snippet => line.includes(snippet)) ? [i + 1] : [])));
+    return <div className={styles.css} dangerouslySetInnerHTML={{ __html: highlight(shiki, css, 'css', { lines }) }} />;
+};

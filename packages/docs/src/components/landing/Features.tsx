@@ -1,3 +1,6 @@
+import type { FC } from 'react';
+import styles from './Features.module.css';
+
 export interface Feature {
     icon: string;
     title: string;
@@ -22,17 +25,19 @@ export const foundryFeatures: Feature[] = [
     },
 ];
 
-/** The foundry's selling points, one illustrated column each. */
-export function Features({ features }: { features: Feature[] }) {
-    return (
-        <div className="landing-features">
-            {features.map(feature => (
-                <div key={feature.title} className="landing-feature">
-                    <img className="landing-illustration" src={feature.icon} alt="" loading="lazy" />
-                    <h3>{feature.title}</h3>
-                    <p>{feature.details}</p>
-                </div>
-            ))}
-        </div>
-    );
+interface Props {
+    features: Feature[];
 }
+
+/** The foundry's selling points, one illustrated column each. */
+export const Features: FC<Props> = ({ features }) => (
+    <div className={styles.features}>
+        {features.map(feature => (
+            <div key={feature.title} className={styles.feature}>
+                <img className={styles.illustration} src={feature.icon} alt="" loading="lazy" />
+                <h3>{feature.title}</h3>
+                <p>{feature.details}</p>
+            </div>
+        ))}
+    </div>
+);

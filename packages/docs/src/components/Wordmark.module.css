@@ -1,0 +1,26 @@
+.wordmark {
+    display: block;
+    color: var(--text);
+}
+
+.ink {
+    fill: currentColor;
+}
+
+.molten {
+    fill: var(--fonte-molten);
+}
+
+.surface {
+    fill: none;
+    stroke: var(--fonte-ember);
+    stroke-width: 1.9;
+}
+
+/* The landing page thins the mold while the wordmark is large, through `--mold-width`. */
+.mold {
+    fill: none;
+    stroke: var(--fonte-mold);
+    stroke-width: var(--mold-width, 2.4);
+    stroke-linejoin: round;
+}

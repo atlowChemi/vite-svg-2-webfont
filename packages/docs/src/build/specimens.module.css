@@ -1,0 +1,115 @@
+/* Option specimens (`specimens.ts`): what an option does on the left, its spec card on the right. */
+.option {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 240px;
+    gap: 6px 32px;
+    padding: 26px 0;
+    border-bottom: 1px dashed var(--line);
+}
+
+.bare {
+    grid-template-columns: minmax(0, 1fr);
+}
+
+.option > h3 {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font: 400 20px var(--font-mono);
+}
+
+.option > h3::before {
+    content: '';
+    flex: none;
+    width: 8px;
+    height: 8px;
+    background: var(--fonte-molten);
+    transform: translateY(-3px);
+}
+
+.option > h3 code {
+    padding: 0;
+    background: none;
+    font-size: inherit;
+    color: var(--text);
+}
+
+.description {
+    min-width: 0;
+}
+
+.description > :first-child {
+    margin-top: 4px;
+}
+
+.spec {
+    align-self: start;
+    margin: 8px 0 0;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface-sunken);
+}
+
+.spec > div {
+    display: grid;
+    gap: 2px;
+}
+
+.spec > div + div {
+    margin-top: 10px;
+}
+
+.spec dt {
+    font: 10px var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+}
+
+.spec dd {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+
+.spec dd code {
+    padding: 0;
+    background: none;
+    font-size: 12.5px;
+}
+
+.also dd {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+}
+
+.also a {
+    display: inline-block;
+    min-width: 24px;
+    min-height: 24px;
+    font: 12px / 24px var(--font-mono);
+    text-align: center;
+}
+
+@media (max-width: 960px) {
+    .option {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .spec {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 22px;
+    }
+
+    .spec > div + div {
+        margin-top: 0;
+    }
+}

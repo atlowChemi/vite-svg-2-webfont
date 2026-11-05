@@ -4,8 +4,8 @@ import type { ThemeRegistrationAny } from 'shiki/core';
 export const codeThemes = { light: 'catppuccin-latte', dark: 'catppuccin-frappe' } as const;
 
 /**
- * What code is drawn on: the blocks' background (`--vp-c-bg-alt` in custom.css, which replaces the themes' own) and a
- * highlighted line, VitePress's `--vp-code-line-highlight-color` over it.
+ * What code is drawn on: the blocks' background (`--surface-sunken` in tokens.css, which replaces the themes' own) and a
+ * highlighted line, `--tint` over it.
  */
 export const codeBackgrounds = { light: ['#f3ece2', '#e7e0d7'], dark: ['#161418', '#23242a'] } as const;
 

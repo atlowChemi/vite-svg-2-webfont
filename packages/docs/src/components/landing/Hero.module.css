@@ -1,0 +1,203 @@
+/* The hero: the tray, the mold and the cast result on a pinned stage. The wordmark that flies into the top bar is Flyer. */
+.hero {
+    height: 300vh;
+    align-content: start;
+}
+
+.hero .rail {
+    top: var(--doc-top);
+    padding-top: 56px;
+}
+
+/* Same width as the content column, so the hero centers on the sections below it, not on the window. */
+.stage {
+    width: 100%;
+    max-width: var(--column);
+    position: sticky;
+    top: var(--doc-top);
+    height: calc(100vh - var(--doc-top));
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+}
+
+.tray {
+    display: flex;
+    gap: 28px;
+    height: 44px;
+    align-items: center;
+}
+
+.trayItem {
+    display: block;
+    width: 32px;
+    height: 32px;
+    color: var(--text);
+    will-change: transform;
+}
+
+.trayItem .icon {
+    display: block;
+    font-size: 32px;
+}
+
+.placeholder {
+    margin-top: 12px;
+}
+
+.placeholder .wordmark {
+    height: var(--hero-wordmark-height);
+    width: auto;
+}
+
+/* Once the flyer has taken over, the placeholder only keeps its place. */
+.placeholder.docked .wordmark {
+    visibility: hidden;
+}
+
+.tag {
+    margin: 10px 0 0;
+    font-size: clamp(22px, 3vw, 30px);
+    font-weight: 600;
+    line-height: 1.2;
+}
+
+.sub {
+    margin: 4px 0 0;
+    color: var(--text-muted);
+}
+
+.hint {
+    margin-top: 28px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+}
+
+.hint .icon {
+    display: block;
+    font-size: 22px;
+    color: var(--acc);
+    animation: bob 1.6s ease-in-out infinite;
+}
+
+@keyframes bob {
+    50% {
+        transform: translateY(6px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .hint .icon {
+        animation: none;
+    }
+}
+
+.result {
+    width: min(620px, 100%);
+    margin-top: 22px;
+    opacity: 0;
+}
+
+.resultHead {
+    display: flex;
+    justify-content: space-between;
+    padding-top: 10px;
+    border-top: 1px dashed var(--line);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+}
+
+.cells {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 10px 4px 8px;
+    border-radius: 4px;
+    background: var(--surface-muted);
+}
+
+.cell .icon {
+    display: block;
+    font-size: 26px;
+    color: var(--accent-text);
+}
+
+.cell code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+}
+
+.actions {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.button {
+    padding: 7px 16px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    font-weight: 600;
+    font-size: 15px;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.button:hover {
+    border-color: var(--acc);
+}
+
+.button.brand {
+    border-color: transparent;
+    background: var(--button-bg);
+    color: var(--button-text);
+}
+
+.button.brand:hover {
+    background: var(--button-bg-hover);
+}
+
+@media (max-width: 720px) {
+    .hero .rail {
+        padding-top: 10px;
+    }
+
+    .stage {
+        top: calc(var(--doc-top) + var(--rail-height));
+        height: calc(100svh - var(--doc-top) - var(--rail-height));
+    }
+
+    .cells {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .tray {
+        gap: 18px;
+    }
+
+    .hint {
+        margin-top: 18px;
+    }
+}

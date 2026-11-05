@@ -1,6 +1,8 @@
-import { Fragment } from 'react';
-import { iconsFor } from './exampleIcons.ts';
-import { Html } from './Html.tsx';
+import { Fragment, type FC } from 'react';
+import { exampleScope } from '../../site/exampleScope.ts';
+import { cx } from '../cx.ts';
+import { iconsFor } from './exampleSvgs.ts';
+import styles from './ExampleOutput.module.css';
 
 interface Props {
     example: string;
@@ -13,9 +15,9 @@ interface Props {
 
 /**
  * Live output of one example: every input icon with its class, then any slot content (for example a template's
- * utilities). The generated CSS is scoped to this container, so markup uses real class names.
+ * utilities). The generated CSS is scoped to this container, so the icons use the example's real class names.
  */
-export function ExampleOutput({ example, baseClass = 'icon', classPrefix = 'icon-', rows = [{ label: '' }], slots }: Props) {
+export const ExampleOutput: FC<Props> = ({ example, baseClass = 'icon', classPrefix = 'icon-', rows = [{ label: '' }], slots }) => {
     const names = [
         ...new Set(
             iconsFor(example).map(icon =>
@@ -27,14 +29,14 @@ export function ExampleOutput({ example, baseClass = 'icon', classPrefix = 'icon
         ),
     ];
     return (
-        <div className={`example-output vp-example-${example}`}>
+        <div className={cx(styles.output, exampleScope(example))}>
             {rows.map(row => (
                 <Fragment key={row.label}>
-                    {row.label && <p className="example-output-label">{row.label}</p>}
-                    <div className="example-output-grid">
+                    {row.label && <p className={styles.label}>{row.label}</p>}
+                    <div className={styles.grid}>
                         {names.map(name => (
                             <figure key={name}>
-                                <i className={[baseClass, `${classPrefix}${name}`, row.class].filter(Boolean).join(' ')} aria-hidden="true" />
+                                <i className={cx(baseClass, `${classPrefix}${name}`, row.class)} aria-hidden="true" />
                                 <figcaption>
                                     {classPrefix}
                                     {name}
@@ -44,7 +46,7 @@ export function ExampleOutput({ example, baseClass = 'icon', classPrefix = 'icon
                     </div>
                 </Fragment>
             ))}
-            {slots.default && <Html className="example-output-grid example-output-extra" html={slots.default} />}
+            {slots.default && <div className={cx(styles.grid, styles.extra)} dangerouslySetInnerHTML={{ __html: slots.default }} />}
         </div>
     );
-}
+};

@@ -1,17 +1,21 @@
 // The landing page. Its markup is the first frame; this pours the tray into the T as the reader scrolls through the hero,
 // docks the wordmark into the top bar, cools the page toward the footer, and switches the tool drawers.
-import '../components/landing/Landing.css';
-import '../components/landing/Hero.css';
-import '../components/landing/Drawers.css';
-import '../components/landing/Features.css';
-import '../components/landing/Outputs.css';
-import '../components/landing/Footer.css';
+// It brings every landing component's module, and the class names it queries and toggles.
+import landingStyles from '../components/landing/Landing.module.css';
+import sectionStyles from '../components/landing/Section.module.css';
+import heroStyles from '../components/landing/Hero.module.css';
+import flyerStyles from '../components/landing/Flyer.module.css';
+import drawerStyles from '../components/landing/Drawers.module.css';
+import '../components/landing/Features.module.css';
+import '../components/landing/Outputs.module.css';
+import '../components/landing/Footer.module.css';
+import '../components/landing/Colophon.module.css';
 import { EMPTY, FULL, degrees, wave } from '../components/landing/pour.ts';
 
 const html = document.documentElement;
 
 // Drawers: every snippet and guide link is in the markup; the pressed drawer shows its own.
-const drawerButtons = [...document.querySelectorAll<HTMLButtonElement>('.landing-drawer[data-drawer]')];
+const drawerButtons = [...document.querySelectorAll<HTMLButtonElement>(`.${drawerStyles.drawer}[data-drawer]`)];
 for (const button of drawerButtons) {
     button.addEventListener('click', () => {
         const key = button.dataset.drawer!;
@@ -32,17 +36,17 @@ const heat: Record<'dark' | 'light', { hot: Rgb; ember: Rgb; cold: Rgb; ink: Rgb
 const clamp = (value: number) => Math.min(1, Math.max(0, value));
 const mix = (a: Rgb, b: Rgb, t: number) => `rgb(${a.map((v, i) => Math.round(v + (b[i]! - v) * t)).join(' ')})`;
 
-const root = document.querySelector<HTMLElement>('.landing');
-const hero = document.querySelector<HTMLElement>('.landing-hero');
-const stage = document.querySelector<HTMLElement>('.landing-stage');
-const placeholder = document.querySelector<HTMLElement>('.landing-placeholder');
-const flyer = document.querySelector<HTMLElement>('.landing-flyer');
-const trayItems = [...document.querySelectorAll<HTMLElement>('.landing-tray-item')];
-const hint = document.querySelector<HTMLElement>('.landing-hint');
-const result = document.querySelector<HTMLElement>('.landing-result');
-const rails = [...document.querySelectorAll<HTMLElement>('.landing-rail .deg')];
-const molten = flyer?.querySelector<SVGPathElement>('.molten');
-const surface = flyer?.querySelector<SVGPathElement>('.surface');
+const root = document.querySelector<HTMLElement>(`.${landingStyles.landing}`);
+const hero = document.querySelector<HTMLElement>(`.${heroStyles.hero}`);
+const stage = document.querySelector<HTMLElement>(`.${heroStyles.stage}`);
+const placeholder = document.querySelector<HTMLElement>(`.${heroStyles.placeholder}`);
+const flyer = document.querySelector<HTMLElement>(`.${flyerStyles.flyer}`);
+const trayItems = [...document.querySelectorAll<HTMLElement>(`.${heroStyles.trayItem}`)];
+const hint = document.querySelector<HTMLElement>(`.${heroStyles.hint}`);
+const result = document.querySelector<HTMLElement>(`.${heroStyles.result}`);
+const rails = [...document.querySelectorAll<HTMLElement>(`.${sectionStyles.deg}`)];
+const molten = flyer?.querySelector<SVGPathElement>('[data-part="molten"]');
+const surface = flyer?.querySelector<SVGPathElement>('[data-part="surface"]');
 
 type Dock = { y0: number; y1: number; fx: number; fy: number; tx: number; ty: number; k: number };
 let dock: Dock | undefined;
@@ -58,7 +62,7 @@ let shownDegrees = degrees(1);
 
 // Where the hero wordmark sits while the stage is pinned, where the top bar keeps its slot, and the scroll span between.
 function measure() {
-    const navMark = document.querySelector<SVGElement>('.doc-wordmark .fonte-wordmark');
+    const navMark = document.querySelector<SVGElement>('[data-top-wordmark] svg');
     if (!navMark || !flyer || !hero || !stage || !placeholder) return;
     const stickTop = parseFloat(getComputedStyle(stage).top);
     const heroTop = hero.getBoundingClientRect().top + scrollY;
@@ -80,11 +84,11 @@ function measure() {
     if (ready) return;
     // Once the flyer knows where it flies, it takes over from the placeholder and the top bar's wordmark.
     ready = true;
-    flyer.classList.add('ready');
-    placeholder.classList.add('docked');
-    html.classList.add('fonte-landing-docked');
+    flyer.classList.add(flyerStyles.ready!);
+    placeholder.classList.add(heroStyles.docked!);
+    html.classList.add('landing-docked');
     // Two frames: the hidden top bar wordmark must be painted before its fade transition is switched on.
-    requestAnimationFrame(() => requestAnimationFrame(() => html.classList.add('fonte-landing-fades')));
+    requestAnimationFrame(() => requestAnimationFrame(() => html.classList.add('landing-fades')));
 }
 
 function update() {
@@ -94,7 +98,7 @@ function update() {
 
     // Each icon falls into the mouth of the T, heating up on the way, and raises the metal when it lands.
     const stageBox = stage.getBoundingClientRect();
-    const mold = flyer.querySelector('.mold')!.getBoundingClientRect();
+    const mold = flyer.querySelector('[data-part="mold"]')!.getBoundingClientRect();
     const mouthX = mold.left + mold.width / 2 - stageBox.left;
     const mouthY = mold.top + mold.height * 0.22 - stageBox.top;
     let filled = 0;
@@ -126,7 +130,7 @@ function update() {
         if (reduce) d = d >= 1 ? 1 : 0;
         const lerp = (a: number, b: number) => a + (b - a) * d;
         flyer.style.transform = `translate(${lerp(dock.fx, dock.tx)}px, ${lerp(dock.fy, dock.ty)}px) scale(${lerp(1, dock.k)})`;
-        flyer.style.setProperty('--fonte-mold-width', String(lerp(1.4, 2.4)));
+        flyer.style.setProperty('--mold-width', String(lerp(1.4, 2.4)));
     }
 
     // The page cools once the cast is done: molten through ember to cold metal at the footer.

@@ -1,14 +1,23 @@
-import { useState } from 'react';
+import { useState, type FC } from 'react';
+import { cx } from '../cx.ts';
+import styles from './PlaygroundOutputs.module.css';
 import { PlaygroundViewer } from './PlaygroundViewer.tsx';
 import { codepointsSnippet } from './codepoints.ts';
+import controls from './controls.module.css';
 import { downloadFile } from './download.ts';
 import type { PlaygroundIcon, PlaygroundSettings } from './options.ts';
 import { useClipboard } from './useClipboard.ts';
 import type { WebfontBuild } from './webfontBuilder.ts';
 import { outputFiles, zipOutputs } from './zip.ts';
 
+interface Props {
+    build: WebfontBuild;
+    settings: PlaygroundSettings;
+    icons: PlaygroundIcon[];
+}
+
 /** Downloads for the latest build, the codepoints snippet, and the generated code. */
-export function PlaygroundOutputs({ build, settings, icons }: { build: WebfontBuild; settings: PlaygroundSettings; icons: PlaygroundIcon[] }) {
+export const PlaygroundOutputs: FC<Props> = ({ build, settings, icons }) => {
     const { copied, copy } = useClipboard();
     const [zipping, setZipping] = useState(false);
     const [zipError, setZipError] = useState<string>();
@@ -30,29 +39,29 @@ export function PlaygroundOutputs({ build, settings, icons }: { build: WebfontBu
     }
 
     return (
-        <section className="pg-outputs">
+        <section className={styles.outputs}>
             <h2>Outputs</h2>
-            <div className="pg-files">
+            <div className={styles.files}>
                 {outputFiles(build.outputs, settings).map(file => (
-                    <button key={file.kind} type="button" className="pg-file" onClick={() => downloadFile(file.fileName, file.bytes)}>
+                    <button key={file.kind} type="button" className={styles.file} onClick={() => downloadFile(file.fileName, file.bytes)}>
                         <span>{file.fileName}</span>
                         <small>{file.size}</small>
                     </button>
                 ))}
-                <button type="button" className="pg-button" disabled={zipping} onClick={() => void downloadZip()}>
+                <button type="button" className={controls.button} disabled={zipping} onClick={() => void downloadZip()}>
                     {zipping ? 'Zipping…' : 'Download all (.zip)'}
                 </button>
-                <button type="button" className="pg-button pg-button-alt" onClick={() => void copy('codepoints', codepointsSnippet(icons))}>
+                <button type="button" className={cx(controls.button, controls.buttonAlt)} onClick={() => void copy('codepoints', codepointsSnippet(icons))}>
                     {copied === 'codepoints' ? 'Copied!' : 'Copy as codepoints'}
                 </button>
             </div>
             {zipError && (
-                <p className="pg-error" role="alert">
+                <p className={controls.error} role="alert">
                     {zipError}
                 </p>
             )}
-            <p className="pg-hint">Codepoints are assigned in the order icons were added. Paste the copied option into your config to keep them stable.</p>
+            <p className={controls.hint}>Codepoints are assigned in the order icons were added. Paste the copied option into your config to keep them stable.</p>
             <PlaygroundViewer build={build} />
         </section>
     );
-}
+};

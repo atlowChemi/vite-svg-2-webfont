@@ -1,0 +1,77 @@
+/* The Playground: element defaults for everything inside it, then its own layout. */
+.playground {
+    --playground-radius: 4px;
+    accent-color: var(--accent-text);
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.playground h2 {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    font-family: var(--font-display);
+    font-size: 22px;
+    font-weight: 600;
+}
+
+.playground input:not([type='checkbox'], [type='radio'], [type='range']),
+.playground textarea {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: var(--playground-radius);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+}
+
+.playground input[aria-invalid='true'] {
+    border-color: var(--danger-text);
+}
+
+.layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+}
+
+@media (min-width: 960px) {
+    .layout {
+        grid-template-columns: minmax(0, 1fr) 320px;
+    }
+}
+
+.toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 12px 20px;
+    margin-bottom: 16px;
+}
+
+.status {
+    flex: 1;
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.empty {
+    padding: 48px 0;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+}

@@ -4,13 +4,16 @@ import MarkdownIt, { type Env as MarkdownEnv, type Token } from 'markdown-it';
 import container from 'markdown-it-container';
 import { parse as parseYaml } from 'yaml';
 import { extractBlocks, type Block } from './blocks.ts';
+import tabStyles from './codeTabs.module.css';
 import { escape, fenceMeta, highlight, loadLanguages, titled } from './highlight.ts';
 import { expandIncludes } from './includes.ts';
+import styles from './markdown.module.css';
 import { diagramKey, marker, renderDiagrams } from './mermaid.ts';
 
-// Markdown → HTML with markdown-it, the parser VitePress used, plus the VitePress syntaxes the docs rely on: includes and
-// snippets, `::: tip`-style containers, code groups, titled and line-highlighted fences, and heading ids from VitePress's
-// slugger, so every existing `#hash` link still lands.
+// Markdown → HTML with markdown-it, plus the syntaxes the docs were written in for VitePress: includes and snippets,
+// `::: tip`-style containers, code groups, titled and line-highlighted fences, and heading ids from VitePress's slugger,
+// so every existing `#hash` link still lands. The markup is the site's own, styled by `markdown.module.css`,
+// `codeTabs.module.css` and `highlight.module.css`.
 
 // This module runs from `src/build` in dev and from `.cache/server` once built: both two folders below the docs.
 export const docsRoot = join(import.meta.dirname, '../..');
@@ -69,21 +72,20 @@ let tabGroup = 0;
 function createMarkdown() {
     const md = new MarkdownIt({ html: true, linkify: false, typographer: false });
 
-    // Containers: tip, info, warning, danger and details, with an optional custom title.
-    for (const kind of ['tip', 'info', 'warning', 'danger', 'details']) {
+    // Callouts: tip, info, warning, danger and details, with an optional custom title.
+    for (const kind of ['tip', 'info', 'warning', 'danger', 'details'] as const) {
         md.use(container, kind, {
             render(tokens: Token[], i: number) {
                 const token = tokens[i]!;
                 if (token.nesting !== 1) return kind === 'details' ? '</details>\n' : '</div>\n';
                 const title = md.renderInline(token.info.trim().slice(kind.length).trim() || kind.toUpperCase());
-                return kind === 'details'
-                    ? `<details class="details custom-block"><summary>${title}</summary>\n`
-                    : `<div class="${kind} custom-block"><p class="custom-block-title">${title}</p>\n`;
+                const className = `${styles.callout} ${styles[kind]}`;
+                return kind === 'details' ? `<details class="${className}"><summary>${title}</summary>\n` : `<div class="${className}"><p class="${styles.title}">${title}</p>\n`;
             },
         });
     }
 
-    // A code group: one radio tab per fence, labelled by the fence's `[title]`; the fences render as its blocks.
+    // A code group: one radio tab per fence, labelled by the fence's `[title]`; the fences render as its panels.
     md.use(container, 'code-group', {
         render(tokens: Token[], i: number) {
             if (tokens[i]!.nesting !== 1) return '</div></div>\n';
@@ -96,11 +98,11 @@ function createMarkdown() {
             }
             const group = `group-${++tabGroup}`;
             const tabs = fences.map((f, n) => {
-                f.meta = { group: true, active: n === 0 };
+                f.meta = { group: true, hidden: n > 0 };
                 const label = escape(fenceMeta(f.info).title ?? f.info.trim().split(/\s/)[0] ?? '');
                 return `<input type="radio" name="${group}" id="${group}-${n}"${n ? '' : ' checked'}><label for="${group}-${n}" data-title="${label}">${label}</label>`;
             });
-            return `<div class="vp-code-group"><div class="tabs">${tabs.join('')}</div><div class="blocks">\n`;
+            return `<div class="${tabStyles.group}"><div class="${tabStyles.tabs}">${tabs.join('')}</div><div class="${tabStyles.panels}">\n`;
         },
     });
 
@@ -137,7 +139,7 @@ function createMarkdown() {
             open.attrSet('id', id);
             open.attrSet('tabindex', '-1');
             const anchor = new state.Token('html_inline', '', 0);
-            anchor.content = ` <a class="header-anchor" href="#${id}" aria-label="Permalink to “${escape(text)}”">&#8203;</a>`;
+            anchor.content = ` <a class="${styles.anchor}" href="#${id}" aria-label="Permalink to “${escape(text)}”">&#8203;</a>`;
             inline.children?.push(anchor);
             const level = Number(open.tag.slice(1));
             if (level === 1) env.title ??= text;
@@ -177,8 +179,8 @@ export async function renderMarkdown(file: string, renderBlock: BlockRenderer, b
             return marker(key);
         }
         const { lines, title } = fenceMeta(meta);
-        const group = token.meta as { group?: boolean; active?: boolean } | null;
-        const html = highlight(shiki, token.content.replace(/\n$/, ''), lang, lines, !!group?.active);
+        const group = token.meta as { group?: boolean; hidden?: boolean } | null;
+        const html = highlight(shiki, token.content.replace(/\n$/, ''), lang, { lines, hidden: group?.hidden });
         return title && !group?.group ? titled(html, escape(title)) : html;
     };
 

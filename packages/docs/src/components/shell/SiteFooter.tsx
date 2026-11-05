@@ -1,4 +1,6 @@
+import type { FC } from 'react';
 import { repo } from '../../site/site.ts';
+import styles from './SiteFooter.module.css';
 
 const changelogs = [
     { text: 'Vite Plugin', link: '/vite/changelog' },
@@ -13,25 +15,23 @@ const registries = [
 ];
 
 /** The foot of the full-width pages: changelogs, where the packages live, and the license. */
-export function SiteFooter() {
-    return (
-        <footer className="doc-footer">
-            <nav aria-label="Changelogs">
-                <span className="plate">Changelogs</span>
-                {changelogs.map(c => (
-                    <a key={c.link} href={c.link}>
-                        {c.text}
-                    </a>
-                ))}
-            </nav>
-            <nav aria-label="Packages">
-                {registries.map(r => (
-                    <a key={r.link} href={r.link} target="_blank" rel="noreferrer">
-                        {r.text}
-                    </a>
-                ))}
-            </nav>
-            <p className="license">Released under the MIT License. Copyright © Chemi Atlow</p>
-        </footer>
-    );
-}
+export const SiteFooter: FC = () => (
+    <footer className={styles.footer}>
+        <nav className={styles.links} aria-label="Changelogs">
+            <span className={styles.plate}>Changelogs</span>
+            {changelogs.map(c => (
+                <a key={c.link} href={c.link}>
+                    {c.text}
+                </a>
+            ))}
+        </nav>
+        <nav className={styles.links} aria-label="Packages">
+            {registries.map(r => (
+                <a key={r.link} href={r.link} target="_blank" rel="noreferrer">
+                    {r.text}
+                </a>
+            ))}
+        </nav>
+        <p className={styles.license}>Released under the MIT License. Copyright © Chemi Atlow</p>
+    </footer>
+);

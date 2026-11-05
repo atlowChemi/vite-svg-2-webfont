@@ -1,0 +1,36 @@
+.drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 32px 16px;
+    border: 2px dashed var(--line);
+    border-radius: var(--playground-radius);
+    background: var(--surface-muted);
+    text-align: center;
+    transition:
+        border-color 0.2s,
+        background-color 0.2s;
+}
+
+.drop p {
+    margin: 0;
+}
+
+.drop strong {
+    font-family: var(--font-display);
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.active {
+    border-color: var(--accent-text);
+    background: var(--accent-tint);
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 12px;
+}

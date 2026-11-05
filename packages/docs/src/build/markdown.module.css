@@ -1,0 +1,153 @@
+/* What the Markdown renderer adds around the content (`markdown.ts`): heading anchors and `::: tip`-style callouts. */
+
+/* A heading's permalink sits in the gutter to its left. */
+:is(h1, h2, h3, h4, h5, h6):has(> .anchor) {
+    position: relative;
+}
+
+.anchor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    margin-left: -0.87em;
+    font-weight: 500;
+    user-select: none;
+    opacity: 0;
+    text-decoration: none;
+    transition:
+        color 0.25s,
+        opacity 0.25s;
+}
+
+.anchor::before {
+    content: '#';
+}
+
+:is(h1, h2, h3, h4, h5, h6):hover > .anchor,
+.anchor:focus {
+    opacity: 1;
+}
+
+/* Below an h2's rule and padding. */
+h2 > .anchor {
+    top: 1.5rem;
+}
+
+.callout {
+    margin: 1rem 0;
+    padding: 0.5rem 1rem;
+    border: 1px solid transparent;
+    border-radius: 0.5rem;
+    line-height: 1.7142857;
+    font-size: 0.875rem;
+    color: var(--text);
+}
+
+.callout:has(> .title, > summary) {
+    padding-top: 1rem;
+}
+
+.title {
+    font-weight: 600;
+}
+
+.callout p {
+    margin: 0.5rem 0;
+    line-height: 1.7142857;
+}
+
+.callout p:first-child {
+    margin: 0;
+}
+
+.callout a {
+    color: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 0.125rem;
+    transition: opacity 0.25s;
+}
+
+.callout a:hover {
+    opacity: 0.75;
+}
+
+.callout :not(pre) > code {
+    font-size: 0.8125rem;
+}
+
+.callout th,
+.callout blockquote > p {
+    font-size: 0.875rem;
+    color: inherit;
+}
+
+/* Code blocks and code groups inside a callout. */
+.callout > div {
+    margin: 0.5rem 0;
+}
+
+.tip,
+.info {
+    border-left: 3px solid var(--fonte-ember);
+}
+
+.tip {
+    background-color: var(--accent-tint);
+}
+
+.info,
+.details {
+    background-color: var(--tint);
+}
+
+.tip :is(a, :not(pre) > code),
+.info :is(a, :not(pre) > code),
+.details a {
+    color: var(--accent-text);
+}
+
+/* Molten code on a tip's tint, over a second tint, would miss 4.5:1; it sits on the page's color instead. */
+.tip :not(pre) > code {
+    background-color: var(--surface);
+}
+
+.warning,
+.danger {
+    border-left: 3px solid var(--fonte-molten);
+}
+
+.warning {
+    background-color: var(--warning-tint);
+}
+
+.warning :is(a, :not(pre) > code) {
+    color: var(--warning-text);
+}
+
+.warning :not(pre) > code {
+    background-color: var(--warning-tint);
+}
+
+.danger {
+    background-color: var(--danger-tint);
+}
+
+.danger :is(a, :not(pre) > code) {
+    color: var(--danger-text);
+}
+
+.danger :not(pre) > code {
+    background-color: var(--danger-tint);
+}
+
+.details summary {
+    margin: 0 0 0.5rem;
+    font-weight: 700;
+    cursor: pointer;
+    user-select: none;
+}
+
+.details summary + p {
+    margin: 0.5rem 0;
+}

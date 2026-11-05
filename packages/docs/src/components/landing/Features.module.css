@@ -1,0 +1,35 @@
+/* The foundry's selling points, one illustrated column each. */
+.features {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+}
+
+.illustration {
+    width: 64px;
+    height: 64px;
+}
+
+.feature h3 {
+    margin: 12px 0 4px;
+    font-size: 19px;
+    font-weight: 600;
+}
+
+.feature p {
+    margin: 0;
+    font-size: 15px;
+    line-height: 1.45;
+    color: var(--text-muted);
+}
+
+@media (max-width: 720px) {
+    .features {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .illustration {
+        width: 48px;
+        height: 48px;
+    }
+}

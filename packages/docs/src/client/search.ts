@@ -1,6 +1,7 @@
 // The search dialog, loaded on first use. The index is built with the site (`src/build/outputs.ts`) and fetched once; the browser's
 // cache keeps it across pages. The last query survives page loads in sessionStorage.
 import MiniSearch from 'minisearch';
+import styles from './search.module.css';
 import { indexOptions, searchOptions, type SearchDoc } from './searchOptions';
 
 const QUERY_KEY = 'fonte-search-query';
@@ -43,9 +44,9 @@ const termPattern = (terms: string[]) =>
 
 function build(): HTMLDialogElement {
     const el = document.createElement('dialog');
-    el.className = 'doc-search-dialog';
+    el.className = styles.dialog!;
     el.setAttribute('aria-label', 'Search the docs');
-    el.innerHTML = `<input type="search" placeholder="Search the docs" aria-label="Search the docs" aria-controls="doc-search-results" autocomplete="off"><ul id="doc-search-results" role="listbox"></ul><p class="hint dim">↑↓ to move, Enter to open, Esc to close</p>`;
+    el.innerHTML = `<input class="${styles.input}" type="search" placeholder="Search the docs" aria-label="Search the docs" aria-controls="search-results" autocomplete="off"><ul id="search-results" class="${styles.results}" role="listbox"></ul><p class="${styles.hint}">↑↓ to move, Enter to open, Esc to close</p>`;
     const input = el.querySelector('input')!;
     const list = el.querySelector('ul')!;
     let active = 0;
@@ -71,10 +72,10 @@ function build(): HTMLDialogElement {
                   .map(r => {
                       const terms = termPattern(r.terms);
                       const text = r.text as string;
-                      return `<li><a role="option" href="${escape(r.id)}"><span class="trail">${[...(r.titles as string[])].map(escape).join(' › ')}</span><strong>${marked(r.title as string, terms)}</strong>${text ? `<span class="excerpt">${excerpt(text, terms)}</span>` : ''}</a></li>`;
+                      return `<li><a class="${styles.result}" role="option" href="${escape(r.id)}"><span class="${styles.trail}">${[...(r.titles as string[])].map(escape).join(' › ')}</span><strong>${marked(r.title as string, terms)}</strong>${text ? `<span class="${styles.excerpt}">${excerpt(text, terms)}</span>` : ''}</a></li>`;
                   })
                   .join('')
-            : `<li class="dim">No results for “${escape(q)}”.</li>`;
+            : `<li class="${styles.empty}">No results for “${escape(q)}”.</li>`;
         mark();
     }
     input.addEventListener('input', () => void run());
