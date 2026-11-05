@@ -1,15 +1,22 @@
 import { defineProject, type UserProjectConfigExport } from 'vite-plus';
 import { keepCssModules, scopedName } from './config/cssModules.ts';
-import { loadedSitePlugins } from './config/sitePlugins.ts';
 import { fonteDocs } from './config/staticSite.ts';
 
 // The docs as static pages: see `config/staticSite.ts` for the build and the dev server.
+
+// The site's own plugins build fonts with vite-svg-2-webfont, so they load only once it and its native module exist.
+let site: typeof import('./config/plugins/index.ts') | undefined;
+try {
+    site = await import(import.meta.resolve('./config/plugins/index.ts'));
+} catch {
+    // Task discovery runs before the plugin and native module are built.
+}
 
 const config: UserProjectConfigExport = defineProject({
     // Holds the engine cache the icon fonts build into, kept across CI runs (see main.yaml and docs.yaml).
     cacheDir: '.cache',
     css: { modules: { generateScopedName: scopedName } },
-    plugins: [fonteDocs(), keepCssModules(), ...loadedSitePlugins()],
+    plugins: [fonteDocs(site), keepCssModules(), ...(site?.sitePlugins() ?? [])],
     test: {
         name: 'docs',
         include: ['config/**/*.test.ts', 'src/**/*.test.{ts,tsx}'],

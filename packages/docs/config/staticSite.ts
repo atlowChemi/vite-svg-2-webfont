@@ -2,7 +2,7 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { Plugin, ViteDevServer } from 'vite-plus';
-import { requireSite } from './sitePlugins.ts';
+type SitePlugins = typeof import('./plugins/index.ts');
 
 // The docs as static pages. Vite builds two things: `src/build/render.tsx` for Node, and the browser assets (one shared
 // stylesheet and script, plus an entry per kind of page that needs more). Every page is rendered to HTML that links its
@@ -40,7 +40,8 @@ function stylesheets(manifest: Manifest, key: string, seen = new Set<string>()):
 
 const htmlPath = (route: string) => (route === '/404' ? '404.html' : route.endsWith('/') ? `${route}index.html` : `${route}.html`).replace(/^\//, '');
 
-export function fonteDocs(): Plugin {
+/** `site`: the site's own plugins, absent while `vp` discovers tasks (see `vite.config.ts`). */
+export function fonteDocs(site: SitePlugins | undefined): Plugin {
     let server: ViteDevServer | undefined;
     return {
         name: 'fonte-docs',
@@ -53,13 +54,12 @@ export function fonteDocs(): Plugin {
             builder: {
                 // The pages render first, so the browser build knows every tab label; then the HTML links its assets.
                 async buildApp(builder) {
-                    requireSite();
                     const client = builder.environments.client!;
                     const outDir = client.config.build.outDir;
                     await builder.build(builder.environments.ssr!);
                     const render = (await import(pathToFileURL(join(builder.config.root, serverDir, 'render.js')).href)) as Renderer;
                     const pages = await loadAll(render);
-                    requireSite().setFileIconLabels(render.tabLabels(pages));
+                    site?.setFileIconLabels(render.tabLabels(pages));
                     client.config.build.rolldownOptions.input = Object.values(render.clientEntries);
                     await builder.build(client);
                     const manifest = JSON.parse(await readFile(join(outDir, '.vite/manifest.json'), 'utf8')) as Manifest;
@@ -83,7 +83,6 @@ export function fonteDocs(): Plugin {
             },
         }),
         configureServer(dev) {
-            requireSite();
             server = dev;
             dev.middlewares.use((req, res, next) => {
                 void (async () => {
@@ -110,7 +109,7 @@ export function fonteDocs(): Plugin {
         async load(id) {
             if (!server || id !== '\0virtual:file-icons.css') return undefined;
             const render = (await server.ssrLoadModule(`/${renderer}`)) as Renderer;
-            requireSite().setFileIconLabels(render.tabLabels(await loadAll(render)));
+            site?.setFileIconLabels(render.tabLabels(await loadAll(render)));
             return undefined;
         },
     };
