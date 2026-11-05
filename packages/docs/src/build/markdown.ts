@@ -102,7 +102,7 @@ function createMarkdown() {
             const group = `group-${++tabGroup}`;
             const tabs = fences.map((f, n) => {
                 f.meta = { group: true, hidden: n > 0 };
-                const label = escape(fenceMeta(f.info).title ?? f.info.trim().split(/\s/)[0] ?? '');
+                const label = escape(fenceMeta(f.info).title ?? f.info.trim().split(/\s/, 1)[0] ?? '');
                 return `<input type="radio" name="${group}" id="${group}-${n}"${n ? '' : ' checked'}><label for="${group}-${n}" data-title="${label}">${label}</label>`;
             });
             return `<div class="${tabStyles.group}"><div class="${tabStyles.tabs}">${tabs.join('')}</div><div class="${tabStyles.panels}">\n`;

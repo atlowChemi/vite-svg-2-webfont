@@ -110,7 +110,7 @@ export async function loadPage(route: string): Promise<Page | undefined> {
         return renderToStaticMarkup(component.render(block.props, slots), { identifierPrefix: `b${++rendered}-` });
     };
     const markdown = await renderMarkdown(join(pagesRoot, file), renderBlock, blockNames);
-    const html = markdown.frontmatter.layout === 'page' ? markdown.html : specimens(markdown.html, route.split('/')[1] ?? '');
+    const html = markdown.frontmatter.layout === 'page' ? markdown.html : specimens(markdown.html, route.split('/', 2)[1] ?? '');
     return { route, file, description: markdown.frontmatter.description, ...markdown, html, entries };
 }
 

@@ -9,7 +9,7 @@ const docsRoot = join(import.meta.dirname, '..');
  * browser entries import the same modules in separate builds, so names depend on nothing but the path and the class.
  */
 export const scopedName = (name: string, file: string) => {
-    const path = relative(docsRoot, file.split('?')[0]!);
+    const path = relative(docsRoot, file.split('?', 1)[0]!);
     const stem = basename(path).replace(/\.module\.css$/, '');
     return `${stem}_${name}_${createHash('sha256').update(path).digest('base64url').slice(0, 5)}`;
 };

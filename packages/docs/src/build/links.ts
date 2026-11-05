@@ -19,7 +19,7 @@ export function deadLinks(pages: LinkedPage[]): string[] {
     for (const page of pages) {
         for (const [, href] of page.html.matchAll(/\shref="([^"]+)"/g)) {
             if (/^(?:[a-z]+:|\/\/)/i.test(href!)) continue;
-            const [path = '', hash] = href!.replaceAll('&amp;', '&').split('#');
+            const [path = '', hash] = href!.replaceAll('&amp;', '&').split('#', 2);
             if (isFile(path)) continue;
             const target = path ? normalize(new URL(path, `https://site${page.route}`).pathname) : normalize(page.route);
             const targetIds = byRoute.get(target);

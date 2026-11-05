@@ -19,7 +19,7 @@ export interface PageNav {
 
 export function pageNav(route: string): PageNav {
     const current = normalize(route);
-    const section = current.split('/')[1] ?? '';
+    const section = current.split('/', 2)[1] ?? '';
     const groups = sections[section] ?? [];
     const group = groups.find(g => g.items.some(i => normalize(i.link) === current)) ?? groups[0];
     const index = group?.items.findIndex(i => normalize(i.link) === current) ?? -1;
@@ -39,7 +39,7 @@ export function pageNav(route: string): PageNav {
 
 /** Switching tools keeps your place: Node's Configuration → Vite's Configuration, when it has one. */
 export function toolLink(key: string, route: string): string {
-    const pageType = normalize(route).split('/')[2];
+    const pageType = normalize(route).split('/', 3)[2];
     const same = pageType && sections[key]?.[0]?.items.find(i => normalize(i.link) === `/${key}/${pageType}`);
     return same ? same.link : `/${key}/`;
 }

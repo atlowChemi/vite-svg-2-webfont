@@ -29,7 +29,7 @@ export async function loadLanguages(langs: Iterable<string>): Promise<Highlighte
 export function fenceMeta(meta = ''): { lines: Set<number>; title?: string } {
     const lines = new Set<number>();
     for (const range of /\{([\d,\s-]+)\}/.exec(meta)?.[1]?.split(',') ?? []) {
-        const [from, to = from] = range.split('-').map(Number);
+        const [from, to = from] = range.split('-', 2).map(Number);
         for (let n = from!; n <= to!; n++) lines.add(n);
     }
     return { lines, title: /\[([^\]]+)\]/.exec(meta)?.[1] };

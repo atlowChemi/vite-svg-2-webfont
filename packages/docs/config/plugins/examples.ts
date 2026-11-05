@@ -69,7 +69,7 @@ export function scopeCss(css: string, scope: string): string {
 export function displayCss(css: string): string {
     return css.replaceAll(/url\("([^"]*)"\)/g, (_, url: string) => {
         if (url.startsWith('data:')) return `url("${url.slice(0, url.indexOf(',') + 1)}…")`;
-        const file = url.split(/[?#]/)[0]!.split('/').at(-1)!;
+        const file = url.split(/[?#]/, 1)[0]!.split('/').at(-1)!;
         return `url("${file.replace(/-[0-9a-f]{8,}(\.\w+)$/, '$1')}")`;
     });
 }
