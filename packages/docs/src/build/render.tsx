@@ -1,5 +1,5 @@
 // The server side of the build: Markdown in, finished HTML documents out. Vite builds this module for Node, and the
-// plugin in `vite.config.ts` calls it, for every page during the build and per request in dev.
+// plugin in `config/staticSite.ts` calls it, for every page during the build and per request in dev.
 import { readdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import type { ReactNode } from 'react';
