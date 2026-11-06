@@ -20,26 +20,49 @@ export async function loadLanguages(langs: Iterable<string>): Promise<Highlighte
     });
     const shiki = await highlighter;
     const loaded = new Set(shiki.getLoadedLanguages());
-    const missing = [...new Set([...langs].map(resolve))].filter(l => !loaded.has(l) && l in bundledLanguages) as BundledLanguage[];
+    const missing = new Set(
+        Iterator.from(langs)
+            .map(resolve)
+            .filter((l): l is BundledLanguage => !loaded.has(l) && l in bundledLanguages),
+    )
+        .values()
+        .toArray();
     if (missing.length) await shiki.loadLanguage(...missing);
     return shiki;
 }
 
-/** `{7-9}` and `[vite.config.ts]` from a fence's info string. */
+/**
+ * Extracts highlighted line numbers and an optional title from a code fence's info string.
+ * Example: '{1,3-5} [vite.config.ts]' → lines {1, 3, 4, 5}, title 'vite.config.ts'.
+ */
 export function fenceMeta(meta = ''): { lines: Set<number>; title?: string } {
     const lines = new Set<number>();
-    for (const range of /\{([\d,\s-]+)\}/.exec(meta)?.[1]?.split(',') ?? []) {
-        const [from, to = from] = range.split('-', 2).map(Number);
-        for (let n = from!; n <= to!; n++) lines.add(n);
+
+    // Extract the comma-separated line numbers and ranges inside {...}.
+    const ranges = /\{([\d,\s-]+)\}/.exec(meta)?.[1];
+
+    if (ranges) {
+        // Match individual numbers or inclusive ranges (e.g. '3' or '5-8').
+        for (const match of ranges.matchAll(/(\d+)(?:\s*-\s*(\d+))?/g)) {
+            const from = Number(match[1]);
+            const to = match[2] ? Number(match[2]) : from;
+
+            // Expand each inclusive range into individual line numbers.
+            for (let n = from; n <= to; n++) lines.add(n);
+        }
     }
-    return { lines, title: /\[([^\]]+)\]/.exec(meta)?.[1] };
+
+    // Extract the optional filename/title enclosed in [...].
+    const title = /\[([^\]]+)\]/.exec(meta)?.[1];
+
+    return { lines, title };
 }
 
-// `// [!code highlight]` marks a line like `{n}` does. `// [!code focus]` marks are only removed: dimming the other lines
-// hid them from keyboard and touch readers, who can't hover to undo it.
+// `// [!code highlight]` marks a line like `{n}` does. `// [!code focus]` blurs the other lines; hovering, tabbing to
+// or tapping the block brings them back.
 const notations = [
     transformerNotationHighlight({ classActiveLine: styles.highlighted, classActivePre: '' }),
-    transformerNotationFocus({ classActiveLine: '', classActivePre: '' }),
+    transformerNotationFocus({ classActiveLine: styles.focused, classActivePre: styles.hasFocused }),
 ];
 
 export interface CodeBlockOptions {

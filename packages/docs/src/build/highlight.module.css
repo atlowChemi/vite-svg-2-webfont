@@ -93,6 +93,23 @@
     background-color: var(--tint);
 }
 
+/*
+ * `// [!code focus]`: the other lines blur until the block is hovered or focused. Its `<pre>` takes focus, so tabbing
+ * to it or tapping it brings them back too.
+ */
+.hasFocused :global(.line):not(.focused) {
+    opacity: 0.7;
+    filter: blur(0.095rem);
+    transition:
+        filter 0.35s,
+        opacity 0.35s;
+}
+
+.block:is(:hover, :focus-within) .hasFocused :global(.line):not(.focused) {
+    opacity: 1;
+    filter: none;
+}
+
 .lang {
     position: absolute;
     top: 0.125rem;
