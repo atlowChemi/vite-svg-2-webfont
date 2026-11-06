@@ -262,6 +262,11 @@
     .label {
         display: none;
     }
+
+    /* Without the label, the padding that balanced it would push the mark left of center. */
+    .play {
+        padding: 0 8px;
+    }
 }
 
 @media (max-width: 420px) {
