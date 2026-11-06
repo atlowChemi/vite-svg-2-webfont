@@ -18,25 +18,24 @@ import { PlaygroundPage } from '../components/playground/PlaygroundPage.tsx';
 import { DocShell, PageShell } from '../components/shell/DocShell.tsx';
 import { pageNav } from '../site/nav.ts';
 import { site } from '../site/site.ts';
-import type { Block } from './blocks.ts';
 import { loadLanguages } from './highlight.ts';
-import { pagesRoot, renderMarkdown, type Frontmatter, type Heading } from './markdown.ts';
+import { pagesRoot, renderMarkdown, type BlockRenderer, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
 import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, searchIndex } from './outputs.ts';
 import { specimens } from './specimens.ts';
 
 /** Browser entries a page can link besides `main`, each with its own stylesheet or script. */
-export const clientEntries = {
-    main: 'src/client/main.ts',
-    examples: 'src/client/examples.ts',
-    'svg-authoring': 'src/client/svgAuthoring.ts',
-    landing: 'src/client/landing.ts',
-    playground: 'src/client/playground.tsx',
-    'not-found': 'src/client/notFound.ts',
-} as const;
-export type ClientEntry = keyof typeof clientEntries;
+export const clientEntries = new Map([
+    ['main', 'src/client/main.ts'],
+    ['examples', 'src/client/examples.ts'],
+    ['svg-authoring', 'src/client/svgAuthoring.ts'],
+    ['landing', 'src/client/landing.ts'],
+    ['playground', 'src/client/playground.tsx'],
+    ['not-found', 'src/client/notFound.ts'],
+] as const);
+export type ClientEntry = typeof clientEntries extends Map<infer K, unknown> ? K : never;
 /** Entries that only carry styles: pages link their stylesheet, not their empty script. */
-export const styleOnly = new Set<ClientEntry>(['examples', 'svg-authoring', 'not-found']);
+export const styleOnly: ReadonlySet<ClientEntry> = new Set<ClientEntry>(['examples', 'svg-authoring', 'not-found']);
 
 export interface Page {
     route: string;
@@ -56,8 +55,9 @@ export interface Page {
 const cssHighlighter = await loadLanguages(['css']);
 
 // Components the Markdown can use, rendered to static HTML at build time, and the browser entry each one needs.
+type BlockName = 'ExampleTabs' | 'ExampleIcons' | 'ExampleCss' | 'ExampleOutput' | 'SvgAuthoringCompare' | 'CacheFileLayout' | 'FonteLanding' | 'Playground';
 type BlockComponent = { entry?: ClientEntry; render: (this: void, props: Record<string, unknown>, slots: Record<string, string>) => ReactNode };
-const blocks: Record<string, BlockComponent> = {
+const blocks: Record<BlockName, BlockComponent> = {
     ExampleTabs: { entry: 'examples', render: (p, slots) => <ExampleTabs tabs={p.tabs as Record<string, string>} slots={slots} /> },
     ExampleIcons: { entry: 'examples', render: p => <ExampleIcons example={p.example as string} /> },
     ExampleCss: {
@@ -80,7 +80,7 @@ const blocks: Record<string, BlockComponent> = {
     FonteLanding: { entry: 'landing', render: (_, slots) => <Landing install={slots} /> },
     Playground: { entry: 'playground', render: (_, slots) => <PlaygroundPage intro={slots.default ?? ''} /> },
 };
-const blockNames = new Set(Object.keys(blocks));
+const blockNames = new Set(Object.keys(blocks) as BlockName[]);
 
 /** Every page by route, from `src/pages`: `guide/index.md` is `/guide/`, `guide/engine.md` is `/guide/engine`. */
 function discover(): Record<string, string> {
@@ -109,8 +109,8 @@ export async function loadPage(route: string): Promise<Page | undefined> {
     if (!file) return undefined;
     const entries = new Set<ClientEntry>();
     let rendered = 0;
-    const renderBlock = (block: Block, renderSlot: (markdown: string) => string) => {
-        const { render, entry } = blocks[block.name]!;
+    const renderBlock: BlockRenderer<BlockName> = (block, renderSlot) => {
+        const { render, entry } = blocks[block.name];
         if (entry) entries.add(entry);
         const slots = Object.fromEntries(Object.entries(block.slots).map(([name, markdown]) => [name, renderSlot(markdown)]));
         // Each block is its own render, so its `useId`s get a prefix of their own: unique on the page and beside the shell's.

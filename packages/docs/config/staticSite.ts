@@ -1,7 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { isCSSRequest, isFileServingAllowed, isRunnableDevEnvironment, type BuildEnvironment, type Connect, type Plugin, type ViteDevServer } from 'vite-plus';
+import { isCSSRequest, isFileLoadingAllowed, isRunnableDevEnvironment, type BuildEnvironment, type Connect, type Plugin, type ViteDevServer } from 'vite-plus';
 import type { Page } from '../src/build/render.tsx';
 type SitePlugins = typeof import('./plugins/index.ts');
 
@@ -10,6 +10,12 @@ type SitePlugins = typeof import('./plugins/index.ts');
 // entries' hashed files. Nothing hydrates: the HTML is the page, and the scripts only add behavior. In dev, the same
 // renderer answers each page request.
 
+// TODO [@types/node>=26]: Only needed as long as we don't have Node 26 types.
+declare global {
+    interface IteratorConstructor {
+        concat<T extends readonly Iterable<unknown>[]>(...iterables: T): IteratorObject<T[number] extends Iterable<infer U> ? U : never>;
+    }
+}
 type Renderer = typeof import('../src/build/render.tsx');
 type Assets = Parameters<Renderer['renderDocument']>[1];
 const renderer = 'src/build/render.tsx';
@@ -19,8 +25,8 @@ const serverDir = '.cache/server';
 const docsUrl = (process.env.DOCS_URL || 'https://fonte.atlow.dev').replace(/\/?$/, '/');
 
 async function loadAll(render: Renderer): Promise<Page[]> {
-    // One page at a time: markdown-it's fence renderer and the diagram browser are shared.
-    return await Array.fromAsync(render.routes, async route => (await render.loadPage(route))!);
+    // Pages render at the same time: each keeps its own state in markdown-it's `env`, and the order follows `routes`.
+    return await Promise.all(render.routes.map(async route => (await render.loadPage(route))!));
 }
 
 type Manifest = Record<string, { file: string; css?: string[]; imports?: string[] }>;
@@ -44,26 +50,43 @@ function stylesheets(manifest: Manifest, key: string, seen = new Set<string>(), 
     return result;
 }
 
-/** A `_headers` file's rules: a path pattern (`*` matches anything), then its indented `Name: value` lines. */
+/**
+ * Parses a `_headers` file into rules, each consisting of a path pattern
+ * (where `*` matches any sequence) and its indented `Name: value` headers.
+ */
 function headerRules(text: string): { pattern: RegExp; headers: [string, string][] }[] {
     const rules: { pattern: RegExp; headers: [string, string][] }[] = [];
     for (const line of text.split('\n')) {
-        if (!line.trim() || line.trimStart().startsWith('#')) continue;
-        if (!/^\s/.test(line)) {
-            const source = line
-                .trim()
-                .replaceAll(/[.+?^${}()|[\]\\]/g, '\\$&')
+        const trimmed = line.trim();
+        // Skip empty lines and comments.
+        if (!trimmed || trimmed.startsWith('#')) continue;
+
+        // Unindented lines define a new path pattern.
+        if (line[0] === trimmed[0]) {
+            const source = trimmed
+                // Escape regex metacharacters, preserving '*' as a wildcard.
+                .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+                // Convert wildcards to regex patterns matching any sequence.
                 .replaceAll('*', '.*');
+
+            // Anchor the regex to match the entire path.
             rules.push({ pattern: new RegExp(`^${source}$`), headers: [] });
             continue;
         }
-        const [name, value] = line.trim().split(/:\s*(.*)/s, 2);
+
+        // Indented lines define headers for the preceding path pattern.
+        const [name, value] = trimmed.split(/:\s*(.*)/s, 2);
         rules.at(-1)?.headers.push([name!, value ?? '']);
     }
     return rules;
 }
 
-const htmlPath = (route: string) => (route === '/404' ? '404.html' : route.endsWith('/') ? `${route}index.html` : `${route}.html`).replace(/^\//, '');
+const htmlPath = (route: string) => {
+    if (route === '/404') return '404.html';
+    if (route[0] === '/') route = route.slice(1);
+    if (!route || route.endsWith('/')) return `${route}index.html`;
+    return `${route}.html`;
+};
 
 /** `site`: the site's own plugins, absent while `vp` discovers tasks (see `vite.config.ts`). */
 export function fonteDocs(site: SitePlugins | undefined): Plugin {
@@ -96,16 +119,16 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
                     // Now we have the pages, define what labels we have, so the file icon plugin only adds those icons.
                     site?.setFileIconLabels(render.tabLabels(pages));
                     // Now build the client's app - create the modules each type of page requires
-                    client.config.build.rolldownOptions.input = Object.values(render.clientEntries);
+                    client.config.build.rolldownOptions.input = render.clientEntries.values().toArray();
                     await builder.build(client);
 
                     // Parse vite client's built manifest to get the transpiled asset per input page.
                     const { href: manifestPath } = pathToFileURL(join(outDir, '.vite', 'manifest.json'));
                     const { default: manifest } = (await import(manifestPath, { with: { type: 'json' } })) as { default: Manifest };
                     const assets = Object.fromEntries(
-                        Object.entries(render.clientEntries).map(([name, entry]) => {
+                        render.clientEntries.entries().map(([name, entry]) => {
                             const chunk = manifest[entry]!;
-                            return [name, { css: stylesheets(manifest, entry).map(f => `/${f}`), js: render.styleOnly.has(name as keyof Assets) ? [] : [`/${chunk.file}`] }];
+                            return [name, { css: stylesheets(manifest, entry).map(f => `/${f}`), js: render.styleOnly.has(name) ? [] : [`/${chunk.file}`] }];
                         }),
                     ) as Assets;
 
@@ -117,7 +140,7 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
 
                     // Build the final directory structure of the output site.
                     await Promise.all(
-                        [...files, ...render.siteFiles(pages)].map(async ([file, content]) => {
+                        Iterator.concat(files, render.siteFiles(pages)).map(async ([file, content]) => {
                             await mkdir(dirname(join(outDir, file)), { recursive: true });
                             await writeFile(join(outDir, file), content);
                         }),
@@ -141,10 +164,16 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
         },
         // `vp preview` answers with the built `_headers`, as the deployed site does, so the policy can be tried locally.
         async configurePreviewServer(preview) {
-            const rules = headerRules(await readFile(resolve(preview.config.root, preview.config.build.outDir, '_headers'), 'utf8'));
+            const headersFilePath = resolve(preview.config.root, preview.config.build.outDir, '_headers');
+            const headersString = await readFile(headersFilePath, 'utf8');
+            const rules = headerRules(headersString);
             preview.middlewares.use((req, res, next) => {
-                const path = new URL(req.url ?? '/', 'http://localhost').pathname;
-                for (const { pattern, headers } of rules) if (pattern.test(path)) for (const [name, value] of headers) res.setHeader(name, value);
+                const { pathname } = new URL(req.url ?? '/', 'http://localhost');
+                for (const { pattern, headers } of rules) {
+                    if (pattern.test(pathname)) {
+                        res.setHeaders(new Headers(headers));
+                    }
+                }
                 next();
             });
         },
@@ -201,7 +230,7 @@ async function serve(server: ViteDevServer, url: string, site: SitePlugins | und
     const linked = new Set<string>(['main', ...page.entries]);
     const assets = Object.fromEntries(
         await Promise.all(
-            Object.entries(render.clientEntries).map(async ([name, entry]) => [name, { css: linked.has(name) ? await devStylesheets(server, entry) : [], js: [`/${entry}`] }]),
+            render.clientEntries.entries().map(async ([name, entry]) => [name, { css: linked.has(name) ? await devStylesheets(server, entry) : [], js: [`/${entry}`] }]),
         ),
     ) as Assets;
     const html = render.renderDocument(page, assets, 'http://localhost/').replace('</head>', `${dropDevStylesheets}</head>`);
@@ -258,7 +287,9 @@ const fontTypes: Record<string, string> = { woff2: 'font/woff2', woff: 'font/wof
 function packageFonts(server: ViteDevServer): Connect.NextHandleFunction {
     return (req, res, next) => {
         const file = /^\/@fs(\/.+\/node_modules\/.+\.(woff2?|ttf|otf))$/.exec(new URL(req.url ?? '/', 'http://localhost').pathname);
-        if (!file || !isFileServingAllowed(server.config, decodeURIComponent(file[1]!))) return next();
+        if (!file || !isFileLoadingAllowed(server.config, decodeURIComponent(file[1]!))) {
+            return next();
+        }
         void (async () => {
             let body: Buffer;
             try {

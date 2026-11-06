@@ -95,7 +95,7 @@ function stripTags(text: string): string {
  * A page's Markdown for readers that aren't browsers: components give way to the Markdown in their slots (an example's
  * config, for one), and HTML tags outside code are dropped, keeping their text.
  */
-export function plainMarkdown(source: string, components: Set<string>): string {
+export function plainMarkdown<T extends string>(source: string, components: Set<T>): string {
     const { source: text, blocks } = extractBlocks(source, components, i => `<!--fonte-block:${i}-->`);
     let out = text;
     blocks.forEach((block, i) => {

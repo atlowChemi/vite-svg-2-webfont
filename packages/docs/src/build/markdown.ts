@@ -1,12 +1,13 @@
-import { readFileSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import MarkdownIt, { type Env as MarkdownEnv, type Token } from 'markdown-it';
 import container from 'markdown-it-container';
+import type { Highlighter } from 'shiki';
 import { parse as parseYaml } from 'yaml';
 import { extractBlocks, type Block } from './blocks.ts';
 import tabStyles from './codeTabs.module.css';
 import { escape, fenceMeta, highlight, loadLanguages, titled } from './highlight.ts';
-import { expandIncludes } from './includes.ts';
+import { expandIncludes, frontmatterMatcher } from './includes.ts';
 import styles from './markdown.module.css';
 import { diagramKey, marker, renderDiagrams } from './mermaid.ts';
 
@@ -17,7 +18,7 @@ import { diagramKey, marker, renderDiagrams } from './mermaid.ts';
 
 // This module runs from `src/build` in dev and from `.cache/server` once built: both two folders below the docs.
 /** The docs' sources; `@/` in an include or snippet path. */
-export const srcRoot = join(import.meta.dirname, '../../src');
+export const srcRoot = join(import.meta.dirname, '..', '..', 'src');
 /** The pages: a Markdown file's path under here is its route. */
 export const pagesRoot = join(srcRoot, 'pages');
 
@@ -48,14 +49,18 @@ export interface Markdown {
 }
 
 /** Turns one Markdown block into HTML; its slots are rendered first, with `renderSlot`. */
-export type BlockRenderer = (block: Block, renderSlot: (markdown: string) => string) => string;
+export type BlockRenderer<T extends string> = (block: Block<T>, renderSlot: (markdown: string) => string) => string;
 
-/** VitePress's heading slug. */
+/** Converts a markdown heading into a URL-friendly anchor, following VitePress's slug conventions. */
 export const slug = (heading: string) =>
     heading
+        // Replace whitespace and punctuation with hyphens, collapsing consecutive matches.
         .replace(/[\s~`!@#$%^&*()\-_+=[\]{}|\\;:"'“”‘’<>,.?/]+/g, '-')
+        // Remove leading and trailing hyphens.
         .replace(/^-+|-+$/g, '')
+        // Prefix numeric slugs with '_' to avoid starting with a digit.
         .replace(/^(\d)/, '_$1')
+        // Normalize casing for consistent anchor links.
         .toLowerCase();
 
 /** Removes a trailing `{#id}` from a heading and returns the id. */
@@ -71,7 +76,6 @@ function customId(inline: Token): string | undefined {
 
 const inlineText = (token: Token) => (token.children ?? []).map(t => (t.type === 'text' || t.type === 'code_inline' ? t.content : '')).join('');
 
-let tabGroup = 0;
 function createMarkdown() {
     const md = new MarkdownIt({ html: true, linkify: false, typographer: false });
 
@@ -89,25 +93,26 @@ function createMarkdown() {
     }
 
     // A code group: one radio tab per fence, labelled by the fence's `[title]`; the fences render as its panels.
-    md.use(container, 'code-group', {
-        render(tokens: Token[], i: number) {
-            if (tokens[i]!.nesting !== 1) return '</div></div>\n';
-            const fences: Token[] = [];
-            for (let j = i + 1, depth = 0; j < tokens.length; j++) {
-                const t = tokens[j]!;
-                if (t.type === 'container_code-group_open') depth++;
-                if (t.type === 'container_code-group_close' && depth-- === 0) break;
-                if (t.type === 'fence' && depth === 0) fences.push(t);
-            }
-            const group = `group-${++tabGroup}`;
-            const tabs = fences.map((f, n) => {
-                f.meta = { group: true, hidden: n > 0 };
-                const label = escape(fenceMeta(f.info).title ?? f.info.trim().split(/\s/, 1)[0] ?? '');
-                return `<input type="radio" name="${group}" id="${group}-${n}"${n ? '' : ' checked'}><label for="${group}-${n}" data-title="${label}">${label}</label>`;
-            });
-            return `<div class="${tabStyles.group}"><div class="${tabStyles.tabs}">${tabs.join('')}</div><div class="${tabStyles.panels}">\n`;
-        },
-    });
+    // markdown-it-container's types leave out the `env` the plugin passes to `render`, so its rules are set directly.
+    md.use(container, 'code-group');
+    md.renderer.rules['container_code-group_close'] = () => '</div></div>\n';
+    md.renderer.rules['container_code-group_open'] = (tokens, i, _options, env) => {
+        const fences: Token[] = [];
+        for (let j = i + 1, depth = 0; j < tokens.length; j++) {
+            const t = tokens[j]!;
+            if (t.type === 'container_code-group_open') depth++;
+            if (t.type === 'container_code-group_close' && depth-- === 0) break;
+            if (t.type === 'fence' && depth === 0) fences.push(t);
+        }
+        // Numbered per page, so a page's ids don't depend on which pages rendered before it.
+        const group = `group-${++(env as Env).codeGroups}`;
+        const tabs = fences.map((f, n) => {
+            f.meta = { group: true, hidden: n > 0 };
+            const label = escape(fenceMeta(f.info).title ?? f.info.trim().split(/\s/, 1)[0] ?? '');
+            return `<input type="radio" name="${group}" id="${group}-${n}"${n ? '' : ' checked'}><label for="${group}-${n}" data-title="${label}">${label}</label>`;
+        });
+        return `<div class="${tabStyles.group}"><div class="${tabStyles.tabs}">${tabs.join('')}</div><div class="${tabStyles.panels}">\n`;
+    };
 
     // External links open in a new tab, as VitePress's did.
     md.renderer.rules.link_open = (tokens, i, options, _env, self) => {
@@ -117,6 +122,24 @@ function createMarkdown() {
             token.attrSet('rel', 'noreferrer');
         }
         return self.renderToken(tokens, i, options);
+    };
+
+    // Code blocks: highlighted with the page's Shiki, and Mermaid diagrams collected for rendering once markdown-it is done.
+    // Both come from the page's `env`, so pages can render at the same time.
+    md.renderer.rules.fence = (tokens, i, _options, env) => {
+        const { shiki, diagrams } = env as Env;
+        const token = tokens[i]!;
+        const lang = /^[\w-]*/.exec(token.info.trim())![0];
+        const meta = token.info.trim().slice(lang.length);
+        if (lang === 'mermaid') {
+            const key = diagramKey(token.content);
+            diagrams.set(key, token.content);
+            return marker(key);
+        }
+        const { lines, title } = fenceMeta(meta);
+        const group = token.meta as { group?: boolean; hidden?: boolean } | null;
+        const html = highlight(shiki, token.content.replace(/\n$/, ''), lang, { lines, hidden: group?.hidden });
+        return title && !group?.group ? titled(html, escape(title)) : html;
     };
 
     // Wide tables scroll sideways, so they take focus to scroll from the keyboard.
@@ -136,7 +159,7 @@ function createMarkdown() {
             const custom = customId(inline);
             const text = inlineText(inline);
             const base = custom ?? slug(text);
-            const n = env.slugs.get(base) ?? 0;
+            const n = env.slugs.getOrInsert(base, 0);
             env.slugs.set(base, n + 1);
             const id = n && !custom ? `${base}-${n}` : base;
             open.attrSet('id', id);
@@ -157,37 +180,28 @@ interface Env extends MarkdownEnv {
     headings: Heading[];
     slugs: Map<string, number>;
     title?: string;
+    /** This page's Shiki, with every language its fences use loaded. */
+    shiki: Highlighter;
+    /** The page's Mermaid sources by key, rendered to SVG after markdown-it is done. */
+    diagrams: Map<string, string>;
+    /** Code groups so far on this page, for their radio ids. */
+    codeGroups: number;
 }
 
 const md = createMarkdown();
 const blockMarker = (i: number) => `<!--fonte-block:${i}-->`;
 
 /** Renders the Markdown file at `path`. */
-export async function renderMarkdown(path: string, renderBlock: BlockRenderer, blockNames: Set<string>): Promise<Markdown> {
+export async function renderMarkdown<T extends string>(path: string, renderBlock: BlockRenderer<T>, blockNames: Set<T>): Promise<Markdown> {
     const deps = new Set([path]);
-    const raw = readFileSync(path, 'utf8');
-    const head = /^---\n([\s\S]*?)\n---\n/.exec(raw);
+    const raw = await readFile(path, 'utf8');
+
+    const head = frontmatterMatcher.exec(raw);
     const frontmatter = (head ? parseYaml(head[1]!) : {}) as Frontmatter;
-    const source = expandIncludes(raw.slice(head?.[0].length ?? 0), path, srcRoot, deps);
+    const source = await expandIncludes(raw.slice(head?.[0].length ?? 0), path, srcRoot, deps);
 
-    const shiki = await loadLanguages([...source.matchAll(/^[ \t]*(?:`{3,}|~{3,})\s*([\w-]+)/gm)].map(m => m[1]!));
-    const diagrams = new Map<string, string>();
-    md.renderer.rules.fence = (tokens, i) => {
-        const token = tokens[i]!;
-        const lang = /^[\w-]*/.exec(token.info.trim())![0];
-        const meta = token.info.trim().slice(lang.length);
-        if (lang === 'mermaid') {
-            const key = diagramKey(token.content);
-            diagrams.set(key, token.content);
-            return marker(key);
-        }
-        const { lines, title } = fenceMeta(meta);
-        const group = token.meta as { group?: boolean; hidden?: boolean } | null;
-        const html = highlight(shiki, token.content.replace(/\n$/, ''), lang, { lines, hidden: group?.hidden });
-        return title && !group?.group ? titled(html, escape(title)) : html;
-    };
-
-    const env: Env = { headings: [], slugs: new Map() };
+    const shiki = await loadLanguages(source.matchAll(/^[ \t]*(?:`{3,}|~{3,})\s*([\w-]+)/gm).map(m => m[1]!));
+    const env: Env = { headings: [], slugs: new Map(), shiki, diagrams: new Map(), codeGroups: 0 };
     const render = (markdown: string): string => {
         const { source: text, blocks } = extractBlocks(markdown, blockNames, blockMarker);
         let html = md.render(text, env);
@@ -197,6 +211,6 @@ export async function renderMarkdown(path: string, renderBlock: BlockRenderer, b
         return html;
     };
     let html = render(source);
-    for (const [key, svg] of await renderDiagrams(diagrams)) html = html.replace(marker(key), () => svg);
+    for (const [key, svg] of await renderDiagrams(env.diagrams)) html = html.replace(marker(key), () => svg);
     return { title: frontmatter.title ?? env.title ?? '', frontmatter, html, headings: env.headings, source, deps };
 }
