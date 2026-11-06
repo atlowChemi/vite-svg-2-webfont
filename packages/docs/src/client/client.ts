@@ -221,7 +221,18 @@ async function copy(button: HTMLElement) {
 }
 
 let search: Promise<typeof import('./search.ts')> | undefined;
-const openSearch = () => void (search ??= import('./search.ts')).then(m => m.open());
+const searchModule = () => (search ??= import('./search.ts'));
+const openSearch = () => void searchModule().then(m => m.open());
+// A pointer on the search button, or focus reaching it, means a search is likely: load the dialog and its index then,
+// so the first query doesn't wait for them. The shortcut keys open the dialog, which starts the same load.
+const prepareSearch = (e: Event) => {
+    if (!(e.target as Element).closest?.('[data-search]')) return;
+    searchModule()
+        .then(m => m.loadIndex())
+        .catch(() => {});
+};
+document.addEventListener('pointerover', prepareSearch);
+document.addEventListener('focusin', prepareSearch);
 
 document.addEventListener('click', e => {
     const target = e.target as HTMLElement;

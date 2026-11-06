@@ -1,5 +1,5 @@
-// The search dialog, loaded on first use. The index is built with the site (`src/build/outputs.ts`) and fetched once; the browser's
-// cache keeps it across pages. The last query survives page loads in sessionStorage.
+// The search dialog, loaded once the reader heads for it. The index is built with the site (`src/build/outputs.ts`) and
+// fetched once a page; the browser's cache keeps it across pages. The last query survives page loads in sessionStorage.
 import MiniSearch from 'minisearch';
 import styles from './search.module.css';
 import { indexOptions, searchOptions, type SearchDoc } from './searchOptions';
@@ -7,6 +7,20 @@ import { indexOptions, searchOptions, type SearchDoc } from './searchOptions';
 const QUERY_KEY = 'fonte-search-query';
 let dialog: HTMLDialogElement | undefined;
 let index: Promise<MiniSearch<SearchDoc>> | undefined;
+
+/**
+ * The index, fetched and loaded once a page. Started before the first query (when the reader heads for search, and
+ * when the dialog opens), so typing doesn't wait for the download and MiniSearch's load. A failed load is tried again.
+ */
+export function loadIndex(): Promise<MiniSearch<SearchDoc>> {
+    index ??= fetch('/search-index.json')
+        .then(async r => MiniSearch.loadJSON<SearchDoc>(await r.text(), indexOptions))
+        .catch((error: unknown) => {
+            index = undefined;
+            throw error;
+        });
+    return index;
+}
 
 const escape = (s: string) => s.replace(/[&<>"]/g, c => `&#${c.charCodeAt(0)};`);
 
@@ -62,9 +76,7 @@ function build(): HTMLDialogElement {
             list.innerHTML = '';
             return;
         }
-        const results = (await (index ??= fetch('/search-index.json').then(async r => MiniSearch.loadJSON<SearchDoc>(await r.text(), indexOptions))))
-            .search(q, searchOptions)
-            .slice(0, 12);
+        const results = (await loadIndex()).search(q, searchOptions).slice(0, 12);
         if (input.value.trim() !== q) return;
         active = 0;
         list.innerHTML = results.length
@@ -109,6 +121,7 @@ function build(): HTMLDialogElement {
 }
 
 export function open() {
+    loadIndex().catch(() => {});
     dialog ??= build();
     dialog.showModal();
     const input = dialog.querySelector('input')!;
