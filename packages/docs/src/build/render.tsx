@@ -1,7 +1,8 @@
 // The server side of the build: Markdown in, finished HTML documents out. Vite builds this module for Node, and the
 // plugin in `config/staticSite.ts` calls it, for every page during the build and per request in dev.
+import { createHash } from 'node:crypto';
 import { readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import type { ReactNode } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import generatedCss from 'virtual:docs-examples-css';
@@ -55,7 +56,7 @@ export interface Page {
 const cssHighlighter = await loadLanguages(['css']);
 
 // Components the Markdown can use, rendered to static HTML at build time, and the browser entry each one needs.
-type BlockComponent = { entry?: ClientEntry; render: (props: Record<string, unknown>, slots: Record<string, string>) => ReactNode };
+type BlockComponent = { entry?: ClientEntry; render: (this: void, props: Record<string, unknown>, slots: Record<string, string>) => ReactNode };
 const blocks: Record<string, BlockComponent> = {
     ExampleTabs: { entry: 'examples', render: (p, slots) => <ExampleTabs tabs={p.tabs as Record<string, string>} slots={slots} /> },
     ExampleIcons: { entry: 'examples', render: p => <ExampleIcons example={p.example as string} /> },
@@ -84,7 +85,10 @@ const blockNames = new Set(Object.keys(blocks));
 /** Every page by route, from `src/pages`: `guide/index.md` is `/guide/`, `guide/engine.md` is `/guide/engine`. */
 function discover(): Record<string, string> {
     const pages: Record<string, string> = {};
-    for (const file of readdirSync(pagesRoot, { recursive: true, encoding: 'utf8' }).filter(f => f.endsWith('.md'))) {
+    for (const entry of readdirSync(pagesRoot, { recursive: true, withFileTypes: true })) {
+        if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+        // `name` is only the file's own name; the route needs its path below `src/pages`.
+        const file = relative(pagesRoot, join(entry.parentPath, entry.name));
         pages[`/${file.replace(/(^|\/)index\.md$/, '$1').replace(/\.md$/, '')}`] = file;
     }
     return pages;
@@ -92,8 +96,11 @@ function discover(): Record<string, string> {
 
 const pages = discover();
 /** Every route the site serves, the 404 page last. */
-export const routes = [...Object.keys(pages).toSorted(), '/404'];
+// oxlint-disable-next-line unicorn/no-array-sort -- We are creating a new array here. No reason not to mutate it.
+export const routes = Object.keys(pages).sort();
+routes.push('/404');
 
+/** Load a single route, render it's markdown, including it's rendered React components. */
 export async function loadPage(route: string): Promise<Page | undefined> {
     if (route === '/404') {
         return { route, file: '', title: 'Page not found', frontmatter: { layout: 'page' }, headings: [], html: '', source: '', deps: new Set(), entries: new Set(['not-found']) };
@@ -103,11 +110,11 @@ export async function loadPage(route: string): Promise<Page | undefined> {
     const entries = new Set<ClientEntry>();
     let rendered = 0;
     const renderBlock = (block: Block, renderSlot: (markdown: string) => string) => {
-        const component = blocks[block.name]!;
-        if (component.entry) entries.add(component.entry);
+        const { render, entry } = blocks[block.name]!;
+        if (entry) entries.add(entry);
         const slots = Object.fromEntries(Object.entries(block.slots).map(([name, markdown]) => [name, renderSlot(markdown)]));
         // Each block is its own render, so its `useId`s get a prefix of their own: unique on the page and beside the shell's.
-        return renderToStaticMarkup(component.render(block.props, slots), { identifierPrefix: `b${++rendered}-` });
+        return renderToStaticMarkup(render(block.props, slots), { identifierPrefix: `b${++rendered}-` });
     };
     const markdown = await renderMarkdown(join(pagesRoot, file), renderBlock, blockNames);
     const html = markdown.frontmatter.layout === 'page' ? markdown.html : specimens(markdown.html, route.split('/', 2)[1] ?? '');
@@ -120,8 +127,31 @@ export type Assets = Record<ClientEntry, { css: string[]; js: string[] }>;
 // Applied before the first paint, so a stored or system dark preference never flashes light. VitePress's key, so a
 // reader's choice carries over.
 const themeScript = `try{const p=localStorage.getItem('vitepress-theme-appearance')||'auto';document.documentElement.classList.toggle('dark',p==='dark'||(p==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))}catch{}`;
-// Chromium prerenders a page once the pointer rests on its link; the page script prefetches in other browsers.
-const speculation = JSON.stringify({ prerender: [{ where: { and: [{ href_matches: '/*' }, { not: { href_matches: '/playground' } }] }, eagerness: 'moderate' }] });
+// Chromium prerenders a page once the pointer rests on its link; the page script prefetches in other browsers. The
+// Playground is only prefetched: prerendering runs its script, which loads and compiles the generator's WASM.
+const speculation = JSON.stringify({
+    prerender: [{ where: { and: [{ href_matches: '/*' }, { not: { href_matches: '/playground' } }] }, eagerness: 'moderate' }],
+    prefetch: [{ where: { href_matches: '/playground' }, eagerness: 'moderate' }],
+});
+
+const hash = (script: string) => `'sha256-${createHash('sha256').update(script).digest('base64')}'`;
+/**
+ * The pages' Content-Security-Policy: everything comes from this origin. The two inline scripts above are allowed by
+ * hash, so the policy follows them when they change. The Playground's worker compiles the generator's WASM; the
+ * rendered pages carry `style` attributes and diagrams carry `<style>` elements; the file icons are `data:` SVGs, and
+ * Vite inlines small fonts, the example fonts among them, as `data:` URLs.
+ */
+export const contentSecurityPolicy = [
+    "default-src 'self'",
+    `script-src 'self' ${hash(themeScript)} ${hash(speculation)} 'wasm-unsafe-eval'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data:",
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'none'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+].join('; ');
 
 function body(page: Page): ReactNode {
     const nav = pageNav(page.route);
@@ -150,7 +180,7 @@ function body(page: Page): ReactNode {
 const documentTitle = (page: Page) => (page.route === '/' ? `${site.name} | ${page.frontmatter.titleTemplate ?? site.subtitle}` : `${page.title} | ${site.name}`);
 
 export function renderDocument(page: Page, assets: Assets, docsUrl: string): string {
-    const linked = (['main', ...page.entries] as ClientEntry[]).map(entry => assets[entry]);
+    const linkedAssets = (['main', ...page.entries] as ClientEntry[]).map(entry => assets[entry]);
     const description = page.description ?? site.description;
     const url = new URL(page.route === '/404' ? '' : page.route.slice(1), docsUrl).href;
     const image = new URL('social-card.png', docsUrl).href;
@@ -179,14 +209,14 @@ export function renderDocument(page: Page, assets: Assets, docsUrl: string): str
                 <link rel="describedby" href="/llms.txt" />
                 <script dangerouslySetInnerHTML={{ __html: themeScript }} />
                 <script type="speculationrules" dangerouslySetInnerHTML={{ __html: speculation }} />
-                {[...new Set(linked.flatMap(a => a.css))].map(href => (
-                    <link key={href} rel="stylesheet" href={href} />
-                ))}
-                {linked
-                    .flatMap(a => a.js)
-                    .map(src => (
-                        <script key={src} type="module" src={src} />
-                    ))}
+                {new Set(linkedAssets.flatMap(a => a.css))
+                    .values()
+                    .map(href => <link key={href} rel="stylesheet" href={href} />)
+                    .toArray()}
+                {new Set(linkedAssets.flatMap(a => a.js))
+                    .values()
+                    .map(src => <script key={src} type="module" src={src} />)
+                    .toArray()}
             </head>
             <body>{body(page)}</body>
         </html>,
@@ -207,5 +237,13 @@ export function siteFiles(all: Page[]): Map<string, string> {
     ]);
 }
 
+function* labelsIn(all: Page[]) {
+    for (const { html } of all) {
+        for (const match of html.matchAll(/data-title="([^"]*)"/g)) {
+            yield match[1]!;
+        }
+    }
+}
+
 /** Every code-group and example-tab label, for the file icons in `virtual:file-icons.css`. */
-export const tabLabels = (all: Page[]) => [...new Set(all.flatMap(p => [...p.html.matchAll(/data-title="([^"]*)"/g)].map(m => m[1]!)))];
+export const tabLabels = (all: Page[]) => new Set(labelsIn(all));

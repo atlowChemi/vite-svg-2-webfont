@@ -12,7 +12,7 @@ import { useNotice } from './useNotice.ts';
 import { useStoredSettings } from './useStoredSettings.ts';
 import { useWebfontBuild } from './useWebfontBuild.ts';
 
-const samples = import.meta.glob<string>('../../../examples/icons/*.svg', { query: '?raw', import: 'default', eager: true });
+const samples = import.meta.glob<string>('../../fonts/examples/icons/*.svg', { query: '?raw', import: 'default', eager: true });
 const sampleSources = Object.entries(samples).map(([path, svg]) => ({ fileName: path.split('/').at(-1)!, svg }));
 
 /** The Playground: drop SVGs, tune the options, preview the font and download it. Runs only in the browser. */

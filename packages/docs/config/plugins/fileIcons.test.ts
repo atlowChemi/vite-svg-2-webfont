@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { fileIconCss, iconFor } from './fileIcons.ts';
+import { browserLabels, fileIconCss, iconFor } from './fileIcons.ts';
 
 const light = (name: string) => ({ light: `file-type-light-${name}`, dark: `file-type-${name}` });
 
@@ -28,6 +28,10 @@ const labels: [string, ReturnType<typeof iconFor>][] = [
     ['my-icons.ts', 'file-type-typescript'],
     ['Node.js', light('js')],
     ['npm', 'file-type-npm'],
+    ['output.css', 'file-type-css'],
+    ['output.html', 'file-type-html'],
+    ['output.svg', 'file-type-svg'],
+    ['output.ts', 'file-type-typescript'],
     ['package.json', 'file-type-node'],
     ['pnpm', light('pnpm')],
     ['scripts/build-icons.ts', 'file-type-typescript'],
@@ -82,6 +86,10 @@ describe('file icons', () => {
 
     it('escapes quotes in labels', () => {
         expect(fileIconCss(["it's.ts"])).toContain(String.raw`[data-title='it\'s.ts']::before`);
+    });
+
+    it('has an icon for every label only the browser renders', () => {
+        expect([...browserLabels].filter(label => !iconFor(label))).toEqual([]);
     });
 
     it('writes nothing for labels without an icon', () => {

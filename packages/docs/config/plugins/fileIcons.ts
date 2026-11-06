@@ -1,6 +1,6 @@
 import { icons } from '@iconify-json/vscode-icons';
 import { encodeSvgForCss, getIconData, iconToHTML, iconToSVG } from '@iconify/utils';
-import type { Plugin } from 'vite';
+import type { Plugin, ViteDevServer } from 'vite-plus';
 
 // File icons beside code-group tabs and code-block titles. The pages render every label as `data-title`; this module
 // serves `virtual:file-icons.css`, which sets `--icon` on each label's `::before` (the tabs and titles size and draw it).
@@ -67,15 +67,34 @@ export function fileIconCss(labels: Iterable<string>): string {
 }
 
 const ID = 'virtual:file-icons.css';
-let labels: string[] = [];
+/** Labels no page renders: the Playground's output tabs exist only in the browser. */
+export const browserLabels = new Set(['output.css', 'output.html', 'output.svg', 'output.ts']);
+let labels = new Set<string>();
+let server: ViteDevServer | undefined;
 
-/** Hands over the labels the pages render, before the stylesheet is loaded. */
-export const setFileIconLabels = (rendered: string[]): void => {
+/** The build hands over every page's labels at once, before the stylesheet is loaded. */
+export const setFileIconLabels = (rendered: Set<string>): void => {
     labels = rendered;
+};
+
+/**
+ * The dev server adds each page's labels as it serves the page, so it never renders every page up front. A new label
+ * invalidates the stylesheet; the browser revalidates it on the next page load and gets the new rules.
+ */
+export const addFileIconLabels = (rendered: Iterable<string>): void => {
+    const known = labels.size;
+    for (const label of rendered) labels.add(label);
+    if (labels.size === known || !server) return;
+    const { moduleGraph } = server.environments.client;
+    const module = moduleGraph.getModuleById(`\0${ID}`);
+    if (module) moduleGraph.invalidateModule(module);
 };
 
 export const fileIcons = (): Plugin => ({
     name: 'docs-file-icons',
+    configureServer: dev => {
+        server = dev;
+    },
     resolveId: id => (id === ID ? `\0${ID}` : undefined),
-    load: id => (id === `\0${ID}` ? fileIconCss(labels) : undefined),
+    load: id => (id === `\0${ID}` ? fileIconCss(labels.union(browserLabels)) : undefined),
 });

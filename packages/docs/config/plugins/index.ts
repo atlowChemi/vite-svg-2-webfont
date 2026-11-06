@@ -6,6 +6,6 @@ import { fileIcons } from './fileIcons.ts';
 import { siteIconFont } from './siteIconFont.ts';
 import { svgAuthoringFontPlugins } from './svgAuthoringFonts.ts';
 
-export { setFileIconLabels } from './fileIcons.ts';
+export { addFileIconLabels, setFileIconLabels } from './fileIcons.ts';
 
 export const sitePlugins = (): Plugin[] => [fileIcons(), siteIconFont(), ...svgAuthoringFontPlugins(), ...examplePlugins()];
