@@ -87,7 +87,8 @@ export const SectionsSheet: FC<{ name: string; headings: Heading[] }> = ({ name,
         {filterable(headings) && <input className={styles.filter} type="search" placeholder="Filter this page" aria-label="Filter this page's sections" data-filter="" />}
         {headings.map((s, i) => (
             <Fragment key={s.slug}>
-                <a className={styles.section} href={`#${s.slug}`} data-section="">
+                {/* The page opens at its top, in the first section; the page script follows the reader from there. */}
+                <a className={styles.section} href={`#${s.slug}`} data-section="" aria-current={i === 0 ? 'location' : undefined}>
                     <span className={styles.number}>{no(i)}</span>
                     {s.title}
                 </a>

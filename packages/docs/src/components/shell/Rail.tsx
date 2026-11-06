@@ -9,7 +9,8 @@ export const filterable = (headings: Heading[]) => headings.reduce((n, s) => n +
 
 /**
  * The rail's index: the page's h2 sections, each with its h3 entries (options, functions). Every entry is in the markup;
- * the page script shows only the current section's entries and follows the reader.
+ * only the current section's entries show. A page opens at its top, so the first section starts out current, as the page
+ * script would mark it; the script then follows the reader (or a link's hash).
  */
 const SectionIndex: FC<{ headings: Heading[] }> = ({ headings }) => (
     <nav className={styles.index} aria-label="On this page" data-index="">
@@ -17,12 +18,12 @@ const SectionIndex: FC<{ headings: Heading[] }> = ({ headings }) => (
         <ol>
             {headings.map((s, i) => (
                 <li key={s.slug}>
-                    <a href={`#${s.slug}`}>
+                    <a href={`#${s.slug}`} className={i === 0 ? styles.within : undefined} aria-current={i === 0 ? 'location' : undefined}>
                         <span className={styles.sectionNumber}>{no(i)}</span>
                         {s.title}
                     </a>
                     {s.children.length > 0 && (
-                        <ol hidden>
+                        <ol hidden={i !== 0}>
                             {s.children.map(c => (
                                 <li key={c.slug}>
                                     <a href={`#${c.slug}`}>{c.title}</a>
