@@ -1,0 +1,66 @@
+/* The wordmark that flies from the hero into the top bar. */
+
+/* The flyer animates the mold's stroke width, so the custom property has to interpolate. */
+@property --mold-width {
+    syntax: '<number>';
+    inherits: true;
+    initial-value: 2.4;
+}
+
+/* The landing page owns the top bar's wordmark: the hero's flyer docks into its slot. */
+/* Fades start once the page has settled, so the top bar's wordmark doesn't visibly fade out on load. */
+:global(html.landing-fades) [data-top-wordmark] svg {
+    transition: opacity 0.25s;
+}
+
+:global(html.landing-docked) [data-top-wordmark] svg {
+    opacity: 0;
+}
+
+.flyer {
+    position: fixed;
+    pointer-events: none;
+    transition: opacity 0.25s;
+    top: 0;
+    left: 0;
+    z-index: 40;
+    transform-origin: 0 0;
+    transform: translate(var(--from-x), var(--from-y));
+    --mold-width: 1.4;
+    visibility: hidden;
+    will-change: transform;
+}
+
+.flyer .wordmark {
+    height: var(--hero-wordmark-height);
+    width: auto;
+}
+
+.flyer.ready {
+    visibility: visible;
+}
+
+@keyframes dock {
+    from {
+        transform: translate(var(--from-x), var(--from-y));
+        --mold-width: 1.4;
+    }
+    to {
+        transform: translate(var(--to-x), var(--to-y)) scale(var(--to-k));
+        --mold-width: 2.4;
+    }
+}
+
+@supports (animation-timeline: scroll()) {
+    .flyer {
+        animation: dock linear both;
+        animation-timeline: scroll(root);
+        animation-range: var(--dock-a) var(--dock-b);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .flyer {
+        animation-timing-function: steps(1, jump-end);
+    }
+}

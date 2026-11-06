@@ -1,0 +1,33 @@
+/* The landing page's sheet: the centered content column and the cooling accent. Sections and their rails are in Section. */
+.landing {
+    /* Until the first scroll frame sets it (never, with reduced motion), the accent is the readable brand orange. */
+    --acc: var(--accent-text);
+    --rail-top: calc(var(--doc-top) + 28px);
+    --hero-wordmark-height: clamp(56px, 12vw, 140px);
+    /* One centered block on wide screens: the 120px rail plus the content column. Section rules stay full width. */
+    --column: 880px;
+    --gutter: max(32px, calc((100% - 120px - var(--column)) / 2));
+    font-family: var(--font-display);
+    font-size: 17px;
+    line-height: 1.5;
+    color: var(--text);
+}
+
+.body {
+    max-width: var(--column);
+    padding: 56px 0 72px;
+}
+
+.colophon .body {
+    padding-bottom: 96px;
+}
+
+@media (max-width: 720px) {
+    .landing {
+        --rail-height: 44px;
+    }
+
+    .body {
+        padding: 24px 0 48px;
+    }
+}

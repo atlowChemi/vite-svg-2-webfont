@@ -1,0 +1,21 @@
+/* Icons and rendered output get padding; a panel of code fills the tab edge to edge, as in any code group. */
+.panel {
+    padding: 1.25rem 1.5rem;
+}
+
+/* Code blocks carry `data-lang`: alone, under a file title, or inside `<ExampleCss>`. */
+.panel:has(> [data-lang], > div > [data-lang]) {
+    padding: 0;
+}
+
+.panel > div:has([data-lang]),
+.panel > div > [data-lang] {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+}
+
+/* The tab's label already names the file; a titled snippet's bar would say it again. */
+.panel > div > :has(+ [data-lang]) {
+    display: none;
+}

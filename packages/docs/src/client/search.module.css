@@ -1,0 +1,70 @@
+/* The search dialog (`search.ts`), loaded with it on first use. */
+.dialog {
+    width: min(640px, calc(100vw - 32px));
+    max-height: min(560px, calc(100vh - 96px));
+    margin: 64px auto auto;
+    padding: 12px;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--surface-raised);
+    color: var(--text);
+}
+
+.dialog::backdrop {
+    background: rgb(0 0 0 / 0.45);
+}
+
+.input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface);
+    font-size: 16px;
+}
+
+.input:focus {
+    outline: 2px solid var(--fonte-molten);
+}
+
+.results {
+    margin-top: 8px;
+}
+
+.result {
+    display: grid;
+    gap: 2px;
+    padding: 8px 12px;
+    border-radius: 6px;
+}
+
+.result[aria-selected='true'] {
+    background: var(--accent-tint);
+}
+
+.excerpt {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-muted);
+}
+
+.result mark {
+    border-radius: 2px;
+    background: var(--accent-tint);
+    color: inherit;
+}
+
+.trail {
+    font-size: 11px;
+    color: var(--text-subtle);
+}
+
+.hint,
+.empty {
+    padding: 12px;
+    color: var(--text-subtle);
+}
+
+.hint {
+    font-size: 11px;
+}

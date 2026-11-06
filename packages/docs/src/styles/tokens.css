@@ -1,0 +1,78 @@
+/*
+ * The site's design tokens. Every stylesheet reads these; nothing else is global but `base.css`.
+ *
+ * The palette is iron (dark) and ash (light) surfaces with molten metal as the accent. Molten (#ff6a13) is too light for
+ * text on ash, so light mode's accent text is a deeper, cooled shade. Every text color keeps 4.5:1 on every surface it
+ * sits on, code blocks and cards included.
+ */
+:root {
+    --fonte-iron: #1c1a1f;
+    --fonte-ash: #f3ece2;
+    --fonte-molten: #ff6a13;
+    --fonte-ember: #ffb02e;
+    --fonte-mold: #5a5258;
+
+    /* The page; code, plates and bars; cards and table heads; dialogs and the pill. */
+    --surface: #faf7f2;
+    --surface-sunken: var(--fonte-ash);
+    --surface-muted: #efe7db;
+    --surface-raised: #fffdf9;
+
+    --text: var(--fonte-iron);
+    --text-muted: #5a5258;
+    --text-subtle: #6b6370;
+
+    /* Interactive outlines; rules between parts of the page. */
+    --line-strong: #d6cab9;
+    --line: #e3d9cb;
+
+    --accent-text: #b4410a;
+    --accent-text-hover: #d0520e;
+    --accent-tint: rgb(255 106 19 / 0.14);
+    /* A neutral wash: inline code, highlighted lines, the details callout. */
+    --tint: rgb(90 82 88 / 0.08);
+
+    --success-text: #18794e;
+    --success-tint: rgb(16 185 129 / 0.14);
+    --warning-text: #915930;
+    --warning-tint: rgb(234 179 8 / 0.14);
+    --danger-text: #b8272c;
+    --danger-tint: rgb(244 63 94 / 0.14);
+
+    /* Molten buttons carry iron text in both themes. */
+    --button-bg: var(--fonte-molten);
+    --button-bg-hover: #ff7f33;
+    --button-text: var(--fonte-iron);
+
+    --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+    --font-display: 'Zilla Slab', Georgia, serif;
+}
+
+.dark {
+    --fonte-mold: #b3abba;
+
+    --surface: var(--fonte-iron);
+    --surface-sunken: #161418;
+    --surface-muted: #26232a;
+    --surface-raised: #232026;
+
+    --text: var(--fonte-ash);
+    --text-muted: #b3abba;
+    --text-subtle: #958d9b;
+
+    --line-strong: #4a444f;
+    --line: #3a353f;
+
+    --accent-text: #ff8a4c;
+    --accent-text-hover: var(--fonte-molten);
+    --accent-tint: rgb(255 106 19 / 0.18);
+    --tint: rgb(179 171 186 / 0.1);
+
+    --success-text: #3dd68c;
+    --success-tint: rgb(16 185 129 / 0.16);
+    --warning-text: #f9b44e;
+    --warning-tint: rgb(234 179 8 / 0.16);
+    --danger-text: #f66f81;
+    --danger-tint: rgb(244 63 94 / 0.16);
+}

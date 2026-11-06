@@ -1,0 +1,122 @@
+/* The page's plate and section index, beside the content. */
+.rail {
+    position: sticky;
+    top: calc(var(--doc-top) + var(--doc-strip));
+    align-self: start;
+    max-height: calc(100vh - var(--doc-top) - var(--doc-strip));
+    padding: 44px 0;
+    overflow: auto;
+    scrollbar-width: thin;
+}
+
+.dim {
+    font: 12px var(--font-mono);
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+}
+
+.empty {
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+}
+
+.number {
+    margin: 2px 0 4px;
+    font: 600 60px/1 var(--font-display);
+    color: var(--accent-text);
+}
+
+.name {
+    font: 600 19px/1.25 var(--font-display);
+    color: var(--text);
+}
+
+.tool {
+    display: block;
+    margin-top: 4px;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+}
+
+a.tool:hover {
+    color: var(--accent-text);
+}
+
+.index {
+    margin-top: 28px;
+}
+
+.index ol {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.index > ol {
+    border-left: 1px solid var(--line);
+}
+
+.index a {
+    display: flex;
+    gap: 10px;
+    margin-left: -1px;
+    padding: 5px 0 5px 14px;
+    border-left: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: 14px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+    text-decoration: none;
+    transition:
+        color 0.2s,
+        border-color 0.2s;
+}
+
+/* Options and functions, under the section they belong to. */
+.index ol ol a {
+    padding: 3px 0 3px 36px;
+    font: 12.5px/1.45 var(--font-mono);
+}
+
+.index a:hover,
+.index .within {
+    color: var(--text);
+}
+
+.index a[aria-current='location'] {
+    border-left-color: var(--fonte-molten);
+    color: var(--text);
+}
+
+.sectionNumber {
+    flex: none;
+    font: 11px/1.75 var(--font-mono);
+    color: var(--text-subtle);
+}
+
+.index a[aria-current='location'] .sectionNumber,
+.index .within .sectionNumber {
+    color: var(--accent-text);
+}
+
+.filter {
+    width: 100%;
+    margin-bottom: 12px;
+    padding: 6px 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface-sunken);
+    font-size: 13px;
+}
+
+.filter:focus {
+    border-color: var(--fonte-molten);
+    outline: none;
+}
+
+@media (max-width: 960px) {
+    .rail {
+        display: none;
+    }
+}

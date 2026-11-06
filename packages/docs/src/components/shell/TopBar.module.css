@@ -1,0 +1,276 @@
+/* The site's top bar: wordmark, Guide plus the tools as type-case drawers, the Playground, search, GitHub and the theme. */
+.top {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: var(--doc-top);
+    padding: 0 24px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+    /* Stays put while the browser cross-fades between pages. */
+    view-transition-name: top-bar;
+}
+
+.wordmark {
+    flex: none;
+    display: block;
+    width: 92px;
+}
+
+.plate {
+    font: 10px var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+}
+
+.drawers {
+    display: flex;
+    gap: 2px;
+    min-width: 0;
+    margin-right: auto;
+}
+
+.drawer,
+.toolButton {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0 12px;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--text-muted);
+    line-height: 1.15;
+    text-decoration: none;
+    transition:
+        color 0.2s,
+        border-color 0.2s,
+        background 0.2s;
+}
+
+.drawer {
+    min-width: 78px;
+    height: 42px;
+}
+
+.drawer strong,
+.toolButton strong,
+.play strong {
+    font: 600 15px var(--font-display);
+}
+
+.drawer:hover {
+    border-color: var(--line);
+    color: var(--text);
+}
+
+.drawer[aria-current='true'] {
+    border-color: var(--line-strong);
+    background: var(--surface-sunken);
+    box-shadow: inset 0 -2px 0 var(--fonte-molten);
+    color: var(--text);
+}
+
+/* Phones: the drawers become a button that opens the tools sheet. */
+.toolButton {
+    display: none;
+}
+
+/* The Playground: the one place to try the engine, set apart from the docs drawers. */
+.play {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 42px;
+    padding: 0 14px 0 10px;
+    border: 1px solid color-mix(in srgb, var(--fonte-molten) 45%, var(--line));
+    border-radius: 6px;
+    color: var(--text);
+    line-height: 1.15;
+    text-decoration: none;
+    transition:
+        border-color 0.2s,
+        background 0.2s;
+}
+
+.play:hover {
+    border-color: var(--fonte-molten);
+    background: var(--accent-tint);
+}
+
+.mark {
+    flex: none;
+    width: 22px;
+    height: 22px;
+    padding: 4px;
+    border-radius: 50%;
+    background: var(--fonte-molten);
+    font-size: 14px;
+    color: var(--fonte-iron);
+}
+
+.label {
+    display: grid;
+}
+
+/* Search, drawn as a plate; the dialog it opens loads on first use. */
+.search {
+    flex: none;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    height: 36px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: var(--surface-sunken);
+    color: var(--text-muted);
+}
+
+.search:hover {
+    border-color: var(--accent-text);
+}
+
+.search kbd {
+    font: 11px var(--font-mono);
+    color: var(--text-subtle);
+}
+
+.icon {
+    flex: none;
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 18px;
+}
+
+.icon:hover {
+    color: var(--accent-text);
+}
+
+@media (max-width: 1180px) {
+    .drawer {
+        min-width: 0;
+    }
+
+    .drawer .plate {
+        display: none;
+    }
+}
+
+@media (max-width: 960px) {
+    .top {
+        gap: 10px;
+        padding: 0 16px;
+    }
+
+    .drawers,
+    .icon {
+        display: none;
+    }
+
+    .search :is(.placeholder, kbd) {
+        display: none;
+    }
+
+    /*
+     * Looks like a select: a bordered field with a chevron in its own well. Two short rows that fit the 56px bar beside
+     * the wordmark and Try it: the tool over its page count. The sheet it opens still shows each tool's plate.
+     */
+    .toolButton {
+        display: grid;
+        grid-template-columns: auto auto;
+        align-items: center;
+        column-gap: 10px;
+        height: 44px;
+        margin-right: auto;
+        padding: 2px 6px 2px 12px;
+        border-color: var(--line-strong);
+        background: var(--surface-sunken);
+        box-shadow: 0 1px 2px rgb(0 0 0 / 0.08);
+        line-height: 1.2;
+    }
+
+    .toolButton[aria-expanded='true'] {
+        border-color: var(--fonte-molten);
+    }
+
+    .toolButton .plate {
+        display: none;
+    }
+
+    .toolButton strong {
+        grid-column: 1;
+        white-space: nowrap;
+    }
+
+    /* The sheet carries this section's pages too, and the cue says so. */
+    .cue {
+        grid-column: 1;
+        white-space: nowrap;
+        font: 10px var(--font-mono);
+        color: var(--text-subtle);
+    }
+
+    .caret {
+        grid-row: 1 / -1;
+        grid-column: 2;
+        width: 26px;
+        height: 26px;
+        padding: 5px;
+        border-radius: 4px;
+        background: var(--surface);
+        font-size: 16px;
+        color: var(--text);
+    }
+
+    /* The Playground keeps a word on phones, so it reads as a link, not a media control. */
+    .play {
+        gap: 6px;
+        height: 38px;
+        padding: 0 10px 0 6px;
+    }
+
+    .mark {
+        width: 20px;
+        height: 20px;
+        font-size: 12px;
+    }
+
+    .play strong {
+        display: none;
+    }
+
+    .play .plate {
+        font: 600 14px var(--font-display);
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--text);
+    }
+}
+
+/* The narrowest phones keep only Try it's play mark; its link is still named "Playground". */
+@media (max-width: 360px) {
+    .label {
+        display: none;
+    }
+
+    /* Without the label, the padding that balanced it would push the mark left of center. */
+    .play {
+        padding: 0 8px;
+    }
+}
+
+@media (max-width: 420px) {
+    .wordmark {
+        width: 72px;
+    }
+}

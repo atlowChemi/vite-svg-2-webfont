@@ -1,0 +1,83 @@
+.layout {
+    margin: 24px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.layout .block {
+    border: 1px solid var(--line);
+    border-left: 4px solid var(--fonte-mold);
+    border-radius: 8px;
+    background: var(--surface-muted);
+    padding: 12px 16px;
+}
+
+.layout .block:nth-child(2) {
+    border-left-color: var(--fonte-ember);
+}
+
+.layout .block:nth-child(3) {
+    border-left-color: var(--fonte-molten);
+}
+
+.layout .head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 4px 16px;
+    margin-bottom: 8px;
+}
+
+.layout .title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 17px;
+}
+
+.layout .note,
+.layout .label {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.layout .fields {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.layout .field {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: var(--surface);
+    font-size: 14px;
+}
+
+.layout .field code {
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--text-subtle);
+    background: none;
+    padding: 0;
+}
+
+.layout .repeat {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 4px;
+    padding: 8px;
+    border: 1px dashed var(--line-strong);
+    border-radius: 6px;
+}
+
+.layout figcaption {
+    font-size: 13px;
+    color: var(--text-muted);
+    text-align: center;
+}

@@ -1,0 +1,93 @@
+/* The tool drawers: a type case of buttons, the open drawer's snippet, and its guide link. */
+.drawers {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+.drawer[aria-pressed='true'] {
+    border-color: var(--acc);
+    background: var(--surface-sunken);
+}
+
+.drawer .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.drawer .mark {
+    font-size: 26px;
+    color: var(--text-muted);
+    transition: color 0.3s;
+}
+
+.drawer[aria-pressed='true'] .mark {
+    color: var(--acc);
+}
+
+.drawer .plate {
+    padding: 1px 8px;
+    border-radius: 2px;
+    border: 1px solid var(--line-strong);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+}
+
+.drawer strong {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.drawer .use {
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--text-subtle);
+}
+
+/* Code samples from index.md's slots, one panel per drawer. */
+.snippet {
+    margin-top: 14px;
+    font-family: var(--font-sans);
+}
+
+/* The samples sit inside a column: drop each code block's own outer margin. */
+.snippet .panel > * {
+    margin: 0;
+}
+
+.more {
+    display: inline-block;
+    margin-top: 12px;
+    color: var(--acc);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/* Only the open drawer's link shows; `display` above would otherwise override `hidden`. */
+.more[hidden] {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    .drawers {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}

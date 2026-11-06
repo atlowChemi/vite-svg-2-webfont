@@ -32,7 +32,7 @@ const config: UserConfig = defineConfig({
             'packages/webfont-generator/binding{.js,.d.ts}',
             'packages/webfont-browser/generated/**',
             // Displayed example of the engine's fixed TypeScript output.
-            'packages/docs/examples/type-safe-component/icons.ts',
+            'packages/docs/src/fonts/examples/type-safe-component/icons.ts',
             'target',
             '*.hbs',
         ],
@@ -85,8 +85,8 @@ const config: UserConfig = defineConfig({
             'packages/webfont-generator/binding{.js,.d.ts}',
             'packages/webfont-browser/generated/**',
             // Display-only snippets for frameworks the docs do not install.
-            'packages/docs/examples/type-safe-component/Icon.tsx',
-            'packages/docs/examples/type-safe-component/icon.component.ts',
+            'packages/docs/src/fonts/examples/type-safe-component/Icon.tsx',
+            'packages/docs/src/fonts/examples/type-safe-component/icon.component.ts',
         ],
     },
     staged: {
