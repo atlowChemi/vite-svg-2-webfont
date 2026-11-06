@@ -28,9 +28,28 @@ const lazyGrammars = {
     xml: () => import('shiki/langs/xml.mjs'),
 };
 
+const grammars = new Map<HighlightLanguage, Promise<HighlighterCore>>();
+
+/**
+ * Shiki with this grammar loaded, each grammar once. The viewer calls it when a tab is hovered or focused too, so the
+ * grammar is usually there by the time the tab is chosen.
+ */
+export function loadLanguage(lang: HighlightLanguage): Promise<HighlighterCore> {
+    let loaded = grammars.get(lang);
+    if (!loaded) {
+        loaded = loadHighlighter().then(async shiki => {
+            if (lang !== 'css') await shiki.loadLanguage(lazyGrammars[lang]());
+            return shiki;
+        });
+        // A failed load is tried again next time.
+        loaded.catch(() => grammars.delete(lang));
+        grammars.set(lang, loaded);
+    }
+    return loaded;
+}
+
 /** Highlight generated output with the same themes and light/dark variables as the site's code blocks. */
 export async function highlight(code: string, lang: HighlightLanguage): Promise<string> {
-    const shiki = await loadHighlighter();
-    if (lang !== 'css' && !shiki.getLoadedLanguages().includes(lang)) await shiki.loadLanguage(lazyGrammars[lang]());
+    const shiki = await loadLanguage(lang);
     return shiki.codeToHtml(code, { lang, themes: codeThemes, defaultColor: false });
 }

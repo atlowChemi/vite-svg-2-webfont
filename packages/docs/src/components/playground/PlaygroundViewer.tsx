@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type FC } from 'react';
 import { cx } from '../cx.ts';
 import styles from './PlaygroundViewer.module.css';
 import controls from './controls.module.css';
-import { highlight } from './highlight.ts';
+import { highlight, loadLanguage } from './highlight.ts';
 import { useClipboard } from './useClipboard.ts';
 import type { WebfontBuild } from './webfontBuilder.ts';
 
@@ -42,7 +42,17 @@ export const PlaygroundViewer: FC<Props> = ({ build }) => {
         };
     }, [viewerText, tab]);
 
-    const tabProps = (name: ViewerTab) => ({ type: 'button' as const, role: 'tab', 'data-title': `output.${name}`, 'aria-selected': tab === name, onClick: () => setViewer(name) });
+    // Hovering or focusing a tab fetches its grammar, so choosing it shows highlighted code without waiting.
+    const prefetch = (name: ViewerTab) => () => void loadLanguage(name === 'svg' ? 'xml' : name).catch(() => {});
+    const tabProps = (name: ViewerTab) => ({
+        type: 'button' as const,
+        role: 'tab',
+        'data-title': `output.${name}`,
+        'aria-selected': tab === name,
+        onClick: () => setViewer(name),
+        onPointerEnter: prefetch(name),
+        onFocus: prefetch(name),
+    });
 
     return (
         <div className={styles.viewer}>
