@@ -1,12 +1,24 @@
 import { describe, expect, it } from 'vite-plus/test';
 import MiniSearch from 'minisearch';
 import { indexOptions, type SearchDoc } from '../client/searchOptions.ts';
-import { llmsTxt, markdownFiles, plainMarkdown, searchIndex } from './outputs.ts';
+import { llmsTxt, markdownFiles, parseRendered, plainMarkdown, searchIndex, searchSections } from './outputs.ts';
 import type { Page } from './render.tsx';
 
 const components = new Set(['ExampleTabs', 'ExampleIcons', 'ExampleOutput']);
 const page = (route: string, title: string, source = '', description?: string) =>
-    ({ route, file: `${route.slice(1) || 'index'}.md`, title, description, source, frontmatter: {}, headings: [], html: '', deps: new Set(), entries: new Set() }) as Page;
+    ({
+        route,
+        file: `${route.slice(1) || 'index'}.md`,
+        title,
+        description,
+        source,
+        frontmatter: {},
+        headings: [],
+        html: '',
+        sections: [],
+        deps: new Set(),
+        entries: new Set(),
+    }) as Page;
 
 describe('plainMarkdown', () => {
     it('keeps the Markdown in component slots and drops the components', () => {
@@ -87,7 +99,8 @@ describe('markdownFiles', () => {
     });
 });
 
-const index = (html: string) => MiniSearch.loadJSON<SearchDoc>(searchIndex([{ ...page('/guide/engine', 'The Engine'), html }]), indexOptions);
+const index = (html: string) =>
+    MiniSearch.loadJSON<SearchDoc>(searchIndex([{ ...page('/guide/engine', 'The Engine'), sections: searchSections(parseRendered(html), '/guide/engine') }]), indexOptions);
 
 describe('searchIndex', () => {
     it('starts a section at every heading level, h4 included', () => {

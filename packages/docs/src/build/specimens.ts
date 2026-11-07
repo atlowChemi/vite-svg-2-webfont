@@ -1,6 +1,5 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseHTML } from 'linkedom';
 import { optionKey } from '../site/optionKey.ts';
 import { pagesRoot, slug } from './markdown.ts';
 import { tools } from '../site/site.ts';
@@ -41,13 +40,14 @@ function optionRegistry(): Map<string, OptionRef[]> {
 const SPEC = /^(Type|Default|Required|Flags?|Manifest|Valid values|Values|Availability|Since|Env|Reference)\b(?::\s*|$)/;
 const bare = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-export function specimens(html: string, section: string): string {
-    if (!html.includes('<h3')) return html;
-    const { document } = parseHTML(`<!doctype html><html><body><div id="root">${html}</div></body></html>`);
-    const root = document.getElementById('root')!;
+/** Rewrites the options under `root` into specimens, in place; returns whether there were any. */
+export function specimens(root: Element, section: string): boolean {
+    const document = root.ownerDocument;
+    let changed = false;
     for (const h3 of root.querySelectorAll('h3')) {
         const [first, ...rest] = h3.children;
         if (first?.tagName !== 'CODE' || h3.firstChild !== first || rest.length !== 1 || !rest[0]!.matches(`.${anchor}`)) continue;
+        changed = true;
         const article = document.createElement('article');
         article.className = styles.option!;
         article.setAttribute('aria-labelledby', h3.id);
@@ -91,5 +91,5 @@ export function specimens(html: string, section: string): string {
         if (dl.children.length) article.append(dl);
         else article.classList.add(styles.bare!);
     }
-    return root.innerHTML;
+    return changed;
 }

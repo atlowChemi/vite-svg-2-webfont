@@ -8,9 +8,17 @@ import type { Page } from './render.tsx';
 // Everything derived from the rendered pages in the same pass: the search index, llms.txt / llms-full.txt and each
 // page's Markdown.
 
+/**
+ * A page's rendered HTML, parsed once in an element of its own: specimens rewrite it, and the search sections are read
+ * from it.
+ */
+export function parseRendered(html: string): Element {
+    return parseHTML(`<!doctype html><html><body><div>${html}</div></body></html>`).document.body.firstElementChild!;
+}
+
 const skip = new Set(['BUTTON', 'SCRIPT', 'STYLE', 'svg', 'SVG']);
-function sections(page: Page): SearchDoc[] {
-    const { document } = parseHTML(`<!doctype html><html><body>${page.html}</body></html>`);
+/** A page's search sections, one per heading, read from its parsed HTML. */
+export function searchSections(root: Element, route: string): SearchDoc[] {
     const docs: SearchDoc[] = [];
     const trail: { level: number; title: string }[] = [];
     let current: SearchDoc | undefined;
@@ -28,7 +36,7 @@ function sections(page: Page): SearchDoc[] {
             if (level && el.id) {
                 const title = (el.textContent ?? '').replace(/​/g, '').trim();
                 while (trail.length && trail.at(-1)!.level >= Number(level)) trail.pop();
-                current = { id: `${page.route}#${el.id}`, title, titles: trail.map(t => t.title), text: '' };
+                current = { id: `${route}#${el.id}`, title, titles: trail.map(t => t.title), text: '' };
                 docs.push(current);
                 trail.push({ level: Number(level), title });
                 continue;
@@ -38,14 +46,14 @@ function sections(page: Page): SearchDoc[] {
             if (current && (/^(P|LI|DIV|PRE|TR|DT|DD)$/.test(el.tagName) || el.nextSibling?.nodeType === 1)) current.text += ' ';
         }
     };
-    walk(document.body);
+    walk(root);
     for (const doc of docs) doc.text = doc.text.replace(/\s+/g, ' ').trim();
     return docs;
 }
 
 export function searchIndex(pages: Page[]): string {
     const index = new MiniSearch<SearchDoc>(indexOptions);
-    for (const page of pages) index.addAll(sections(page));
+    for (const page of pages) index.addAll(page.sections);
     return JSON.stringify(index);
 }
 

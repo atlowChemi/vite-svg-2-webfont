@@ -21,8 +21,9 @@ import { site } from '../site/site.ts';
 import { loadLanguages } from './highlight.ts';
 import { pagesRoot, renderMarkdown, type BlockRenderer, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
-import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, searchIndex } from './outputs.ts';
+import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, parseRendered, searchIndex, searchSections } from './outputs.ts';
 import { specimens } from './specimens.ts';
+import type { SearchDoc } from '../client/searchOptions.ts';
 
 /** Browser entries a page can link besides `main`, each with its own stylesheet or script. */
 export const clientEntries = new Map([
@@ -47,6 +48,8 @@ export interface Page {
     headings: Heading[];
     /** The rendered Markdown, without the shell. */
     html: string;
+    /** The page's search sections, one per heading. */
+    sections: SearchDoc[];
     source: string;
     deps: Set<string>;
     entries: Set<ClientEntry>;
@@ -103,7 +106,18 @@ routes.push('/404');
 /** Load a single route, render it's markdown, including it's rendered React components. */
 export async function loadPage(route: string): Promise<Page | undefined> {
     if (route === '/404') {
-        return { route, file: '', title: 'Page not found', frontmatter: { layout: 'page' }, headings: [], html: '', source: '', deps: new Set(), entries: new Set(['not-found']) };
+        return {
+            route,
+            file: '',
+            title: 'Page not found',
+            frontmatter: { layout: 'page' },
+            headings: [],
+            html: '',
+            sections: [],
+            source: '',
+            deps: new Set(),
+            entries: new Set(['not-found']),
+        };
     }
     const file = pages[route];
     if (!file) return undefined;
@@ -117,8 +131,12 @@ export async function loadPage(route: string): Promise<Page | undefined> {
         return renderToStaticMarkup(render(block.props, slots), { identifierPrefix: `b${++rendered}-` });
     };
     const markdown = await renderMarkdown(join(pagesRoot, file), renderBlock, blockNames);
-    const html = markdown.frontmatter.layout === 'page' ? markdown.html : specimens(markdown.html, route.split('/', 2)[1] ?? '');
-    return { route, file, description: markdown.frontmatter.description, ...markdown, html, entries };
+    // One parse serves both passes: specimens rewrite the options, then the search reads the result. A page the
+    // specimens leave alone keeps its HTML as rendered.
+    const root = parseRendered(markdown.html);
+    const rewritten = markdown.frontmatter.layout !== 'page' && specimens(root, route.split('/', 2)[1] ?? '');
+    const html = rewritten ? root.innerHTML : markdown.html;
+    return { route, file, description: markdown.frontmatter.description, ...markdown, html, sections: searchSections(root, route), entries };
 }
 
 /** The stylesheets and scripts of each entry: hashed build output, or Vite's dev URLs. */
