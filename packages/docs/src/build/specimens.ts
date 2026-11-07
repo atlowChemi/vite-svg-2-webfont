@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { optionKey } from '../site/optionKey.ts';
 import { pagesRoot, slug } from './markdown.ts';
@@ -8,9 +8,9 @@ import styles from './specimens.module.css';
 
 const anchor = markdownStyles.anchor!;
 
-// Options become specimens: the description on the left, a spec card (type, default, flag, other tools) on the right.
-// The card takes the facts from an option's "Type: …" list (the first list that opens with one); notes in the same list
-// stay with the description. "Also in" links come from every tool's configuration page.
+// Options become specimens: a description on the left and a spec card on the right.
+// The card extracts metadata from the first list beginning with a recognized field.
+// "Also in" links reference equivalent options across tool configuration pages.
 
 interface OptionRef {
     tool: string;
@@ -18,78 +18,157 @@ interface OptionRef {
     id: string;
 }
 
-let registry: Map<string, OptionRef[]> | undefined;
-function optionRegistry(): Map<string, OptionRef[]> {
-    if (registry) return registry;
-    registry = new Map();
-    for (const tool of readdirSync(pagesRoot)) {
-        let source: string;
-        try {
-            source = readFileSync(join(pagesRoot, tool, 'configuration.md'), 'utf8');
-        } catch {
-            continue;
-        }
-        for (const [, name] of source.matchAll(/^### `([^`]+)`\s*$/gm)) {
-            const key = optionKey(name!);
-            registry.set(key, [...(registry.get(key) ?? []), { tool, name: name!, id: slug(name!) }]);
-        }
-    }
-    return registry;
+// Cache tool display names to avoid repeated linear searches.
+const toolNames: ReadonlyMap<string, string> = new Map(tools.map(tool => [tool.key, tool.name]));
+
+let registry: Promise<Map<string, OptionRef[]>> | undefined;
+
+/** Lazily indexes configuration options across tools for cross-references. */
+function optionRegistry(): Promise<Map<string, OptionRef[]>> {
+    return (registry ??= buildOptionRegistry());
 }
 
+/** Reads configuration pages concurrently and indexes their options. */
+async function buildOptionRegistry(): Promise<Map<string, OptionRef[]>> {
+    const directories = await readdir(pagesRoot);
+    const result = new Map<string, OptionRef[]>();
+
+    // Read all configuration pages concurrently.
+    const sources = await Promise.all(
+        directories.map(async tool => {
+            try {
+                return await readFile(join(pagesRoot, tool, 'configuration.md'), 'utf8');
+            } catch {
+                // Not every tool has a configuration page.
+                return undefined;
+            }
+        }),
+    );
+
+    // Process results in directory order, regardless of read completion order.
+    for (let i = 0; i < directories.length; i++) {
+        const source = sources[i];
+        if (source === undefined) continue;
+
+        const tool = directories[i]!;
+
+        for (const [, name] of source.matchAll(/^### `([^`]+)`\s*$/gm)) {
+            const key = optionKey(name!);
+            const existing = result.get(key);
+            const ref = { tool, name: name!, id: slug(name!) };
+
+            if (existing) existing.push(ref);
+            else result.set(key, [ref]);
+        }
+    }
+
+    return result;
+}
+
+// Recognized specification fields at the beginning of list items.
 const SPEC = /^(Type|Default|Required|Flags?|Manifest|Valid values|Values|Availability|Since|Env|Reference)\b(?::\s*|$)/;
 const bare = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
-/** Rewrites the options under `root` into specimens, in place; returns whether there were any. */
-export function specimens(root: Element, section: string): boolean {
+/**
+ * Rewrites option sections into specimen cards in place.
+ *
+ * Each card contains the original heading and description, extracted
+ * specification fields, and links to equivalent options in other tools.
+ *
+ * Returns whether any sections were transformed.
+ */
+export async function specimens(root: Element, section: string): Promise<boolean> {
+    const allOptions = await optionRegistry();
     const document = root.ownerDocument;
     let changed = false;
+
     for (const h3 of root.querySelectorAll('h3')) {
-        const [first, ...rest] = h3.children;
-        if (first?.tagName !== 'CODE' || h3.firstChild !== first || rest.length !== 1 || !rest[0]!.matches(`.${anchor}`)) continue;
+        const first = h3.firstElementChild;
+
+        // Only transform headings containing a code element followed by an anchor.
+        if (first?.tagName !== 'CODE' || h3.firstChild !== first || h3.childElementCount !== 2 || !h3.lastElementChild?.classList.contains(anchor)) continue;
+
         changed = true;
+
+        // Wrap the heading and following content in a specimen article.
         const article = document.createElement('article');
         article.className = styles.option!;
         article.setAttribute('aria-labelledby', h3.id);
+
         const desc = document.createElement('div');
         desc.className = styles.description!;
+
         h3.before(article);
         article.append(h3, desc);
+
+        // Move following elements into the description until the next section.
+        // The first list beginning with a recognized field contains spec metadata.
         let spec: Element | undefined;
-        while (article.nextElementSibling && !article.nextElementSibling.matches(`h2, h3, .${styles.option}`)) {
+
+        while (article.nextElementSibling) {
             const el = article.nextElementSibling;
+
+            if (el.matches(`h2, h3, .${styles.option}`)) break;
+
             if (!spec && el.matches('ul') && SPEC.test(el.firstElementChild?.textContent ?? '')) spec = el;
+
             desc.append(el);
         }
+
         const dl = document.createElement('dl');
         dl.className = styles.spec!;
-        for (const li of spec ? [...spec.children] : []) {
-            const text = (li.textContent ?? '').trim();
-            const key = SPEC.exec(text)?.[1];
-            if (!key) continue;
-            const row = document.createElement('div');
-            // A bare "Required" carries no value of its own.
-            const value = text === key ? 'yes' : li.innerHTML.replace(new RegExp(`^\\s*${key}\\b:\\s*`), '');
-            row.innerHTML = `<dt>${key}</dt><dd>${value}</dd>`;
-            dl.append(row);
-            li.remove();
+
+        if (spec) {
+            // Re-reads the list each pass: a removed item's successor takes its index, so only a kept item advances.
+            for (let i = 0; i < spec.children.length;) {
+                const li = spec.children[i]!;
+                const text = (li.textContent ?? '').trim();
+                const key = SPEC.exec(text)?.[1];
+
+                if (!key) {
+                    i++;
+                    continue;
+                }
+
+                const row = document.createElement('div');
+
+                // A standalone "Required" means the option is required.
+                // Preserve inline formatting in other specification values.
+                const value = text === key ? 'yes' : li.innerHTML.replace(new RegExp(`^\\s*${key}\\b:\\s*`), '');
+
+                row.innerHTML = `<dt>${key}</dt><dd>${value}</dd>`;
+                dl.append(row);
+
+                li.remove();
+            }
+
+            // Remove the original list if no descriptive notes remain.
+            if (!spec.children.length) spec.remove();
         }
-        if (spec && !spec.children.length) spec.remove();
+
+        // Find equivalent options in other tools.
         const name = first.textContent ?? '';
-        const others = (optionRegistry().get(optionKey(name)) ?? []).filter(o => o.tool !== section);
+        const others = (allOptions.get(optionKey(name)) ?? []).filter(ref => ref.tool !== section);
+
         if (others.length) {
             const row = document.createElement('div');
             row.className = styles.also!;
+
+            // Names and generated HTML come from trusted documentation sources.
             row.innerHTML = `<dt>Also in</dt><dd>${others
                 .map(
-                    o =>
-                        `<a href="/${o.tool}/configuration#${o.id}">${tools.find(t => t.key === o.tool)?.name ?? o.tool}${bare(o.name) === bare(name) ? '' : ` <code>${o.name}</code>`}</a>`,
+                    ref =>
+                        `<a href="/${ref.tool}/configuration#${ref.id}">${toolNames.get(ref.tool) ?? ref.tool}${bare(ref.name) === bare(name) ? '' : ` <code>${ref.name}</code>`}</a>`,
                 )
                 .join('')}</dd>`;
+
             dl.append(row);
         }
+
+        // Omit the spec card entirely when no metadata or references exist.
         if (dl.children.length) article.append(dl);
         else article.classList.add(styles.bare!);
     }
+
     return changed;
 }

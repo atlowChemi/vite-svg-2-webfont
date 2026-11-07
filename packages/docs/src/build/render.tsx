@@ -134,7 +134,7 @@ export async function loadPage(route: string): Promise<Page | undefined> {
     // One parse serves both passes: specimens rewrite the options, then the search reads the result. A page the
     // specimens leave alone keeps its HTML as rendered.
     const root = parseRendered(markdown.html);
-    const rewritten = markdown.frontmatter.layout !== 'page' && specimens(root, route.split('/', 2)[1] ?? '');
+    const rewritten = markdown.frontmatter.layout !== 'page' && (await specimens(root, route.split('/', 2)[1] ?? ''));
     const html = rewritten ? root.innerHTML : markdown.html;
     return { route, file, description: markdown.frontmatter.description, ...markdown, html, sections: searchSections(root, route), entries };
 }

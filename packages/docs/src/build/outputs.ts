@@ -32,13 +32,13 @@ export function searchSections(root: Element, route: string): SearchDoc[] {
             const el = child as Element;
             if (skip.has(el.tagName) || el.classList.contains('header-anchor') || el.classList.contains('lang')) continue;
             // Every heading level starts a section, as in VitePress's index.
-            const level = /^H([1-6])$/.exec(el.tagName)?.[1];
+            const level = el.tagName.length === 2 && el.tagName[0] === 'H' && ['1', '2', '3', '4', '5', '6'].includes(el.tagName[1]!) ? Number(el.tagName[1]) : 0;
             if (level && el.id) {
                 const title = (el.textContent ?? '').replace(/​/g, '').trim();
-                while (trail.length && trail.at(-1)!.level >= Number(level)) trail.pop();
+                while (trail.length && trail.at(-1)!.level >= level) trail.pop();
                 current = { id: `${route}#${el.id}`, title, titles: trail.map(t => t.title), text: '' };
                 docs.push(current);
-                trail.push({ level: Number(level), title });
+                trail.push({ level, title });
                 continue;
             }
             walk(el);
@@ -53,7 +53,7 @@ export function searchSections(root: Element, route: string): SearchDoc[] {
 
 export function searchIndex(pages: Page[]): string {
     const index = new MiniSearch<SearchDoc>(indexOptions);
-    for (const page of pages) index.addAll(page.sections);
+    index.addAll(pages.flatMap(p => p.sections));
     return JSON.stringify(index);
 }
 
@@ -138,12 +138,15 @@ export function plainMarkdown<T extends string>(source: string, components: Set<
         .trim();
 }
 
+export function pageMarkdown(page: Page, components: Set<string>): string {
+    return `${frontmatter(page)}${plainMarkdown(page.source, components)}\n`;
+}
+
 export const llmsFullTxt = (pages: Page[], components: Set<string>) =>
     ordered(pages)
         .flatMap(g => g.pages)
-        .map(p => `${frontmatter(p)}${plainMarkdown(p.source, components)}\n`)
+        .map(page => pageMarkdown(page, components))
         .join('\n');
 
 /** Each page's Markdown, next to its HTML, for llms.txt links. */
-export const markdownFiles = (pages: Page[], components: Set<string>) =>
-    new Map(pages.map(p => [mdPath(p.route).slice(1), `${frontmatter(p)}${plainMarkdown(p.source, components)}\n`]));
+export const markdownFiles = (pages: Page[], components: Set<string>) => new Map(pages.map(p => [mdPath(p.route).slice(1), pageMarkdown(p, components)]));
