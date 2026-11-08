@@ -202,7 +202,13 @@ export async function renderMarkdown<T extends string>(path: string, renderBlock
     const frontmatter = (head ? parseYaml(head[1]!) : {}) as Frontmatter;
     const source = await expandIncludes(raw.slice(head?.[0].length ?? 0), path, srcRoot, deps);
 
-    const shiki = await loadLanguages(source.matchAll(/^[ \t]*(?:`{3,}|~{3,})\s*([\w-]+)/gm).map(m => m[1]!));
+    // Mermaid fences become diagrams, so they need no grammar.
+    const shiki = await loadLanguages(
+        source
+            .matchAll(/^[ \t]*(?:`{3,}|~{3,})\s*([\w-]+)/gm)
+            .map(m => m[1]!)
+            .filter(lang => lang !== 'mermaid'),
+    );
     const env: Env = { headings: [], slugs: new Map(), shiki, diagrams: new Map(), codeGroups: 0 };
     const render = (markdown: string): string => {
         const { source: text, blocks } = extractBlocks(markdown, blockNames, blockMarker);

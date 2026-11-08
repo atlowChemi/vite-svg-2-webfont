@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 import { diagramBrowser } from './diagramBrowser.ts';
+import { DiskCache, installed } from './diskCache.ts';
+import type { Page } from 'playwright';
 import styles from './mermaid.module.css';
 
 // Mermaid lays text out against a real DOM, so diagrams render in headless Chromium at build time and readers download no
@@ -83,29 +85,51 @@ export function themed(svg: string, key: string): string {
 }
 
 const cache = new Map<string, string>();
+// A diagram drawn before, in an earlier build or dev session, comes from disk, and Chromium doesn't start for it. This
+// file, the browser's setup, Mermaid and the class names decide the HTML.
+const stored = new DiskCache('mermaid', ['src/build/mermaid.ts', 'src/build/diagramBrowser.ts'], { mermaid: installed('mermaid'), styles });
 
-/** Each diagram's HTML, by key, in the order given: from the cache, or rendered in a tab of the shared browser. */
+/** After a full build: drops the stored diagrams no page used, and writes the rest. */
+export const pruneDiagrams = () => stored.prune();
+
+/** Each diagram's HTML, by key, in the order given: from memory or disk, or rendered in a tab of the shared browser. */
 export async function* renderDiagrams(sources: Map<string, string>): AsyncGenerator<[string, string], void, undefined> {
-    // The browser and a tab only when a diagram needs rendering. However the generator ends, the tab closes, then the
-    // browser is let go (disposal runs in reverse), closing it if no one else holds it.
-    const uncached = sources.keys().some(key => !cache.has(key));
-    await using _browser = uncached ? diagramBrowser.use() : undefined;
-    await using tab = uncached ? await diagramBrowser.tab() : undefined;
+    // The first diagram to draw holds the browser and opens a tab; however the generator ends, the stack closes the tab,
+    // then lets the browser go (it disposes in reverse), closing it if no one else holds it.
+    await using held = new AsyncDisposableStack();
+    let tab: Page | undefined;
+
     for (const [key, source] of sources) {
-        if (!cache.has(key)) {
-            // The tab renders the page's diagrams in turn: Mermaid keeps global state between renders.
-            // oxlint-disable-next-line no-await-in-loop
-            const svg = await tab!.evaluate(
-                async ({ id, code, themeVariables }) => {
-                    const { mermaid } = globalThis as unknown as { mermaid: typeof import('mermaid').default };
-                    // SVG labels avoid HTML text being clipped by inherited page typography.
-                    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', htmlLabels: false, theme: 'base', themeVariables });
-                    return (await mermaid.render(id, code)).svg;
-                },
-                { id: `mermaid-${key}`, code: source, themeVariables: { fontFamily: 'var(--font-sans)', fontSize: '14px', ...placeholders } },
-            );
-            cache.set(key, `<div class="${styles.diagram}">${themed(svg, key)}</div>`);
+        if (cache.has(key)) {
+            yield [key, cache.get(key)!];
+            continue;
         }
-        yield [key, cache.get(key)!];
+        let html = stored.get([key]);
+        if (html) {
+            cache.set(key, html);
+            yield [key, html];
+            continue;
+        }
+        if (!tab) {
+            held.use(diagramBrowser.use());
+            // oxlint-disable-next-line no-await-in-loop
+            tab = held.use(await diagramBrowser.tab());
+        }
+        // The tab renders the page's diagrams in turn: Mermaid keeps global state between renders.
+        // oxlint-disable-next-line no-await-in-loop
+        const svg = await tab.evaluate(
+            async ({ id, code, themeVariables }) => {
+                const { mermaid } = globalThis as unknown as { mermaid: typeof import('mermaid').default };
+                // SVG labels avoid HTML text being clipped by inherited page typography.
+                mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', htmlLabels: false, theme: 'base', themeVariables });
+                const renderedMermaid = await mermaid.render(id, code);
+                return renderedMermaid.svg;
+            },
+            { id: `mermaid-${key}`, code: source, themeVariables: { fontFamily: 'var(--font-sans)', fontSize: '14px', ...placeholders } },
+        );
+        html = `<div class="${styles.diagram}">${themed(svg, key)}</div>`;
+        stored.set([key], html);
+        cache.set(key, html);
+        yield [key, html];
     }
 }

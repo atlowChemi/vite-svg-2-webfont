@@ -18,10 +18,17 @@ import { PlaygroundPage } from '../components/playground/PlaygroundPage.tsx';
 import { DocShell, PageShell } from '../components/shell/DocShell.tsx';
 import { pageNav } from '../site/nav.ts';
 import { site } from '../site/site.ts';
-import { loadLanguages } from './highlight.ts';
+import { loadLanguages, pruneHighlights } from './highlight.ts';
 import { pagesRoot, renderMarkdown, type BlockRenderer, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
 export { diagramBrowser } from './diagramBrowser.ts';
+import { pruneDiagrams } from './mermaid.ts';
+
+/** After every page has rendered: drops the stored code blocks and diagrams none of them used, and writes the caches. */
+export function pruneCaches(): void {
+    pruneHighlights();
+    pruneDiagrams();
+}
 import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, parseRendered, searchIndex, searchSections, type MarkdownBlocks } from './outputs.ts';
 import { specimens } from './specimens.ts';
 import type { SearchDoc } from '../client/searchOptions.ts';

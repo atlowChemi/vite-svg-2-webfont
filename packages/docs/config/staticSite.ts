@@ -118,6 +118,8 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
 
                     // Render every route's Markdown to HTML.
                     const pages = await loadAll(render);
+                    // Every page has rendered: stored code blocks and diagrams none used are out of date, and the rest is written.
+                    render.pruneCaches();
                     // Now we have the pages, define what labels we have, so the file icon plugin only adds those icons.
                     site?.setFileIconLabels(render.tabLabels(pages));
                     // Now build the client's app - create the modules each type of page requires

@@ -12,6 +12,18 @@ interface RenderArgs {
 
 const { launch } = vi.hoisted(() => ({ launch: vi.fn<() => Promise<Browser>>() }));
 vi.mock('playwright', () => ({ chromium: { launch } }));
+// Diagrams stay in this test run's memory: drawn by the stand-in browser, they must not reach the real cache on disk,
+// where the next run would find them and never start a browser.
+vi.mock('./diskCache.ts', () => ({
+    installed: (name: string) => name,
+    DiskCache: class {
+        readonly #entries = new Map<string, string>();
+        get = (key: string[]) => this.#entries.get(key.join('\0'));
+        set = (key: string[], value: string) => void this.#entries.set(key.join('\0'), value);
+        flush = () => {};
+        prune = () => {};
+    },
+}));
 
 /** A stand-in Chromium whose tabs "render" a diagram as an SVG drawn in the placeholder colors they were given. */
 function fakeBrowser() {

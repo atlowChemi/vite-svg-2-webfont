@@ -3,21 +3,20 @@ import { bundledLanguages, createHighlighter, type BundledLanguage, type Highlig
 import catppuccinFrappe from 'shiki/themes/catppuccin-frappe.mjs';
 import catppuccinLatte from 'shiki/themes/catppuccin-latte.mjs';
 import { codeBackgrounds, codeThemes, withReadableTokens } from '../site/codeThemes.ts';
+import { DiskCache, installed } from './diskCache.ts';
 import styles from './highlight.module.css';
 
 // Code blocks, highlighted by Shiki at build time. markdown-it renders synchronously, so a page's languages load first
 // (`loadLanguages`), and highlighting itself is sync.
 let highlighter: Promise<Highlighter> | undefined;
+const themes = [withReadableTokens(catppuccinLatte, codeBackgrounds.light), withReadableTokens(catppuccinFrappe, codeBackgrounds.dark)];
 const aliases: Record<string, string> = { hbs: 'handlebars', txt: 'text', '': 'text' };
 const resolve = (lang: string) => aliases[lang] ?? lang;
 
 export const escape = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export async function loadLanguages(langs: Iterable<string>): Promise<Highlighter> {
-    highlighter ??= createHighlighter({
-        themes: [withReadableTokens(catppuccinLatte, codeBackgrounds.light), withReadableTokens(catppuccinFrappe, codeBackgrounds.dark)],
-        langs: [],
-    });
+    highlighter ??= createHighlighter({ themes, langs: [] });
     const shiki = await highlighter;
     const loaded = new Set(shiki.getLoadedLanguages());
     const missing = new Set(
@@ -65,6 +64,18 @@ const notations = [
     transformerNotationFocus({ classActiveLine: styles.focused, classActivePre: styles.hasFocused }),
 ];
 
+// Highlighting is most of a build's work, nearly all of it Shiki compiling each grammar's patterns on first use; a block
+// whose code hasn't changed comes from disk instead. This file, the themes, Shiki and its transformers, and the class
+// names decide the HTML.
+const blocks = new DiskCache('highlight', ['src/build/highlight.ts', 'src/site/codeThemes.ts'], {
+    packages: ['shiki', '@shikijs/transformers'].map(installed),
+    themes,
+    styles,
+});
+
+/** After a full build: drops the stored code blocks no page used, and writes the rest. */
+export const pruneHighlights = () => blocks.prune();
+
 export interface CodeBlockOptions {
     /** Lines to highlight, 1-based, as a fence's `{n-m}`. */
     lines?: Set<number>;
@@ -75,6 +86,10 @@ export interface CodeBlockOptions {
  * variables.
  */
 export function highlight(shiki: Highlighter, code: string, lang: string, { lines = new Set() }: CodeBlockOptions = {}): string {
+    return blocks.getOrCreate([lang, [...lines].join(','), code], () => highlightNow(shiki, code, lang, lines));
+}
+
+function highlightNow(shiki: Highlighter, code: string, lang: string, lines: Set<number>): string {
     const language = shiki.getLoadedLanguages().includes(resolve(lang)) ? resolve(lang) : 'text';
     const marks: ShikiTransformer = {
         line(node, line) {
