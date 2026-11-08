@@ -130,13 +130,23 @@ export async function specimens(root: Element, section: string): Promise<boolean
                     continue;
                 }
 
+                // Built from nodes, not markup: the key is the item's text, and the value keeps its inline formatting by
+                // moving the item's own nodes, so no text is ever read back as HTML.
                 const row = document.createElement('div');
+                const dt = document.createElement('dt');
+                dt.textContent = key;
+                const dd = document.createElement('dd');
 
                 // A standalone "Required" means the option is required.
-                // Preserve inline formatting in other specification values.
-                const value = text === key ? 'yes' : li.innerHTML.replace(new RegExp(`^\\s*${key}\\b:\\s*`), '');
+                if (text === key) dd.textContent = 'yes';
+                else {
+                    dd.append(...li.childNodes);
+                    // The key and its colon open the item's first text.
+                    const lead = dd.firstChild;
+                    if (lead?.nodeType === 3) lead.textContent = (lead.textContent ?? '').replace(new RegExp(`^\\s*${key}\\b:\\s*`), '');
+                }
 
-                row.innerHTML = `<dt>${key}</dt><dd>${value}</dd>`;
+                row.append(dt, dd);
                 dl.append(row);
 
                 li.remove();
