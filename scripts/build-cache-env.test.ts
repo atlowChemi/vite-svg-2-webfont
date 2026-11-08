@@ -21,10 +21,7 @@ it.each([
         expect(baseline.env.VITE_CACHE_CONTRACT_PROBE).toBe('untracked');
         const loaded = await loadConfigFromFile({ command: 'build', mode: 'production' }, fileURLToPath(new URL(`../${file}`, import.meta.url)));
         expect(loaded).not.toBeNull();
-        const config =
-            kind === 'test'
-                  ? (loaded!.config as { test: { projects: UserConfig[] } }).test.projects[0]!
-                  : (loaded!.config as UserConfig);
+        const config = kind === 'test' ? (loaded!.config as { test: { projects: UserConfig[] } }).test.projects[0]! : loaded!.config;
         // Resolve the actual env policy without executing unrelated package/docs plugins.
         const resolved = await resolveConfig({ root, configFile: false, envDir: config.envDir, logLevel: 'silent' }, 'build', 'production');
         expect(resolved.env.VITE_CACHE_CONTRACT_PROBE).toBeUndefined();
