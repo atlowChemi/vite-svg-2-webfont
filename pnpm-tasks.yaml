@@ -368,11 +368,13 @@ tasks:
             - pnpm-lock.yaml
             - packages/docs/package.json
             - packages/docs/scripts/generate-social-card.ts
+            - packages/docs/public/social-card.svg
+            - packages/docs/public/github-social-preview.svg
         outputs: [packages/docs/public/social-card.png, packages/docs/public/github-social-preview.png]
     next:docs:
         # Config disables dotenv loading; process environment inputs remain explicit.
         cache: true
-        env: [NODE_ENV]
+        env: [NODE_ENV, DOCS_URL]
         dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack]
         inputs:
             - '{package.json,pnpm-workspace.yaml,pnpm-tasks.yaml,pnpm-lock.yaml,tsconfig*.json,vite.config.*,env.d.ts,.npmrc,.pnpmfile.*}'
@@ -381,7 +383,7 @@ tasks:
             - packages/webfont-generator/CHANGELOG.md
             - packages/vite-svg-2-webfont/CHANGELOG.md
             - crates/webfont-generator/CHANGELOG.md
-        outputs: [packages/docs/.vitepress/dist/**, packages/docs/examples/write-files/generated/**]
+        outputs: [packages/docs/dist/**, packages/docs/src/fonts/examples/write-files/generated/**]
     next:example:
         # Ignored .env.local/.env.production.local cannot be native file inputs.
         cache: false
