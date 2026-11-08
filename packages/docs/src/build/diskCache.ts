@@ -3,7 +3,7 @@ import { mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { deserialize, serialize } from 'node:v8';
 
-// Results of slow rendering steps that only depend on their inputs (highlighted code, Mermaid diagrams), kept across
+// Results of slow rendering steps that only depend on their inputs (highlighted code, Mermaid diagrams, page cards), kept across
 // builds and dev restarts in the docs' git-ignored `.cache`, which CI restores. This module runs from `src/build` in dev
 // and from `.cache/server` once built: both two folders below the docs.
 const docsRoot = join(import.meta.dirname, '..', '..');
@@ -15,14 +15,14 @@ const hash = (...parts: string[]) => {
     return h.digest('hex');
 };
 
-interface Stored {
+interface Stored<Value> {
     version: string;
-    entries: Map<string, string>;
+    entries: Map<string, Value>;
 }
 
 // The newest cache of each name, written once more as the process exits, in case its debounced write is still waiting.
 // (A dev server reloads this module when its code changes, making new caches; only the newest is current.)
-const current = new Map<string, DiskCache>();
+const current = new Map<string, DiskCache<unknown>>();
 process.once('exit', () => {
     for (const cache of current.values()) cache.flush();
 });
@@ -32,10 +32,10 @@ process.once('exit', () => {
  * changes, debounced, or when a build is done (`prune`). V8's serialization reads several times faster than JSON.
  * Reads are synchronous, since markdown-it renders synchronously.
  */
-export class DiskCache {
+export class DiskCache<Value = string> {
     readonly #file: string;
     readonly #version: string;
-    #entries: Map<string, string> | undefined;
+    #entries: Map<string, Value> | undefined;
     readonly #used = new Set<string>();
     #dirty = false;
     #timer: ReturnType<typeof setTimeout> | undefined;
@@ -54,10 +54,10 @@ export class DiskCache {
     }
 
     /** The entries, read from disk on first use; a missing, unreadable or outdated file leaves the cache empty. */
-    get #map(): Map<string, string> {
+    get #map(): Map<string, Value> {
         if (!this.#entries) {
             try {
-                const stored = deserialize(readFileSync(this.#file)) as Stored;
+                const stored = deserialize(readFileSync(this.#file)) as Stored<Value>;
                 this.#entries = stored.version === this.#version ? stored.entries : new Map();
             } catch {
                 this.#entries = new Map();
@@ -73,7 +73,7 @@ export class DiskCache {
     }
 
     /** The entry for these inputs, computed and stored by `make` when there is none. */
-    getOrCreate(key: string[], make: () => string): string {
+    getOrCreate(key: string[], make: () => Value): Value {
         const id = this.#key(key);
         let value = this.#map.get(id);
         if (value === undefined) {
@@ -85,11 +85,11 @@ export class DiskCache {
     }
 
     /** The entry for these inputs, if one is stored. */
-    get(key: string[]): string | undefined {
+    get(key: string[]): Value | undefined {
         return this.#map.get(this.#key(key));
     }
 
-    set(key: string[], value: string): void {
+    set(key: string[], value: Value): void {
         this.#map.set(this.#key(key), value);
         this.#changed();
     }
@@ -108,7 +108,7 @@ export class DiskCache {
         this.#dirty = false;
         mkdirSync(cacheRoot, { recursive: true });
         const temporary = `${this.#file}.${process.pid}.tmp`;
-        writeFileSync(temporary, serialize({ version: this.#version, entries: this.#entries } satisfies Stored));
+        writeFileSync(temporary, serialize({ version: this.#version, entries: this.#entries } satisfies Stored<Value>));
         renameSync(temporary, this.#file);
     }
 

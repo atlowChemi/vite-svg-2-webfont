@@ -21,13 +21,16 @@ import { site } from '../site/site.ts';
 import { loadLanguages, pruneHighlights } from './highlight.ts';
 import { pagesRoot, renderMarkdown, type BlockRenderer, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
+export { cardPath } from './pageCards.ts';
 import { diagramBrowser } from './diagramBrowser.ts';
 import { pruneDiagrams } from './mermaid.ts';
+import { cardAlt, cardFor, cardPath, prunePageCards, renderCard } from './pageCards.ts';
 
-/** After every page has rendered: drops the stored code blocks and diagrams none of them used, and writes the caches. */
+/** After every page has rendered: drops the stored code blocks, diagrams and cards none of them used, and writes the caches. */
 export function pruneCaches(): void {
     pruneHighlights();
     pruneDiagrams();
+    prunePageCards();
 }
 import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, parseRendered, searchIndex, searchSections, type MarkdownBlocks } from './outputs.ts';
 import { specimens } from './specimens.ts';
@@ -223,7 +226,9 @@ export function renderDocument(page: Page, assets: Assets, docsUrl: string): str
     const linkedAssets = (['main', ...page.entries] as ClientEntry[]).map(entry => assets[entry]);
     const description = page.description ?? site.description;
     const url = new URL(page.route === '/404' ? '' : page.route.slice(1), docsUrl).href;
-    const image = new URL('social-card.png', docsUrl).href;
+    const card = cardFor(page, docsUrl);
+    const image = new URL(card ? cardPath(page.route) : 'social-card.png', docsUrl).href;
+    const imageAlt = card ? cardAlt(card) : 'The fonte wordmark and the line "Melted SVGs, cast into fonts", beside a large T filled with molten metal.';
     const html = renderToStaticMarkup(
         <html lang="en-US">
             <head>
@@ -240,11 +245,14 @@ export function renderDocument(page: Page, assets: Assets, docsUrl: string): str
                 <meta property="og:description" content={description} />
                 <meta property="og:url" content={url} />
                 <meta property="og:image" content={image} />
-                <meta property="og:image:alt" content='The fonte wordmark and the line "Melted SVGs, cast into fonts", beside a large T filled with molten metal.' />
+                <meta property="og:image:width" content="1200" />
+                <meta property="og:image:height" content="630" />
+                <meta property="og:image:alt" content={imageAlt} />
                 <meta name="twitter:card" content="summary_large_image" />
                 <meta name="twitter:title" content={page.route === '/' ? site.name : page.title} />
                 <meta name="twitter:description" content={description} />
                 <meta name="twitter:image" content={image} />
+                <meta name="twitter:image:alt" content={imageAlt} />
                 {page.file && <link rel="alternate" type="text/markdown" href={mdPath(page.route)} />}
                 <link rel="describedby" href="/llms.txt" />
                 <script dangerouslySetInnerHTML={{ __html: themeScript }} />
@@ -275,6 +283,16 @@ export function siteFiles(all: Page[]): Map<string, string> {
         ['llms-full.txt', llmsFullTxt(sources, markdownBlocks)],
         ...markdownFiles(sources, markdownBlocks),
     ]);
+}
+
+/** Each doc page's link-preview card, as PNGs by their path in the built site. */
+export function pageCards(all: Page[], docsUrl: string): Map<string, Uint8Array> {
+    return new Map(
+        all.flatMap(page => {
+            const card = cardFor(page, docsUrl);
+            return card ? [[cardPath(page.route), renderCard(card)] as const] : [];
+        }),
+    );
 }
 
 function* labelsIn(all: Page[]) {

@@ -137,7 +137,7 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
 
                     // Build the final directory structure of the output site.
                     await Promise.all(
-                        Iterator.concat(files, render.siteFiles(pages)).map(async ([file, content]) => {
+                        Iterator.concat(files, render.siteFiles(pages), render.pageCards(pages, docsUrl)).map(async ([file, content]) => {
                             await mkdir(dirname(join(outDir, file)), { recursive: true });
                             await writeFile(join(outDir, file), content);
                         }),
@@ -210,8 +210,16 @@ async function loadRenderer(server: ViteDevServer): Promise<Renderer> {
     return ssr.runner.import<Renderer>(`/${renderer}`);
 }
 
-async function serve(server: ViteDevServer, url: string, site: SitePlugins | undefined): Promise<{ type: string; body: string; status: number } | undefined> {
+async function serve(server: ViteDevServer, url: string, site: SitePlugins | undefined): Promise<{ type: string; body: string | Uint8Array; status: number } | undefined> {
     const path = new URL(url, 'http://localhost').pathname.replace(/\.html$/, '');
+    if (/^\/og\/.+\.png$/.test(path)) {
+        // A page's link-preview card, drawn for the one page it belongs to.
+        const render = await loadRenderer(server);
+        const route = render.routes.find(r => render.cardPath(r) === path.slice(1));
+        if (route === undefined) return undefined;
+        const body = render.pageCards([(await render.loadPage(route))!], 'http://localhost/').get(path.slice(1));
+        return body && { type: 'image/png', body, status: 200 };
+    }
     const isSiteFile = /^\/(search-index\.json|llms(-full)?\.txt|.+\.md)$/.test(path);
     if (!isSiteFile && (/\.\w+$/.test(path) || /^\/(@|src\/|node_modules\/)/.test(path))) return undefined;
     const render = await loadRenderer(server);
