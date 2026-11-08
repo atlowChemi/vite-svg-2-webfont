@@ -116,7 +116,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   components: llvm-tools-preview
-            - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
+            - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
               with:
                   tool: cargo-llvm-cov,cargo-nextest
             - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
@@ -176,7 +176,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   components: llvm-tools-preview
-            - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
+            - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
               with:
                   tool: cargo-llvm-cov
             - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
@@ -378,7 +378,7 @@ jobs:
                   rustup toolchain install nightly-2026-02-18 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
                   sudo apt-get update
                   sudo apt-get install -y clang
-            - uses: taiki-e/install-action@1919c4a95903d2c33e4a221102edca87309fc14b # v2.89.0
+            - uses: taiki-e/install-action@c509219cf42fba86913069efd0ade2458c59337b # v2.90.1
               with:
                   tool: cargo-llvm-cov@0.9.0
             - run: vp run @atlowchemi/webfont-browser-generator#test:coverage
