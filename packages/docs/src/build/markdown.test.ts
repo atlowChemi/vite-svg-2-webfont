@@ -30,4 +30,12 @@ describe('renderMarkdown', () => {
         const { html } = await render();
         expect(html).toContain('<table tabindex="0">');
     });
+
+    it('numbers code groups per page, even when pages render at the same time', async () => {
+        const path = join(import.meta.dirname, 'fixtures/codeGroups.md');
+        const pages = await Promise.all([1, 2, 3].map(() => renderMarkdown(path, () => '', new Set<string>())));
+        for (const { html } of pages) {
+            expect(html.match(/name="group-\d+"/g)).toEqual(['name="group-1"', 'name="group-1"', 'name="group-2"']);
+        }
+    });
 });

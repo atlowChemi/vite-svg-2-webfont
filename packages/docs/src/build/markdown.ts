@@ -211,6 +211,8 @@ export async function renderMarkdown<T extends string>(path: string, renderBlock
         return html;
     };
     let html = render(source);
-    for (const [key, svg] of await renderDiagrams(env.diagrams)) html = html.replace(marker(key), () => svg);
+    for await (const [key, svg] of renderDiagrams(env.diagrams)) {
+        html = html.replace(marker(key), () => svg);
+    }
     return { title: frontmatter.title ?? env.title ?? '', frontmatter, html, headings: env.headings, source, deps };
 }

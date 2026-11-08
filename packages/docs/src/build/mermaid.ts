@@ -1,7 +1,5 @@
 import { createHash } from 'node:crypto';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { chromium } from 'playwright';
+import { diagramBrowser } from './diagramBrowser.ts';
 import styles from './mermaid.module.css';
 
 // Mermaid lays text out against a real DOM, so diagrams render in headless Chromium at build time and readers download no
@@ -86,30 +84,28 @@ export function themed(svg: string, key: string): string {
 
 const cache = new Map<string, string>();
 
-export async function renderDiagrams(sources: Map<string, string>): Promise<Map<string, string>> {
-    const missing = [...sources].filter(([key]) => !cache.has(key));
-    if (missing.length) {
-        const browser = await chromium.launch();
-        try {
-            const page = await browser.newPage();
-            await page.addScriptTag({ path: join(dirname(fileURLToPath(import.meta.resolve('mermaid'))), 'mermaid.min.js') });
-            for (const [key, source] of missing) {
-                // One page renders the diagrams in turn: Mermaid keeps global state between renders.
-                // oxlint-disable-next-line no-await-in-loop
-                const svg = await page.evaluate(
-                    async ({ id, code, themeVariables }) => {
-                        const { mermaid } = globalThis as unknown as { mermaid: typeof import('mermaid').default };
-                        // SVG labels avoid HTML text being clipped by inherited page typography.
-                        mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', htmlLabels: false, theme: 'base', themeVariables });
-                        return (await mermaid.render(id, code)).svg;
-                    },
-                    { id: `mermaid-${key}`, code: source, themeVariables: { fontFamily: 'var(--font-sans)', fontSize: '14px', ...placeholders } },
-                );
-                cache.set(key, `<div class="${styles.diagram}">${themed(svg, key)}</div>`);
-            }
-        } finally {
-            await browser.close();
+/** Each diagram's HTML, by key, in the order given: from the cache, or rendered in a tab of the shared browser. */
+export async function* renderDiagrams(sources: Map<string, string>): AsyncGenerator<[string, string], void, undefined> {
+    // The browser and a tab only when a diagram needs rendering. However the generator ends, the tab closes, then the
+    // browser is let go (disposal runs in reverse), closing it if no one else holds it.
+    const uncached = sources.keys().some(key => !cache.has(key));
+    await using _browser = uncached ? diagramBrowser.use() : undefined;
+    await using tab = uncached ? await diagramBrowser.tab() : undefined;
+    for (const [key, source] of sources) {
+        if (!cache.has(key)) {
+            // The tab renders the page's diagrams in turn: Mermaid keeps global state between renders.
+            // oxlint-disable-next-line no-await-in-loop
+            const svg = await tab!.evaluate(
+                async ({ id, code, themeVariables }) => {
+                    const { mermaid } = globalThis as unknown as { mermaid: typeof import('mermaid').default };
+                    // SVG labels avoid HTML text being clipped by inherited page typography.
+                    mermaid.initialize({ startOnLoad: false, securityLevel: 'loose', htmlLabels: false, theme: 'base', themeVariables });
+                    return (await mermaid.render(id, code)).svg;
+                },
+                { id: `mermaid-${key}`, code: source, themeVariables: { fontFamily: 'var(--font-sans)', fontSize: '14px', ...placeholders } },
+            );
+            cache.set(key, `<div class="${styles.diagram}">${themed(svg, key)}</div>`);
         }
+        yield [key, cache.get(key)!];
     }
-    return new Map([...sources.keys()].map(key => [key, cache.get(key)!]));
 }

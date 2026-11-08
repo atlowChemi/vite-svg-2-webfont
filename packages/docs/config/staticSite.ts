@@ -25,6 +25,8 @@ const serverDir = '.cache/server';
 const docsUrl = (process.env.DOCS_URL || 'https://fonte.atlow.dev').replace(/\/?$/, '/');
 
 async function loadAll(render: Renderer): Promise<Page[]> {
+    // Held across the batch, so the pages' diagrams share one Chromium instead of each page launching and closing its own.
+    await using _diagrams = render.diagramBrowser.use();
     // Pages render at the same time: each keeps its own state in markdown-it's `env`, and the order follows `routes`.
     return await Promise.all(render.routes.map(async route => (await render.loadPage(route))!));
 }
@@ -114,7 +116,7 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
                     const { href: transpiledRenderPath } = pathToFileURL(join(builder.config.root, serverDir, 'render.js'));
                     const render = (await import(transpiledRenderPath)) as Renderer;
 
-                    // Load all MD routes sequentially and render their MD to HTML.
+                    // Render every route's Markdown to HTML.
                     const pages = await loadAll(render);
                     // Now we have the pages, define what labels we have, so the file icon plugin only adds those icons.
                     site?.setFileIconLabels(render.tabLabels(pages));

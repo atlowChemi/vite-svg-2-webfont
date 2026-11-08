@@ -21,6 +21,7 @@ import { site } from '../site/site.ts';
 import { loadLanguages } from './highlight.ts';
 import { pagesRoot, renderMarkdown, type BlockRenderer, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
+export { diagramBrowser } from './diagramBrowser.ts';
 import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, parseRendered, searchIndex, searchSections } from './outputs.ts';
 import { specimens } from './specimens.ts';
 import type { SearchDoc } from '../client/searchOptions.ts';
