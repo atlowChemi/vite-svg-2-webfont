@@ -21,7 +21,7 @@ import { site } from '../site/site.ts';
 import { loadLanguages, pruneHighlights } from './highlight.ts';
 import { pagesRoot, renderMarkdown, type BlockRenderer, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
-export { diagramBrowser } from './diagramBrowser.ts';
+import { diagramBrowser } from './diagramBrowser.ts';
 import { pruneDiagrams } from './mermaid.ts';
 
 /** After every page has rendered: drops the stored code blocks and diagrams none of them used, and writes the caches. */
@@ -151,6 +151,14 @@ export async function loadPage(route: string): Promise<Page | undefined> {
     const rewritten = markdown.frontmatter.layout !== 'page' && (await specimens(root, route.split('/', 2)[1] ?? ''));
     const html = rewritten ? root.innerHTML : markdown.html;
     return { route, file, description: markdown.frontmatter.description, ...markdown, html, sections: searchSections(root, route), entries };
+}
+
+/** Every page, in `routes` order. */
+export async function loadAll(): Promise<Page[]> {
+    // Held across the batch, so the pages' diagrams share one Chromium instead of each page launching and closing its own.
+    await using _diagrams = diagramBrowser.use();
+    // Pages render at the same time: each keeps its own state in markdown-it's `env`, and the order follows `routes`.
+    return await Promise.all(routes.map(async route => (await loadPage(route))!));
 }
 
 /** The stylesheets and scripts of each entry: hashed build output, or Vite's dev URLs. */

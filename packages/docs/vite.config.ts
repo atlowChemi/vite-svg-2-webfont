@@ -13,6 +13,9 @@ try {
 }
 
 const config: UserProjectConfigExport = defineProject({
+    // Tests on Node.js 22, which can't parse `using`, get lowered syntax; builds run on Node.js 26 and keep it as written.
+    // TODO [engine:node@>=24, 2027-04-30]: Remove this lowering target once Node 22 support ends.
+    ...(process.env.VITEST && Number(process.versions.node.split('.')[0]) < 24 ? { oxc: { target: 'es2022' } } : {}),
     // Holds the engine cache the icon fonts build into, kept across CI runs (see main.yaml and docs.yaml).
     cacheDir: '.cache',
     css: { modules: { generateScopedName: scopedName } },
@@ -20,6 +23,7 @@ const config: UserProjectConfigExport = defineProject({
     test: {
         name: 'docs',
         include: ['config/**/*.test.ts', 'src/**/*.test.{ts,tsx}'],
+        setupFiles: ['config/testSetup.ts'],
     },
     run: {
         tasks: {

@@ -94,20 +94,10 @@ export const pruneDiagrams = () => stored.prune();
 
 /** Each diagram's HTML, by key, in the order given: from memory or disk, or rendered in a tab of the shared browser. */
 export async function* renderDiagrams(sources: Map<string, string>): AsyncGenerator<[string, string], void, undefined> {
-    // The first diagram to draw holds the browser and opens a tab; however the generator ends, the tab closes, then the
-    // browser is let go, closing it if no one else holds it. Kept by hand rather than in an `AsyncDisposableStack`,
-    // which Node.js 22 lacks, and the docs' tests run there too.
-    let browser: AsyncDisposable | undefined;
+    // The first diagram to draw holds the browser and opens a tab; however the generator ends, the stack closes the tab,
+    // then lets the browser go (it disposes in reverse), closing it if no one else holds it.
+    await using held = new AsyncDisposableStack();
     let tab: Page | undefined;
-    await using _held = {
-        async [Symbol.asyncDispose]() {
-            try {
-                await tab?.close();
-            } finally {
-                await browser?.[Symbol.asyncDispose]();
-            }
-        },
-    };
 
     for (const [key, source] of sources) {
         if (cache.has(key)) {
@@ -121,9 +111,9 @@ export async function* renderDiagrams(sources: Map<string, string>): AsyncGenera
             continue;
         }
         if (!tab) {
-            browser = diagramBrowser.use();
+            held.use(diagramBrowser.use());
             // oxlint-disable-next-line no-await-in-loop
-            tab = await diagramBrowser.tab();
+            tab = held.use(await diagramBrowser.tab());
         }
         // The tab renders the page's diagrams in turn: Mermaid keeps global state between renders.
         // oxlint-disable-next-line no-await-in-loop

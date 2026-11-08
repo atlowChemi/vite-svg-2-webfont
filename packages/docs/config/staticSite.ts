@@ -2,7 +2,6 @@ import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { isCSSRequest, isFileLoadingAllowed, isRunnableDevEnvironment, type BuildEnvironment, type Connect, type Plugin, type ViteDevServer } from 'vite-plus';
-import type { Page } from '../src/build/render.tsx';
 type SitePlugins = typeof import('./plugins/index.ts');
 
 // The docs as static pages. Vite builds two things: `src/build/render.tsx` for Node, and the browser assets (one shared
@@ -23,19 +22,6 @@ const serverDir = '.cache/server';
 // Absolute links for crawlers and link previews (`og:url`, `og:image`). CI sets `DOCS_URL` to the site a build is deployed
 // to (`next`, or a pull request's preview); everything else is the production site.
 const docsUrl = (process.env.DOCS_URL || 'https://fonte.atlow.dev').replace(/\/?$/, '/');
-
-async function loadAll(render: Renderer): Promise<Page[]> {
-    // Held across the batch, so the pages' diagrams share one Chromium instead of each page launching and closing its own.
-    // Released by hand rather than with `await using`: `vp` loads this config to find tasks on every Node.js the repo
-    // supports, and Node.js 22 can't parse that syntax.
-    const diagrams = render.diagramBrowser.use();
-    try {
-        // Pages render at the same time: each keeps its own state in markdown-it's `env`, and the order follows `routes`.
-        return await Promise.all(render.routes.map(async route => (await render.loadPage(route))!));
-    } finally {
-        await diagrams[Symbol.asyncDispose]();
-    }
-}
 
 type Manifest = Record<string, { file: string; css?: string[]; imports?: string[] }>;
 
@@ -107,7 +93,8 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
             environments: {
                 client: { build: { manifest: true } },
                 // Outside `dist`, which the browser build empties. Like `src/build`, two folders below this one.
-                ssr: { build: { outDir: serverDir, rolldownOptions: { input: renderer } } },
+                // The renderer only runs here, on the Node.js that builds the site, so it keeps its syntax as written.
+                ssr: { build: { outDir: serverDir, target: 'esnext', rolldownOptions: { input: renderer } } },
             },
             builder: {
                 // The pages render first, so the browser build knows every tab label; then the HTML links its assets.
@@ -123,7 +110,7 @@ export function fonteDocs(site: SitePlugins | undefined): Plugin {
                     const render = (await import(transpiledRenderPath)) as Renderer;
 
                     // Render every route's Markdown to HTML.
-                    const pages = await loadAll(render);
+                    const pages = await render.loadAll();
                     // Every page has rendered: stored code blocks and diagrams none used are out of date, and the rest is written.
                     render.pruneCaches();
                     // Now we have the pages, define what labels we have, so the file icon plugin only adds those icons.
@@ -230,7 +217,7 @@ async function serve(server: ViteDevServer, url: string, site: SitePlugins | und
     const render = await loadRenderer(server);
     if (isSiteFile) {
         // The search index and llms.txt need every page; build them only when asked for.
-        const body = render.siteFiles(await loadAll(render)).get(path.slice(1));
+        const body = render.siteFiles(await render.loadAll()).get(path.slice(1));
         return body === undefined ? undefined : { type: path.endsWith('.json') ? 'application/json' : 'text/plain', body, status: 200 };
     }
     const route = [path, `${path}/`].find(r => render.routes.includes(r));
