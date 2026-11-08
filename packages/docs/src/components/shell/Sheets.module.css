@@ -1,0 +1,276 @@
+/*
+ * Phone sheets: native modal dialogs. The backdrop is the scrim, they slide in and out with CSS, and the page behind
+ * doesn't scroll while one is open.
+ */
+:global(html):has(.sheet[open]) {
+    overflow: hidden;
+}
+
+.sheet {
+    inset: auto 0 0;
+    width: auto;
+    max-width: none;
+    margin: 0;
+    border-width: 1px 0 0;
+    color: var(--text);
+    transition:
+        transform 0.25s cubic-bezier(0.3, 0.7, 0.3, 1),
+        display 0.25s allow-discrete,
+        overlay 0.25s allow-discrete;
+}
+
+.sheet:not([open]) {
+    display: none;
+    transform: translateY(100%);
+}
+
+@starting-style {
+    .sheet[open] {
+        transform: translateY(100%);
+    }
+}
+
+.sheet::backdrop {
+    background: rgb(0 0 0 / 0.4);
+}
+
+.sheet:focus {
+    outline: none;
+}
+
+/* The theme button names the theme it switches to: away from the reader's pick, or else from the system's. */
+.whenDark,
+:global(html.dark) .whenLight {
+    display: none;
+}
+
+:global(html.dark) .whenDark {
+    display: inline;
+}
+
+@media (prefers-color-scheme: dark) {
+    :global(html:not(.light)) .whenLight {
+        display: none;
+    }
+
+    :global(html:not(.light)) .whenDark {
+        display: inline;
+    }
+}
+
+.plate {
+    font: 10px var(--font-mono);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--text-subtle);
+}
+
+.number {
+    font: 12px var(--font-mono);
+    color: var(--text-subtle);
+}
+
+/* Phones: the current section, as a pill that opens the page's index. */
+.pill {
+    display: none;
+}
+
+@media (max-width: 960px) {
+    .pill {
+        position: fixed;
+        left: 50%;
+        bottom: max(16px, env(safe-area-inset-bottom));
+        z-index: 40;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        max-width: calc(100vw - 32px);
+        padding: 9px 16px 9px 12px;
+        border: 1px solid var(--line-strong);
+        border-radius: 999px;
+        background: var(--surface-raised);
+        box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+        color: var(--text);
+        font-size: 14px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transform: translateX(-50%);
+        transition: transform 0.25s;
+    }
+
+    /* Steps aside while the reader scrolls down. */
+    .away {
+        transform: translate(-50%, calc(100% + 32px));
+    }
+
+    .pillNumber {
+        font: 600 15px var(--font-display);
+        color: var(--accent-text);
+    }
+
+    .pillCaret {
+        font-size: 11px;
+        color: var(--text-subtle);
+    }
+
+    .sheet {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 51;
+        display: grid;
+        gap: 4px;
+        max-height: 75vh;
+        padding: 18px 16px max(20px, env(safe-area-inset-bottom));
+        border-top: 1px solid var(--line-strong);
+        border-radius: 16px 16px 0 0;
+        background: var(--surface-raised);
+        overflow: auto;
+        overscroll-behavior: contain;
+    }
+
+    .title {
+        margin: 0 4px 8px;
+        font: 11px var(--font-mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-subtle);
+    }
+
+    /* A tool, drawn like the top bar's drawers. */
+    .tool {
+        display: grid;
+        grid-template-columns: 76px 1fr;
+        align-items: baseline;
+        padding: 12px;
+        border: 1px solid transparent;
+        border-radius: 6px;
+        color: var(--text-muted);
+        line-height: 1.15;
+        text-decoration: none;
+        transition:
+            color 0.2s,
+            border-color 0.2s,
+            background 0.2s;
+    }
+
+    .tool strong {
+        font: 600 15px var(--font-display);
+    }
+
+    .tool[aria-current='true'] {
+        border-color: var(--line-strong);
+        background: var(--surface-sunken);
+        box-shadow: inset 0 -2px 0 var(--fonte-molten);
+        color: var(--text);
+    }
+
+    .play strong {
+        color: var(--accent-text);
+    }
+
+    .package {
+        grid-column: 2;
+        font: 11px var(--font-mono);
+        color: var(--text-subtle);
+        overflow-wrap: anywhere;
+    }
+
+    .pages {
+        display: grid;
+        gap: 2px;
+        margin: -2px 0 6px;
+        padding: 0 0 6px 10px;
+    }
+
+    .shelf {
+        padding: 8px 12px 2px;
+        font: 10px var(--font-mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--text-subtle);
+    }
+
+    .page {
+        display: block;
+        padding: 8px 12px;
+        border-radius: 6px;
+        color: var(--text-muted);
+        text-decoration: none;
+    }
+
+    .page[aria-current='page'] {
+        background: var(--surface-sunken);
+        box-shadow: inset 2px 0 0 var(--fonte-molten);
+        color: var(--text);
+    }
+
+    .links {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+        margin-top: 8px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line);
+    }
+
+    .links > * {
+        display: grid;
+        gap: 2px;
+        padding: 8px 12px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        color: var(--text);
+        font-size: 14px;
+        text-align: left;
+        text-decoration: none;
+    }
+
+    .section {
+        display: flex;
+        align-items: baseline;
+        gap: 12px;
+        padding: 10px 12px;
+        border-radius: 6px;
+        color: var(--text-muted);
+        text-decoration: none;
+    }
+
+    .child {
+        padding: 6px 12px 6px 40px;
+        font: 13px var(--font-mono);
+    }
+
+    .section[aria-current='location'] {
+        background: var(--surface-sunken);
+        color: var(--text);
+    }
+
+    .section[aria-current='location'] .number {
+        color: var(--accent-text);
+    }
+
+    .filter {
+        width: 100%;
+        margin: 0 0 8px;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--surface-sunken);
+        font-size: 15px;
+    }
+
+    .filter:focus {
+        border-color: var(--fonte-molten);
+        outline: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sheet,
+    .pill {
+        transition: none;
+    }
+}

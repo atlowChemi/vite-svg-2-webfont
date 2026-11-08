@@ -1,0 +1,112 @@
+/* The tool drawers: a type case of radios, the open drawer's snippet, and its guide link. */
+.drawers {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.drawer {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--surface-muted);
+    color: var(--text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+
+/* The radio itself is the whole drawer: hidden, but still focused, checked and moved with the arrow keys. */
+.radio {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.drawer:has(:checked) {
+    border-color: var(--acc);
+    background: var(--surface-sunken);
+}
+
+.drawer:has(:focus-visible) {
+    outline: 2px solid var(--acc);
+    outline-offset: 2px;
+}
+
+.drawer .top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.drawer .mark {
+    font-size: 26px;
+    color: var(--text-muted);
+    transition: color 0.3s;
+}
+
+.drawer:has(:checked) .mark {
+    color: var(--acc);
+}
+
+.drawer .plate {
+    padding: 1px 8px;
+    border-radius: 2px;
+    border: 1px solid var(--line-strong);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--text-muted);
+}
+
+.drawer strong {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.drawer .use {
+    font-size: 14px;
+    line-height: 1.35;
+    color: var(--text-subtle);
+}
+
+/* Code samples from index.md's slots, one panel per drawer. */
+.snippet {
+    margin-top: 14px;
+    font-family: var(--font-sans);
+}
+
+/* The samples sit inside a column: drop each code block's own outer margin. */
+.snippet .panel > * {
+    margin: 0;
+}
+
+.more {
+    display: inline-block;
+    margin-top: 12px;
+    color: var(--acc);
+    font-weight: 600;
+    text-decoration: none;
+}
+
+/*
+ * Only the checked drawer's snippet and link show. CSS can't match a panel to its drawer's position in general, so there
+ * is a rule per position, up to `maxDrawers` in `Drawers.tsx`.
+ */
+.chooser:not(:has(.drawer:nth-child(1) :checked)) :is(.panel, .more):nth-child(1),
+.chooser:not(:has(.drawer:nth-child(2) :checked)) :is(.panel, .more):nth-child(2),
+.chooser:not(:has(.drawer:nth-child(3) :checked)) :is(.panel, .more):nth-child(3),
+.chooser:not(:has(.drawer:nth-child(4) :checked)) :is(.panel, .more):nth-child(4) {
+    display: none;
+}
+
+@media (max-width: 720px) {
+    .drawers {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+}

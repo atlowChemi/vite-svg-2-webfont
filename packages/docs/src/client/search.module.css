@@ -1,0 +1,251 @@
+/* The search dialog (`search.ts`), loaded with it on first use. */
+.dialog {
+    width: min(900px, calc(100vw - 32px));
+    max-height: min(900px, calc(100vh - 128px));
+    margin: 64px auto auto;
+    padding: 16px;
+    overflow: hidden;
+    border: 1px solid var(--line-strong);
+    border-radius: 10px;
+    background: var(--surface-raised);
+    color: var(--text);
+}
+
+/* Only while open: a `display` of its own would show a closed dialog too. */
+.dialog[open] {
+    display: flex;
+    flex-direction: column;
+}
+
+.dialog::backdrop {
+    background: rgb(0 0 0 / 0.45);
+}
+
+/* The search box: an icon, the field, the detailed-view toggle and the clear button, framed as one. */
+.bar {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px 0 14px;
+    border: 1px solid var(--line-strong);
+    border-radius: 6px;
+    background: var(--surface);
+}
+
+.bar:focus-within {
+    border-color: var(--fonte-molten);
+}
+
+.icon {
+    font-size: 20px;
+    color: var(--text-muted);
+}
+
+.input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 4px;
+    border: 0;
+    background: none;
+    font-size: 16px;
+    outline: none;
+}
+
+/* The clear button replaces the field's own. */
+.input::-webkit-search-cancel-button {
+    display: none;
+}
+
+.tool {
+    display: grid;
+    place-items: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 6px;
+    color: var(--text-muted);
+    font-size: 22px;
+    cursor: pointer;
+}
+
+.tool:hover:not(:disabled),
+.tool[aria-pressed='true'] {
+    color: var(--accent-text);
+}
+
+.tool:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+
+.results {
+    display: grid;
+    /* A wide code block in an excerpt must not widen the column past the dialog. */
+    grid-template-columns: minmax(0, 1fr);
+    flex: 0 1 auto;
+    gap: 8px;
+    min-height: 0;
+    margin-top: 12px;
+    overflow: auto;
+    overscroll-behavior: contain;
+}
+
+/* Each result is a card: its section's path and heading, then, in the detailed view, the section itself. */
+.result {
+    display: block;
+    padding: 10px 16px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.result[aria-selected='true'] {
+    border-color: var(--fonte-molten);
+}
+
+.titles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 2px 8px;
+    font-size: 17px;
+    font-weight: 500;
+    line-height: 1.4;
+}
+
+.result[aria-selected='true'] .titles {
+    color: var(--accent-text);
+}
+
+.hash {
+    color: var(--accent-text);
+}
+
+.chevron {
+    font-size: 14px;
+    color: var(--text-subtle);
+    rotate: -90deg;
+}
+
+.title {
+    font-weight: 600;
+}
+
+.result mark {
+    border-radius: 2px;
+    background: var(--accent-tint);
+    color: inherit;
+}
+
+.result[aria-selected='true'] .title mark {
+    background: var(--fonte-molten);
+    color: var(--button-text);
+}
+
+/* The section, clipped around its first match and faded at both ends. */
+.view {
+    display: none;
+    max-height: 150px;
+    margin-top: 8px;
+    overflow: hidden;
+    mask-image: linear-gradient(transparent, #000 16px, #000 calc(100% - 32px), transparent);
+}
+
+.detailed .view {
+    display: block;
+}
+
+.excerpt {
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-muted);
+}
+
+.excerpt > * {
+    margin-block: 8px;
+}
+
+.empty,
+.status {
+    padding: 12px;
+    color: var(--text-subtle);
+}
+
+.retry {
+    color: var(--accent-text);
+    font-weight: 600;
+    text-decoration: underline;
+    cursor: pointer;
+}
+
+/* An excerpt whose page is on its way: three lines of text, pulsing, about as tall as a short excerpt. */
+.loading::before {
+    content: '';
+    display: block;
+    height: 64px;
+    margin-top: 8px;
+    background:
+        linear-gradient(var(--line) 0 0) 0 0 / 92% 12px no-repeat,
+        linear-gradient(var(--line) 0 0) 0 26px / 78% 12px no-repeat,
+        linear-gradient(var(--line) 0 0) 0 52px / 55% 12px no-repeat;
+    animation: pulse 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+    to {
+        opacity: 0.4;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .loading::before {
+        animation: none;
+    }
+}
+
+/* A section that couldn't be had: the result keeps its heading alone. */
+.detailed .missing {
+    display: none;
+}
+
+.keys {
+    display: flex;
+    flex: none;
+    flex-wrap: wrap;
+    gap: 6px 20px;
+    padding-top: 14px;
+    font-size: 13px;
+    color: var(--text-subtle);
+}
+
+.keys span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.keys kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 26px;
+    height: 24px;
+    padding: 0 6px;
+    border: 1px solid var(--line-strong);
+    border-radius: 4px;
+    font: 12px var(--font-mono);
+    color: var(--text-muted);
+}
+
+/* Phones have no arrow keys to explain. */
+@media (max-width: 640px) {
+    .dialog {
+        margin-top: 16px;
+        max-height: calc(100vh - 32px);
+        padding: 12px;
+    }
+
+    .keys {
+        display: none;
+    }
+}

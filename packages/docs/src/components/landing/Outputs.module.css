@@ -1,0 +1,62 @@
+/* The cast's files, listed beside a sample of them. */
+.files {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 24px;
+    align-items: start;
+}
+
+/* The code sample from index.md's `outputs` slot. */
+.snippet {
+    font-family: var(--font-sans);
+}
+
+/* The sample sits inside a column: drop the code block's own outer margin. */
+.files .snippet > * {
+    margin: 0;
+}
+
+.file {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid var(--line);
+}
+
+.file .ext {
+    flex: none;
+    width: 92px;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--acc);
+}
+
+.file .what {
+    flex: 1;
+    font-size: 15px;
+    color: var(--text-muted);
+}
+
+/* Mono like the labels, at the description's size. */
+.file .chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    font-family: var(--font-mono);
+    letter-spacing: 0.03em;
+}
+
+.file .chip {
+    padding: 1px 8px;
+    border-radius: 2px;
+    border: 1px solid var(--acc);
+    color: var(--text);
+}
+
+@media (max-width: 720px) {
+    .files {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}

@@ -1,0 +1,106 @@
+/* One numbered section of the sheet: a sticky rail beside the content, and the section's heading. */
+.section {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr);
+    padding: 0 var(--gutter);
+}
+
+.ruled {
+    border-top: 1px solid var(--line);
+}
+
+.rail {
+    position: sticky;
+    top: var(--rail-top);
+    align-self: start;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 28px 0;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--text-subtle);
+}
+
+.rail .no {
+    font-size: 13px;
+}
+
+.rail .num {
+    font-family: var(--font-display);
+    font-size: 40px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--acc);
+}
+
+.rail .name {
+    margin-top: 6px;
+    font-size: 15px;
+    color: var(--text-muted);
+}
+
+.rail .deg {
+    margin-top: 10px;
+    color: var(--acc);
+}
+
+.title {
+    margin: 0;
+    font-size: 34px;
+    font-weight: 600;
+    line-height: 1.15;
+}
+
+.lede {
+    margin: 6px 0 28px;
+    color: var(--text-muted);
+}
+
+.illustration {
+    width: 64px;
+    height: 64px;
+}
+
+.heading {
+    display: flex;
+    align-items: flex-start;
+    gap: 18px;
+}
+
+.heading .illustration {
+    flex: none;
+}
+
+@media (max-width: 720px) {
+    .section {
+        grid-template-columns: minmax(0, 1fr);
+        padding: 0 16px;
+    }
+
+    .rail {
+        z-index: 5;
+        top: var(--doc-top);
+        height: var(--rail-height);
+        flex-direction: row;
+        align-items: baseline;
+        gap: 10px;
+        padding: 10px 0;
+        background: var(--surface);
+    }
+
+    .rail .num {
+        font-size: 22px;
+    }
+
+    .rail .name,
+    .rail .deg {
+        margin: 0;
+    }
+
+    .illustration {
+        width: 48px;
+        height: 48px;
+    }
+}

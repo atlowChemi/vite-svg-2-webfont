@@ -1,0 +1,125 @@
+.options {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+}
+
+.options details {
+    border-top: 1px solid var(--line);
+    padding: 10px 0;
+}
+
+.options summary {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    list-style: none;
+}
+
+.options summary::-webkit-details-marker {
+    display: none;
+}
+
+/* The doc pages' caret, pointing right while closed. */
+.options summary::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    margin: 0 2px;
+    border-right: 1.5px solid var(--accent-text);
+    border-bottom: 1.5px solid var(--accent-text);
+    transform: rotate(-45deg);
+    transition: transform 0.2s;
+}
+
+.options details[open] > summary::before {
+    transform: rotate(45deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .options summary::before {
+        transition: none;
+    }
+}
+
+.options details > label,
+.options details > .checks,
+.options details > .template {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.options details > label.toggle,
+.checks label {
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+}
+
+.checks {
+    flex-direction: row !important;
+    flex-wrap: wrap;
+    gap: 8px 16px !important;
+}
+
+.checks label {
+    display: flex;
+}
+
+.colorNames {
+    max-height: 160px;
+    overflow: auto;
+}
+
+.order {
+    margin: 6px 0 0;
+    padding: 0;
+    list-style: none;
+    font-size: 13px;
+}
+
+.order li {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    font-family: var(--font-mono);
+}
+
+.order button {
+    padding: 0 6px;
+}
+
+.order button:disabled {
+    opacity: 0.3;
+}
+
+.template {
+    flex-direction: row !important;
+    justify-content: space-between;
+}
+
+/* The reassign button: outranks the shared `.button`'s font size. */
+.options .reassign {
+    align-self: flex-start;
+    margin-top: 10px;
+    font-size: 13px;
+}
+
+.error {
+    font-size: 12px;
+    text-align: center;
+    color: var(--danger-text);
+}

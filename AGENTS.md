@@ -2,7 +2,7 @@
 
 ## Tooling
 
-- Use `vp` for normal repo workflows: `vp install`, `vp check`, `vp fmt`, `vp run test`, `vp run coverage`, `vp run <package>#<task>`. Do not call `pnpm`, `vite`, `vitest`, `oxlint`, `oxfmt`, or `vitepress` directly unless a checked-in Vite+ task itself does so.
+- Use `vp` for normal repo workflows: `vp install`, `vp check`, `vp fmt`, `vp run test`, `vp run coverage`, `vp run <package>#<task>`. Do not call `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly unless a checked-in Vite+ task itself does so.
 - Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/test`), not from direct `vite` or `vitest` packages.
 - After pulling remote changes, run `vp install` before validation.
 - Unified `vp install` requires Rust first. Use `vp add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `vp update crate:…` does not update them in pnpm 12.6.0.
@@ -17,13 +17,13 @@
 - `vp run @atlowchemi/webfont-generator#test` runs Rust checks/tests via the package task; workspace `vp run test` first depends on the NAPI build, then runs JS/Vitest tests.
 - `vp run coverage` measures JS only. Rust coverage tasks require `cargo-llvm-cov`, `cargo-nextest`, and `llvm-tools-preview`; see CONTRIBUTING.md for engine/CLI/adapter task commands. `@atlowchemi/webfont-generator#test:coverage:native` instruments Node execution; keep its addon override package-scoped. Nextest omits doctests, so retain `@atlowchemi/webfont-engine#test:doctests` separately.
 - `vp run @atlowchemi/webfont-generator#bench --no-run` is the compile-only check for Rust benchmark target changes; run targeted Criterion filters only when measured behavior changes.
-- `vp run @atlowchemi/vite-svg-webfont-docs#build` is the docs build task; it runs the docs `social-card` and `optimize-svg` dependencies.
+- Run the docs only through `vp run @atlowchemi/vite-svg-webfont-docs#dev`, `#build` or `#preview` (which builds first). They first generate the social card and optimized SVGs, and pack `vite-svg-2-webfont` (building the native addon) and `@atlowchemi/webfont-browser-generator` (building the WASM engine). A bare `vp dev` or `vp build` in `packages/docs` skips those, and fails on the missing `virtual:site-icons.css`.
 - `vp run vite-svg-2-webfont#test:fixtures:refresh` regenerates expected font fixtures after changing SVG icons in `packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`.
 
 ## Public API Sync
 
 - Never change any `CHANGELOG.md` file without explicit user permission for that change. This includes creating, editing, deleting, renaming, regenerating, or formatting it, directly or through tools. General implementation, documentation, commit, or release requests do not grant permission.
-- When changing generator public APIs, options, CLI flags, or exported types, update Rust doc comments, the affected tool pages in `packages/docs/` (`node/`, `rust/`, `cli/`, `browser/`; shared concepts in `guide/`; option descriptions every tool shares in `_shared/options/`), and both engine/adapter READMEs together.
+- When changing generator public APIs, options, CLI flags, or exported types, update Rust doc comments, the affected tool pages in `packages/docs/src/pages/` (`node/`, `rust/`, `cli/`, `browser/`; shared concepts in `guide/`; option descriptions every tool shares in `packages/docs/src/includes/options/`), and both engine/adapter READMEs together.
 - Keep templates in `packages/webfont-generator/templates/`; shipped-template parity belongs in adapter tests. Engine tests use engine-owned inputs, never downstream package assets.
 - Docs changelog pages include their source files: npm history from `packages/webfont-generator/CHANGELOG.md`, engine history from `crates/webfont-generator/CHANGELOG.md`. Do not copy release entries into docs.
 

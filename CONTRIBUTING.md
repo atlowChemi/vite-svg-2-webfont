@@ -46,6 +46,7 @@ vp run @atlowchemi/webfont-browser-generator#test:coverage # JS/worker and actua
 vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
 vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
 vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
+vp run @atlowchemi/vite-svg-webfont-docs#preview # build docs, then serve the built site
 vp run @atlowchemi/vite-svg-webfont-example#dev    # run example app
 ```
 
@@ -181,7 +182,7 @@ This monorepo has a root Cargo workspace and the following packages:
 - `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — npm API and unpublished `webfont-generator-napi` adapter crate
 - `packages/webfont-browser/`: browser npm package with precompiled WASM and an unpublished wasm-bindgen adapter crate
 - `packages/example/`: Vite app used for local development and manual verification
-- `packages/docs/`: VitePress documentation site, published to GitHub Pages
+- `packages/docs/`: documentation site, static pages rendered at build time with Vite and React, published to GitHub Pages
 - `tests/`: cross-package compatibility tests and benchmarks (at root level)
 
 Cargo uses the root `Cargo.lock` and `target/`. Templates are tracked solely under
@@ -369,5 +370,5 @@ Run `vp run test` before committing to ensure the native binding is built. The h
 - Keep lockfile changes in `pnpm-lock.yaml` when dependencies change.
 - Do not commit `package-lock.json` files to the workspace.
 - Use `vp` instead of calling `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly for normal repository workflows.
-- The docs site is driven by Vite+ run tasks in `packages/docs/`, so prefer `vp run @atlowchemi/vite-svg-webfont-docs#dev` over direct `vitepress` commands.
-- The type-safe component example imports `virtual:typed-icons`. After a fresh install or plugin repack, run the docs dev server or docs build before standalone example type-checking: Vite initializes package-local declarations during generation. The docs build task packs the plugin before starting VitePress, so generation precedes component compilation. The Vite config's TypeScript program is not a substitute for the example's `vite-env.d.ts` opt-in.
+- Start, build and preview the docs through their `vp run @atlowchemi/vite-svg-webfont-docs#…` tasks, not `vp dev`, `vp build` or `vite` inside `packages/docs/`. The tasks first pack `vite-svg-2-webfont` and `@atlowchemi/webfont-browser-generator`, which build the native and WASM engines, and the site's fonts need both: run directly, the site fails on the missing `virtual:site-icons.css`.
+- The type-safe component example imports `virtual:typed-icons`. After a fresh install or plugin repack, run the docs dev server or docs build before standalone example type-checking: Vite initializes package-local declarations during generation. The docs build task packs the plugin before building the site, so generation precedes component compilation. The Vite config's TypeScript program is not a substitute for the example's `vite-env.d.ts` opt-in.

@@ -1,0 +1,32 @@
+.next {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    margin-top: 16px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+}
+
+.link {
+    display: grid;
+    gap: 2px;
+    color: var(--text);
+    text-decoration: none;
+}
+
+.right {
+    text-align: right;
+}
+
+.cue {
+    font: 12px var(--font-mono);
+    color: var(--text-subtle);
+}
+
+.link strong {
+    font: 600 24px var(--font-display);
+}
+
+.link:hover strong {
+    color: var(--accent-text);
+}

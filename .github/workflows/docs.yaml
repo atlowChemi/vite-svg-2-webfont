@@ -34,19 +34,26 @@ jobs:
               with:
                   path: target/wasm-bindgen-tools
                   key: wasm-bindgen-${{ runner.os }}-${{ hashFiles('packages/webfont-browser/Cargo.toml') }}
-            - name: Cache docs fonts
+            - name: Cache docs fonts, code blocks and diagrams
               uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
               with:
-                  path: packages/docs/.vitepress/cache/vite-svg-2-webfont
-                  # The plugin and engine validate entries; restore the latest cache across commits.
-                  key: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
-                  restore-keys: docs-fonts-v1-${{ runner.os }}-${{ runner.arch }}-
+                  path: |
+                      packages/docs/.cache/vite-svg-2-webfont
+                      packages/docs/.cache/render
+                  # The plugin and engine validate font entries, and render entries are keyed by everything that decides
+                  # them; restore the latest cache across commits.
+                  key: docs-fonts-v2-${{ runner.os }}-${{ runner.arch }}-${{ github.sha }}
+                  restore-keys: docs-fonts-v2-${{ runner.os }}-${{ runner.arch }}-
+            # The build renders Mermaid diagrams in headless Chromium, unless the cache already has them.
+            - name: install Chromium for diagrams
+              working-directory: packages/docs
+              run: vp exec playwright install --with-deps --only-shell chromium
             - name: build docs
               run: vp run @atlowchemi/vite-svg-webfont-docs#build
             - name: upload pages artifact
               uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
               with:
-                  path: packages/docs/.vitepress/dist
+                  path: packages/docs/dist
 
     deploy:
         name: deploy docs

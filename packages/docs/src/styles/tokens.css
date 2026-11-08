@@ -1,0 +1,62 @@
+/*
+ * The site's design tokens. Every stylesheet reads these; nothing else is global but `base.css`.
+ *
+ * The palette is iron (dark) and ash (light) surfaces with molten metal as the accent. Molten (#ff6a13) is too light for
+ * text on ash, so light mode's accent text is a deeper, cooled shade. Every text color keeps 4.5:1 on every surface it
+ * sits on, code blocks and cards included.
+ */
+
+/*
+ * The cascade layers, weakest first: the document defaults (`base.css`), then a doc page's Markdown (`Prose.module.css`).
+ * Every rule outside a layer beats both. Declared here, the first stylesheet `main.ts` loads, so the order doesn't hang
+ * on which file happens to use its layer first.
+ */
+@layer base, prose;
+
+/*
+ * A token that differs between the themes is `light-dark(light, dark)`: the page's `color-scheme` (`base.css`) picks,
+ * so following the system needs no script.
+ */
+:root {
+    --fonte-iron: #1c1a1f;
+    --fonte-ash: #f3ece2;
+    --fonte-molten: #ff6a13;
+    --fonte-ember: #ffb02e;
+    --fonte-mold: light-dark(#5a5258, #b3abba);
+
+    /* The page; code, plates and bars; cards and table heads; dialogs and the pill. */
+    --surface: light-dark(#faf7f2, var(--fonte-iron));
+    --surface-sunken: light-dark(var(--fonte-ash), #161418);
+    --surface-muted: light-dark(#efe7db, #26232a);
+    --surface-raised: light-dark(#fffdf9, #232026);
+
+    --text: light-dark(var(--fonte-iron), var(--fonte-ash));
+    --text-muted: light-dark(#5a5258, #b3abba);
+    --text-subtle: light-dark(#6b6370, #958d9b);
+
+    /* Interactive outlines; rules between parts of the page. */
+    --line-strong: light-dark(#d6cab9, #4a444f);
+    --line: light-dark(#e3d9cb, #3a353f);
+
+    --accent-text: light-dark(#b4410a, #ff8a4c);
+    --accent-text-hover: light-dark(#d0520e, var(--fonte-molten));
+    --accent-tint: light-dark(rgb(255 106 19 / 0.14), rgb(255 106 19 / 0.18));
+    /* A neutral wash: inline code, highlighted lines, the details callout. */
+    --tint: light-dark(rgb(90 82 88 / 0.08), rgb(179 171 186 / 0.1));
+
+    --success-text: light-dark(#18794e, #3dd68c);
+    --success-tint: light-dark(rgb(16 185 129 / 0.14), rgb(16 185 129 / 0.16));
+    --warning-text: light-dark(#915930, #f9b44e);
+    --warning-tint: light-dark(rgb(234 179 8 / 0.14), rgb(234 179 8 / 0.16));
+    --danger-text: light-dark(#b8272c, #f66f81);
+    --danger-tint: light-dark(rgb(244 63 94 / 0.14), rgb(244 63 94 / 0.16));
+
+    /* Molten buttons carry iron text in both themes. */
+    --button-bg: var(--fonte-molten);
+    --button-bg-hover: #ff7f33;
+    --button-text: var(--fonte-iron);
+
+    --font-sans: 'Inter Variable', 'Inter', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', 'Menlo', monospace;
+    --font-display: 'Zilla Slab', Georgia, serif;
+}

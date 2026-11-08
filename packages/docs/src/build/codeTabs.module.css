@@ -1,0 +1,104 @@
+/*
+ * Tabs over panels: a Markdown code group (`markdown.ts`) or an `<ExampleTabs>` block. Each tab is a radio, and the
+ * checked one's panel shows, all in CSS: tabs work without the page script.
+ */
+.group {
+    margin: 16px 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface-sunken);
+}
+
+.tabs {
+    position: relative;
+    display: flex;
+    padding: 0 0.75rem;
+    border-bottom: 1px solid var(--line);
+    overflow: auto hidden;
+}
+
+.tabs input {
+    position: fixed;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.tabs label {
+    position: relative;
+    display: inline-block;
+    padding: 0 0.75rem;
+    border-bottom: 1px solid transparent;
+    line-height: 3.4285714;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+    cursor: pointer;
+    transition:
+        color 0.2s ease,
+        border-color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+.tabs label::after {
+    content: '';
+    position: absolute;
+    right: 0.5rem;
+    bottom: -1px;
+    left: 0.5rem;
+    z-index: 1;
+    height: 2px;
+    border-radius: 2px;
+    background-color: transparent;
+    transition: background-color 0.25s;
+}
+
+.tabs label:hover,
+.tabs input:checked + label {
+    color: var(--accent-text);
+}
+
+.tabs input:checked + label {
+    border-bottom-color: var(--fonte-molten);
+}
+
+.tabs input:checked + label::after {
+    background-color: var(--accent-text);
+}
+
+/* The file's icon, from `virtual:file-icons.css`, which sets `--icon` per label. */
+.tabs label[data-title]::before {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5em;
+    margin-bottom: -0.2em;
+    background: var(--icon) no-repeat center / contain;
+}
+
+/* The group draws the frame; a panel that brings its own (a code block) drops it, whichever stylesheet loads first. */
+.group > .panels > * {
+    margin: 0;
+    border: 0;
+    border-radius: 0;
+}
+
+/*
+ * Every panel but the checked tab's is hidden. CSS can't match a panel to its tab's position in general, so there is a
+ * rule per position, up to 12 tabs: `codeTabs.ts` holds that limit, and the build fails on a group with more.
+ */
+.group:not(:has(> .tabs > input:nth-of-type(1):checked)) > .panels > :nth-child(1),
+.group:not(:has(> .tabs > input:nth-of-type(2):checked)) > .panels > :nth-child(2),
+.group:not(:has(> .tabs > input:nth-of-type(3):checked)) > .panels > :nth-child(3),
+.group:not(:has(> .tabs > input:nth-of-type(4):checked)) > .panels > :nth-child(4),
+.group:not(:has(> .tabs > input:nth-of-type(5):checked)) > .panels > :nth-child(5),
+.group:not(:has(> .tabs > input:nth-of-type(6):checked)) > .panels > :nth-child(6),
+.group:not(:has(> .tabs > input:nth-of-type(7):checked)) > .panels > :nth-child(7),
+.group:not(:has(> .tabs > input:nth-of-type(8):checked)) > .panels > :nth-child(8),
+.group:not(:has(> .tabs > input:nth-of-type(9):checked)) > .panels > :nth-child(9),
+.group:not(:has(> .tabs > input:nth-of-type(10):checked)) > .panels > :nth-child(10),
+.group:not(:has(> .tabs > input:nth-of-type(11):checked)) > .panels > :nth-child(11),
+.group:not(:has(> .tabs > input:nth-of-type(12):checked)) > .panels > :nth-child(12) {
+    display: none;
+}

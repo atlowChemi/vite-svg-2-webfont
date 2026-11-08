@@ -1,5 +1,5 @@
 ---
-description: Builds the VitePress docs site and summarizes failures.
+description: Builds the docs site and summarizes failures.
 mode: subagent
 color: '#fab283'
 permissions:

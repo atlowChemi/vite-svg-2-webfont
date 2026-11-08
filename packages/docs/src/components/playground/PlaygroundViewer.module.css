@@ -1,0 +1,62 @@
+.viewer {
+    border-radius: var(--playground-radius);
+    background: var(--surface-sunken);
+    overflow: hidden;
+}
+
+.tabs,
+.tablist {
+    display: flex;
+    gap: 16px;
+}
+
+/* The code blocks' tab divider: the old code-block gutter color, which has no token of its own yet. */
+.tabs {
+    --tab-divider: light-dark(#e9e0d3, #141216);
+    padding: 0 16px;
+    box-shadow: inset 0 -1px var(--tab-divider);
+}
+
+.tabs [role='tab'] {
+    padding: 10px 0;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.tabs [aria-selected='true'] {
+    border-color: var(--accent-text);
+    color: var(--text);
+}
+
+/* The Copy link, beside the tab list. */
+.tabs .copy {
+    margin-left: auto;
+}
+
+/* File-type icons from `virtual:file-icons.css`, which sets `--icon` per `data-title`. */
+.tabs [data-title]::before {
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    margin-right: 0.5em;
+    margin-bottom: -0.2em;
+    background: var(--icon) no-repeat center / contain;
+}
+
+/* Outranks the shared `.code` padding; Shiki's `pre` brings its own. */
+.viewer .codeHighlighted {
+    padding: 0;
+}
+
+.codeHighlighted pre {
+    margin: 0;
+    font: inherit;
+    padding: 16px;
+    background: transparent !important;
+}
+
+.codeHighlighted span {
+    color: light-dark(var(--shiki-light), var(--shiki-dark));
+}

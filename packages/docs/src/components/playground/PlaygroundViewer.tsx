@@ -1,0 +1,80 @@
+import { useEffect, useMemo, useState, type FC } from 'react';
+import { cx } from '../cx.ts';
+import styles from './PlaygroundViewer.module.css';
+import controls from './controls.module.css';
+import { highlight, loadLanguage } from './highlight.ts';
+import { useClipboard } from './useClipboard.ts';
+import type { WebfontBuild } from './webfontBuilder.ts';
+
+interface Props {
+    build: WebfontBuild;
+}
+
+type ViewerTab = 'css' | 'html' | 'svg' | 'ts';
+
+/** Highlighting very large output (an SVG font with many icons) would stall the page; it then stays plain text. */
+const HIGHLIGHT_LIMIT = 200_000;
+
+/** The generated CSS, HTML, SVG font and TypeScript, in tabs, highlighted like the site's code blocks. */
+export const PlaygroundViewer: FC<Props> = ({ build }) => {
+    const [viewer, setViewer] = useState<ViewerTab>('css');
+    const { copied, copy } = useClipboard();
+
+    /** The SVG font is the one text-based font format, so it can be shown alongside CSS, HTML and TypeScript. */
+    const svgFont = useMemo(() => (build.outputs.svg ? new TextDecoder().decode(build.outputs.svg) : undefined), [build.outputs.svg]);
+    // The SVG font tab goes away with the format; fall back to CSS, and stay there if it comes back.
+    if (!svgFont && viewer === 'svg') setViewer('css');
+    const tab = !svgFont && viewer === 'svg' ? 'css' : viewer;
+    const viewerText = { css: build.css, html: build.html, ts: build.ts, svg: svgFont }[tab] ?? '';
+
+    const [highlighted, setHighlighted] = useState<{ text: string; html: string }>();
+    // Highlight the visible output once Shiki loads; plain text shows until then, and stale results are dropped.
+    useEffect(() => {
+        if (!viewerText || viewerText.length > HIGHLIGHT_LIMIT) return undefined;
+        let current = true;
+        highlight(viewerText, tab === 'svg' ? 'xml' : tab).then(
+            html => current && setHighlighted({ text: viewerText, html }),
+            // Highlighting is cosmetic; the plain text stays visible.
+            () => {},
+        );
+        return () => {
+            current = false;
+        };
+    }, [viewerText, tab]);
+
+    // Hovering or focusing a tab fetches its grammar, so choosing it shows highlighted code without waiting.
+    const prefetch = (name: ViewerTab) => () => void loadLanguage(name === 'svg' ? 'xml' : name).catch(() => {});
+    const tabProps = (name: ViewerTab) => ({
+        type: 'button' as const,
+        role: 'tab',
+        'data-title': `output.${name}`,
+        'aria-selected': tab === name,
+        onClick: () => setViewer(name),
+        onPointerEnter: prefetch(name),
+        onFocus: prefetch(name),
+    });
+
+    return (
+        <div className={styles.viewer}>
+            <div className={styles.tabs}>
+                {/* A tab list holds only tabs; Copy sits beside it. */}
+                <div className={styles.tablist} role="tablist" aria-label="Generated code">
+                    <button {...tabProps('css')}>CSS</button>
+                    <button {...tabProps('html')}>HTML</button>
+                    {svgFont && <button {...tabProps('svg')}>SVG font</button>}
+                    <button {...tabProps('ts')}>TypeScript</button>
+                </div>
+                <button type="button" className={cx(controls.link, styles.copy)} onClick={() => void copy('source', viewerText)}>
+                    {copied === 'source' ? 'Copied!' : 'Copy'}
+                </button>
+            </div>
+            {highlighted?.text === viewerText ? (
+                <div className={cx(controls.code, styles.codeHighlighted)} dangerouslySetInnerHTML={{ __html: highlighted.html }} />
+            ) : (
+                <pre className={controls.code}>
+                    <code>{viewerText}</code>
+                </pre>
+            )}
+        </div>
+    );
+};

@@ -1,0 +1,60 @@
+.toast {
+    /* A popover: in the top layer, so no z-index; its default centering, inset and overflow give way. */
+    position: fixed;
+    inset: auto 24px 24px auto;
+    margin: 0;
+    overflow: visible;
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    max-width: min(420px, calc(100vw - 48px));
+    padding: 12px 16px;
+    border: 1px solid var(--warning-text);
+    border-radius: var(--playground-radius);
+    background: var(--surface-raised);
+    box-shadow:
+        0 12px 32px rgb(0 0 0 / 0.1),
+        0 2px 6px rgb(0 0 0 / 0.08);
+    color: var(--text);
+    font-size: 14px;
+}
+
+.toast button {
+    color: var(--text-muted);
+    font-size: 18px;
+    line-height: 1;
+}
+
+/* Fades in when shown, and out when hidden: `display` and the top layer wait for the fade to end. */
+.toast {
+    transition:
+        opacity 0.2s,
+        transform 0.2s,
+        display 0.2s allow-discrete,
+        overlay 0.2s allow-discrete;
+}
+
+.toast:not(:popover-open) {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+@starting-style {
+    .toast:popover-open {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .toast,
+    .toast:not(:popover-open) {
+        transform: none;
+    }
+
+    @starting-style {
+        .toast:popover-open {
+            transform: none;
+        }
+    }
+}
