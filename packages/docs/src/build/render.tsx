@@ -179,11 +179,13 @@ const hash = (script: string) => `'sha256-${createHash('sha256').update(script).
  * The pages' Content-Security-Policy: everything comes from this origin. The two inline scripts above are allowed by
  * hash, so the policy follows them when they change. The Playground's worker compiles the generator's WASM; the
  * rendered pages carry `style` attributes and diagrams carry `<style>` elements; the file icons are `data:` SVGs, and
- * Vite inlines small fonts, the example fonts among them, as `data:` URLs.
+ * Vite inlines small fonts, the example fonts among them, as `data:` URLs. Cloudflare adds its Web Analytics beacon to
+ * the deployed pages, which loads from `static.cloudflareinsights.com` and reports to `cloudflareinsights.com`.
  */
 export const contentSecurityPolicy = [
     "default-src 'self'",
-    `script-src 'self' ${hash(themeScript)} ${hash(speculation)} 'wasm-unsafe-eval'`,
+    `script-src 'self' ${hash(themeScript)} ${hash(speculation)} 'wasm-unsafe-eval' https://static.cloudflareinsights.com`,
+    "connect-src 'self' https://cloudflareinsights.com",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data:",
     "font-src 'self' data:",
