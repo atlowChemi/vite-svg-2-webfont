@@ -170,7 +170,7 @@ jobs:
 
             - name: Upload to native release
               if: needs.release-please.outputs.native-released == 'true'
-              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+              uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
               with:
                   tag_name: ${{ needs.release-please.outputs.native-tag }}
                   files: packages/webfont-generator/**/*.node
@@ -223,7 +223,7 @@ jobs:
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
 
             - name: Upload release assets
-              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+              uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
               with:
                   tag_name: ${{ needs.release-please.outputs.plugin-tag }}
                   files: packages/vite-svg-2-webfont/*.tgz
@@ -252,7 +252,7 @@ jobs:
                   echo 'Approve with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
                   vp run @atlowchemi/webfont-browser-generator#publish | tee -a "$GITHUB_STEP_SUMMARY"
             - name: Upload release assets
-              uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
+              uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
               with:
                   tag_name: ${{ needs.release-please.outputs.browser-tag }}
                   files: packages/webfont-browser/*.tgz
