@@ -1,2 +1,5 @@
 #!/bin/sh
-pnpm exec lint-staged && pnpm exec vitest run
+pnpm exec lint-staged || exit $?
+# Tests create independent Git repositories; do not pass this hook's repository context to them.
+unset $(git rev-parse --local-env-vars)
+pnpm exec vitest run
