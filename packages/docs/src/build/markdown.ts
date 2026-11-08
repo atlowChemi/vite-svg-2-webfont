@@ -161,7 +161,7 @@ function createMarkdown() {
             const custom = customId(inline);
             const text = inlineText(inline);
             const base = custom ?? slug(text);
-            const n = env.slugs.getOrInsert(base, 0);
+            const n = env.slugs.get(base) ?? 0;
             env.slugs.set(base, n + 1);
             const id = n && !custom ? `${base}-${n}` : base;
             open.attrSet('id', id);

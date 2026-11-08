@@ -26,9 +26,15 @@ const docsUrl = (process.env.DOCS_URL || 'https://fonte.atlow.dev').replace(/\/?
 
 async function loadAll(render: Renderer): Promise<Page[]> {
     // Held across the batch, so the pages' diagrams share one Chromium instead of each page launching and closing its own.
-    await using _diagrams = render.diagramBrowser.use();
-    // Pages render at the same time: each keeps its own state in markdown-it's `env`, and the order follows `routes`.
-    return await Promise.all(render.routes.map(async route => (await render.loadPage(route))!));
+    // Released by hand rather than with `await using`: `vp` loads this config to find tasks on every Node.js the repo
+    // supports, and Node.js 22 can't parse that syntax.
+    const diagrams = render.diagramBrowser.use();
+    try {
+        // Pages render at the same time: each keeps its own state in markdown-it's `env`, and the order follows `routes`.
+        return await Promise.all(render.routes.map(async route => (await render.loadPage(route))!));
+    } finally {
+        await diagrams[Symbol.asyncDispose]();
+    }
 }
 
 type Manifest = Record<string, { file: string; css?: string[]; imports?: string[] }>;
