@@ -22,7 +22,7 @@ import { loadLanguages } from './highlight.ts';
 import { pagesRoot, renderMarkdown, type BlockRenderer, type Frontmatter, type Heading } from './markdown.ts';
 export { deadLinks } from './links.ts';
 export { diagramBrowser } from './diagramBrowser.ts';
-import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, parseRendered, searchIndex, searchSections } from './outputs.ts';
+import { llmsFullTxt, llmsTxt, markdownFiles, mdPath, parseRendered, searchIndex, searchSections, type MarkdownBlocks } from './outputs.ts';
 import { specimens } from './specimens.ts';
 import type { SearchDoc } from '../client/searchOptions.ts';
 
@@ -60,7 +60,12 @@ const cssHighlighter = await loadLanguages(['css']);
 
 // Components the Markdown can use, rendered to static HTML at build time, and the browser entry each one needs.
 type BlockName = 'ExampleTabs' | 'ExampleIcons' | 'ExampleCss' | 'ExampleOutput' | 'SvgAuthoringCompare' | 'CacheFileLayout' | 'FonteLanding' | 'Playground';
-type BlockComponent = { entry?: ClientEntry; render: (this: void, props: Record<string, unknown>, slots: Record<string, string>) => ReactNode };
+type BlockComponent = {
+    entry?: ClientEntry;
+    /** Only shows something, such as a live font preview: the Markdown copies leave it out, slots and all. */
+    visual?: true;
+    render: (this: void, props: Record<string, unknown>, slots: Record<string, string>) => ReactNode;
+};
 const blocks: Record<BlockName, BlockComponent> = {
     ExampleTabs: { entry: 'examples', render: (p, slots) => <ExampleTabs tabs={p.tabs as Record<string, string>} slots={slots} /> },
     ExampleIcons: { entry: 'examples', render: p => <ExampleIcons example={p.example as string} /> },
@@ -68,7 +73,7 @@ const blocks: Record<BlockName, BlockComponent> = {
         entry: 'examples',
         render: p => <ExampleCss css={generatedCss[p.example as string] ?? ''} highlight={p.highlight as string[] | undefined} shiki={cssHighlighter} />,
     },
-    ExampleOutput: { entry: 'examples', render: (p, slots) => <ExampleOutput {...(p as { example: string })} slots={slots} /> },
+    ExampleOutput: { entry: 'examples', visual: true, render: (p, slots) => <ExampleOutput {...(p as { example: string })} slots={slots} /> },
     SvgAuthoringCompare: {
         entry: 'svg-authoring',
         render: p => (
@@ -85,6 +90,7 @@ const blocks: Record<BlockName, BlockComponent> = {
     Playground: { entry: 'playground', render: (_, slots) => <PlaygroundPage intro={slots.default ?? ''} /> },
 };
 const blockNames = new Set(Object.keys(blocks) as BlockName[]);
+const markdownBlocks: MarkdownBlocks = { names: blockNames, visual: new Set(blockNames.values().filter(name => blocks[name].visual)) };
 
 /** Every page by route, from `src/pages`: `guide/index.md` is `/guide/`, `guide/engine.md` is `/guide/engine`. */
 function discover(): Record<string, string> {
@@ -143,9 +149,9 @@ export async function loadPage(route: string): Promise<Page | undefined> {
 /** The stylesheets and scripts of each entry: hashed build output, or Vite's dev URLs. */
 export type Assets = Record<ClientEntry, { css: string[]; js: string[] }>;
 
-// Applied before the first paint, so a stored or system dark preference never flashes light. VitePress's key, so a
-// reader's choice carries over.
-const themeScript = `try{const p=localStorage.getItem('vitepress-theme-appearance')||'auto';document.documentElement.classList.toggle('dark',p==='dark'||(p==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches))}catch{}`;
+// Applied before the first paint, so a stored theme never flashes the other; with none, CSS follows the system.
+// VitePress's key, so a reader's choice carries over.
+const themeScript = `try{const p=localStorage.getItem('vitepress-theme-appearance');if(p==='light'||p==='dark')document.documentElement.classList.add(p)}catch{}`;
 // Chromium prerenders a page once the pointer rests on its link; the page script prefetches in other browsers. The
 // Playground is only prefetched: prerendering runs its script, which loads and compiles the generator's WASM.
 const speculation = JSON.stringify({
@@ -251,8 +257,8 @@ export function siteFiles(all: Page[]): Map<string, string> {
     return new Map([
         ['search-index.json', searchIndex(searchable)],
         ['llms.txt', llmsTxt(sources)],
-        ['llms-full.txt', llmsFullTxt(sources, blockNames)],
-        ...markdownFiles(sources, blockNames),
+        ['llms-full.txt', llmsFullTxt(sources, markdownBlocks)],
+        ...markdownFiles(sources, markdownBlocks),
     ]);
 }
 

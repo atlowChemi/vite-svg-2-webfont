@@ -1,8 +1,9 @@
 .toast {
+    /* A popover: in the top layer, so no z-index; its default centering, inset and overflow give way. */
     position: fixed;
-    right: 24px;
-    bottom: 24px;
-    z-index: 100;
+    inset: auto 24px 24px auto;
+    margin: 0;
+    overflow: visible;
     display: flex;
     align-items: flex-start;
     gap: 12px;
@@ -24,26 +25,36 @@
     line-height: 1;
 }
 
-/* Fades in, and out while `leaving` keeps the last message shown. */
+/* Fades in when shown, and out when hidden: `display` and the top layer wait for the fade to end. */
 .toast {
-    animation: toastIn 0.2s;
+    transition:
+        opacity 0.2s,
+        transform 0.2s,
+        display 0.2s allow-discrete,
+        overlay 0.2s allow-discrete;
 }
 
-.leaving {
-    animation: toastIn 0.2s reverse forwards;
+.toast:not(:popover-open) {
+    opacity: 0;
+    transform: translateY(8px);
 }
 
-@keyframes toastIn {
-    from {
+@starting-style {
+    .toast:popover-open {
         opacity: 0;
         transform: translateY(8px);
     }
 }
 
 @media (prefers-reduced-motion: reduce) {
-    @keyframes toastIn {
-        from {
-            opacity: 0;
+    .toast,
+    .toast:not(:popover-open) {
+        transform: none;
+    }
+
+    @starting-style {
+        .toast:popover-open {
+            transform: none;
         }
     }
 }

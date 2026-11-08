@@ -6,6 +6,7 @@ import type { Highlighter } from 'shiki';
 import { parse as parseYaml } from 'yaml';
 import { extractBlocks, type Block } from './blocks.ts';
 import tabStyles from './codeTabs.module.css';
+import { checkTabCount } from './codeTabs.ts';
 import { escape, fenceMeta, highlight, loadLanguages, titled } from './highlight.ts';
 import { expandIncludes, frontmatterMatcher } from './includes.ts';
 import styles from './markdown.module.css';
@@ -105,9 +106,10 @@ function createMarkdown() {
             if (t.type === 'fence' && depth === 0) fences.push(t);
         }
         // Numbered per page, so a page's ids don't depend on which pages rendered before it.
+        checkTabCount(fences.length, 'A code group');
         const group = `group-${++(env as Env).codeGroups}`;
         const tabs = fences.map((f, n) => {
-            f.meta = { group: true, hidden: n > 0 };
+            f.meta = { group: true };
             const label = escape(fenceMeta(f.info).title ?? f.info.trim().split(/\s/, 1)[0] ?? '');
             return `<input type="radio" name="${group}" id="${group}-${n}"${n ? '' : ' checked'}><label for="${group}-${n}" data-title="${label}">${label}</label>`;
         });
@@ -137,8 +139,8 @@ function createMarkdown() {
             return marker(key);
         }
         const { lines, title } = fenceMeta(meta);
-        const group = token.meta as { group?: boolean; hidden?: boolean } | null;
-        const html = highlight(shiki, token.content.replace(/\n$/, ''), lang, { lines, hidden: group?.hidden });
+        const group = token.meta as { group?: boolean } | null;
+        const html = highlight(shiki, token.content.replace(/\n$/, ''), lang, { lines });
         return title && !group?.group ? titled(html, escape(title)) : html;
     };
 

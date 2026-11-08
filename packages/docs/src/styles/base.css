@@ -20,6 +20,11 @@
         tab-size: 4;
         font-family: var(--font-sans);
         -webkit-tap-highlight-color: transparent;
+        /* The system's theme, unless the reader picked one: the theme button sets `light` or `dark` on the root. */
+        color-scheme: light dark;
+    }
+
+    html.light {
         color-scheme: light;
     }
 

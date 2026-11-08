@@ -38,6 +38,26 @@
     outline: none;
 }
 
+/* The theme button names the theme it switches to: away from the reader's pick, or else from the system's. */
+.whenDark,
+:global(html.dark) .whenLight {
+    display: none;
+}
+
+:global(html.dark) .whenDark {
+    display: inline;
+}
+
+@media (prefers-color-scheme: dark) {
+    :global(html:not(.light)) .whenLight {
+        display: none;
+    }
+
+    :global(html:not(.light)) .whenDark {
+        display: inline;
+    }
+}
+
 .plate {
     font: 10px var(--font-mono);
     letter-spacing: 0.06em;

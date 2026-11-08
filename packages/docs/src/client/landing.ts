@@ -1,30 +1,19 @@
 // The landing page. Its markup is the first frame; this pours the tray into the T as the reader scrolls through the hero,
-// docks the wordmark into the top bar, cools the page toward the footer, and switches the tool drawers.
+// docks the wordmark into the top bar, and cools the page toward the footer. (The tool drawers switch in CSS.)
 // It brings every landing component's module, and the class names it queries and toggles.
 import landingStyles from '../components/landing/Landing.module.css';
 import sectionStyles from '../components/landing/Section.module.css';
 import heroStyles from '../components/landing/Hero.module.css';
 import flyerStyles from '../components/landing/Flyer.module.css';
-import drawerStyles from '../components/landing/Drawers.module.css';
+import '../components/landing/Drawers.module.css';
 import '../components/landing/Features.module.css';
 import '../components/landing/Outputs.module.css';
 import '../components/landing/Footer.module.css';
 import '../components/landing/Colophon.module.css';
 import { EMPTY, FULL, degrees, wave } from '../components/landing/pour.ts';
+import { isDark, systemDark } from './theme.ts';
 
 const html = document.documentElement;
-
-// Drawers: every snippet and guide link is in the markup; the pressed drawer shows its own.
-const drawerButtons = [...document.querySelectorAll<HTMLButtonElement>(`.${drawerStyles.drawer}[data-drawer]`)];
-for (const button of drawerButtons) {
-    button.addEventListener('click', () => {
-        const key = button.dataset.drawer!;
-        for (const other of drawerButtons) other.setAttribute('aria-pressed', String(other === button));
-        for (const el of document.querySelectorAll<HTMLElement>('[data-drawer-panel], [data-drawer-link]')) {
-            el.hidden = (el.dataset.drawerPanel ?? el.dataset.drawerLink) !== key;
-        }
-    });
-}
 
 type Rgb = [number, number, number];
 // Accent temperatures, hot to cold. Light mode uses darker stops so the accent keeps 4.5:1 on ash, the footer's background;
@@ -94,7 +83,7 @@ function measure() {
 function update() {
     if (!dock || !flyer || !stage) return;
     const progress = reduce ? 1 : clamp((scrollY - dock.y0) / (dock.y1 - dock.y0));
-    const colors = heat[html.classList.contains('dark') ? 'dark' : 'light'];
+    const colors = heat[isDark() ? 'dark' : 'light'];
 
     // Each icon falls into the mouth of the T, heating up on the way, and raises the metal when it lands.
     const stageBox = stage.getBoundingClientRect();
@@ -164,8 +153,9 @@ if (root) {
     addEventListener('scroll', update, { passive: true });
     addEventListener('resize', relayout);
     void document.fonts.ready.then(relayout);
-    // The theme toggle flips `dark` on <html>; the accent's stops follow it.
+    // The accent's stops follow the theme: the toggle's class on <html>, or the system's when the reader picked none.
     new MutationObserver(update).observe(html, { attributes: true, attributeFilter: ['class'] });
+    systemDark.addEventListener('change', update);
     relayout();
     if (reduce) level = target;
     frame();

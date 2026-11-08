@@ -14,7 +14,7 @@ export const TopBar: FC<{ nav: PageNav }> = ({ nav }) => {
             <a className={styles.wordmark} href="/" aria-label="fonte home" data-top-wordmark="">
                 <Wordmark />
             </a>
-            <button className={styles.toolButton} type="button" aria-haspopup="dialog" aria-expanded="false" data-sheet="tools-sheet">
+            <button className={styles.toolButton} type="button" aria-haspopup="dialog" commandfor="tools-sheet" command="show-modal" data-sheet="tools-sheet">
                 <span className={styles.plate}>{nav.tool?.plate ?? 'Start here'}</span>
                 <strong>{nav.tool?.name ?? 'Guide'}</strong>
                 {pageCount > 0 && <span className={styles.cue}>{pageCount} pages</span>}

@@ -21,12 +21,15 @@ const uses = files(src)
     .filter(file => /\.tsx?$/.test(file) && !file.endsWith('.test.ts'))
     .flatMap(file => {
         const code = readFileSync(file, 'utf8');
-        return [...code.matchAll(/^import (\w+) from '(\.[^']+\.module\.css)';$/gm)].flatMap(([, name, path]) => {
-            const module = resolve(dirname(file), path!);
-            const body = code.replaceAll(/^import .*$/gm, '');
-            const used = [...new Set([...body.matchAll(new RegExp(`\\b${name}\\.(\\w+)`, 'g'))].map(m => m[1]!))];
-            return [{ file: relative(src, file), module: relative(src, module), classes: classesOf(readFileSync(module, 'utf8')), used }];
-        });
+        return code
+            .matchAll(/^import (\w+) from '(\.[^']+\.module\.css)';$/gm)
+            .flatMap(([, name, path]) => {
+                const module = resolve(dirname(file), path!);
+                const body = code.replaceAll(/^import .*$/gm, '');
+                const used = new Set(body.matchAll(new RegExp(`\\b${name}\\.(\\w+)`, 'g')).map(m => m[1]!));
+                return [{ file: relative(src, file), module: relative(src, module), classes: classesOf(readFileSync(module, 'utf8')), used }];
+            })
+            .toArray();
     });
 
 it('finds the modules the code imports', () => {
@@ -34,5 +37,10 @@ it('finds the modules the code imports', () => {
 });
 
 it.each(uses.map(use => [`${use.file} → ${use.module}`, use] as const))('%s reads only classes the module defines', (_, { classes, used }) => {
-    expect(used.filter(name => !classes.has(name))).toEqual([]);
+    expect(
+        used
+            .values()
+            .filter(name => !classes.has(name))
+            .toArray(),
+    ).toEqual([]);
 });

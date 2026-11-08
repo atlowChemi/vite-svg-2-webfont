@@ -85,8 +85,9 @@ export function llmsTxt(pages: Page[]): string {
     return `# ${site.name}\n\n> ${site.description}\n\n## Table of Contents\n\n${toc}\n`;
 }
 
+// The URL is the page's Markdown copy, which llms.txt links too.
 const frontmatter = (page: Page) =>
-    `---\ntitle: ${JSON.stringify(page.title)}\n${page.description ? `description: ${JSON.stringify(page.description)}\n` : ''}url: ${page.route}\n---\n\n`;
+    `---\ntitle: ${JSON.stringify(page.title)}\n${page.description ? `description: ${JSON.stringify(page.description)}\n` : ''}url: ${mdPath(page.route)}\n---\n\n`;
 
 /** Removes HTML tags and comments, repeating until none are left, so removing one can't join the pieces of another. */
 function stripTags(text: string): string {
@@ -99,17 +100,26 @@ function stripTags(text: string): string {
     return out;
 }
 
+/** The page's components, and those of them that only show something, such as a live font preview. */
+export interface MarkdownBlocks {
+    names: ReadonlySet<string>;
+    /** Dropped from the Markdown, slots and all: their content is HTML for the eye, which would read as noise. */
+    visual: ReadonlySet<string>;
+}
+
 /**
  * A page's Markdown for readers that aren't browsers: components give way to the Markdown in their slots (an example's
- * config, for one), and HTML tags outside code are dropped, keeping their text.
+ * config, for one), visual-only components go, and HTML tags outside code are dropped, keeping their text.
  */
-export function plainMarkdown<T extends string>(source: string, components: Set<T>): string {
-    const { source: text, blocks } = extractBlocks(source, components, i => `<!--fonte-block:${i}-->`);
+export function plainMarkdown(source: string, components: MarkdownBlocks): string {
+    const { source: text, blocks } = extractBlocks(source, new Set(components.names), i => `<!--fonte-block:${i}-->`);
     let out = text;
     blocks.forEach((block, i) => {
-        const slots = Object.values(block.slots)
-            .map(slot => plainMarkdown(slot, components).trim())
-            .filter(Boolean);
+        const slots = components.visual.has(block.name)
+            ? []
+            : Object.values(block.slots)
+                  .map(slot => plainMarkdown(slot, components).trim())
+                  .filter(Boolean);
         out = out.replace(`<!--fonte-block:${i}-->`, () => slots.join('\n\n'));
     });
     let fence: string | undefined;
@@ -138,15 +148,17 @@ export function plainMarkdown<T extends string>(source: string, components: Set<
         .trim();
 }
 
-export function pageMarkdown(page: Page, components: Set<string>): string {
+export function pageMarkdown(page: Page, components: MarkdownBlocks): string {
     return `${frontmatter(page)}${plainMarkdown(page.source, components)}\n`;
 }
 
-export const llmsFullTxt = (pages: Page[], components: Set<string>) =>
+// A `---` line closes each page before the next one's frontmatter, so a reader splitting the file finds every boundary
+// even where a page ends in a rule of its own, as the VitePress build's file did.
+export const llmsFullTxt = (pages: Page[], components: MarkdownBlocks) =>
     ordered(pages)
         .flatMap(g => g.pages)
         .map(page => pageMarkdown(page, components))
-        .join('\n');
+        .join('\n---\n\n');
 
 /** Each page's Markdown, next to its HTML, for llms.txt links. */
-export const markdownFiles = (pages: Page[], components: Set<string>) => new Map(pages.map(p => [mdPath(p.route).slice(1), pageMarkdown(p, components)]));
+export const markdownFiles = (pages: Page[], components: MarkdownBlocks) => new Map(pages.map(p => [mdPath(p.route).slice(1), pageMarkdown(p, components)]));

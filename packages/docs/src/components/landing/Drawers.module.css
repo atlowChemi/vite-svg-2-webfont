@@ -1,4 +1,4 @@
-/* The tool drawers: a type case of buttons, the open drawer's snippet, and its guide link. */
+/* The tool drawers: a type case of radios, the open drawer's snippet, and its guide link. */
 .drawers {
     display: grid;
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6,6 +6,7 @@
 }
 
 .drawer {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 4px;
@@ -19,9 +20,21 @@
     cursor: pointer;
 }
 
-.drawer[aria-pressed='true'] {
+/* The radio itself is the whole drawer: hidden, but still focused, checked and moved with the arrow keys. */
+.radio {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.drawer:has(:checked) {
     border-color: var(--acc);
     background: var(--surface-sunken);
+}
+
+.drawer:has(:focus-visible) {
+    outline: 2px solid var(--acc);
+    outline-offset: 2px;
 }
 
 .drawer .top {
@@ -37,7 +50,7 @@
     transition: color 0.3s;
 }
 
-.drawer[aria-pressed='true'] .mark {
+.drawer:has(:checked) .mark {
     color: var(--acc);
 }
 
@@ -81,8 +94,14 @@
     text-decoration: none;
 }
 
-/* Only the open drawer's link shows; `display` above would otherwise override `hidden`. */
-.more[hidden] {
+/*
+ * Only the checked drawer's snippet and link show. CSS can't match a panel to its drawer's position in general, so there
+ * is a rule per position, up to `maxDrawers` in `Drawers.tsx`.
+ */
+.chooser:not(:has(.drawer:nth-child(1) :checked)) :is(.panel, .more):nth-child(1),
+.chooser:not(:has(.drawer:nth-child(2) :checked)) :is(.panel, .more):nth-child(2),
+.chooser:not(:has(.drawer:nth-child(3) :checked)) :is(.panel, .more):nth-child(3),
+.chooser:not(:has(.drawer:nth-child(4) :checked)) :is(.panel, .more):nth-child(4) {
     display: none;
 }
 

@@ -12,13 +12,9 @@
 
 /* The code blocks' tab divider: the old code-block gutter color, which has no token of its own yet. */
 .tabs {
-    --tab-divider: #e9e0d3;
+    --tab-divider: light-dark(#e9e0d3, #141216);
     padding: 0 16px;
     box-shadow: inset 0 -1px var(--tab-divider);
-}
-
-:global(.dark) .tabs {
-    --tab-divider: #141216;
 }
 
 .tabs [role='tab'] {
@@ -62,9 +58,5 @@
 }
 
 .codeHighlighted span {
-    color: var(--shiki-light);
-}
-
-:global(.dark) .codeHighlighted span {
-    color: var(--shiki-dark);
+    color: light-dark(var(--shiki-light), var(--shiki-dark));
 }

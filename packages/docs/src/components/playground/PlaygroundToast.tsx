@@ -1,5 +1,4 @@
-import { useState, type FC } from 'react';
-import { cx } from '../cx.ts';
+import { useEffect, useRef, useState, type FC } from 'react';
 import styles from './PlaygroundToast.module.css';
 
 interface Props {
@@ -7,14 +6,19 @@ interface Props {
     onDismiss: () => void;
 }
 
-/** A notice in the corner, with a dismiss button; it fades in, and keeps its last message while it fades out. */
+/**
+ * A notice in the corner, with a dismiss button: a manual popover, so it sits in the top layer and CSS fades it in and
+ * out. It keeps its last message while it fades out.
+ */
 export const PlaygroundToast: FC<Props> = ({ message, onDismiss }) => {
     const [shown, setShown] = useState(message);
     if (message && message !== shown) setShown(message);
-    if (!shown) return null;
-    const leaving = !message;
+    const toast = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        toast.current!.togglePopover(!!message);
+    }, [message]);
     return (
-        <div className={cx(styles.toast, leaving && styles.leaving)} role="alert" onAnimationEnd={() => leaving && setShown(undefined)}>
+        <div ref={toast} className={styles.toast} popover="manual" role="alert">
             <span>{shown}</span>
             <button type="button" aria-label="Dismiss" onClick={onDismiss}>
                 ×

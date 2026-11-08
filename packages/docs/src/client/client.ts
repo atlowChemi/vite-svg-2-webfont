@@ -1,49 +1,26 @@
 // Everything the shell does in the browser. Pages arrive fully rendered; this only follows the reader and answers clicks.
 // It finds the shell's parts by their `data-*` attributes, and toggles the state classes their CSS modules define.
-import tabs from '../build/codeTabs.module.css';
 import code from '../build/highlight.module.css';
 import rail from '../components/shell/Rail.module.css';
 import sheets from '../components/shell/Sheets.module.css';
+import { isDark, systemDark } from './theme.ts';
 
 const root = document.documentElement;
 const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Theme. The head script already applied the saved choice before the first paint; VitePress's key, so it carries over.
-function themeLabels() {
-    const dark = root.classList.contains('dark');
-    for (const button of document.querySelectorAll<HTMLElement>('[data-theme-toggle]')) {
-        const label = button.querySelector('[data-theme-label]');
-        if (label) label.textContent = dark ? 'Use light' : 'Use dark';
-        else button.title = button.ariaLabel = dark ? 'Switch to light theme' : 'Switch to dark theme';
-    }
-}
-themeLabels();
-
+// Theme. The head script already applied a saved choice before the first paint, under VitePress's key so it carries
+// over; with none, CSS follows the system. A choice that matches the system is stored as `auto`, as VitePress did, and
+// clears the class, so the page follows the system from then on.
 const THEME_KEY = 'vitepress-theme-appearance';
-const systemDark = matchMedia('(prefers-color-scheme: dark)');
-const storedTheme = () => {
-    try {
-        return localStorage.getItem(THEME_KEY) ?? 'auto';
-    } catch {
-        return 'auto';
-    }
-};
-
-// A choice that matches the system is stored as `auto`, as VitePress did, so the page follows the system from then on.
 function toggleTheme() {
-    const dark = root.classList.toggle('dark');
+    const dark = !isDark();
+    const auto = dark === systemDark.matches;
+    root.classList.toggle('dark', dark && !auto);
+    root.classList.toggle('light', !dark && !auto);
     try {
-        localStorage.setItem(THEME_KEY, dark === systemDark.matches ? 'auto' : dark ? 'dark' : 'light');
+        localStorage.setItem(THEME_KEY, auto ? 'auto' : dark ? 'dark' : 'light');
     } catch {}
-    themeLabels();
 }
-
-// On `auto`, an open page follows the system switching between light and dark.
-systemDark.addEventListener('change', () => {
-    if (storedTheme() !== 'auto') return;
-    root.classList.toggle('dark', systemDark.matches);
-    themeLabels();
-});
 
 // The search shortcut, as this platform spells it.
 if (!/Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent)) {
@@ -59,7 +36,6 @@ const sections = headings.filter(h => h.tagName === 'H2');
 const pill = document.querySelector<HTMLElement>('[data-pill]');
 const linksTo = (id: string) => document.querySelectorAll<HTMLAnchorElement>(`[data-rail] a[href="#${CSS.escape(id)}"], [data-section][href="#${CSS.escape(id)}"]`);
 const label = (h: HTMLElement) => (h.textContent ?? '').replace(/​/g, '').trim();
-let filtering = false;
 
 function revealActive() {
     const link = railEl?.querySelector<HTMLElement>('a[aria-current="location"]');
@@ -93,10 +69,6 @@ function track() {
                 if (a.matches('[data-rail] a')) a.classList.add(rail.within!);
                 else a.setAttribute('aria-current', 'location');
             }
-            // Only the current section shows its entries, unless the reader is filtering.
-            if (!filtering)
-                for (const list of index?.querySelectorAll<HTMLElement>(':scope > ol > li > ol') ?? [])
-                    list.hidden = list.parentElement!.firstElementChild!.getAttribute('href') !== `#${h2.id}`;
             if (pill) {
                 pill.querySelector('[data-pill-number]')!.textContent = String(sections.indexOf(h2) + 1).padStart(2, '0');
                 pill.querySelector('[data-pill-text]')!.textContent = label(h2);
@@ -106,25 +78,21 @@ function track() {
     });
 }
 
-// The filter searches every section's entries, in the rail and in the sections sheet.
+// The filter searches every section's entries, in the rail and in the sections sheet. While it has text, CSS shows every
+// section's entries rather than only the current one's.
 function filterRail(q: string) {
     if (!index) return;
-    filtering = !!q;
     let any = false;
     for (const li of index.querySelectorAll<HTMLElement>(':scope > ol > li')) {
         const children = [...li.querySelectorAll<HTMLElement>('ol > li')];
         for (const c of children) c.hidden = !!q && !c.textContent.toLowerCase().includes(q);
         const list = li.querySelector<HTMLElement>('ol');
         const matches = children.some(c => !c.hidden);
-        if (list) list.hidden = q ? !matches : true;
+        if (list) list.hidden = !!q && !matches;
         li.hidden = !!q && !matches && !li.firstElementChild!.textContent.toLowerCase().includes(q);
         any ||= !li.hidden;
     }
     index.querySelector<HTMLElement>('[data-no-match]')!.hidden = any;
-    if (!q) {
-        shown = undefined;
-        track();
-    }
 }
 
 function filterSheet(sheet: HTMLElement, q: string) {
@@ -185,17 +153,18 @@ if (location.hash) {
     );
 }
 
-// The sheets are native modal dialogs; their buttons say whether they're open. The page stops scrolling in CSS.
-for (const button of document.querySelectorAll<HTMLElement>('[data-sheet]')) {
-    document.getElementById(button.dataset.sheet!)?.addEventListener('close', () => button.setAttribute('aria-expanded', 'false'));
-}
+// The sheets open from their buttons' `commandfor`, and close on a backdrop tap through `closedby`. Browsers without
+// those get both here.
+const nativeCommands = 'command' in HTMLButtonElement.prototype;
+const nativeClosedBy = 'closedBy' in HTMLDialogElement.prototype;
 function openSheet(button: HTMLElement) {
-    const dialog = document.getElementById(button.dataset.sheet!) as HTMLDialogElement | null;
-    if (!dialog) return;
-    dialog.showModal();
-    // The sheet itself takes focus, as a page would: focusing its filter would open the phone's keyboard.
-    dialog.focus();
-    button.setAttribute('aria-expanded', 'true');
+    (document.getElementById(button.dataset.sheet!) as HTMLDialogElement | null)?.showModal();
+}
+// An opened sheet takes focus itself, as a page would: the browser focuses its first control, and focusing the filter
+// would open the phone's keyboard. (`autofocus` on the dialog should do this, but Chromium still focuses the control.)
+for (const button of document.querySelectorAll<HTMLElement>('[data-sheet]')) {
+    const dialog = document.getElementById(button.dataset.sheet!);
+    dialog?.addEventListener('toggle', e => e.newState === 'open' && dialog.focus());
 }
 
 // Copying a code block copies what it shows, and shell commands without their prompts.
@@ -205,17 +174,7 @@ async function copy(button: HTMLElement) {
     if (!block || !pre) return;
     let text = pre.textContent ?? '';
     if (/^(?:shellscript|shell|bash|sh|zsh)$/.test(block.dataset.lang ?? '')) text = text.replace(/^ *[$>] /gm, '').trim();
-    try {
-        await navigator.clipboard.writeText(text);
-    } catch {
-        // Without the Clipboard API (an insecure origin, an older browser), copy through a selected text area.
-        const area = Object.assign(document.createElement('textarea'), { value: text, readOnly: true });
-        area.style.cssText = 'position:fixed;opacity:0';
-        document.body.append(area);
-        area.select();
-        document.execCommand('copy');
-        area.remove();
-    }
+    await navigator.clipboard.writeText(text);
     button.classList.add(code.copied!);
     setTimeout(() => button.classList.remove(code.copied!), 2000);
 }
@@ -237,10 +196,10 @@ document.addEventListener('focusin', prepareSearch);
 document.addEventListener('click', e => {
     const target = e.target as HTMLElement;
     if (target.closest('[data-theme-toggle]')) return toggleTheme();
-    const sheetButton = target.closest<HTMLElement>('[data-sheet]');
+    const sheetButton = !nativeCommands && target.closest<HTMLElement>('[data-sheet]');
     if (sheetButton) return openSheet(sheetButton);
     // A tap on the backdrop lands on the dialog itself.
-    if (target instanceof HTMLDialogElement) return target.close();
+    if (!nativeClosedBy && target instanceof HTMLDialogElement) return target.close();
     const section = target.closest<HTMLAnchorElement>('[data-section]');
     if (section) {
         e.preventDefault();
@@ -259,15 +218,6 @@ document.addEventListener('click', e => {
     const copyButton = target.closest<HTMLElement>(`.${code.copy}`);
     if (copyButton) return void copy(copyButton);
     if (target.closest('[data-search]')) openSearch();
-});
-
-// Code groups and example tabs: the checked tab's panel shows.
-document.addEventListener('change', e => {
-    const input = e.target as HTMLInputElement;
-    const group = input.closest(`.${tabs.group}`);
-    if (!group || !input.matches(`.${tabs.tabs} > input`)) return;
-    const i = [...group.querySelectorAll(`:scope > .${tabs.tabs} > input`)].indexOf(input);
-    [...group.querySelector<HTMLElement>(`:scope > .${tabs.panels}`)!.children].forEach((panel, n) => ((panel as HTMLElement).hidden = n !== i));
 });
 
 addEventListener('keydown', e => {

@@ -70,18 +70,15 @@
     color: var(--text-muted);
 }
 
-/* Each token carries both themes' colors as Shiki's variables; the page's theme picks one. */
+/*
+ * Each token carries both themes' colors as Shiki's variables; the page's `color-scheme` picks one. Without them, the
+ * color is invalid and the span inherits. The two Catppuccin themes share their font styles, so the light ones serve both.
+ */
 .block :global(.shiki) span {
     unicode-bidi: isolate;
-    color: var(--shiki-light, inherit);
+    color: light-dark(var(--shiki-light), var(--shiki-dark));
     text-decoration: var(--shiki-light-text-decoration, inherit);
     font-weight: var(--shiki-light-font-weight, inherit);
-}
-
-:global(.dark) .block :global(.shiki) span {
-    color: var(--shiki-dark, inherit);
-    text-decoration: var(--shiki-dark-text-decoration, inherit);
-    font-weight: var(--shiki-dark-font-weight, inherit);
 }
 
 /* A `{n}` or `// [!code highlight]` line, across the block's full width. */

@@ -9,7 +9,7 @@ export const filterable = (headings: Heading[]) => headings.reduce((n, s) => n +
 
 /**
  * The rail's index: the page's h2 sections, each with its h3 entries (options, functions). Every entry is in the markup;
- * only the current section's entries show. A page opens at its top, so the first section starts out current, as the page
+ * CSS shows only the current section's. A page opens at its top, so the first section starts out current, as the page
  * script would mark it; the script then follows the reader (or a link's hash).
  */
 const SectionIndex: FC<{ headings: Heading[] }> = ({ headings }) => (
@@ -23,7 +23,7 @@ const SectionIndex: FC<{ headings: Heading[] }> = ({ headings }) => (
                         {s.title}
                     </a>
                     {s.children.length > 0 && (
-                        <ol hidden={i !== 0}>
+                        <ol>
                             {s.children.map(c => (
                                 <li key={c.slug}>
                                     <a href={`#${c.slug}`}>{c.title}</a>

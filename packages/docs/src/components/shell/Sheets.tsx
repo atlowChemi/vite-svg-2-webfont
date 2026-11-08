@@ -6,7 +6,8 @@ import { cx } from '../cx.ts';
 import { filterable } from './Rail.tsx';
 import styles from './Sheets.module.css';
 
-// Phone sheets. Each is a native modal dialog: the browser moves focus in, keeps it there, and closes it on Escape.
+// Phone sheets. Each is a native modal dialog its button opens through `commandfor`: the browser moves focus in, keeps it
+// there, and closes it on Escape or a backdrop tap (`closedby`). The page script does the same in browsers without those.
 
 /** The guide and every tool; the current one lists its pages underneath, in place of the page strip. */
 export const ToolsSheet: FC<{ nav: PageNav }> = ({ nav }) => {
@@ -15,7 +16,7 @@ export const ToolsSheet: FC<{ nav: PageNav }> = ({ nav }) => {
         ...tools.map(t => ({ key: t.key, plate: t.plate, name: t.name, pkg: t.package, link: toolLink(t.key, nav.route) })),
     ];
     return (
-        <dialog id="tools-sheet" className={styles.sheet} aria-labelledby="tools-sheet-title" tabIndex={-1}>
+        <dialog id="tools-sheet" className={styles.sheet} aria-labelledby="tools-sheet-title" tabIndex={-1} closedby="any">
             <div id="tools-sheet-title" className={styles.title}>
                 Tools
             </div>
@@ -59,7 +60,8 @@ export const ToolsSheet: FC<{ nav: PageNav }> = ({ nav }) => {
                 )}
                 <button type="button" data-theme-toggle="">
                     <span className={styles.plate}>Theme</span>
-                    <span data-theme-label="">Switch</span>
+                    <span className={styles.whenLight}>Use dark</span>
+                    <span className={styles.whenDark}>Use light</span>
                 </button>
             </div>
         </dialog>
@@ -68,7 +70,7 @@ export const ToolsSheet: FC<{ nav: PageNav }> = ({ nav }) => {
 
 /** Phones: the rail's index becomes a pill that names the current section; it opens the sections sheet. */
 export const SectionPill: FC<{ headings: Heading[] }> = ({ headings }) => (
-    <button className={styles.pill} type="button" aria-haspopup="dialog" aria-expanded="false" data-sheet="sections-sheet" data-pill="">
+    <button className={styles.pill} type="button" aria-haspopup="dialog" commandfor="sections-sheet" command="show-modal" data-sheet="sections-sheet" data-pill="">
         <span className={styles.pillNumber} data-pill-number="">
             01
         </span>
@@ -80,7 +82,7 @@ export const SectionPill: FC<{ headings: Heading[] }> = ({ headings }) => (
 );
 
 export const SectionsSheet: FC<{ name: string; headings: Heading[] }> = ({ name, headings }) => (
-    <dialog id="sections-sheet" className={styles.sheet} aria-labelledby="sections-sheet-title" tabIndex={-1}>
+    <dialog id="sections-sheet" className={styles.sheet} aria-labelledby="sections-sheet-title" tabIndex={-1} closedby="any">
         <div id="sections-sheet-title" className={styles.title}>
             On this page · {name}
         </div>

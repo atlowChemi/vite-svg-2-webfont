@@ -199,7 +199,7 @@
         line-height: 1.2;
     }
 
-    .toolButton[aria-expanded='true'] {
+    :global(html:has(#tools-sheet[open])) .toolButton {
         border-color: var(--fonte-molten);
     }
 

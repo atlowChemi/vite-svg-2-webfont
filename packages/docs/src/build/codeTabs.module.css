@@ -1,6 +1,6 @@
 /*
- * Tabs over panels: a Markdown code group (`markdown.ts`) or an `<ExampleTabs>` block. Each tab is a radio, so the
- * choice works before the page script runs; the script shows the checked tab's panel and hides the rest.
+ * Tabs over panels: a Markdown code group (`markdown.ts`) or an `<ExampleTabs>` block. Each tab is a radio, and the
+ * checked one's panel shows, all in CSS: tabs work without the page script.
  */
 .group {
     margin: 16px 0;
@@ -82,4 +82,23 @@
     margin: 0;
     border: 0;
     border-radius: 0;
+}
+
+/*
+ * Every panel but the checked tab's is hidden. CSS can't match a panel to its tab's position in general, so there is a
+ * rule per position, up to 12 tabs: `codeTabs.ts` holds that limit, and the build fails on a group with more.
+ */
+.group:not(:has(> .tabs > input:nth-of-type(1):checked)) > .panels > :nth-child(1),
+.group:not(:has(> .tabs > input:nth-of-type(2):checked)) > .panels > :nth-child(2),
+.group:not(:has(> .tabs > input:nth-of-type(3):checked)) > .panels > :nth-child(3),
+.group:not(:has(> .tabs > input:nth-of-type(4):checked)) > .panels > :nth-child(4),
+.group:not(:has(> .tabs > input:nth-of-type(5):checked)) > .panels > :nth-child(5),
+.group:not(:has(> .tabs > input:nth-of-type(6):checked)) > .panels > :nth-child(6),
+.group:not(:has(> .tabs > input:nth-of-type(7):checked)) > .panels > :nth-child(7),
+.group:not(:has(> .tabs > input:nth-of-type(8):checked)) > .panels > :nth-child(8),
+.group:not(:has(> .tabs > input:nth-of-type(9):checked)) > .panels > :nth-child(9),
+.group:not(:has(> .tabs > input:nth-of-type(10):checked)) > .panels > :nth-child(10),
+.group:not(:has(> .tabs > input:nth-of-type(11):checked)) > .panels > :nth-child(11),
+.group:not(:has(> .tabs > input:nth-of-type(12):checked)) > .panels > :nth-child(12) {
+    display: none;
 }

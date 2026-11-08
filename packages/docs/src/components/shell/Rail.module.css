@@ -100,6 +100,11 @@ a.tool:hover {
     color: var(--accent-text);
 }
 
+/* Only the current section shows its entries; while the reader filters, every section's do, less those that don't match. */
+.index:not(:has(> .filter:not(:placeholder-shown))) > ol > li:not(:has(> .within)) > ol {
+    display: none;
+}
+
 .filter {
     width: 100%;
     margin-bottom: 12px;

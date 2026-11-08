@@ -25,34 +25,43 @@ interface Props {
     snippets: Record<string, string>;
 }
 
+/** The drawers `Drawers.module.css` can switch between: it shows a drawer's snippet and link by position, a rule each. */
+export const maxDrawers = 4;
+
 /**
- * The type case's drawers, one per way to run the engine, each with its install snippet and guide link. Every panel is
- * in the markup and the first is open; the landing script switches them.
+ * The type case's drawers, one per way to run the engine, each with its install snippet and guide link. Each drawer is
+ * a radio, and CSS shows the checked one's snippet and link: every panel is in the markup, and the first starts open.
  */
-export const ToolDrawers: FC<Props> = ({ drawers, snippets }) => (
-    <>
-        <div className={styles.drawers}>
-            {drawers.map((drawer, i) => (
-                <button key={drawer.key} className={styles.drawer} type="button" aria-pressed={i === 0} data-drawer={drawer.key}>
-                    <span className={styles.top}>
-                        <SiteIcon name={drawer.mark} className={styles.mark} />
-                        <span className={styles.plate}>{drawer.plate}</span>
-                    </span>
-                    <strong>{drawer.title}</strong>
-                    <span className={styles.use}>{drawer.use}</span>
-                </button>
-            ))}
+export const ToolDrawers: FC<Props> = ({ drawers, snippets }) => {
+    if (drawers.length > maxDrawers) throw new Error(`The landing page has ${drawers.length} drawers; Drawers.module.css switches between at most ${maxDrawers}.`);
+    return (
+        <div className={styles.chooser}>
+            <div className={styles.drawers} role="radiogroup" aria-label="How you run the engine">
+                {drawers.map((drawer, i) => (
+                    <label key={drawer.key} className={styles.drawer}>
+                        <input className={styles.radio} type="radio" name="tool-drawer" value={drawer.key} defaultChecked={i === 0} />
+                        <span className={styles.top}>
+                            <SiteIcon name={drawer.mark} className={styles.mark} />
+                            <span className={styles.plate}>{drawer.plate}</span>
+                        </span>
+                        <strong>{drawer.title}</strong>
+                        <span className={styles.use}>{drawer.use}</span>
+                    </label>
+                ))}
+            </div>
+            {/* Snippets come from index.md as slots, so they are highlighted like any other docs code block. */}
+            <div className={styles.snippet} aria-live="polite">
+                {drawers.map(drawer => (
+                    <div key={drawer.key} className={styles.panel} dangerouslySetInnerHTML={{ __html: snippets[drawer.key] ?? '' }} />
+                ))}
+            </div>
+            <div>
+                {drawers.map(drawer => (
+                    <a key={drawer.key} className={styles.more} href={drawer.link}>
+                        Read the {drawer.title} guide →
+                    </a>
+                ))}
+            </div>
         </div>
-        {/* Snippets come from index.md as slots, so they are highlighted like any other docs code block. */}
-        <div className={styles.snippet} aria-live="polite">
-            {drawers.map((drawer, i) => (
-                <div key={drawer.key} className={styles.panel} data-drawer-panel={drawer.key} hidden={i !== 0} dangerouslySetInnerHTML={{ __html: snippets[drawer.key] ?? '' }} />
-            ))}
-        </div>
-        {drawers.map((drawer, i) => (
-            <a key={drawer.key} className={styles.more} href={drawer.link} data-drawer-link={drawer.key} hidden={i !== 0}>
-                Read the {drawer.title} guide →
-            </a>
-        ))}
-    </>
-);
+    );
+};

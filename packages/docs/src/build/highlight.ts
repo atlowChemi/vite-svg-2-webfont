@@ -68,15 +68,13 @@ const notations = [
 export interface CodeBlockOptions {
     /** Lines to highlight, 1-based, as a fence's `{n-m}`. */
     lines?: Set<number>;
-    /** Starts hidden: a code group's tab that isn't selected. */
-    hidden?: boolean;
 }
 
 /**
  * A highlighted code block: its language label, a copy button, and the code, with both themes' colors as Shiki's CSS
  * variables.
  */
-export function highlight(shiki: Highlighter, code: string, lang: string, { lines = new Set(), hidden = false }: CodeBlockOptions = {}): string {
+export function highlight(shiki: Highlighter, code: string, lang: string, { lines = new Set() }: CodeBlockOptions = {}): string {
     const language = shiki.getLoadedLanguages().includes(resolve(lang)) ? resolve(lang) : 'text';
     const marks: ShikiTransformer = {
         line(node, line) {
@@ -88,7 +86,7 @@ export function highlight(shiki: Highlighter, code: string, lang: string, { line
     };
     const pre = shiki.codeToHtml(code, { lang: language, themes: codeThemes, defaultColor: false, transformers: [...notations, marks] });
     const label = escape(lang || 'txt');
-    return `<div class="${styles.block}" data-lang="${label}"${hidden ? ' hidden' : ''}><button type="button" class="${styles.copy}" title="Copy code" aria-label="Copy code"></button><span class="${styles.lang}">${label}</span>${pre}</div>`;
+    return `<div class="${styles.block}" data-lang="${label}"><button type="button" class="${styles.copy}" title="Copy code" aria-label="Copy code"></button><span class="${styles.lang}">${label}</span>${pre}</div>`;
 }
 
 /** A code block under a bar that names its file. */

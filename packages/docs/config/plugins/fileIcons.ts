@@ -62,7 +62,14 @@ export function fileIconCss(labels: Iterable<string>): string {
         .entries()
         .reduce((css, [icon, group]) => {
             if (!icon) return css;
-            return css + (typeof icon === 'string' ? rule('', group, icon) : rule('', group, icon.light) + rule('html.dark ', group, icon.dark));
+            return (
+                css +
+                (typeof icon === 'string'
+                    ? rule('', group, icon)
+                    : rule('', group, icon.light) +
+                      rule('html.dark ', group, icon.dark) +
+                      `@media (prefers-color-scheme: dark) {\n${rule('html:not(.light) ', group, icon.dark)}}\n`)
+            );
         }, '');
 }
 

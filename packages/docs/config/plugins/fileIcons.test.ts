@@ -78,10 +78,11 @@ describe('file icons', () => {
         expect(fileIconCss(names)).toBe(fileIconCss(names.toReversed()));
     });
 
-    it('gives a themed icon a dark-mode rule', () => {
+    it('gives a themed icon dark-mode rules: for a dark pick, and for a dark system with no pick', () => {
         const css = fileIconCss(['Cargo.toml']);
         expect(css).toContain(`[data-title='Cargo.toml']::before`);
         expect(css).toContain(`html.dark [data-title='Cargo.toml']::before`);
+        expect(css).toMatch(/@media \(prefers-color-scheme: dark\) \{\nhtml:not\(\.light\) \[data-title='Cargo\.toml'\]::before/);
     });
 
     it('escapes quotes in labels', () => {

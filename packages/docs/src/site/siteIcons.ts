@@ -1,5 +1,5 @@
 // The site's own icon font: fonte casts the SVGs in `src/fonts/site-icons/` into it during the docs build (see `siteIconFont.ts`).
-// home, star, bolt, bell, search, heart, arrow-down, chevron-down: Tabler Icons 3.19.0 (outline), MIT license,
+// home, star, bolt, bell, search, heart, arrow-down, chevron-down, list-details, backspace: Tabler Icons 3.19.0 (outline), MIT license,
 // https://tabler.io/icons. They stay stroked; the engine expands strokes into filled outlines.
 // rust, node, wasm, vite: Simple Icons 13.0.0, CC0 1.0, https://simpleicons.org.
 // play, github, theme: drawn for this site.
@@ -21,6 +21,8 @@ export const siteIcons = {
     node: 0xe00d,
     wasm: 0xe00e,
     vite: 0xe00f,
+    'list-details': 0xe010,
+    backspace: 0xe011,
 } as const;
 
 export type SiteIcon = keyof typeof siteIcons;
