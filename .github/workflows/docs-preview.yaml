@@ -31,14 +31,24 @@ jobs:
         runs-on: ubuntu-latest
         permissions:
             actions: read
+            contents: read
         outputs:
             found: ${{ steps.site.outputs.found }}
         steps:
+            # CI runs for two quick merges can finish out of order. Only main's latest commit deploys, so an older build
+            # that finishes last neither replaces the newer site nor cancels its deploy.
             - id: site
               env:
                   GH_TOKEN: ${{ github.token }}
                   RUN_ID: ${{ github.event.workflow_run.id }}
+                  SHA: ${{ github.event.workflow_run.head_sha }}
               run: |
+                  latest=$(gh api "repos/$GITHUB_REPOSITORY/commits/main" --jq .sha)
+                  if [ "$SHA" != "$latest" ]; then
+                      echo "Skipping ${SHA:0:7}: main is at ${latest:0:7}."
+                      echo "found=false" >> "$GITHUB_OUTPUT"
+                      exit 0
+                  fi
                   id=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN_ID/artifacts?name=docs-site" --jq '.artifacts[0].id // empty')
                   echo "found=$([ -n "$id" ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
