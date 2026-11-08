@@ -14,10 +14,6 @@ tasks:
               reason: 'Cargo manifest, target, and Rust module file discovery'
             - pattern: '**/.cargo/{config,config.toml}'
               reason: 'Optional Cargo configuration files'
-            - pattern: 'packages/docs/.vitepress/{config.*,config/index.*}'
-              reason: 'VitePress configuration file alternatives'
-            - pattern: 'packages/docs/**/*.md.{js,js.js,js.json,js.node}'
-              reason: 'VitePress virtual Markdown module resolution alternatives'
             - pattern: 'packages/{docs,example}/public/**/*.{svg,png,js,ts,json,node,woff,woff2,ttf,eot,wasm,hbs}'
               reason: 'Vite public-file fallback probes before resolving source and virtual assets'
         ignore:
@@ -34,7 +30,7 @@ tasks:
               kinds: [read_dir]
               reason: 'Reviewed package/asset/source discovery; discovered regular-file accesses are validated independently'
             - &output-directories
-              pattern: 'packages/{docs/.vitepress,webfont-browser,vite-svg-2-webfont,example}/dist/**'
+              pattern: 'packages/{docs,webfont-browser,vite-svg-2-webfont,example}/dist/**'
               kinds: [write]
               directory: true
               reason: 'Recreated output directories; artifact file writes still require output declarations'
@@ -47,12 +43,10 @@ tasks:
               reason: 'Repository metadata, not a build artifact'
             - pattern: 'target/**'
               reason: 'Compiler and tool-install intermediates; final artifacts are copied to package output trees'
-            - pattern: 'packages/docs/.vitepress/cache/**'
-              reason: 'VitePress/plugin content-keyed intermediate caches, not published site artifacts'
-            - pattern: 'packages/docs/.vitepress/.temp/**'
-              reason: 'VitePress temporary SSR modules, removed during the build'
+            - pattern: 'packages/docs/.cache/**'
+              reason: 'Static renderer, browser, and plugin intermediates; published site files live in dist'
         cleanupOutputs: &retired
-            - pattern: 'packages/{docs/.vitepress,webfont-browser,vite-svg-2-webfont,example}/dist/**'
+            - pattern: 'packages/{docs,webfont-browser,vite-svg-2-webfont,example}/dist/**'
               reason: 'Retired build files; exemption requires a prior declared output that is absent afterward'
 
     '.#next:wasm':
@@ -167,10 +161,10 @@ tasks:
             - *directories
             - *discovery
             - *output-directories
-            - pattern: 'packages/docs/.vitepress/dist/**'
+            - pattern: 'packages/docs/dist/**'
               kinds: [read]
-              reason: 'VitePress discovers and replaces site artifacts; writes remain checked'
-            - pattern: 'packages/docs/examples/write-files/generated/**'
+              reason: 'The static site build discovers and replaces site artifacts; writes remain checked'
+            - pattern: 'packages/docs/src/fonts/examples/write-files/generated/**'
               kinds: [read]
               reason: 'Example outputs are regenerated from keyed icons/templates; writes remain checked'
         neverCache: *intermediates
