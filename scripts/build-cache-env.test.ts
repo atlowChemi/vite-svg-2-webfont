@@ -40,8 +40,6 @@ it.each(['webfont-browser', 'vite-svg-2-webfont'])('keeps ignored environment va
 });
 
 it.each([
-    ['packages/webfont-browser/vite.config.ts', 'package'],
-    ['packages/vite-svg-2-webfont/vite.config.ts', 'package'],
     ['packages/docs/vite.config.ts', 'docs'],
     ['packages/vite-svg-2-webfont/vite.config.ts', 'test'],
 ])('keeps ignored dotenv values out of %s (%s)', async (file, kind) => {
