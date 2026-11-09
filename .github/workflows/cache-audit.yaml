@@ -126,7 +126,6 @@ jobs:
             - name: Audit selected tasks with fresh compiler state
               id: audit
               if: ${{ !cancelled() && matrix.audits[0] != null }}
-              continue-on-error: true
               shell: bash
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-bin/cache-audit
@@ -140,7 +139,7 @@ jobs:
                         echo 'native_passed=true' >> "$GITHUB_OUTPUT"
                       fi
                     else
-                      echo "$task: failed (report only; see artifacts)" >> "$GITHUB_STEP_SUMMARY"
+                      echo "$task: failed (see artifacts)" >> "$GITHUB_STEP_SUMMARY"
                       status=1
                     fi
                   done < <(jq -r '.[]' <<< "$AUDIT_TASKS")

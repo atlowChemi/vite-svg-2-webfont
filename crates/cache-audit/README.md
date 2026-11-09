@@ -264,8 +264,7 @@ checkout idle while taking its copy. Both checks require the compiled auditor.
 
 Use `pnpm pipeline next-assets --full` directly for dormant cached SVG execution.
 Normal workflows still use Vite+. The PR/manual/scheduled `cache-audit.yaml` workflow executes dormant graphs
-and collects report-only filesystem audits; adding the file does not establish
-that a GitHub run has passed.
+and fails on filesystem audit findings, retaining reports for diagnosis.
 
 ## Run dormant pipelines and reset task caches
 
