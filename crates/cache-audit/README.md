@@ -160,8 +160,10 @@ A read-only literal-path rule can specify `environment: VARIABLE`. The variable
 must appear explicitly in the task's or a dependency's `env` inputs and equal the
 file's SHA-256 (or `missing`) before and after execution. This is supported for
 callers that supply a verified pre-key stamp; native pipelines do not generate one.
-The example remains uncached because it can read ignored env files; docs disable
-dotenv loading before enabling their cache.
+Docs and the example remain uncached because they publish shared virtual declarations
+inside the plugin package, including an index accumulated across consumers. Both
+policies enforce `requiresUncached`; isolating declaration ownership and restoration
+is required before enabling either cache. The example also reads ignored env files.
 The example policy sets `requiresUncached: true`: its narrowly exempted local env
 reads are accepted only while the task explicitly declares `cache: false`. Enabling
 or defaulting its cache makes policy preparation fail. This is an uncached-command
@@ -268,7 +270,7 @@ Read merged configuration with `pnpm config get tasks --location project --json`
 (or `pipelines`); the explicit location makes older bootstrap pnpm launchers
 delegate to the pinned project version.
 
-Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter Rust checks
+Native/WASM builds, browser/plugin packaging, Rust formatting, engine/adapter Rust checks
 and tests, browser Clippy, plugin-local tests, doctests, tarballs, and SVG/social assets enable task
 caching. Doctest hits restore `test-results/doctests.xml`. The declared `outputs: []` on Rust checks/tests
 means a cached success restores no compiler binaries or `target/` intermediates.

@@ -372,8 +372,9 @@ tasks:
             - packages/docs/public/github-social-preview.svg
         outputs: [packages/docs/public/social-card.png, packages/docs/public/github-social-preview.png]
     next:docs:
-        # Config disables dotenv loading; process environment inputs remain explicit.
-        cache: true
+        # Shared virtual declarations accumulate across consumers; cache only after
+        # their ownership and restoration are isolated from the plugin package.
+        cache: false
         env: [NODE_ENV, DOCS_URL]
         dependsOn: [next:docs:social, next:plugin:pack, next:browser:pack]
         inputs:
@@ -381,6 +382,7 @@ tasks:
             - '**/{package.json,pnpm-workspace.yaml,.pnp.cjs,tsconfig*.json}'
             - packages/docs/**
             - packages/webfont-generator/CHANGELOG.md
+            - packages/webfont-browser/CHANGELOG.md
             - packages/vite-svg-2-webfont/CHANGELOG.md
             - crates/webfont-generator/CHANGELOG.md
         outputs: [packages/docs/dist/**, packages/docs/src/fonts/examples/write-files/generated/**]
