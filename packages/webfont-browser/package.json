@@ -3,6 +3,15 @@
     "version": "0.2.0",
     "description": "Generate webfonts from SVG text in browser workers with precompiled WebAssembly",
     "type": "module",
+    "scripts": {
+        "next:pack:tgz": "pnpm pack",
+        "next:test:coverage": "node scripts/coverage.mjs",
+        "next:publish": "vp exec -c \"pnpm stage publish atlowchemi-webfont-browser-generator-*.tgz --access public --no-git-checks\"",
+        "next:build": "node scripts/build.mjs",
+        "next:pack": "vp pack",
+        "next:check": "cargo clippy -p webfont-browser --target wasm32-unknown-unknown --locked -- -D warnings",
+        "next:test": "vp test --run --root ../.. --project=webfont-wasm-browser --project=webfont-browser-build"
+    },
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "exports": {
