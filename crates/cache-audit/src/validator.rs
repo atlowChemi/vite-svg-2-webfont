@@ -386,7 +386,9 @@ fn normalize_access(path: &Path) -> Result<PathBuf> {
         return Err("relative observation".into());
     }
     if !path.components().any(|c| c == Component::ParentDir) {
-        return Ok(path.to_path_buf());
+        // Glob matching uses the path spelling, unlike Path equality. Collapse
+        // redundant separators even when no parent traversal needs checking.
+        return Ok(path.components().collect());
     }
     let mut normalized = PathBuf::new();
     for component in path.components() {
@@ -810,6 +812,19 @@ fn check_environment(assertions: &[(PathBuf, String)]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn repeated_separators_match_the_same_missing_input_policy() {
+        let path = normalize_access(Path::new(
+            "/workspace/docs/:/usr/share/vulkan//loader_settings.d/vk_loader_settings.json",
+        ))
+        .unwrap();
+        let pattern = wax::Glob::new(
+            r"/workspace/docs/\:/usr/share/vulkan/loader_settings.d/vk_loader_settings.json",
+        )
+        .unwrap();
+        assert!(pattern.is_match(path.as_path()));
+    }
 
     #[test]
     fn policy_patterns_compile() {
