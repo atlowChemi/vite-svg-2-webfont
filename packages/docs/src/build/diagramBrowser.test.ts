@@ -1,5 +1,5 @@
 import type { Browser } from 'playwright';
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { DiagramBrowser } from './diagramBrowser.ts';
 
 const { launch } = vi.hoisted(() => ({ launch: vi.fn<() => Promise<Browser>>() }));

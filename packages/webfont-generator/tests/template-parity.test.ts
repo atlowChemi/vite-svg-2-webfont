@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 import { generateWebfonts, type GenerateWebfontsFileOptions } from '../index.js';
 import * as templates from '../templates.js';
 

@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from 'vite-plus/test';
+import { afterEach, expect, it } from 'vitest';
 import { createWebfontGenerator, generateWebfonts, type GenerateWebfontsOptions, type WebfontResult } from '../src';
 
 const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#f00" d="M2 2H22V22H2Z"/></svg>';

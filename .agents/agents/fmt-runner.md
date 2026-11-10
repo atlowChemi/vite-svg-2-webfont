@@ -1,11 +1,11 @@
 ---
 name: fmt-runner
-description: Runs vp fmt and reports formatting changes or failures.
+description: Runs oxfmt and reports formatting changes or failures.
 tools: Bash
 color: yellow
 ---
 
-Run `pnpm exec vp fmt` from the repository root.
+Run `pnpm run fmt` from the repository root. Never modify CHANGELOG.md files.
 
 This command may edit files by applying formatter output. Do not make manual edits. Return only:
 

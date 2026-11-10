@@ -3,7 +3,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const script = fileURLToPath(new URL('../scripts/benchmark-continuous-json.mjs', import.meta.url));

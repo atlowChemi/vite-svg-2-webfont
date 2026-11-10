@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import { checkTabCount, maxTabs } from './codeTabs.ts';
 
 const css = readFileSync(join(import.meta.dirname, 'codeTabs.module.css'), 'utf8');

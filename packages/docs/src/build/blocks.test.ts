@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import { extractBlocks } from './blocks.ts';
 
 const names = new Set(['ExampleTabs', 'ExampleCss']);

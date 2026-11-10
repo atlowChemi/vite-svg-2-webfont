@@ -1,5 +1,5 @@
-import { defineProject, type UserProjectConfigExport } from 'vite-plus';
-import { playwright } from 'vite-plus/test/browser-playwright';
+import { defineProject, type UserProjectConfigExport } from 'vitest/config';
+import { playwright } from '@vitest/browser-playwright';
 
 const config: UserProjectConfigExport = defineProject({
     test: {

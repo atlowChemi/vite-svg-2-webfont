@@ -9,10 +9,12 @@
     },
     "scripts": {
         "pnpm:devPreinstall": "node crates/cache-audit/scripts/prepare.mjs",
-        "prepare": "vp config",
-        "bench:vitest": "vp test bench --run --reporter=verbose --hideSkippedTests",
-        "test:compat": "vp test --run --project=compat",
-        "coverage:scripts": "vp test --run --project=scripts --coverage --coverage.autoAttachSubprocess --coverage.include='scripts/**/*.{ts,mjs}' --coverage.reportsDirectory=coverage/scripts",
+        "prepare": "git config core.hooksPath .githooks",
+        "check": "oxfmt --check && oxlint --type-aware --type-check",
+        "fmt": "oxfmt",
+        "bench:vitest": "vitest bench --run --reporter=verbose --hideSkippedTests",
+        "test:compat": "vitest --run --project=compat",
+        "coverage:scripts": "vitest --run --project=scripts --coverage --coverage.autoAttachSubprocess --coverage.include='scripts/**/*.{ts,mjs}' --coverage.reportsDirectory=coverage/scripts",
         "engine:bench": "pnpm --dir crates/webfont-generator run bench",
         "engine:coverage": "pnpm --dir crates/webfont-generator run test:coverage",
         "engine:coverage:cli": "pnpm --dir crates/webfont-generator run test:coverage:cli",
@@ -54,8 +56,8 @@
         "docs:social": "pnpm --dir packages/docs run social-card",
         "docs": "pnpm --dir packages/docs run build",
         "example": "pnpm --dir packages/example run build",
-        "test:js": "vp test --run",
-        "coverage": "vp test --run --coverage --project='!*-browser*'"
+        "test:js": "vitest --run",
+        "coverage": "vitest --run --coverage --project='!*-browser*'"
     },
     "devDependencies": {
         "@atlowchemi/webfont-generator": "workspace:*",
@@ -73,12 +75,16 @@
         "@vusion/webfonts-generator": "^0.8.0",
         "eslint-plugin-unicorn": "^79.0.0",
         "opentype.js": "^2.0.0",
+        "lint-staged": "17.6.0",
+        "oxfmt": "0.73.0",
+        "oxlint": "1.88.0",
+        "oxlint-tsgolint": "7.0.2004",
         "oxc-minify": "catalog:",
         "playwright": "^1.55.0",
         "sass": "^1.98.0",
         "typescript": "catalog:",
+        "tsdown": "0.23.5",
         "vite": "catalog:",
-        "vite-plus": "catalog:",
         "vitest": "catalog:",
         "yaml": "^2.9.1"
     }

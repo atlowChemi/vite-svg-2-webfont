@@ -1,16 +1,45 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { loadConfigFromFile, resolveConfig, type UserConfig } from 'vite-plus';
-import { expect, it, vi } from 'vite-plus/test';
+import { loadConfigFromFile, resolveConfig, type UserConfig } from 'vite';
+import { expect, it, vi } from 'vitest';
+import { build } from 'tsdown';
 
 // Docs examples need packed workspace artifacts; env-policy validation does not.
 vi.mock('../packages/docs/config/plugins/index.ts', () => ({ sitePlugins: () => [] }));
 
+it.each(['webfont-browser', 'vite-svg-2-webfont'])('keeps ignored environment values out of %s bundles', async name => {
+    const root = mkdtempSync(join(tmpdir(), 'cached-bundle-env-'));
+    try {
+        const { default: config } = await import(fileURLToPath(new URL(`../packages/${name}/tsdown.config.ts`, import.meta.url)));
+        writeFileSync(join(root, 'index.ts'), 'export const probe = process.env.TSDOWN_CACHE_CONTRACT_PROBE;');
+        writeFileSync(join(root, 'package.json'), '{"type":"module"}');
+        const options = {
+            ...config,
+            cwd: root,
+            entry: ['index.ts'],
+            format: ['esm'],
+            outDir: 'dist',
+            fixedExtension: false,
+            dts: false,
+            plugins: [],
+            copy: [],
+            logLevel: 'silent',
+        };
+        await build(options);
+        const baseline = readFileSync(join(root, 'dist/index.js'), 'utf8');
+        writeFileSync(join(root, '.env'), 'TSDOWN_CACHE_CONTRACT_PROBE=untracked-file\n');
+        vi.stubEnv('TSDOWN_CACHE_CONTRACT_PROBE', 'untracked-process');
+        await build(options);
+        expect(readFileSync(join(root, 'dist/index.js'), 'utf8')).toBe(baseline);
+    } finally {
+        vi.unstubAllEnvs();
+        rmSync(root, { recursive: true, force: true });
+    }
+});
+
 it.each([
-    ['packages/webfont-browser/vite.config.ts', 'package'],
-    ['packages/vite-svg-2-webfont/vite.config.ts', 'package'],
     ['packages/docs/vite.config.ts', 'docs'],
     ['packages/vite-svg-2-webfont/vite.config.ts', 'test'],
 ])('keeps ignored dotenv values out of %s (%s)', async (file, kind) => {

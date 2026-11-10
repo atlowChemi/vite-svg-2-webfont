@@ -1,7 +1,7 @@
 # Cache audit
 
 Private Linux tooling for observing a command and checking its filesystem accesses
-against pnpm's effective task inputs and outputs. Normal builds still use Vite+.
+against pnpm's effective task inputs and outputs. Normal builds use standalone package tools.
 
 ## Build and test
 
@@ -263,8 +263,8 @@ checkout idle while taking its copy. Both checks require the compiled auditor.
 `CACHE_AUDIT_BIN` selects the compiled auditor; `CACHE_AUDIT_REPORTS` overrides
 `artifacts/cache-audit`. Reports include command logs, audit JSON, and task status.
 
-Use `pnpm pipeline assets --full` for cached SVG/social assets. Vite+ remains the
-underlying build/test/lint tooling; pnpm owns orchestration. The `cache-audit.yaml`
+Use `pnpm pipeline assets --full` for cached SVG/social assets. Standalone tools
+handle builds, tests, and linting; pnpm owns orchestration. The `cache-audit.yaml`
 workflow fails on filesystem audit findings, retaining reports for diagnosis.
 
 ## Run pipelines and reset task caches

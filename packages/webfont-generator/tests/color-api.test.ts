@@ -1,7 +1,7 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, expect, it } from 'vite-plus/test';
+import { afterEach, expect, it } from 'vitest';
 import { FontType, generateWebfonts as native } from '../binding.js';
 import { generateWebfonts } from '../index.js';
 

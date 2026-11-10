@@ -1,4 +1,4 @@
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 
 it('selects distinct designs through production-generated CSS and shared font URLs', async () => {
     const css = await (await fetch('/plugin-family.css')).text();

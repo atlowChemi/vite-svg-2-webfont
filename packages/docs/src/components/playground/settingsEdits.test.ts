@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import { defaultSettings } from './options.ts';
 import { movedFormat, parseOptionalNumber, toggled } from './settingsEdits.ts';
 

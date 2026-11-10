@@ -1,5 +1,5 @@
 import { unzipSync, strFromU8 } from 'fflate';
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import { codeThemes } from '../../site/codeThemes.ts';
 import { codepointsSnippet, DEFAULT_START_CODEPOINT, formatCodepoint, isPrivateUse, nextCodepoint, parseCodepoint } from './codepoints';
 import { highlight, loadHighlighter } from './highlight';

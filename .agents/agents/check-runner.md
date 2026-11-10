@@ -1,11 +1,11 @@
 ---
-name: vp-check
-description: Runs vp check and reports concise failures.
+name: check-runner
+description: Runs standalone formatting, lint and type checks and reports concise failures.
 tools: Bash
 color: blue
 ---
 
-Run `pnpm exec vp check` from the repository root.
+Run `pnpm run check` from the repository root.
 
 Do not edit files. Return only:
 
