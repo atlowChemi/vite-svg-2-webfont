@@ -8,7 +8,7 @@ import { join, resolve } from 'node:path';
 // supplied directory without depending on the adapter's checked-in fixtures.
 const output = await mkdtemp(join(tmpdir(), 'color-proof-'));
 try {
-    execFileSync('vp', ['run', '@atlowchemi/webfont-engine#test:color-proof'], {
+    execFileSync('pnpm', ['pipeline', 'engine-color-proof', '--full'], {
         cwd: resolve(import.meta.dirname, '../../..'),
         env: { ...process.env, COLOR_PROOF_OUTPUT_DIR: output },
         stdio: 'inherit',

@@ -14,7 +14,7 @@ export CARGO_LLVM_COV_TARGET_DIR="$CARGO_TARGET_DIR"
 cd "$ROOT/packages/webfont-generator"
 eval "$(cargo llvm-cov show-env --sh --no-rustc-wrapper)"
 TARGET="$(rustc -vV | sed -n 's/^host: //p')"
-vp exec napi build --platform --esm --js binding.js --dts binding.d.ts --output-dir "$RUN/addon" -- --locked
+pnpm exec napi build --platform --esm --js binding.js --dts binding.d.ts --output-dir "$RUN/addon" -- --locked
 export WEBFONT_NATIVE_COVERAGE_DIR="$RUN"
 cd "$ROOT"
 status=0

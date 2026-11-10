@@ -21,28 +21,28 @@ How to regenerate `expected/`:
 
 1. Run the Rust crate tests with snapshot updates enabled:
     ```sh
-    UPDATE_SVG_FIXTURES=1 vp run --no-cache @atlowchemi/webfont-engine#test
+    UPDATE_SVG_FIXTURES=1 pnpm pipeline rust-test --full --no-cache
     ```
 2. Re-run the native crate tests normally to verify the snapshots:
     ```sh
-    vp run --no-cache @atlowchemi/webfont-engine#test
+    pnpm pipeline rust-test --full --no-cache
     ```
 3. Rebuild the native NAPI addon and run the full JS test suite:
     ```sh
-    vp run @atlowchemi/webfont-generator#build
-    vp run test
+    pnpm pipeline native --full
+    pnpm pipeline test --full
     ```
 
 Other useful commands:
 
-| Command                                              | Description                                   |
-| ---------------------------------------------------- | --------------------------------------------- |
-| `vp run @atlowchemi/webfont-generator#build`         | Build the native NAPI addon (dev profile)     |
-| `vp run @atlowchemi/webfont-generator#build:release` | Build the native NAPI addon (release profile) |
-| `vp run @atlowchemi/webfont-generator#test`          | Run all RS tests                              |
-| `vp run test`                                        | Run all JS tests (includes compat suite)      |
-| `vp run @atlowchemi/webfont-generator#bench`         | Run Rust Criterion benchmarks                 |
-| `vp test bench`                                      | Run Vitest benchmarks (upstream vs new core)  |
+| Command                               | Description                                   |
+| ------------------------------------- | --------------------------------------------- |
+| `pnpm pipeline native --full`         | Build the native NAPI addon (dev profile)     |
+| `pnpm pipeline native-release --full` | Build the native NAPI addon (release profile) |
+| `pnpm pipeline rust-test --full`      | Run all RS tests                              |
+| `pnpm pipeline test --full`           | Run all JS tests (includes compat suite)      |
+| `pnpm pipeline engine-bench --full`   | Run Rust Criterion benchmarks                 |
+| `pnpm pipeline bench --full`          | Run Vitest benchmarks (upstream vs new core)  |
 
 When `UPDATE_SVG_FIXTURES=1` is set, the Rust tests rewrite every matching file in `expected/` from the current implementation before asserting.
 The tests read inputs from `icons/` and `unit/`. The small `unit/` fixtures are engine-owned copies of the original plugin examples so the engine's snapshots do not depend on downstream packages. They can evolve independently of the plugin fixtures.

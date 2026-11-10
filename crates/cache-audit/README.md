@@ -12,12 +12,12 @@ the installed pnpm on `PATH` for graph parity checks.
 From the repository root, use the workspace package:
 
 ```sh
-vp run @atlowchemi/cache-audit#build
-vp run @atlowchemi/cache-audit#test
-vp run @atlowchemi/cache-audit#check
+pnpm --dir crates/cache-audit run build
+pnpm --dir crates/cache-audit run test
+pnpm --dir crates/cache-audit run check
 ```
 
-`vp install` prepares the pinned observer source and applies the checked-in
+`pnpm install` prepares the pinned observer source and applies the checked-in
 mutation-tracking patch before dependency installation. Root Cargo configuration
 uses that same source for every command, with one shared `Cargo.lock` and pnpm
 workspace. The package lives alongside its Rust crate in `crates/cache-audit`;
@@ -36,8 +36,8 @@ includes are explicitly unsupported by the validator rather than silently omitte
 These unpublished APIs are pinned independently of the installed pnpm version.
 
 ```sh
-target/debug/cache-audit graph --pipeline next-build
-target/debug/cache-audit graph --task next:native
+target/debug/cache-audit graph --pipeline build
+target/debug/cache-audit graph --task native
 target/debug/cache-audit graph --all --verify-pnpm
 ```
 
@@ -56,9 +56,9 @@ Graph resolution alone does not execute commands or provide sandbox isolation.
 ## Run a graph-aware audit
 
 ```sh
-vp run @atlowchemi/cache-audit#audit -- --task next:native
-vp run @atlowchemi/cache-audit#audit -- --pipeline next-assets
-vp run @atlowchemi/cache-audit#audit -- --all
+pnpm --dir crates/cache-audit run audit -- --task native
+pnpm --dir crates/cache-audit run audit -- --pipeline assets
+pnpm --dir crates/cache-audit run audit -- --all
 ```
 
 The equivalent binary entry point is `cache-audit audit --workspace PATH` with
@@ -81,7 +81,7 @@ and before the addon-load check. Reports contain observed accesses only for that
 logs and statuses for prerequisites. The runner prepares WASM tools outside observation.
 It resolves pnpm's store location before observation and requires dependencies to
 be current, preventing pnpm's automatic install path from mutating the lockfile
-during a task. Run `vp install` beforehand when manifests have changed.
+during a task. Run `pnpm install` beforehand when manifests have changed.
 Source workspaces still receive normal build outputs; this is observation, not an
 OS sandbox. Use the isolated negative checker for declaration mutations.
 
@@ -93,10 +93,10 @@ of the **cache task**, not the command's working directory.
 
 ```sh
 # From the repository root: raw observation, no coverage verdict.
-target/debug/cache-audit -- pnpm --dir packages/webfont-generator run next:build > accesses.json
+target/debug/cache-audit -- pnpm --dir packages/webfont-generator run build > accesses.json
 
 # Audit the root-owned cache wrapper's declarations, executing its raw command.
-target/debug/cache-audit --workspace . --project . --task next:native --policy crates/cache-audit/policy.yaml -- pnpm --dir packages/webfont-generator run next:build > audit.json
+target/debug/cache-audit --workspace . --project . --task native --policy crates/cache-audit/policy.yaml -- pnpm --dir packages/webfont-generator run build > audit.json
 ```
 
 Install dependencies and prepare prerequisite outputs **before** observation.
@@ -117,7 +117,7 @@ Pass `--policy path/to/policy.yaml`. Policies are separate from pnpm declaration
 ```yaml
 version: 1
 tasks:
-    '.#next:native':
+    '.#native':
         ignore:
             - pattern: '/usr/**'
               reason: 'System toolchain; upgrades require separate task-cache invalidation'
@@ -230,20 +230,21 @@ From the repository root, after installing dependencies and building the auditor
 on Linux:
 
 ```sh
-vp run @atlowchemi/cache-audit#test:compat
-pnpm pipeline next-build --full --no-cache
-vp run @atlowchemi/cache-audit#audit -- --all
-vp run @atlowchemi/cache-audit#audit:negative
+pnpm --dir crates/cache-audit run test:compat
+pnpm pipeline build --full --no-cache
+pnpm --dir crates/cache-audit run audit -- --all
+pnpm --dir crates/cache-audit run audit:negative
 ```
 
-The dormant-pipeline CI job executes finite build/test/coverage/tarball pipelines
-uncached; servers, publishing,
+Normal CI executes pnpm pipelines. The manual/weekly cache-audit sweep also executes
+finite build/test/coverage/tarball pipelines uncached; servers, publishing,
 measurements, and source-mutating maintenance are explicitly invoked separately.
 PR runs reuse the conservative package selector in `scripts/ci/affected-selection.ts`.
 Shared or unknown changes and manual/scheduled runs select full validation.
 Selection and the auditor build run concurrently, followed by at most two isolated
-workers. They reuse the built binary, execute affected pipelines with their full
-prerequisites, and audit selected policy tasks. Unknown command ownership runs
+workers. They reuse the built binary and audit selected policy tasks. PRs do not
+repeat the pipeline sweep already covered by normal CI; manual/weekly sweeps execute
+pipelines with their full prerequisites. Unknown command ownership runs
 conservatively; pnpm's task-level affected selection is not used. Each task keeps
 separate audit reports, and newer pushes cancel superseded workflow runs.
 Rust owns audit execution, compatibility checks, and declaration-negative checks;
@@ -262,16 +263,16 @@ checkout idle while taking its copy. Both checks require the compiled auditor.
 `CACHE_AUDIT_BIN` selects the compiled auditor; `CACHE_AUDIT_REPORTS` overrides
 `artifacts/cache-audit`. Reports include command logs, audit JSON, and task status.
 
-Use `pnpm pipeline next-assets --full` directly for dormant cached SVG execution.
-Normal workflows still use Vite+. The PR/manual/scheduled `cache-audit.yaml` workflow executes dormant graphs
-and fails on filesystem audit findings, retaining reports for diagnosis.
+Use `pnpm pipeline assets --full` for cached SVG/social assets. Vite+ remains the
+underlying build/test/lint tooling; pnpm owns orchestration. The `cache-audit.yaml`
+workflow fails on filesystem audit findings, retaining reports for diagnosis.
 
-## Run dormant pipelines and reset task caches
+## Run pipelines and reset task caches
 
-`pnpm pipeline next-test --full` preserves the root Vitest task and native/browser
-build prerequisites. `next-rust-test` separately runs Rust formatting and the
-engine/adapter validation chain; `next-browser-test` retains browser Rust checks
-and tests. Commands, publishing bypasses, and prerequisites remain mapped to Vite+.
+`pnpm pipeline test --full` preserves the root Vitest task and native/browser
+build prerequisites. `rust-test` separately runs Rust formatting and the
+engine/adapter validation chain; `browser-test` retains browser Rust checks
+and tests. Raw package scripts preserve CI's downloaded-artifact and publishing bypasses.
 Read merged configuration with `pnpm config get tasks --location project --json`
 (or `pipelines`); the explicit location makes older bootstrap pnpm launchers
 delegate to the pinned project version.
@@ -311,7 +312,7 @@ Plugin-local tests do not use the root JUnit reporter. Their ordinary and upstre
 Vite matrix modes cache successful validation without test scratch outputs.
 Use `--no-cache` for external `NAPI_RS_NATIVE_LIBRARY_PATH`, custom WASI artifacts,
 or injected instrumentation: hashing the library path is not hashing its contents
-or restoring its externally written reports. The raw `next:*` package scripts
+or restoring its externally written reports. The raw package scripts
 also always execute, without prerequisite orchestration.
 
 Tarball caching does not suppress uncached package-build prerequisites. Native
@@ -322,7 +323,7 @@ The unchanged bundle is reusable; a new per-commit analysis is optional. When a
 fresh report is required, supply `CODECOV_TOKEN` through the environment and run:
 
 ```sh
-ALLOW_BUNDLE_ANALYSIS=true pnpm pipeline next-plugin-tarball --full --no-cache
+ALLOW_BUNDLE_ANALYSIS=true pnpm pipeline plugin-tarball --full --no-cache
 ```
 
 This executes packaging and its prerequisites even when cached, allowing the
