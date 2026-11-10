@@ -1,0 +1,194 @@
+# Reviewed filesystem-audit rules. File reads/writes still need task declarations;
+# directory metadata and producer-owned cleanup do not waive artifact coverage.
+version: 1
+tasks:
+    '.#next:docs:svg':
+        missingInputs: &file-probes
+            - pattern: '**/{package.json,package.json5,package.yaml,deno.json,deno.jsonc,lerna.json,pnpm-workspace.yaml,rust-toolchain,rust-toolchain.toml,.pnp.cjs}'
+              reason: 'Package, workspace, and toolchain regular-file discovery'
+            - pattern: '**/{.npmrc,.pnpmfile.cjs,.pnpmfile.mjs,.env,.env.*,.postcssrc,.postcssrc.*}'
+              reason: 'Optional build configuration files; appearance must affect the effective key'
+            - pattern: '**/{postcss,vite,svgo}.config.*'
+              reason: 'Optional bundler and optimizer configuration files'
+            - pattern: '**/{Cargo.toml,*.rs}'
+              reason: 'Cargo manifest, target, and Rust module file discovery'
+            - pattern: '**/.cargo/{config,config.toml}'
+              reason: 'Optional Cargo configuration files'
+            - pattern: 'packages/{docs,example}/public/**/*.{svg,png,js,ts,json,node,woff,woff2,ttf,eot,wasm,hbs}'
+              reason: 'Vite public-file fallback probes before resolving source and virtual assets'
+        ignore:
+            - &external
+              pattern: '/**'
+              reason: 'External installed toolchain/system files; upgrades require task-cache invalidation, dependency installs must remain immutable'
+            - &directories
+              pattern: '**'
+              kinds: [read]
+              directory: true
+              reason: 'Build-tool directory metadata; this cannot exempt regular-file contents'
+            - &discovery
+              pattern: '{packages,crates}/**'
+              kinds: [read_dir]
+              reason: 'Reviewed package/asset/source discovery; discovered regular-file accesses are validated independently'
+            - &output-directories
+              pattern: 'packages/{docs,webfont-browser,vite-svg-2-webfont,example}/dist/**'
+              kinds: [write]
+              directory: true
+              reason: 'Recreated output directories; artifact file writes still require output declarations'
+        neverCache: &intermediates
+            - pattern: '**/node_modules/**'
+              reason: 'Installed dependencies represented by the lockfile, never task artifacts'
+            - pattern: '.pnpm/**'
+              reason: 'pnpm installation state'
+            - pattern: '.git/**'
+              reason: 'Repository metadata, not a build artifact'
+            - pattern: 'target/**'
+              reason: 'Compiler and tool-install intermediates; final artifacts are copied to package output trees'
+            - pattern: 'packages/docs/.cache/**'
+              reason: 'Static renderer, browser, and plugin intermediates; published site files live in dist'
+        cleanupOutputs: &retired
+            - pattern: 'packages/{docs,webfont-browser,vite-svg-2-webfont,example}/dist/**'
+              reason: 'Retired build files; exemption requires a prior declared output that is absent afterward'
+
+    '.#next:wasm':
+        missingInputs: *file-probes
+        ignore:
+            - *external
+            - *directories
+            - *discovery
+            - pattern: 'packages/webfont-browser/generated/**'
+              kinds: [read]
+              reason: 'wasm-bindgen replaces generated files from freshly compiled WASM; writes remain checked'
+        neverCache: *intermediates
+
+    '.#next:browser:pack':
+        missingInputs: *file-probes
+        ignore:
+            - *external
+            - *directories
+            - *discovery
+            - *output-directories
+            - pattern: 'packages/webfont-browser/dist/**'
+              kinds: [read]
+              reason: 'Bundler output discovery/cleanup before regeneration; writes remain checked'
+        neverCache: *intermediates
+        cleanupOutputs: *retired
+
+    '.#next:native':
+        missingInputs:
+            - pattern: '**/.gitignore'
+              reason: 'Git discovery probes; existing and future ignore configuration is keyed'
+            - pattern: '{crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**/*.rs'
+              reason: 'Rust module alternatives and Cargo target source-file discovery; these are regular-file inputs if present'
+            - pattern: '**/Cargo.toml'
+              reason: 'Cargo manifest file discovery'
+            - pattern: '**/.cargo/{config,config.toml}'
+              reason: 'Optional Cargo configuration files'
+            - pattern: '**/{rust-toolchain,rust-toolchain.toml}'
+              reason: 'Optional Rust toolchain selector files'
+            - pattern: '**/pnpm-workspace.yaml'
+              reason: 'pnpm workspace configuration file discovery'
+            - pattern: '**/.pnp.cjs'
+              reason: 'Optional package-loader configuration file'
+            - pattern: '{.npmrc,.pnpmfile.cjs,.pnpmfile.mjs,package.json5,package.yaml,libgcc_s.so.1}'
+              reason: 'Optional root configuration and dynamic-loader file probes'
+            - pattern: 'packages/{HEAD,webfont-generator/HEAD}'
+              reason: 'Repository marker file probes'
+            - pattern: 'packages/webfont-generator/*.{js,cjs,mjs,ts,cts,wasm}'
+              reason: 'NAPI probes optional platform loader and WASM files; generated native outputs retain independent write checks'
+            - pattern: 'pnpm11/pnpm/package.json'
+              reason: 'pnpm executable package-manifest lookup'
+        ignore:
+            - pattern: '{.,crates,packages,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}'
+              kinds: [read]
+              reason: 'Workspace and package directory metadata; file contents remain independently checked'
+            - pattern: '{.,crates,packages}'
+              kinds: [read_dir]
+              reason: 'Workspace member discovery; root workspace configuration and member manifests are inputs'
+            - pattern: '{crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**'
+              kinds: [read_dir]
+              reason: 'Cargo target and NAPI package discovery; discovered file reads and missing-file probes are checked independently'
+            - pattern: 'packages/{.git,webfont-generator/.git}'
+              kinds: [read]
+              reason: 'Repository discovery probes; repository metadata is excluded like root .git, native versions come from package manifests'
+            - pattern: '/**'
+              reason: 'Paths outside the workspace: installed toolchain, system files, package store, and isolated Cargo target; upgrades require task-cache invalidation'
+            - pattern: 'packages/webfont-generator/binding.{js,d.ts}'
+              kinds: [read]
+              reason: 'NAPI reads preexisting generated bindings for transactional replacement; final writes still require output declarations'
+            - pattern: 'packages/webfont-generator/*.node'
+              kinds: [read]
+              reason: 'NAPI inspects preexisting generated addons during publication; final writes still require output declarations'
+        neverCache:
+            - pattern: 'packages/.napi-rs-filesystem-reconciliation*.swp'
+              reason: 'NAPI publication coordination and stale-lock probes; not build inputs or final artifacts'
+            - pattern: 'target/**'
+              reason: 'Cargo intermediates; final artifacts are published into the adapter package'
+            - pattern: '**/node_modules/**'
+              reason: 'Installed dependencies are represented by the package lockfile, not cached as task artifacts'
+            - pattern: '.pnpm/**'
+              reason: 'pnpm-materialized dependency sources and internal installation state'
+            - pattern: '.git/**'
+              reason: 'Repository metadata is not a restored build artifact'
+            - pattern: 'packages/.webfont-generator.napi-stage-*/**'
+              reason: 'NAPI transaction staging; final artifacts are separately declared outputs'
+            - pattern: 'packages/webfont-generator/.*.tmp'
+              reason: 'NAPI prepared, retired, rollback, and atomic-write temporary files'
+            - pattern: 'packages/webfont-generator/.napi-rs-filesystem-*/**'
+              reason: 'NAPI filesystem transaction locks and temporary state'
+
+    '.#next:plugin:pack':
+        missingInputs: *file-probes
+        ignore:
+            - *external
+            - *directories
+            - *discovery
+            - *output-directories
+            - pattern: 'packages/vite-svg-2-webfont/dist/**'
+              kinds: [read]
+              reason: 'Bundler output discovery/cleanup before regeneration; writes remain checked'
+        neverCache: *intermediates
+        cleanupOutputs: *retired
+
+    '.#next:docs:social':
+        missingInputs: *file-probes
+        ignore: [*external, *directories, *discovery]
+        neverCache: *intermediates
+
+    '.#next:docs':
+        missingInputs: *file-probes
+        ignore:
+            - *external
+            - *directories
+            - *discovery
+            - *output-directories
+            - pattern: 'packages/docs/dist/**'
+              kinds: [read]
+              reason: 'The static site build discovers and replaces site artifacts; writes remain checked'
+            - pattern: 'packages/docs/src/fonts/examples/write-files/generated/**'
+              kinds: [read]
+              reason: 'Example outputs are regenerated from keyed icons/templates; writes remain checked'
+        neverCache: *intermediates
+        cleanupOutputs: *retired
+
+    '.#next:example':
+        requiresUncached: true
+        missingInputs: *file-probes
+        ignore:
+            - pattern: 'packages/example/.env.local'
+              kinds: [read]
+              reason: 'Ignored local configuration; this policy requires task caching to stay disabled'
+            - pattern: 'packages/example/.env.production.local'
+              kinds: [read]
+              reason: 'Ignored production configuration; this policy requires task caching to stay disabled'
+            - *external
+            - *directories
+            - *discovery
+            - *output-directories
+            - pattern: 'packages/example/dist/**'
+              kinds: [read]
+              reason: 'Vite discovers and replaces application artifacts; writes remain checked'
+            - pattern: 'packages/example/public'
+              kinds: [read]
+              reason: 'Optional public-directory lookup; files beneath it are independently keyed'
+        neverCache: *intermediates
+        cleanupOutputs: *retired
