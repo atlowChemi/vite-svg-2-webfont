@@ -1,466 +1,86 @@
 # Contributing
 
-Thanks for contributing to `vite-svg-2-webfont`.
+Thanks for helping improve `vite-svg-2-webfont`. You only need to run the checks relevant to your change; CI handles the platform matrix.
 
-## Development Setup
+## Set up once
 
-This repository uses:
+Install:
 
-- The Node version pinned in [`.node-version`](./.node-version)
-- The pnpm version pinned in `package.json` for installation and task orchestration; see [pnpm installation](https://pnpm.io/installation)
-- Workspace-pinned Vite, Vitest, and tsdown for development, testing, and package bundling
-- `oxlint` for linting, type-aware checks, and type checking through `tsgo`
-- `oxfmt` for formatting
-- A monorepo workspace with JavaScript packages under `packages/` and the Rust engine under `crates/`
-- The pinned Rust toolchain with Cargo, Clippy, and rustfmt. CI also verifies stable product compatibility. The JavaScript test and plugin build pipelines build the native binding automatically.
+- **Node.js:** the version in [`.node-version`](./.node-version).
+- **pnpm:** the version in [`package.json`](./package.json), using the [pnpm installation instructions](https://pnpm.io/installation).
+- **Rust via [rustup](https://rustup.rs/):** the repository selects its pinned toolchain and components automatically. Install Rust before dependencies, since pnpm installs both JavaScript and Rust dependencies.
 
-Install Rust before running the full dependency install. pnpm materializes the locked Cargo
-dependencies as well as JavaScript dependencies.
+From the repository root:
 
-Install dependencies from the repository root:
-
-```bash
+```sh
 pnpm install
+```
+
+Rerun this after pulling dependency changes.
+
+For JavaScript/browser tests or the docs site, also install the browsers:
+
+```sh
 pnpm exec playwright install chromium firefox webkit
 ```
 
-On Linux, use `pnpm exec playwright install --with-deps chromium firefox webkit` to install browser system dependencies as well. Rerun `pnpm install` after pulling dependency changes.
+On Linux, add `--with-deps` to install their system dependencies.
 
-## Common Commands
+## Find your code
 
-Run these from the repository root:
+| What you want to change      | Where to look                      |
+| ---------------------------- | ---------------------------------- |
+| Vite plugin                  | `packages/vite-svg-2-webfont/src/` |
+| Font generation or Rust CLI  | `crates/webfont-generator/`        |
+| Node.js API / native adapter | `packages/webfont-generator/`      |
+| Browser / WASM API           | `packages/webfont-browser/`        |
+| Documentation                | `packages/docs/src/pages/`         |
+| Example app                  | `packages/example/`                |
 
-```bash
-pnpm run check                                  # format, lint, TypeScript checks
-pnpm pipeline test --full                        # JavaScript, browser, and type tests; builds native and WASM bindings
-pnpm pipeline coverage --full                    # non-browser JavaScript tests with coverage
-pnpm pipeline scripts-coverage --full            # repository script tests, including subprocess coverage
-pnpm pipeline bench --full                       # Vitest benchmarks with release binding and per-test results
-pnpm pipeline plugin-build --full                # build the Vite plugin
-pnpm pipeline native --full                      # build the native addon
-pnpm pipeline rust-check --full                  # Clippy (default, CLI, NAPI) and rustfmt checks
-pnpm pipeline rust-test --full                   # Rust checks and tests
-pnpm pipeline browser-test --full                # WASM adapter: build, check, browsers and production bundle
-pnpm pipeline browser-tarball --full             # installable JS/types/worker/WASM tarball
-pnpm pipeline browser-coverage --full            # JS/worker and actual WASM Rust coverage
-pnpm pipeline engine-bench --full                # run Rust Criterion benchmarks
-pnpm pipeline docs-dev --full                    # docs dev server
-pnpm pipeline docs --full                        # build docs
-pnpm pipeline docs-preview --full                # build docs, then serve the built site
-pnpm pipeline example-dev --full                 # run example app
-```
+Tests live alongside the code or in the package's `tests/` directory.
 
-Run tasks that build or restore the native binding sequentially within a checkout.
-For example, `pnpm pipeline test --full` and `pnpm pipeline plugin-build --full` both use the same
-generated binding files; separate invocations should not write them concurrently.
-
-### pnpm task graph
-
-`pnpm-workspace.yaml` delegates `tasks` and `pipelines` to `pnpm-tasks.yaml`
-using pnpm 12.15's native `include`. Edit task declarations in that file;
-workspace discovery and installation settings remain in the root configuration.
-
-Pipelines are the authoritative development and CI entry points. Vite, Vitest,
-tsdown, oxlint, and oxfmt supply the underlying tools.
-Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter
-checks and tests, browser Clippy, plugin-local tests, doctests, tarballs, and SVG/social assets enable
-task caches. Remaining exceptions and fresh Codecov bundle-analysis commands are
-documented in the auditor README.
-
-```mermaid
-flowchart LR
-    active["pnpm pipeline PIPELINE --full"] --> pipeline["pnpm-tasks.yaml"]
-    pipeline --> tasks["Root tasks and prerequisite edges"]
-    tasks --> scripts["Package package.json: raw commands"]
-    scripts --> tools["Vite, Vitest, tsdown, Cargo, NAPI, and package tools"]
-    audit["cache-audit audit --task / --pipeline / --all"] --> rust["Embedded pnpm Rust graph APIs"]
-    rust --> execution["Rust prerequisite execution and per-task observation"]
-    execution --> tools
-    rust -. "graph --all --verify-pnpm" .-> pipeline
-```
-
-Arrows point from a prerequisite to its consumer:
-
-```mermaid
-flowchart TD
-    engine["engine check → feature tests → tests"] --> adapter["adapter check → tests"]
-    adapter --> release["native-release: native:release"]
-    release --> bench["bench: bench:vitest"]
-    native["native"] --> plugin["plugin:pack"]
-    wasm["wasm"] --> browser["browser:pack"]
-    svg["docs:svg"] --> social["docs:social"]
-    native --> tests["test: test:js"]
-    browser --> tests
-    adapter --> rusttests["rust-test"]
-    browser --> browsertests["browser-test: check + tests"]
-    plugin --> docs["docs"]
-    browser --> docs
-    social --> docs
-    plugin --> example["example"]
-    svg --> example
-    plugin --> docsdev["docs-dev: docs:dev"]
-    browser --> docsdev
-    social --> docsdev
-    plugin --> exampledev["example-dev: example:dev"]
-    svg --> exampledev
-    docs --> docspreview["docs-preview: docs:preview"]
-    example --> examplepreview["example-preview: example:preview"]
-    plugin --> plugintar["plugin-tarball: plugin:tgz"]
-    browser --> browsertar["browser-tarball: browser:tgz"]
-    browsertar --> browserpublish["browser-publish: browser:publish"]
-    supplied["Native artifacts supplied by release CI"] --> pluginpublish["plugin-publish: raw pack → raw tarball → publish"]
-```
-
-List all entry points with `pnpm config get pipelines --location project --json`.
-Inspect a graph without executing it with `pnpm pipeline NAME --full --dry-run --json`.
-The package-local script contains the raw command. Root aliases such
-as `native` and `wasm` own cross-package cache declarations. Use native
-`pnpm pipeline NAME --full` to prepare prerequisites; a raw package script does not.
-`test` preserves the original JS test scope; Rust suites are separate pipelines.
-Keep `--full`: native affected selection currently skips required root-owned tasks
-for docs-only edits. See the auditor's [cache-reset policy](./crates/cache-audit/README.md#run-pipelines-and-reset-task-caches)
-for external-tool upgrades and ignored local configuration.
-
-Lifecycle hooks (`prepare`, native `prepublishOnly`) retain their existing names
-and automatic package-manager behavior. The auditor's own commands are exposed
-through `pnpm --dir crates/cache-audit run TASK`; see its
-[README](./crates/cache-audit/README.md).
-
-The Linux auditor owns graph selection, serial prerequisite execution, per-task
-reports, cancellation, and temporary Cargo targets in Rust. Its `--all` selects
-reviewed policy tasks; it does not launch dev servers or publish pipelines.
-`test:compat` validates cache behavior in a temporary fixture with separate pnpm
-caches; `audit:negative` mutates a temporary workspace copy. The package's Node
-entry point only forwards arguments and signals to the compiled binary.
-
-Normal CI uses pipelines after conservative package selection. Jobs with downloaded
-bindings or already-prepared browser prerequisites use raw scripts to preserve those
-artifacts. Coverage and test-report producers execute fresh. The cache-audit workflow
-runs selected filesystem audits on PRs and sweeps all finite pipelines only on
-manual/weekly runs. Dev/preview,
-publishing, benchmarks, fixture regeneration, and specialized coverage commands
-are invoked explicitly, not automatically by that suite. Rust formatting is a
-separate `fmt:rust` pipeline task to keep engine-only cache dependencies narrow.
-
-### Build caches and generated files
-
-Dependency caches, Cargo build outputs, and pnpm task outputs serve different purposes:
-
-- `pnpm install` reuses downloaded dependencies; this does not mean a build or test ran.
-- CI persists pipeline results through `.github/actions/pipeline-cache`, separately from the install store. Keys isolate workflow/job, OS/architecture, runner image, Node/pnpm/Rust versions and the lockfile. Bump the action's generation for untracked external-tool upgrades. Report tasks remain uncached; filesystem audits use fresh execution.
-- Cargo reuses compiled work under the workspace `target/` directory.
-- pnpm task-cache hits restore task outputs and replay logs. The native build caches
-  the platform `.node` file and `binding.js` / `binding.d.ts`; the plugin pack task
-  produces its `dist/` bundle and declarations.
-
-Use `pnpm pipeline NAME --full --no-cache` when you need the task to execute rather than
-restore its result. This bypasses pnpm task caching, not Cargo's compilation cache or
-the dependency store. It is not a cold-build measurement.
-
-Let the native build regenerate bindings rather than editing them manually. Include
-generated binding changes with the source changes that produced them.
-
-### Running coverage locally
-
-`pnpm pipeline coverage --full` measures non-browser JavaScript coverage. To measure Rust code,
-including Rust executed through the Node addon, install these additional tools:
-
-```bash
-rustup component add llvm-tools-preview
-cargo install cargo-llvm-cov --locked
-cargo install cargo-nextest --locked
-```
-
-Run the relevant tasks from the repository root (native coverage requires Linux or macOS with Bash):
-
-```bash
-pnpm pipeline engine-coverage --full  # engine library and integration tests
-pnpm pipeline cli-coverage --full     # binary tests and CLI-only integration tests
-pnpm pipeline adapter-coverage --full # native adapter Rust tests
-pnpm pipeline native-coverage --full  # adapter Vitest tests: Rust + JS coverage
-pnpm pipeline doctests --full         # default and CLI-feature Cargo doctests
-```
-
-The Rust tasks write `rust.lcov` and `junit.xml` under `coverage/rust-engine/`,
-`coverage/rust-cli/`, and `coverage/rust-adapter/`. Native Vitest coverage writes
-`rust.lcov`, `js/lcov.info`, and `junit.xml` under `coverage/napi-vitest/`.
-Run root JavaScript coverage first if collecting all reports locally: it cleans
-the root `coverage/` directory.
-
-`pnpm pipeline scripts-coverage --full` runs the `scripts` Vite test project and writes
-`coverage/scripts/lcov.info`. It enables V8 subprocess coverage for scripts launched
-by the tests. CI runs this project when `scripts/` changes, with its own Codecov flag
-and test-results report. Shell scripts are outside V8's JavaScript/TypeScript coverage.
-
-Coverage executions are uncached and use isolated instrumented builds. Their temporary
-run directories are removed on exit, including failures; exported reports remain.
-Directories left by older task versions or forcibly terminated processes can be removed
-from `coverage/*/run.*` after confirming no coverage tasks are running.
-
-Nextest produces individual Rust test results but does not run doctests. The doctest
-task uses Cargo and writes two aggregate invocation results to `test-results/doctests.xml`.
-It requires Rust but does not require the coverage tools above.
-
-### Regenerating test fixtures
-
-After adding, removing, or modifying SVG icons in the plugin's fixture directory (`packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`), regenerate the expected font fixtures:
-
-```bash
-pnpm pipeline fixtures-refresh --full
-```
-
-### Benchmarks
-
-The repository has two benchmark layers:
-
-- Rust Criterion benchmarks in `crates/webfont-generator/benches/` isolate native generator internals, pipeline stages, incremental regeneration, output formats, templates, write paths, and scaling behavior.
-- Vitest benchmarks in `tests/webfonts-generator.bench.ts` exercise the JavaScript-facing API and compare against upstream behavior through the Node/NAPI boundary.
-
-Run Rust benchmarks through the pipeline:
-
-```bash
-pnpm pipeline engine-bench --full
-```
-
-Use compile-only validation while editing benchmark targets or benchmark-only support code:
-
-```bash
-pnpm --dir packages/webfont-generator run bench --no-run
-```
-
-Run targeted Criterion filters when investigating a specific path, for example:
-
-```bash
-pnpm --dir packages/webfont-generator run bench --bench pipeline -- pipeline_stages/woff2_output_only/300
-```
-
-Run JavaScript-facing Vitest benchmarks with:
-
-```bash
-pnpm pipeline bench --full
-```
-
-This task builds the optimized release binding, including its existing Rust check/test dependencies, and runs the benchmarks once with fresh measurements. The verbose reporter prints each comparison and its results as it completes. Skipped comparisons are hidden when filtering; individual iterations within a running comparison are not printed.
-
-For a focused comparison, prepare the release binding and forward arguments to the raw script:
-
-```bash
-pnpm pipeline native-release --full
-pnpm run bench:vitest --testNamePattern='batched vs separate content edits — 600 glyphs'
-```
-
-Use this pipeline when collecting timings: `pnpm pipeline test --full` builds a debug binding, which can make expensive benchmarks exceed their timeout. The benchmark pipeline prepares the release binding before measuring. Vitest v5 sampling defaults apply except where a scenario specifies its own options; a sampling time is a minimum measurement window, not a maximum runtime.
-
-Benchmark CI also uses verbose reporting and writes a JSON report for historical comparisons.
-
-The Rust benchmarks prefer Iconify JSON fixtures from the workspace `node_modules` when available and fall back to deterministic synthetic SVGs. Keep this fallback so `cargo bench` still works after a clean Rust-only checkout, but use `pnpm install` first when collecting numbers intended for comparison.
-
-## Tools
-
-- `pnpm` installs dependencies and runs pipelines. Package scripts resolve their local tools automatically.
-- `pnpm run check` runs oxfmt checks and oxlint with type-aware linting and type checking powered by `tsgo`.
-- Configure lint rules in `.oxlintrc.json` and formatting in `.oxfmtrc.json`.
-- `pnpm run fmt` formats files with oxfmt.
-- `vitest` is used for unit tests and is run through `pnpm exec vitest`.
-
-## Project Structure
-
-This monorepo has a root Cargo workspace and the following packages:
-
-- `packages/vite-svg-2-webfont/`: the Vite plugin — source code, tests, and build config
-- `crates/webfont-generator/`: published Rust engine and CLI; its private npm manifest connects the task graph
-- `packages/webfont-generator/`: `@atlowchemi/webfont-generator` — npm API and unpublished `webfont-generator-napi` adapter crate
-- `packages/webfont-browser/`: browser npm package with precompiled WASM and an unpublished wasm-bindgen adapter crate
-- `packages/example/`: Vite app used for local development and manual verification
-- `packages/docs/`: documentation site, static pages rendered at build time with Vite and React, published to GitHub Pages
-- `tests/`: cross-package compatibility tests and benchmarks (at root level)
-
-Cargo uses the root `Cargo.lock` and `target/`. Templates are tracked solely under
-`packages/webfont-generator/templates/` and ship directly in the npm package. Adapter tests
-verify shipped-template parity through the generation API. Engine tests use engine-owned
-SVG fixtures and small custom-template inputs, without reading downstream package assets.
-The library and CLI do not need the npm templates for default rendering.
-Release Please links engine/adapter versions. The engine uses the Rust release strategy;
-its private npm manifest uses the fixed placeholder version `0.0.0-internal-only` for workspace packaging and task-graph discovery, not Rust releases. The engine has its own changelog at
-`crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;
-those releases trigger crates.io publication. The npm adapter retains its own changelog
-and `webfont-generator-v*` releases. npm/crates.io identities are unchanged, and the
-engine's private npm task package is never published.
-
-The browser build uses `wasm32-unknown-unknown` and installs a matching wasm-bindgen CLI
-under `target/wasm-bindgen-tools`; Rust/rustup are prerequisites. `WASM_BINDGEN` can select
-an existing CLI of the exact required version. WASM generation uses only the engine's
-`in_memory` feature. `#build` compiles the WASM binding; `#pack` builds the complete `dist/`
-distribution, and `#pack:tgz` creates an installable tarball. Workspace consumers must run
-`#pack` first. See the [browser API documentation](https://fonte.atlow.dev/browser/api) for usage and worker ownership.
-
-Browser coverage writes `coverage/browser-js/lcov.info` and `coverage/browser-rust/lcov.info`.
-JavaScript coverage combines Chromium client tests with worker protocol tests running real WASM
-in Node, replacing only message transport and asset fetching. Rust coverage runs the adapter's
-WASM tests through wasm-bindgen-test in Node. It requires `cargo-llvm-cov` 0.9.0+, a WASM-capable
-`clang` on PATH, and this coverage-only toolchain:
+To work on the site or example app:
 
 ```sh
-rustup toolchain install nightly-2026-02-18 --profile minimal --component llvm-tools-preview --target wasm32-unknown-unknown
+pnpm pipeline docs-dev --full
+pnpm pipeline example-dev --full
 ```
 
-On macOS, put Homebrew LLVM's `bin` directory on PATH; Apple clang lacks the WASM target.
-`WEBFONT_COVERAGE_TOOLCHAIN` overrides the coverage toolchain; normal builds use the
-nightly pinned in `rust-toolchain.toml`. CI also verifies the product with stable
-`rustc` and checks the packaged engine crate using stable Cargo.
-The pinned nightly uses LLVM 22 to match wasm-bindgen-test's exact minicov 0.3.8 dependency.
-CI uploads coverage with the `browser-js` and `browser-rust` flags and reports the production
-smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.
+Choose one. These commands build their prerequisites before starting the dev server.
 
-Release-PR preparation updates Cargo.lock through the registry before frozen installation, runs
-`pnpm pipeline binding-regenerate --full`, and formats changes with `pnpm run fmt`.
-The regeneration task uses the NAPI generator to update only the JS loader, preserving
-exports from the last full binding build without compiling Rust. Changes to the native API
-still require the normal binding build to refresh both exports and TypeScript declarations.
+## Check your change
 
-## Pull Requests
+Run formatting, lint, and TypeScript checks from the root:
 
-### How CI selects validation
-
-CI always runs shared lint/checks and an affected-selection job. The selector asks pnpm
-for changed workspace packages and their dependents, then chooses the validation jobs
-and native artifacts those jobs need. The `affected-selection` artifact and job summary
-record the comparison base, changed files, packages, decisions, and reason.
-
-- Pull requests compare the checked-out PR head with its merge-base against the target
-  SHA in the event. Pushes to `main` compare against the previous branch tip and also
-  use affected selection.
-- Root/shared files, including lockfiles, select all packages. Package-local manifests
-  follow normal package/dependent selection. The three package changelogs additionally
-  select docs because the site includes them.
-- Unavailable history or an invalid package query falls back to full validation;
-  rewritten push history does too. Changed files with an empty or root-only package
-  selection also broaden validation. An unknown package name fails selection: update
-  the selector's package/job mapping when adding a workspace package.
-
-| Affected package   | Direct Rust suites   | Native build artifacts | Other selected validation                                                      |
-| ------------------ | -------------------- | ---------------------- | ------------------------------------------------------------------------------ |
-| Engine / CLI       | Engine, CLI, adapter | All nine targets       | Native Vitest, host/musl, Node/Vite, browser, WASM                             |
-| npm / NAPI adapter | Adapter              | All nine targets       | Native Vitest, host/musl, Node/Vite, browser                                   |
-| Plugin / example   | None                 | Linux x64 GNU          | Node/Vite, browser                                                             |
-| Browser workspace  | WASM Clippy          | None                   | Actual WASM generation in Chromium/Firefox/WebKit and production worker bundle |
-| Docs               | None                 | None                   | Docs build                                                                     |
-
-Adapter tests still compile/use the engine as a dependency; skipping its direct test
-suite does not remove that dependency. Native Vitest coverage also measures engine
-execution through the addon. Repository script tests run separately when `scripts/`
-changes, or conservatively when comparison is unavailable; they do not run merely
-because all packages were selected.
-
-`Required checks` validates the selection and every expected result. Unexpected skips,
-failures, cancellations, or missing native prerequisites fail the aggregate with GitHub
-error annotations. Selected coverage jobs must produce nonempty reports and upload
-successfully before Codecov finalization. Intentionally absent flags carry forward
-previous coverage; changes needing no coverage use `empty-upload`. Carried coverage
-is historical evidence, not a claim that skipped tests ran on the new commit.
-
-### Choosing local checks
-
-Before opening a pull request, please:
-
-1. Install dependencies with `pnpm install`.
-2. Build the plugin with `pnpm pipeline plugin-build --full`.
-3. Run `pnpm run check` for formatting, lint, and TypeScript checks.
-4. Run `pnpm pipeline test --full` when your change affects JavaScript or browser behavior; use `pnpm pipeline coverage --full` to check non-browser JavaScript coverage.
-5. Run `pnpm pipeline rust-test --full` when changing Rust code; this includes Rust checks and tests. The JavaScript test pipeline does not run the Rust test suite.
-6. Run `pnpm --dir packages/webfont-generator run bench --no-run` when changing Rust benchmark targets or benchmark-only support code.
-7. Run targeted Rust or Vitest benchmark filters when changing measured performance behavior.
-8. Verify the example app with `pnpm pipeline example-dev --full` or `pnpm pipeline example --full` for user-facing changes.
-9. Verify the docs site with `pnpm pipeline docs --full` when you change site documentation or docs config.
-
-## Releasing packages
-
-The [release workflow](./.github/workflows/release.yaml) runs on pushes to `main`.
-Release Please selects versions and releases using
-[`release-please-config.json`](./release-please-config.json); affected CI decisions
-do not select packages for publication.
-
-| Release Please output   | Publication work                                                                                                             |
-| ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| Engine release created  | Publish `webfont-generator` to crates.io                                                                                     |
-| Adapter release created | Build all nine native targets, stage platform npm packages and `@atlowchemi/webfont-generator`, upload native release assets |
-| Plugin release created  | Bundle the plugin, create its tarball, stage `vite-svg-2-webfont`, upload the tarball                                        |
-
-Engine and adapter versions are linked by Release Please, so a release may select both.
-Each publication job still requires its own package's `release_created` output.
-Any created release also triggers docs deployment.
-
-The plugin's `publish` task is release-only: it explicitly runs `pack` and `pack:tgz`
-with `--ignore-depends-on` before staging the tarball. Its dependencies remain external,
-so this path neither compiles Rust nor consumes native release-matrix artifacts. The
-normal development `pack` task retains its native build prerequisite.
-
-To complete a release:
-
-1. Review the Release Please PR, including linked engine/adapter versions, changelogs,
-   lockfiles, and generated loader updates described in [Project Structure](#project-structure).
-2. Merge it after its selected checks pass, then inspect the release workflow's package-specific jobs.
-3. For npm releases, use the staging IDs in the workflow summary. Approve with
-   `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine;
-   approve platform packages before their adapter package. A successful staging job
-   alone is not proof that a package is publicly available.
-4. Confirm the intended versions are available in npm/crates.io and that GitHub release
-   assets match the selected releases. Verify installation from the registry, rather
-   than from workspace links.
-
-## Commit Conventions
-
-This project uses [Conventional Commits](https://www.conventionalcommits.org/) format for commit messages and PR titles. This is required for automated changelog generation via release-please.
-
-The format is:
-
-```
-type(scope): description
+```sh
+pnpm run check
 ```
 
-Common types:
+Then choose the relevant checks below. Pipelines build their own prerequisites; you do not need to build the plugin separately first.
 
-- `feat` - A new feature
-- `fix` - A bug fix
-- `chore` - Maintenance tasks, dependency updates
-- `docs` - Documentation changes
-- `refactor` - Code restructuring without behavior changes
-- `test` - Adding or updating tests
-- `ci` - CI/CD configuration changes
-- `perf` - Performance improvements
+| Your change                         | Run                                 |
+| ----------------------------------- | ----------------------------------- |
+| Docs content or site configuration  | `pnpm pipeline docs --full`         |
+| JavaScript / TypeScript behavior    | `pnpm pipeline test --full`         |
+| Rust engine, CLI, or native adapter | `pnpm pipeline rust-test --full`    |
+| Browser / WASM adapter              | `pnpm pipeline browser-test --full` |
+| Example app                         | `pnpm pipeline example --full`      |
 
-Examples:
+For changes across language boundaries, run both relevant suites. Run build/test pipelines sequentially in the same checkout because they share generated bindings.
 
-```
-feat: add support for custom font formats
-fix(vite-svg-2-webfont): handle empty SVG directory gracefully
-docs: update configuration reference
-chore: bump dependencies
-```
+Add or update a focused test for behavior changes. Let builds regenerate native bindings; include generated binding changes with the source changes that produced them.
 
-Scopes are optional; when used, they must match `scope-enum` in [`commitlint.config.js`](./commitlint.config.js). The `commit-msg` hook validates commit messages, and CI validates PR titles. You can validate either before submitting:
+Need a specialized check? See [coverage](./CONTRIBUTING-reference.md#running-coverage-locally), [benchmarks](./CONTRIBUTING-reference.md#benchmarks), or [fixture regeneration](./CONTRIBUTING-reference.md#regenerating-test-fixtures).
 
-```bash
-printf '%s\n' 'chore(benchmarks): show per-test progress locally and in CI' | pnpm exec commitlint
-```
+## Open a pull request
 
-## Before You Commit
+1. Describe what changed and why; link a related issue if there is one.
+2. Mention the checks you ran. You do not need every platform or coverage tool installed locally.
+3. Use a [Conventional Commit](https://www.conventionalcommits.org/) title, for example `fix: handle empty SVG directories` or `docs: clarify browser setup`. Scopes are optional; allowed scopes are in [`commitlint.config.js`](./commitlint.config.js).
+4. Review CI results and address failures before merging.
 
-Commits should be created only after the code passes the repository checks.
+Commits use the same title convention. Installation enables hooks that format/check staged files and validate commit messages. **The pre-commit hook does not run the full test suite**; use the checks above before opening your PR.
 
-The checked-in hooks in `.githooks/` run:
+## When you need more detail
 
-- `pre-commit`: `pnpm exec lint-staged`, then `pnpm exec vitest run`. Staged-file tasks run Oxc checks/fixes and Rust formatting as configured in `lint-staged.config.js`.
-- `commit-msg`: `pnpm exec commitlint --edit` to validate the message.
-
-`pnpm install` sets Git's `core.hooksPath` to the checked-in `.githooks` directory through the `prepare` script.
-
-Run `pnpm pipeline test --full` before committing to ensure the native binding is built. The hook's direct `pnpm exec vitest run` command does not build it or run the Rust test suite, and hooks do not replace the change-specific checks above.
-
-## Notes
-
-- Keep lockfile changes in `pnpm-lock.yaml` when dependencies change.
-- Do not commit `package-lock.json` files to the workspace.
-- Use `pnpm pipeline NAME --full` for prerequisite orchestration and `pnpm exec` for standalone tools. Avoid `pnpm dlx` for installed tools: `exec` uses the workspace-pinned version.
-- Start, build and preview the docs through `pnpm pipeline docs-dev --full`, `docs`, or `docs-preview`. These pipelines first pack the plugin and browser package, including their native/WASM engines; running Vite directly skips prerequisites needed by `virtual:site-icons.css`.
-- The type-safe component example imports `virtual:typed-icons`. After a fresh install or plugin repack, run the docs dev server or docs build before standalone example type-checking: Vite initializes package-local declarations during generation. The docs build task packs the plugin before building the site, so generation precedes component compilation. The Vite config's TypeScript program is not a substitute for the example's `vite-env.d.ts` opt-in.
+The [contributor reference](./CONTRIBUTING-reference.md) contains the full command list, task graphs, cache troubleshooting, CI selection, and release procedures. The [cache auditor README](./crates/cache-audit/README.md) is for work on build infrastructure.
