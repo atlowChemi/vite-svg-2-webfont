@@ -16,6 +16,10 @@ tasks:
               reason: 'Optional Cargo configuration files'
             - pattern: 'packages/{docs,example}/public/**/*.{svg,png,js,ts,json,node,woff,woff2,ttf,eot,wasm,hbs}'
               reason: 'Vite public-file fallback probes before resolving source and virtual assets'
+            - pattern: 'packages/docs/src/pages/*/configuration.md'
+              reason: 'Option registry probes each pages entry; absent pages and ENOTDIR probes require keyed ancestors'
+            - pattern: 'packages/docs/\:/usr/share/vulkan/loader_settings.d/vk_loader_settings.json'
+              reason: 'Observed relative Vulkan loader probe; only checked absence is accepted, and creation must enter docs inputs'
         ignore:
             - &external
               pattern: '/**'
@@ -55,6 +59,9 @@ tasks:
             - *external
             - *directories
             - *discovery
+            - pattern: '{crates/cache-audit,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}/{benches,examples,src/bin,tests}'
+              kinds: [read]
+              reason: 'Cargo target-directory discovery, including absent optional target directories; source files beneath them are keyed and independently checked'
             - pattern: 'packages/webfont-browser/generated/**'
               kinds: [read]
               reason: 'wasm-bindgen replaces generated files from freshly compiled WASM; writes remain checked'
@@ -77,7 +84,7 @@ tasks:
         missingInputs:
             - pattern: '**/.gitignore'
               reason: 'Git discovery probes; existing and future ignore configuration is keyed'
-            - pattern: '{crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**/*.rs'
+            - pattern: '{crates/cache-audit,crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**/*.rs'
               reason: 'Rust module alternatives and Cargo target source-file discovery; these are regular-file inputs if present'
             - pattern: '**/Cargo.toml'
               reason: 'Cargo manifest file discovery'
@@ -98,13 +105,20 @@ tasks:
             - pattern: 'pnpm11/pnpm/package.json'
               reason: 'pnpm executable package-manifest lookup'
         ignore:
-            - pattern: '{.,crates,packages,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}'
+            - pattern: '**'
+              kinds: [read]
+              directory: true
+              reason: 'Directory metadata only; regular-file reads remain independently checked'
+            - pattern: '{crates/cache-audit,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}/{benches,examples,src/bin,tests}'
+              kinds: [read, read_dir]
+              reason: 'Cargo target-directory discovery, including absent optional target directories; source files beneath them are keyed and independently checked'
+            - pattern: '{.,crates,packages,crates/cache-audit,crates/webfont-generator,packages/webfont-browser,packages/webfont-generator}'
               kinds: [read]
               reason: 'Workspace and package directory metadata; file contents remain independently checked'
             - pattern: '{.,crates,packages}'
               kinds: [read_dir]
               reason: 'Workspace member discovery; root workspace configuration and member manifests are inputs'
-            - pattern: '{crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**'
+            - pattern: '{crates/cache-audit,crates/webfont-generator,packages/webfont-generator,packages/webfont-browser}/**'
               kinds: [read_dir]
               reason: 'Cargo target and NAPI package discovery; discovered file reads and missing-file probes are checked independently'
             - pattern: 'packages/{.git,webfont-generator/.git}'
@@ -155,6 +169,7 @@ tasks:
         neverCache: *intermediates
 
     '.#next:docs':
+        requiresUncached: true
         missingInputs: *file-probes
         ignore:
             - *external
@@ -167,6 +182,11 @@ tasks:
             - pattern: 'packages/docs/src/fonts/examples/write-files/generated/**'
               kinds: [read]
               reason: 'Example outputs are regenerated from keyed icons/templates; writes remain checked'
+            - pattern: '{packages/docs/dist/.vite,packages/docs/dist/.vite/manifest.json}'
+              reason: 'Client manifest is created, consumed, then deleted by the static renderer; not a final site artifact'
+            - &virtual-declarations
+              pattern: 'packages/vite-svg-2-webfont/dist/generated/**'
+              reason: 'Consumer-owned virtual declarations, aggregate index, locks, and atomic-write temporaries; consumers must stay uncached until output ownership is isolated'
         neverCache: *intermediates
         cleanupOutputs: *retired
 
@@ -174,6 +194,7 @@ tasks:
         requiresUncached: true
         missingInputs: *file-probes
         ignore:
+            - *virtual-declarations
             - pattern: 'packages/example/.env.local'
               kinds: [read]
               reason: 'Ignored local configuration; this policy requires task caching to stay disabled'

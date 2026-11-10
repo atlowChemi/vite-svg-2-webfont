@@ -3,12 +3,6 @@
 Private Linux tooling for observing a command and checking its filesystem accesses
 against pnpm's effective task inputs and outputs. Normal builds still use Vite+.
 
-This review layer introduces the auditor, policies, and isolated compatibility
-tests. Workspace cache declarations and activation arrive in the next layer;
-until then all workspace tasks are uncached. The workspace audit commands and
-activation contracts below describe that next layer, not enabled behavior here.
-CI currently builds/tests the auditor and checks graph/fixture compatibility.
-
 ## Build and test
 
 Install Node, Git, and Rust. The root `rust-toolchain.toml` pins nightly
@@ -166,8 +160,10 @@ A read-only literal-path rule can specify `environment: VARIABLE`. The variable
 must appear explicitly in the task's or a dependency's `env` inputs and equal the
 file's SHA-256 (or `missing`) before and after execution. This is supported for
 callers that supply a verified pre-key stamp; native pipelines do not generate one.
-The example remains uncached because it can read ignored env files; the activation
-layer disables dotenv loading for docs before enabling its cache.
+Docs and the example remain uncached because they publish shared virtual declarations
+inside the plugin package, including an index accumulated across consumers. Both
+policies enforce `requiresUncached`; isolating declaration ownership and restoration
+is required before enabling either cache. The example also reads ignored env files.
 The example policy sets `requiresUncached: true`: its narrowly exempted local env
 reads are accepted only while the task explicitly declares `cache: false`. Enabling
 or defaulting its cache makes policy preparation fail. This is an uncached-command
@@ -274,7 +270,7 @@ Read merged configuration with `pnpm config get tasks --location project --json`
 (or `pipelines`); the explicit location makes older bootstrap pnpm launchers
 delegate to the pinned project version.
 
-Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter Rust checks
+Native/WASM builds, browser/plugin packaging, Rust formatting, engine/adapter Rust checks
 and tests, browser Clippy, plugin-local tests, doctests, tarballs, and SVG/social assets enable task
 caching. Doctest hits restore `test-results/doctests.xml`. The declared `outputs: []` on Rust checks/tests
 means a cached success restores no compiler binaries or `target/` intermediates.
@@ -283,7 +279,7 @@ publishing must execute unless their separate contracts have been validated.
 
 Browser/plugin packaging, plugin-local tests, and docs explicitly disable Vite
 dotenv loading. Use process environment for selectors such as `VITE_COMPAT_MAJOR`
-and `GITHUB_ACTIONS`; those inputs remain keyed.
+and `NODE_ENV`; those inputs remain keyed.
 The example application retains dotenv support and stays uncached because its
 ignored local-env files cannot be reliably keyed by pnpm.
 

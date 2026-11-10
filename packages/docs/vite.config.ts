@@ -13,6 +13,8 @@ try {
 }
 
 const config: UserProjectConfigExport = defineProject({
+    // Ignored local dotenv files must not affect cached site builds.
+    envDir: false,
     // Tests on Node.js 22, which can't parse `using`, get lowered syntax; builds run on Node.js 26 and keep it as written.
     // TODO [engine:node@>=24, 2027-04-30]: Remove this lowering target once Node 22 support ends.
     ...(process.env.VITEST && Number(process.versions.node.split('.')[0]) < 24 ? { oxc: { target: 'es2022' } } : {}),
