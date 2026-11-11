@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp fmt*'
+      resource: 'pnpm exec vp fmt*'
       effect: allow
 ---
 
-Run `vp fmt` from the repository root.
+Run `pnpm exec vp fmt` from the repository root.
 
 This command may edit files by applying formatter output. Do not make manual edits. Return only:
 

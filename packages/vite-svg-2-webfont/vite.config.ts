@@ -36,40 +36,6 @@ const config: UserProjectConfigExport = defineProject({
             }),
         ],
     },
-    run: {
-        tasks: {
-            dev: {
-                command: 'vp pack --watch',
-            },
-            pack: {
-                command: 'vp pack',
-                dependsOn: ['@atlowchemi/webfont-generator#build'],
-                cache: { env: ['CODECOV_TOKEN', 'ALLOW_BUNDLE_ANALYSIS'] },
-            },
-            'pack:tgz': {
-                command: 'pnpm pack',
-                dependsOn: ['pack'],
-            },
-            test: {
-                command: 'vp test',
-                dependsOn: ['@atlowchemi/webfont-generator#build'],
-            },
-            'test:browser': {
-                cache: false,
-                command: 'vp test --root ../.. --project=vite-svg-webfont-browser',
-                dependsOn: ['@atlowchemi/webfont-generator#build'],
-            },
-            'test:fixtures:refresh': {
-                command: 'node ./scripts/refresh-font-fixtures.ts',
-                dependsOn: ['pack'],
-            },
-            publish: {
-                cache: false,
-                // Release-only: package external dependencies without compiling the native addon.
-                command: 'vp run --ignore-depends-on pack && vp run --ignore-depends-on pack:tgz && vp exec -c "pnpm stage publish vite-svg-2-webfont-*.tgz --no-git-checks"',
-            },
-        },
-    },
     test: {
         include: ['src/**/*.test.ts'],
         fsModuleCache: true,

@@ -11,7 +11,7 @@ fn isolated_cache_compatibility_and_negative_checks_preserve_source_workspace() 
     fs::create_dir_all(root.join("packages/webfont-generator")).unwrap();
     fs::write(root.join("package.json"), json!({
         "name":"negative-fixture", "private":true, "packageManager":"pnpm@12.15.0",
-        "scripts":{"next:native":"cat crates/webfont-generator/src/lib.rs > packages/webfont-generator/binding.d.ts; printf 'export {};' > packages/webfont-generator/binding.js"}
+        "scripts":{"native":"cat crates/webfont-generator/src/lib.rs > packages/webfont-generator/binding.d.ts; printf 'export {};' > packages/webfont-generator/binding.js"}
     }).to_string()).unwrap();
     fs::write(
         root.join("packages/webfont-generator/package.json"),
@@ -30,10 +30,10 @@ fn isolated_cache_compatibility_and_negative_checks_preserve_source_workspace() 
     )
     .unwrap();
     let yaml = "packages: ['.']\ninclude:\n  ./tasks.yaml: [tasks]\n";
-    let tasks = "tasks:\n  next:native:\n    cache: false\n    dependsOn: []\n    inputs: [package.json, pnpm-workspace.yaml, tasks.yaml, 'packages/*/package.json', 'crates/webfont-generator/**']\n    outputs: [packages/webfont-generator/binding.js, packages/webfont-generator/binding.d.ts]\n";
+    let tasks = "tasks:\n  native:\n    cache: false\n    dependsOn: []\n    inputs: [package.json, pnpm-workspace.yaml, tasks.yaml, 'packages/*/package.json', 'crates/webfont-generator/**']\n    outputs: [packages/webfont-generator/binding.js, packages/webfont-generator/binding.d.ts]\n";
     fs::write(root.join("tasks.yaml"), tasks).unwrap();
     fs::write(root.join("pnpm-workspace.yaml"), yaml).unwrap();
-    fs::write(root.join("crates/cache-audit/policy.yaml"), "version: 1\ntasks:\n  '.#next:native':\n    ignore:\n      - {pattern: '/**', reason: 'External fixture paths'}\n").unwrap();
+    fs::write(root.join("crates/cache-audit/policy.yaml"), "version: 1\ntasks:\n  '.#native':\n    ignore:\n      - {pattern: '/**', reason: 'External fixture paths'}\n").unwrap();
     let install = Command::new("pnpm")
         .args(["install", "--ignore-scripts"])
         .current_dir(&root)
@@ -58,7 +58,7 @@ fn isolated_cache_compatibility_and_negative_checks_preserve_source_workspace() 
         .set_times(fs::FileTimes::new().set_modified(modified))
         .unwrap();
     let stale = Command::new("pnpm")
-        .args(["run", "next:native"])
+        .args(["run", "native"])
         .env("PNPM_CONFIG_VERIFY_DEPS_BEFORE_RUN", "error")
         .current_dir(&root)
         .output()

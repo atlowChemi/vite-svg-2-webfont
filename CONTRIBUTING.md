@@ -7,12 +7,12 @@ Thanks for contributing to `vite-svg-2-webfont`.
 This repository uses:
 
 - The Node version pinned in [`.node-version`](./.node-version)
-- Vite+ through the `vp` CLI for installs, checks, tests, builds, and task execution. See the [Vite+ docs](https://viteplus.dev/guide/) for more information about the toolchain and workflow, and how to install it.
-- `pnpm` underneath the hood as the package manager, managed through `vp`
+- The pnpm version pinned in `package.json` for installation and task orchestration; see [pnpm installation](https://pnpm.io/installation)
+- Workspace-pinned Vite+ for build/test/lint tools, invoked with `pnpm exec vp`; no global Vite+ installation is required
 - `oxlint` for linting, type-aware checks, and type checking through Vite+ and `tsgo`
 - `oxfmt` for formatting through Vite+
 - A monorepo workspace with JavaScript packages under `packages/` and the Rust engine under `crates/`
-- Stable Rust with Cargo, Clippy, and rustfmt for the native generator. The JavaScript test and plugin build tasks build this native binding automatically.
+- The pinned Rust toolchain with Cargo, Clippy, and rustfmt. CI also verifies stable product compatibility. The JavaScript test and plugin build pipelines build the native binding automatically.
 
 Install Rust before running the full dependency install. pnpm materializes the locked Cargo
 dependencies as well as JavaScript dependencies.
@@ -20,124 +20,110 @@ dependencies as well as JavaScript dependencies.
 Install dependencies from the repository root:
 
 ```bash
-vp install
-vp exec playwright install chromium firefox webkit
+pnpm install
+pnpm exec playwright install chromium firefox webkit
 ```
 
-On Linux, use `vp exec playwright install --with-deps chromium firefox webkit` to install browser system dependencies as well. Rerun `vp install` after pulling dependency changes.
+On Linux, use `pnpm exec playwright install --with-deps chromium firefox webkit` to install browser system dependencies as well. Rerun `pnpm install` after pulling dependency changes.
 
 ## Common Commands
 
 Run these from the repository root:
 
 ```bash
-vp check                                         # format, lint, TypeScript checks
-vp run test                                      # JavaScript, browser, and type tests; builds native and WASM bindings
-vp run coverage                                  # non-browser JavaScript tests with coverage
-vp run coverage:scripts                          # repository script tests, including subprocess coverage
-vp run bench:vitest                              # Vitest benchmarks with release binding and per-test results
-vp run vite-svg-2-webfont#pack                   # build the Vite plugin
-vp run @atlowchemi/webfont-generator#build       # build the native addon
-vp run @atlowchemi/webfont-generator#check       # Clippy (default, CLI, NAPI) and rustfmt checks
-vp run @atlowchemi/webfont-generator#test        # Rust checks and tests
-vp run @atlowchemi/webfont-browser-generator#test # WASM adapter: build, check, browsers and production bundle
-vp run @atlowchemi/webfont-browser-generator#pack:tgz # installable JS/types/worker/WASM tarball
-vp run @atlowchemi/webfont-browser-generator#test:coverage # JS/worker and actual WASM Rust coverage
-vp run @atlowchemi/webfont-generator#bench       # run Rust Criterion benchmarks
-vp run @atlowchemi/vite-svg-webfont-docs#dev     # docs dev server
-vp run @atlowchemi/vite-svg-webfont-docs#build   # build docs
-vp run @atlowchemi/vite-svg-webfont-docs#preview # build docs, then serve the built site
-vp run @atlowchemi/vite-svg-webfont-example#dev    # run example app
+pnpm exec vp check                              # format, lint, TypeScript checks
+pnpm pipeline test --full                        # JavaScript, browser, and type tests; builds native and WASM bindings
+pnpm pipeline coverage --full                    # non-browser JavaScript tests with coverage
+pnpm pipeline scripts-coverage --full            # repository script tests, including subprocess coverage
+pnpm pipeline bench --full                       # Vitest benchmarks with release binding and per-test results
+pnpm pipeline plugin-build --full                # build the Vite plugin
+pnpm pipeline native --full                      # build the native addon
+pnpm pipeline rust-check --full                  # Clippy (default, CLI, NAPI) and rustfmt checks
+pnpm pipeline rust-test --full                   # Rust checks and tests
+pnpm pipeline browser-test --full                # WASM adapter: build, check, browsers and production bundle
+pnpm pipeline browser-tarball --full             # installable JS/types/worker/WASM tarball
+pnpm pipeline browser-coverage --full            # JS/worker and actual WASM Rust coverage
+pnpm pipeline engine-bench --full                # run Rust Criterion benchmarks
+pnpm pipeline docs-dev --full                    # docs dev server
+pnpm pipeline docs --full                        # build docs
+pnpm pipeline docs-preview --full                # build docs, then serve the built site
+pnpm pipeline example-dev --full                 # run example app
 ```
 
 Run tasks that build or restore the native binding sequentially within a checkout.
-For example, `vp run test` and `vp run vite-svg-2-webfont#pack` both use the same
+For example, `pnpm pipeline test --full` and `pnpm pipeline plugin-build --full` both use the same
 generated binding files; separate invocations should not write them concurrently.
 
-### Dormant pnpm task graph
+### pnpm task graph
 
 `pnpm-workspace.yaml` delegates `tasks` and `pipelines` to `pnpm-tasks.yaml`
 using pnpm 12.15's native `include`. Edit task declarations in that file;
 workspace discovery and installation settings remain in the root configuration.
 
-Normal development still uses the `vp` commands above. The `next:*` scripts and
-`next-*` pipelines are the replacement graph under validation, not the active
-workflow. Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter
+Pipelines are the authoritative development and CI entry points. Vite+ supplies
+the build, test, lint, and formatting tools; its duplicate run-task graph is removed.
+Native/WASM builds, browser/plugin packaging, docs, Rust formatting, engine/adapter
 checks and tests, browser Clippy, plugin-local tests, doctests, tarballs, and SVG/social assets enable
 task caches. Remaining exceptions and fresh Codecov bundle-analysis commands are
 documented in the auditor README.
 
 ```mermaid
 flowchart LR
-    active["vp run package#task (active)"] --> vite["Vite+ task configuration"]
-    vite --> tools["Vite+, Cargo, NAPI, and package tools"]
-    next["pnpm pipeline PIPELINE --full (dormant)"] --> pipeline["pnpm-tasks.yaml: next-* pipeline"]
-    pipeline --> tasks["Root next:* tasks and prerequisite edges"]
-    tasks --> scripts["Package package.json: next:* raw commands"]
-    scripts --> tools
+    active["pnpm pipeline PIPELINE --full"] --> pipeline["pnpm-tasks.yaml"]
+    pipeline --> tasks["Root tasks and prerequisite edges"]
+    tasks --> scripts["Package package.json: raw commands"]
+    scripts --> tools["Vite+, Cargo, NAPI, and package tools"]
     audit["cache-audit audit --task / --pipeline / --all"] --> rust["Embedded pnpm Rust graph APIs"]
     rust --> execution["Rust prerequisite execution and per-task observation"]
     execution --> tools
     rust -. "graph --all --verify-pnpm" .-> pipeline
 ```
 
-The main artifact dependencies below apply to both graphs. Arrows point from a
-prerequisite to its consumer. Pipeline names label the dormant entry points;
-task names appear inside their nodes.
+Arrows point from a prerequisite to its consumer:
 
 ```mermaid
 flowchart TD
     engine["engine check → feature tests → tests"] --> adapter["adapter check → tests"]
-    adapter --> release["next-native-release: next:native:release"]
-    release --> bench["next-bench: next:bench:vitest"]
-    native["next-native: next:native"] --> plugin["next-build: next:plugin:pack"]
-    wasm["next:wasm"] --> browser["next-build: next:browser:pack"]
-    svg["next:docs:svg"] --> social["next-assets: next:docs:social"]
-    native --> tests["next-test: next:test:js"]
+    adapter --> release["native-release: native:release"]
+    release --> bench["bench: bench:vitest"]
+    native["native"] --> plugin["plugin:pack"]
+    wasm["wasm"] --> browser["browser:pack"]
+    svg["docs:svg"] --> social["docs:social"]
+    native --> tests["test: test:js"]
     browser --> tests
-    adapter --> rusttests["next-rust-test"]
-    browser --> browsertests["next-browser-test: check + tests"]
-    plugin --> docs["next-docs: next:docs"]
+    adapter --> rusttests["rust-test"]
+    browser --> browsertests["browser-test: check + tests"]
+    plugin --> docs["docs"]
     browser --> docs
     social --> docs
-    plugin --> example["next-example: next:example"]
+    plugin --> example["example"]
     svg --> example
-    plugin --> docsdev["next-docs-dev: next:docs:dev"]
+    plugin --> docsdev["docs-dev: docs:dev"]
     browser --> docsdev
     social --> docsdev
-    plugin --> exampledev["next-example-dev: next:example:dev"]
+    plugin --> exampledev["example-dev: example:dev"]
     svg --> exampledev
-    docs --> docspreview["next-docs-preview: next:docs:preview"]
-    example --> examplepreview["next-example-preview: next:example:preview"]
-    plugin --> plugintar["next-plugin-tarball: next:plugin:tgz"]
-    browser --> browsertar["next-browser-tarball: next:browser:tgz"]
-    browsertar --> browserpublish["next-browser-publish: next:browser:publish"]
-    supplied["Native artifacts supplied by release CI"] --> pluginpublish["next-plugin-publish: raw pack → raw tarball → publish"]
+    docs --> docspreview["docs-preview: docs:preview"]
+    example --> examplepreview["example-preview: example:preview"]
+    plugin --> plugintar["plugin-tarball: plugin:tgz"]
+    browser --> browsertar["browser-tarball: browser:tgz"]
+    browsertar --> browserpublish["browser-publish: browser:publish"]
+    supplied["Native artifacts supplied by release CI"] --> pluginpublish["plugin-publish: raw pack → raw tarball → publish"]
 ```
 
-The inventory covers every task in the existing `vite.config.ts` files:
-
-| Owner                                   | Existing tasks (use `vp run owner#task`)                                                                                                              | Dormant pipeline entry points                                                                                                                                                                                              |
-| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Root (omit `owner#`)                    | `test`, `test:compat`, `coverage`, `coverage:scripts`, `bench:vitest`                                                                                 | `next-test`, `next-compat`, `next-coverage`, `next-scripts-coverage`, `next-bench`                                                                                                                                         |
-| `@atlowchemi/webfont-engine`            | `check`, `test`, `test:features`, `bench`, `test:coverage`, `test:coverage:cli`, `test:doctests`, `test:color-proof`                                  | `next-check` / `next-rust-test` include checks and feature tests; `next-engine-bench`, `next-engine-coverage`, `next-cli-coverage`, `next-doctests`, `next-engine-color-proof`                                             |
-| `@atlowchemi/webfont-generator`         | `check`, `test`, `build`, `build:release`, `bench`, `test:browser`, `test:color-proof`, `test:coverage`, `test:coverage:native`, `binding:regenerate` | `next-check`, `next-rust-test`, `next-native`, `next-native-release`, `next-adapter-bench`, `next-adapter-browser`, `next-adapter-color-proof`, `next-adapter-coverage`, `next-native-coverage`, `next-binding-regenerate` |
-| `@atlowchemi/webfont-browser-generator` | `build`, `pack`, `check`, `test`, `pack:tgz`, `test:coverage`, `publish`                                                                              | `next-build` includes WASM and pack; `next-check`, `next-browser-test`, `next-browser-tarball`, `next-browser-coverage`, `next-browser-publish`                                                                            |
-| `vite-svg-2-webfont`                    | `dev`, `pack`, `pack:tgz`, `test`, `test:browser`, `test:fixtures:refresh`, `publish`                                                                 | `next-plugin-dev`, `next-build`, `next-plugin-tarball`, `next-plugin-test`, `next-plugin-browser`, `next-fixtures-refresh`, `next-plugin-publish`                                                                          |
-| `@atlowchemi/vite-svg-webfont-example`  | `dev`, `build`, `preview`                                                                                                                             | `next-example-dev`, `next-example`, `next-example-preview`                                                                                                                                                                 |
-| `@atlowchemi/vite-svg-webfont-docs`     | `optimize-svg`, `social-card`, `dev`, `build`, `preview`                                                                                              | `next-assets` includes SVG and social cards; `next-docs-dev`, `next-docs`, `next-docs-preview`                                                                                                                             |
-
-The package-local `next:TASK` script contains the raw command. Root aliases such
-as `next:native` and `next:wasm` own cross-package cache declarations. Use native
+List all entry points with `pnpm config get pipelines --location project --json`.
+Inspect a graph without executing it with `pnpm pipeline NAME --full --dry-run --json`.
+The package-local script contains the raw command. Root aliases such
+as `native` and `wasm` own cross-package cache declarations. Use native
 `pnpm pipeline NAME --full` to prepare prerequisites; a raw package script does not.
-`next-test` preserves the original JS test scope; Rust suites are separate pipelines.
+`test` preserves the original JS test scope; Rust suites are separate pipelines.
 Keep `--full`: native affected selection currently skips required root-owned tasks
-for docs-only edits. See the auditor's [cache-reset policy](./crates/cache-audit/README.md#run-dormant-pipelines-and-reset-task-caches)
+for docs-only edits. See the auditor's [cache-reset policy](./crates/cache-audit/README.md#run-pipelines-and-reset-task-caches)
 for external-tool upgrades and ignored local configuration.
 
 Lifecycle hooks (`prepare`, native `prepublishOnly`) retain their existing names
 and automatic package-manager behavior. The auditor's own commands are exposed
-through `vp run @atlowchemi/cache-audit#TASK`; see its
+through `pnpm --dir crates/cache-audit run TASK`; see its
 [README](./crates/cache-audit/README.md).
 
 The Linux auditor owns graph selection, serial prerequisite execution, per-task
@@ -147,24 +133,28 @@ reviewed policy tasks; it does not launch dev servers or publish pipelines.
 caches; `audit:negative` mutates a temporary workspace copy. The package's Node
 entry point only forwards arguments and signals to the compiled binary.
 
-The dormant-pipeline CI job executes a finite validation suite including builds,
-tests, coverage, and tarballs. Dev/preview,
+Normal CI uses pipelines after conservative package selection. Jobs with downloaded
+bindings or already-prepared browser prerequisites use raw scripts to preserve those
+artifacts. Coverage and test-report producers execute fresh. The cache-audit workflow
+runs selected filesystem audits on PRs and sweeps all finite pipelines only on
+manual/weekly runs. Dev/preview,
 publishing, benchmarks, fixture regeneration, and specialized coverage commands
 are invoked explicitly, not automatically by that suite. Rust formatting is a
-separate `next:fmt:rust` pipeline task to keep engine-only cache dependencies narrow.
+separate `fmt:rust` pipeline task to keep engine-only cache dependencies narrow.
 
 ### Build caches and generated files
 
-Dependency caches, Cargo build outputs, and Vite+ task outputs serve different purposes:
+Dependency caches, Cargo build outputs, and pnpm task outputs serve different purposes:
 
-- `vp install` reuses downloaded dependencies; this does not mean a build or test ran.
+- `pnpm install` reuses downloaded dependencies; this does not mean a build or test ran.
+- CI persists pipeline results through `.github/actions/pipeline-cache`, separately from the install store. Keys isolate workflow/job, OS/architecture, runner image, Node/pnpm/Rust versions and the lockfile. Bump the action's generation for untracked external-tool upgrades. Report tasks remain uncached; filesystem audits use fresh execution.
 - Cargo reuses compiled work under the workspace `target/` directory.
-- Vite+ task-cache hits restore task outputs and replay logs. The native build caches
+- pnpm task-cache hits restore task outputs and replay logs. The native build caches
   the platform `.node` file and `binding.js` / `binding.d.ts`; the plugin pack task
   produces its `dist/` bundle and declarations.
 
-Use `vp run --no-cache <package>#<task>` when you need the task to execute rather than
-restore its result. This bypasses Vite+ task caching, not Cargo's compilation cache or
+Use `pnpm pipeline NAME --full --no-cache` when you need the task to execute rather than
+restore its result. This bypasses pnpm task caching, not Cargo's compilation cache or
 the dependency store. It is not a cold-build measurement.
 
 Let the native build regenerate bindings rather than editing them manually. Include
@@ -172,7 +162,7 @@ generated binding changes with the source changes that produced them.
 
 ### Running coverage locally
 
-`vp run coverage` measures non-browser JavaScript coverage. To measure Rust code,
+`pnpm pipeline coverage --full` measures non-browser JavaScript coverage. To measure Rust code,
 including Rust executed through the Node addon, install these additional tools:
 
 ```bash
@@ -184,11 +174,11 @@ cargo install cargo-nextest --locked
 Run the relevant tasks from the repository root (native coverage requires Linux or macOS with Bash):
 
 ```bash
-vp run @atlowchemi/webfont-engine#test:coverage          # engine library and integration tests
-vp run @atlowchemi/webfont-engine#test:coverage:cli      # binary tests and CLI-only integration tests
-vp run @atlowchemi/webfont-generator#test:coverage       # native adapter Rust tests
-vp run @atlowchemi/webfont-generator#test:coverage:native # adapter Vitest tests: Rust + JS coverage
-vp run @atlowchemi/webfont-engine#test:doctests           # default and CLI-feature Cargo doctests
+pnpm pipeline engine-coverage --full  # engine library and integration tests
+pnpm pipeline cli-coverage --full     # binary tests and CLI-only integration tests
+pnpm pipeline adapter-coverage --full # native adapter Rust tests
+pnpm pipeline native-coverage --full  # adapter Vitest tests: Rust + JS coverage
+pnpm pipeline doctests --full         # default and CLI-feature Cargo doctests
 ```
 
 The Rust tasks write `rust.lcov` and `junit.xml` under `coverage/rust-engine/`,
@@ -197,7 +187,7 @@ The Rust tasks write `rust.lcov` and `junit.xml` under `coverage/rust-engine/`,
 Run root JavaScript coverage first if collecting all reports locally: it cleans
 the root `coverage/` directory.
 
-`vp run coverage:scripts` runs the `scripts` Vite test project and writes
+`pnpm pipeline scripts-coverage --full` runs the `scripts` Vite test project and writes
 `coverage/scripts/lcov.info`. It enables V8 subprocess coverage for scripts launched
 by the tests. CI runs this project when `scripts/` changes, with its own Codecov flag
 and test-results report. Shell scripts are outside V8's JavaScript/TypeScript coverage.
@@ -216,7 +206,7 @@ It requires Rust but does not require the coverage tools above.
 After adding, removing, or modifying SVG icons in the plugin's fixture directory (`packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`), regenerate the expected font fixtures:
 
 ```bash
-vp run vite-svg-2-webfont#test:fixtures:refresh
+pnpm pipeline fixtures-refresh --full
 ```
 
 ### Benchmarks
@@ -226,51 +216,52 @@ The repository has two benchmark layers:
 - Rust Criterion benchmarks in `crates/webfont-generator/benches/` isolate native generator internals, pipeline stages, incremental regeneration, output formats, templates, write paths, and scaling behavior.
 - Vitest benchmarks in `tests/webfonts-generator.bench.ts` exercise the JavaScript-facing API and compare against upstream behavior through the Node/NAPI boundary.
 
-Run Rust benchmarks through the package Vite+ task:
+Run Rust benchmarks through the pipeline:
 
 ```bash
-vp run @atlowchemi/webfont-generator#bench
+pnpm pipeline engine-bench --full
 ```
 
 Use compile-only validation while editing benchmark targets or benchmark-only support code:
 
 ```bash
-vp run @atlowchemi/webfont-generator#bench --no-run
+pnpm --dir packages/webfont-generator run bench --no-run
 ```
 
 Run targeted Criterion filters when investigating a specific path, for example:
 
 ```bash
-vp run @atlowchemi/webfont-generator#bench --bench pipeline -- pipeline_stages/woff2_output_only/300
+pnpm --dir packages/webfont-generator run bench --bench pipeline -- pipeline_stages/woff2_output_only/300
 ```
 
 Run JavaScript-facing Vitest benchmarks with:
 
 ```bash
-vp run bench:vitest
+pnpm pipeline bench --full
 ```
 
 This task builds the optimized release binding, including its existing Rust check/test dependencies, and runs the benchmarks once with fresh measurements. The verbose reporter prints each comparison and its results as it completes. Skipped comparisons are hidden when filtering; individual iterations within a running comparison are not printed.
 
-For a focused comparison, use Vitest's long-form filter flag (`-t` is a Vite+ task-runner option):
+For a focused comparison, prepare the release binding and forward arguments to the raw script:
 
 ```bash
-vp run bench:vitest --testNamePattern='batched vs separate content edits — 600 glyphs'
+pnpm pipeline native-release --full
+pnpm run bench:vitest --testNamePattern='batched vs separate content edits — 600 glyphs'
 ```
 
-Use this task when collecting timings: `vp run test` builds a debug binding, which can make expensive benchmarks exceed their timeout. The benchmark task rebuilds the release binding before measuring. Vitest v5 sampling defaults apply except where a scenario specifies its own options; a sampling time is a minimum measurement window, not a maximum runtime.
+Use this pipeline when collecting timings: `pnpm pipeline test --full` builds a debug binding, which can make expensive benchmarks exceed their timeout. The benchmark pipeline prepares the release binding before measuring. Vitest v5 sampling defaults apply except where a scenario specifies its own options; a sampling time is a minimum measurement window, not a maximum runtime.
 
 Benchmark CI also uses verbose reporting and writes a JSON report for historical comparisons.
 
-The Rust benchmarks prefer Iconify JSON fixtures from the workspace `node_modules` when available and fall back to deterministic synthetic SVGs. Keep this fallback so `cargo bench` still works after a clean Rust-only checkout, but use `vp install` first when collecting numbers intended for comparison.
+The Rust benchmarks prefer Iconify JSON fixtures from the workspace `node_modules` when available and fall back to deterministic synthetic SVGs. Keep this fallback so `cargo bench` still works after a clean Rust-only checkout, but use `pnpm install` first when collecting numbers intended for comparison.
 
 ## Tools
 
-- `vp` is the entry point for the development workflow in this repository.
-- `oxlint` is the main linting tool and is run through `vp lint` and `vp check`.
+- `pnpm` installs dependencies and runs pipelines. Package scripts resolve their local tools automatically.
+- `oxlint` is the main linting tool and is run through `pnpm exec vp lint` and `pnpm exec vp check`.
 - `oxlint` is configured for type-aware linting and type checking through Vite+, powered by `tsgo`.
-- `oxfmt` is the formatter and is run through `vp fmt` and `vp check`.
-- `vitest` is used for unit tests and is run through `vp test`.
+- `oxfmt` is the formatter and is run through `pnpm exec vp fmt` and `pnpm exec vp check`.
+- `vitest` is used for unit tests and is run through `pnpm exec vp test`.
 
 ## Project Structure
 
@@ -322,7 +313,7 @@ CI uploads coverage with the `browser-js` and `browser-rust` flags and reports t
 smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.
 
 Release-PR preparation updates Cargo.lock through the registry before frozen installation, runs
-`vp run @atlowchemi/webfont-generator#binding:regenerate`, and formats changes with `vp fmt`.
+`pnpm pipeline binding-regenerate --full`, and formats changes with `pnpm exec vp fmt`.
 The regeneration task uses the NAPI generator to update only the JS loader, preserving
 exports from the last full binding build without compiling Rust. Changes to the native API
 still require the normal binding build to refresh both exports and TypeScript declarations.
@@ -372,15 +363,15 @@ is historical evidence, not a claim that skipped tests ran on the new commit.
 
 Before opening a pull request, please:
 
-1. Install dependencies with `vp install`.
-2. Build the plugin with `vp run vite-svg-2-webfont#pack`.
-3. Run `vp check` for formatting, lint, and TypeScript checks.
-4. Run `vp run test` when your change affects JavaScript or browser behavior; use `vp run coverage` to check non-browser JavaScript coverage.
-5. Run `vp run @atlowchemi/webfont-generator#test` when changing Rust code; this includes Rust checks and tests. The root JavaScript test task does not run the Rust test suite.
-6. Run `vp run @atlowchemi/webfont-generator#bench --no-run` when changing Rust benchmark targets or benchmark-only support code.
+1. Install dependencies with `pnpm install`.
+2. Build the plugin with `pnpm pipeline plugin-build --full`.
+3. Run `pnpm exec vp check` for formatting, lint, and TypeScript checks.
+4. Run `pnpm pipeline test --full` when your change affects JavaScript or browser behavior; use `pnpm pipeline coverage --full` to check non-browser JavaScript coverage.
+5. Run `pnpm pipeline rust-test --full` when changing Rust code; this includes Rust checks and tests. The JavaScript test pipeline does not run the Rust test suite.
+6. Run `pnpm --dir packages/webfont-generator run bench --no-run` when changing Rust benchmark targets or benchmark-only support code.
 7. Run targeted Rust or Vitest benchmark filters when changing measured performance behavior.
-8. Verify the example app with `vp run @atlowchemi/vite-svg-webfont-example#dev` or `vp run @atlowchemi/vite-svg-webfont-example#build` for user-facing changes.
-9. Verify the docs site with `vp run @atlowchemi/vite-svg-webfont-docs#build` when you change site documentation or docs config.
+8. Verify the example app with `pnpm pipeline example-dev --full` or `pnpm pipeline example --full` for user-facing changes.
+9. Verify the docs site with `pnpm pipeline docs --full` when you change site documentation or docs config.
 
 ## Releasing packages
 
@@ -450,7 +441,7 @@ chore: bump dependencies
 Scopes are optional; when used, they must match `scope-enum` in [`commitlint.config.js`](./commitlint.config.js). The `commit-msg` hook validates commit messages, and CI validates PR titles. You can validate either before submitting:
 
 ```bash
-printf '%s\n' 'chore(benchmarks): show per-test progress locally and in CI' | vp exec commitlint
+printf '%s\n' 'chore(benchmarks): show per-test progress locally and in CI' | pnpm exec commitlint
 ```
 
 ## Before You Commit
@@ -459,17 +450,17 @@ Commits should be created only after the code passes the repository checks.
 
 The checked-in hooks in `.vite-hooks/` run:
 
-- `pre-commit`: `vp staged`, then `vp test`. Staged-file tasks run `vp check --fix` and Rust formatting as configured in the root `vite.config.ts`.
-- `commit-msg`: `vp exec commitlint --edit` to validate the message.
+- `pre-commit`: `pnpm exec vp staged`, then `pnpm exec vp test`. Staged-file tasks run `vp check --fix` and Rust formatting as configured in the root `vite.config.ts`.
+- `commit-msg`: `pnpm exec commitlint --edit` to validate the message.
 
-`vp install` invokes `vp config` to set up hooks. If Git already has a custom `core.hooksPath`, Vite+ may leave it in place; check your local hook configuration rather than assuming these hooks are active.
+`pnpm install` invokes the local `vp config` through the `prepare` script to set up hooks. If Git already has a custom `core.hooksPath`, Vite+ may leave it in place; check your local hook configuration rather than assuming these hooks are active.
 
-Run `vp run test` before committing to ensure the native binding is built. The hook's direct `vp test` command does not build it or run the Rust test suite, and hooks do not replace the change-specific checks above.
+Run `pnpm pipeline test --full` before committing to ensure the native binding is built. The hook's direct `pnpm exec vp test` command does not build it or run the Rust test suite, and hooks do not replace the change-specific checks above.
 
 ## Notes
 
 - Keep lockfile changes in `pnpm-lock.yaml` when dependencies change.
 - Do not commit `package-lock.json` files to the workspace.
-- Use `vp` instead of calling `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly for normal repository workflows.
-- Start, build and preview the docs through their `vp run @atlowchemi/vite-svg-webfont-docs#…` tasks, not `vp dev`, `vp build` or `vite` inside `packages/docs/`. The tasks first pack `vite-svg-2-webfont` and `@atlowchemi/webfont-browser-generator`, which build the native and WASM engines, and the site's fonts need both: run directly, the site fails on the missing `virtual:site-icons.css`.
+- Use `pnpm pipeline NAME --full` for prerequisite orchestration and `pnpm exec vp` for the underlying Vite+ tools. Avoid `pnpm dlx` for installed tools: `exec` uses the workspace-pinned version.
+- Start, build and preview the docs through `pnpm pipeline docs-dev --full`, `docs`, or `docs-preview`. These pipelines first pack the plugin and browser package, including their native/WASM engines; running Vite directly skips prerequisites needed by `virtual:site-icons.css`.
 - The type-safe component example imports `virtual:typed-icons`. After a fresh install or plugin repack, run the docs dev server or docs build before standalone example type-checking: Vite initializes package-local declarations during generation. The docs build task packs the plugin before building the site, so generation precedes component compilation. The Vite config's TypeScript program is not a substitute for the example's `vite-env.d.ts` opt-in.

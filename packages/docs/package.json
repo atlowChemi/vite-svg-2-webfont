@@ -4,11 +4,12 @@
     "version": "0.0.0",
     "type": "module",
     "scripts": {
-        "next:dev": "vp dev",
-        "next:preview": "vp preview",
-        "next:optimize-svg": "svgo -r -f assets/svg -o public",
-        "next:social-card": "node ./scripts/generate-social-card.ts",
-        "next:build": "vp build"
+        "dev": "vp dev",
+        "preview": "vp preview",
+        "optimize-svg": "svgo -r -f assets/svg -o public",
+        "social-card": "node ./scripts/generate-social-card.ts",
+        "build": "vp build",
+        "brand": "node ./scripts/generate-brand.ts"
     },
     "devDependencies": {
         "@atlowchemi/webfont-browser-generator": "workspace:*",
