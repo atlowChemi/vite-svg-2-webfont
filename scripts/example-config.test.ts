@@ -13,7 +13,7 @@ it('loads example tasks before the plugin has been built', async () => {
         const configFile = join(root, 'vite.config.ts');
         await cp(resolve(import.meta.dirname, '../packages/example/vite.config.ts'), configFile);
         const loaded = await loadConfigFromFile({ command: 'build', mode: 'production' }, configFile);
-        expect(loaded).toMatchObject({ config: { run: { tasks: { build: { dependsOn: ['vite-svg-2-webfont#pack'] } } } } });
+        expect(loaded).toMatchObject({ config: { run: { tasks: { build: { dependsOn: ['vite-svg-2-webfont#pack', '@atlowchemi/vite-svg-webfont-docs#optimize-svg'] } } } } });
     } finally {
         await rm(root, { recursive: true, force: true });
     }

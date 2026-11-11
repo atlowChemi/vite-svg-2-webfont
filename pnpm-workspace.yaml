@@ -1,6 +1,11 @@
 packages:
     - 'packages/*'
     - 'crates/*'
+
+includeWorkspaceRoot: true
+include:
+    ./pnpm-tasks.yaml: [tasks, pipelines]
+
 allowBuilds:
     '@parcel/watcher': false
     esbuild: false
