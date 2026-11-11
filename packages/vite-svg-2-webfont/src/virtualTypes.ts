@@ -1,10 +1,7 @@
 import { hash, randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createLock } from './utils';
-
-export const declarationDirectory: string = fileURLToPath(new URL('./generated/', import.meta.url));
 
 /** Strip only the two type constructs in the engine's fixed output; string contents stay escaped. */
 export function moduleSource(source: string): string {
@@ -32,7 +29,7 @@ async function writeChanged(path: string, content: string) {
 }
 
 /** Serialize publication across processes; never publish an index pointing at missing files. */
-export async function publishDeclaration(id: string, source: string, directory: string = declarationDirectory): Promise<void> {
+export async function publishDeclaration(id: string, source: string, directory: string): Promise<void> {
     await mkdir(directory, { recursive: true });
     await using _lock = await createLock(directory);
     const name = `${hash('sha256', id)}.d.ts`;

@@ -51,6 +51,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type as any));
     let isBuild: boolean;
     let cacheFolder: string;
+    let declarationDirectory: string;
     /** The dev server's public base path, where the font middleware serves each font. */
     let devBase = '/';
     /** Rendered outputs for the current fonts; `generatedFonts` is unset after a cache hit. */
@@ -290,7 +291,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             outputs = await storeOutputs(key);
         }
         if (sources) publishedSources = regenerationFiles(sources);
-        await publishDeclaration(virtualTsModuleId, getTs());
+        await publishDeclaration(virtualTsModuleId, getTs(), declarationDirectory);
         await writeDevFiles();
         if (updateFiles && !ac.signal.aborted) {
             await reloadVirtualModule();
@@ -328,7 +329,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             await generate(true);
             return;
         }
-        await publishDeclaration(virtualTsModuleId, getTs());
+        await publishDeclaration(virtualTsModuleId, getTs(), declarationDirectory);
         await writeDevFiles();
         if (ac.signal.aborted) {
             return;
@@ -346,6 +347,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         configResolved(_config) {
             isBuild = _config.command === 'build';
             cacheFolder = `${_config.cacheDir}/vite-svg-2-webfont`;
+            declarationDirectory = pathJoin(_config.root, '.generated/vite-svg-2-webfont');
             // In dev, Vite resolves `base` to a path ending in `/`: a relative base becomes `/`, and a full URL keeps its pathname.
             devBase = _config.base ?? '/';
             if (useCache) {

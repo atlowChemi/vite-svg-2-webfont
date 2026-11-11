@@ -75,9 +75,9 @@ Ligatures are on by default: inside an element that uses the icon font, typing a
 
 The TypeScript virtual module exports a readonly `icons` tuple, an exact `IconName` union, `iconBaseSelector`, and `iconClassPrefix`. An `<Icon>` component only accepts names that exist. The same module works with Vue, React, Angular, and Svelte, independently of file output settings.
 
-Add `/// <reference types="vite-svg-2-webfont/virtuals" />` to your existing `vite-env.d.ts`, or add `vite-svg-2-webfont/virtuals` to `compilerOptions.types` in your application's `tsconfig.json`. Run Vite once before standalone type-checking on a fresh installation; starting Vite after a type-check step cannot initialize that earlier step. Reinstalling dependencies may remove generated types.
+Add `/// <reference path="./.generated/vite-svg-2-webfont/index.d.ts" />` to a `vite-env.d.ts` at your Vite root (adjust the relative path if it lives elsewhere), or include that index in your application's `tsconfig.json` as below. Replace the old `vite-svg-2-webfont/virtuals` reference, including any entry in `compilerOptions.types`. Run Vite once before standalone type-checking on a fresh checkout; starting Vite after a type-check step cannot initialize that earlier step.
 
-Declarations live inside the installed plugin package. Apps sharing that installation share declarations: use distinct `tsModuleId` values to avoid overwrites, but this does not isolate app types. Removed IDs remain until the generated directory is cleared (preserve its empty `index.d.ts`) or the package is reinstalled. Unwritable installations fail generation rather than silently serving stale types. A crashed publisher may leave a `.lock` file containing its PID and creation time; remove it only after all generators have stopped.
+Declarations live in `.generated/vite-svg-2-webfont/` under each resolved Vite root. Add this directory to `.gitignore`. Apps with different roots are isolated even when sharing an installation or `cacheDir`; plugin instances within one root need distinct `tsModuleId` values. Reinstalling or repacking the plugin does not remove declarations, and read-only installations are supported. Removed IDs remain until this project's generated directory is cleared and Vite runs again. An unwritable generated directory fails generation rather than silently serving stale types. A crashed publisher may leave a `.lock` file containing its PID and creation time; remove it only after all generators have stopped.
 
 For optional physical source output, set `generateFiles: 'ts'` (default destination: `<dest>/<fontName>.ts`) or include `'ts'` in the array. `generateFiles: true` includes TS only with explicit `tsDest`; false/omitted writes no TS source. Build output also requires `allowWriteFilesInBuild: true`. The metadata describes generation context, even with CSS disabled or a custom CSS template that renders different classes.
 
@@ -96,13 +96,13 @@ Choose either option, preserving any existing type references or entries:
 
 ::: code-group
 
-<<< @/fonts/examples/type-safe-component/vite-env.d.ts
+```ts [vite-env.d.ts]
+/// <reference path="./.generated/vite-svg-2-webfont/index.d.ts" />
+```
 
 ```json [tsconfig.json]
 {
-    "compilerOptions": {
-        "types": ["vite/client", "vite-svg-2-webfont/virtuals"]
-    }
+    "include": ["src", ".generated/vite-svg-2-webfont/index.d.ts"]
 }
 ```
 

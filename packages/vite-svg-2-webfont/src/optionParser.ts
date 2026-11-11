@@ -187,6 +187,8 @@ export interface CommonIconPluginOptions<T extends FontType = FontType, IsVarian
      */
     moduleId?: string;
     /** Unprefixed TypeScript virtual module ID. Import as virtual:<tsModuleId>.
+     * Exact declarations are generated under the Vite root in .generated/vite-svg-2-webfont/.
+     * Reference its index.d.ts from your application's TypeScript project.
      * @default 'vite-svg-2-webfont.ts'
      */
     tsModuleId?: string;
