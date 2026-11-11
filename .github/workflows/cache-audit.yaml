@@ -9,13 +9,22 @@ on:
 permissions:
     contents: read
 
+concurrency:
+    group: cache-audit-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: true
+
 jobs:
-    pipelines:
-        name: Execute dormant pipelines
+    select-work:
+        name: Select affected audit work
         runs-on: ubuntu-latest
-        timeout-minutes: 60
+        timeout-minutes: 10
+        outputs:
+            work: ${{ steps.work.outputs.work }}
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  fetch-depth: 0
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   targets: wasm32-unknown-unknown
@@ -27,7 +36,8 @@ jobs:
                   run-install: |
                       args: [--frozen-lockfile]
                   cache: true
-            - run: vp exec playwright install --with-deps chromium firefox webkit
+            - name: Select affected packages conservatively
+              run: node scripts/ci/affected-selection.ts
             - name: Select dormant pipelines
               shell: bash
               run: |
@@ -59,8 +69,46 @@ jobs:
                         keys[] | select($blocked[.] == null)
                       end
                   ' pipelines.json > selected-pipelines.txt
-            - name: Execute every dormant pipeline uncached
+            - name: Plan affected pipelines and audits
+              id: work
+              run: node scripts/ci/select-audit-work.ts
+
+    pipelines:
+        name: Affected validation (worker ${{ matrix.id }})
+        needs: [select-work, build-audits]
+        if: ${{ fromJSON(needs.select-work.outputs.work).workers[0] != null }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        strategy:
+            fail-fast: false
+            max-parallel: 2
+            matrix:
+                include: ${{ fromJSON(needs.select-work.outputs.work).workers }}
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  targets: wasm32-unknown-unknown
+                  components: clippy, rustfmt
+                  toolchain: nightly-2026-08-02
+            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              with:
+                  node-version-file: .node-version
+                  run-install: |
+                      args: [--frozen-lockfile]
+                  cache: true
+            - run: vp exec playwright install --with-deps chromium firefox webkit
+            - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+              with:
+                  name: cache-audit-binary-linux-x64
+                  path: ${{ runner.temp }}/cache-audit-bin
+            - run: chmod +x "$RUNNER_TEMP/cache-audit-bin/cache-audit"
+            - name: Execute selected pipelines uncached
               shell: bash
+              env:
+                  PIPELINES: ${{ toJSON(matrix.pipelines) }}
               run: |
                   mkdir -p artifacts/cache-audit/pipelines
                   status=0
@@ -73,20 +121,48 @@ jobs:
                       tail -n 80 "$log"
                       status=1
                     fi
-                  done < selected-pipelines.txt
+                  done < <(jq -r '.[]' <<< "$PIPELINES")
                   exit "$status"
+            - name: Audit selected tasks with fresh compiler state
+              id: audit
+              if: ${{ !cancelled() && matrix.audits[0] != null }}
+              shell: bash
+              env:
+                  CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-bin/cache-audit
+                  AUDIT_TASKS: ${{ toJSON(matrix.audits) }}
+              run: |
+                  status=0
+                  while IFS= read -r task; do
+                    if vp run @atlowchemi/cache-audit#audit -- --task "$task" --reports "artifacts/cache-audit/tasks/${task//:/-}"; then
+                      echo "$task: passed" >> "$GITHUB_STEP_SUMMARY"
+                      if [[ "$task" == next:native ]]; then
+                        echo 'native_passed=true' >> "$GITHUB_OUTPUT"
+                      fi
+                    else
+                      echo "$task: failed (see artifacts)" >> "$GITHUB_STEP_SUMMARY"
+                      status=1
+                    fi
+                  done < <(jq -r '.[]' <<< "$AUDIT_TASKS")
+                  exit "$status"
+            - name: Verify deliberately missing native declarations fail
+              if: ${{ !cancelled() && steps.audit.outputs.native_passed == 'true' }}
+              env:
+                  CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-bin/cache-audit
+              run: vp run @atlowchemi/cache-audit#audit:negative
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               if: always()
               with:
-                  name: dormant-pipelines-linux-x64
-                  path: artifacts/cache-audit/pipelines/
+                  name: affected-validation-linux-x64-${{ matrix.id }}
+                  path: artifacts/cache-audit/
                   if-no-files-found: warn
     build-audits:
-        name: Build cache declarations (report only)
+        name: Build and verify shared auditor
         runs-on: ubuntu-latest
         timeout-minutes: 45
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: ${{ github.event.pull_request.head.sha || github.sha }}
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   targets: wasm32-unknown-unknown
@@ -117,6 +193,12 @@ jobs:
                   vp run @atlowchemi/cache-audit#build
                   vp run @atlowchemi/cache-audit#test
                   vp run @atlowchemi/cache-audit#check
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              with:
+                  name: cache-audit-binary-linux-x64
+                  path: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
+                  if-no-files-found: error
+                  retention-days: 1
             - name: Verify stable product compiler and published crate
               shell: bash
               run: |
@@ -137,23 +219,6 @@ jobs:
               env:
                   CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
               run: vp run @atlowchemi/cache-audit#test:compat
-            - name: Audit all build tasks with fresh compiler state
-              id: audit
-              continue-on-error: true
-              env:
-                  CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
-              run: vp run @atlowchemi/cache-audit#audit -- --all
-            - name: Verify deliberately missing native declarations fail
-              if: steps.audit.outcome == 'success'
-              env:
-                  CACHE_AUDIT_BIN: ${{ runner.temp }}/cache-audit-build/debug/cache-audit
-              run: vp run @atlowchemi/cache-audit#audit:negative
-            - name: Report audit status
-              if: always()
-              env:
-                  AUDIT_OUTCOME: ${{ steps.audit.outcome }}
-              run: |
-                  echo "Build filesystem audits: ${AUDIT_OUTCOME}. This rollout is report-only; normal CI still uses Vite+." >> "$GITHUB_STEP_SUMMARY"
             - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
               if: always()
               with:

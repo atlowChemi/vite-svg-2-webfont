@@ -239,6 +239,13 @@ vp run @atlowchemi/cache-audit#audit:negative
 The dormant-pipeline CI job executes finite build/test/coverage/tarball pipelines
 uncached; servers, publishing,
 measurements, and source-mutating maintenance are explicitly invoked separately.
+PR runs reuse the conservative package selector in `scripts/ci/affected-selection.ts`.
+Shared or unknown changes and manual/scheduled runs select full validation.
+Selection and the auditor build run concurrently, followed by at most two isolated
+workers. They reuse the built binary, execute affected pipelines with their full
+prerequisites, and audit selected policy tasks. Unknown command ownership runs
+conservatively; pnpm's task-level affected selection is not used. Each task keeps
+separate audit reports, and newer pushes cancel superseded workflow runs.
 Rust owns audit execution, compatibility checks, and declaration-negative checks;
 `crates/cache-audit/scripts/run.mjs` only launches the binary and forwards signals.
 `compat` uses a temporary fixture and separate pnpm cache/store/state directories.
@@ -257,8 +264,7 @@ checkout idle while taking its copy. Both checks require the compiled auditor.
 
 Use `pnpm pipeline next-assets --full` directly for dormant cached SVG execution.
 Normal workflows still use Vite+. The PR/manual/scheduled `cache-audit.yaml` workflow executes dormant graphs
-and collects report-only filesystem audits; adding the file does not establish
-that a GitHub run has passed.
+and fails on filesystem audit findings, retaining reports for diagnosis.
 
 ## Run dormant pipelines and reset task caches
 
