@@ -55,6 +55,16 @@ SVG file names become icon class names, so `add.svg` becomes `icon-add`:
 
 The `icon-` prefix comes from [`classPrefix`](https://fonte.atlow.dev/vite/configuration#classprefix) and the `icon` class from [`baseSelector`](https://fonte.atlow.dev/vite/configuration#baseselector).
 
+## Virtual TypeScript declarations
+
+Run Vite to generate exact icon types in `.generated/vite-svg-2-webfont/` under your Vite root, then reference them from a root-level `vite-env.d.ts`:
+
+```ts
+/// <reference path="./.generated/vite-svg-2-webfont/index.d.ts" />
+```
+
+Replace the previous `vite-svg-2-webfont/virtuals` type reference with this path (adjust it relative to your declaration file). Ignore the generated directory in version control and run Vite before standalone type-checking on a fresh checkout. Each Vite root owns its declarations; the installed plugin is never modified.
+
 ## Documentation
 
 - [Getting started](https://fonte.atlow.dev/vite/)

@@ -27,6 +27,7 @@ const config: UserConfig = defineConfig({
             'dist-*',
             'webfont',
             'node_modules',
+            '**/.generated/vite-svg-2-webfont/**',
             'coverage/*',
             'tests/fixtures/**',
             'packages/webfont-generator/binding{.js,.d.ts}',
@@ -78,6 +79,7 @@ const config: UserConfig = defineConfig({
         ignorePatterns: [
             'dist',
             'node_modules',
+            '**/.generated/vite-svg-2-webfont/**',
             'coverage',
             'tests/fixtures/**',
             'packages/example/dist',

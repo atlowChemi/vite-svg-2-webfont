@@ -180,7 +180,7 @@ Unprefixed virtual metadata module ID, independent of `generateFiles` and `tsDes
 import { icons, iconBaseSelector, iconClassPrefix, type IconName } from 'virtual:vite-svg-2-webfont.ts';
 ```
 
-The module exports a readonly literal tuple and exact icon-name union. Add `/// <reference types="vite-svg-2-webfont/virtuals" />` to your existing `vite-env.d.ts`, or include `vite-svg-2-webfont/virtuals` in `compilerOptions.types` in your application's `tsconfig.json`. Run Vite before the first standalone type-check after installing dependencies. No application-source declaration file is generated.
+The module exports a readonly literal tuple and exact icon-name union. Declarations are generated in `.generated/vite-svg-2-webfont/` under the resolved Vite root, independently of `cacheDir` and file-output settings. Add `/// <reference path="./.generated/vite-svg-2-webfont/index.d.ts" />` to a `vite-env.d.ts` at that root (adjust the relative path if it lives elsewhere), or include that generated index in your application's `tsconfig.json` `files` or `include`. Run Vite before the first standalone type-check. Ignore the generated directory in version control. Replace any old `vite-svg-2-webfont/virtuals` type reference with this project-local reference.
 
 Declarations share the installed package instance: distinct IDs avoid overwrites but do not isolate apps. See the [component example](/vite/examples#type-safe-icon-component) for initialization, shared-installation, stale-entry, and write-failure details.
 
