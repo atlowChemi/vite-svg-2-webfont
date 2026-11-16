@@ -576,9 +576,9 @@ describe('transformIndexHtml shouldProcessHtml', () => {
             types: ['woff2'],
         });
         const transformIndexHtml = plugin.transformIndexHtml as TransformIndexHtmlHook;
-        const configResolved = plugin.configResolved as (config: { command: 'build' | 'serve' }) => void;
+        const configResolved = plugin.configResolved as (config: { command: 'build' | 'serve'; root: string }) => void;
 
-        configResolved({ command: 'build' });
+        configResolved({ command: 'build', root: process.cwd() });
         const result = await transformIndexHtml.handler.call({} as never, '', buildContext);
 
         expect(result).toBe(undefined);
@@ -593,9 +593,9 @@ describe('transformIndexHtml shouldProcessHtml', () => {
             types: ['woff2'],
         });
         const transformIndexHtml = plugin.transformIndexHtml as TransformIndexHtmlHook;
-        const configResolved = plugin.configResolved as (config: { command: 'build' | 'serve' }) => void;
+        const configResolved = plugin.configResolved as (config: { command: 'build' | 'serve'; root: string }) => void;
 
-        configResolved({ command: 'build' });
+        configResolved({ command: 'build', root: process.cwd() });
         const result = await transformIndexHtml.handler.call({} as never, '', buildContext);
 
         expect(result).toEqual([

@@ -23,8 +23,11 @@ const config: UserProjectConfigExport = defineProject({
             {
                 name: 'virtual-declarations',
                 generateBundle() {
-                    this.emitFile({ type: 'asset', fileName: 'virtuals.d.ts', source: '/// <reference path="./generated/index.d.ts" />\n' });
-                    this.emitFile({ type: 'asset', fileName: 'generated/index.d.ts', source: '// Run Vite to generate precise icon module declarations.\n' });
+                    this.emitFile({
+                        type: 'asset',
+                        fileName: 'virtuals.d.ts',
+                        source: '// Reference .generated/vite-svg-2-webfont/index.d.ts in your Vite root for precise icon module declarations.\n',
+                    });
                 },
             },
             codecovRollupPlugin({

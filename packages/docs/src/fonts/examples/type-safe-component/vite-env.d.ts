@@ -1,1 +1,1 @@
-/// <reference types="vite-svg-2-webfont/virtuals" />
+import '../../../../.generated/vite-svg-2-webfont/index.d.ts';

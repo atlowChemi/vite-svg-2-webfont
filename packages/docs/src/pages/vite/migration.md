@@ -6,6 +6,22 @@ description: Upgrade vite-svg-2-webfont across major versions — what changes, 
 
 This page collects the breaking changes between major versions of `vite-svg-2-webfont`. When upgrading, read the section that matches your starting version. Newer entries appear first.
 
+## Consumer-owned virtual declarations (unreleased)
+
+Virtual TypeScript declarations now live under each Vite root at `.generated/vite-svg-2-webfont/`, rather than inside the installed plugin. Projects sharing an installation can use the same module ID without overwriting each other's types.
+
+1. Remove `vite-svg-2-webfont/virtuals` from triple-slash type references and `compilerOptions.types`.
+2. Add this reference to a root-level `vite-env.d.ts` (adjust the relative path if the file lives elsewhere):
+
+    ```ts
+    /// <reference path="./.generated/vite-svg-2-webfont/index.d.ts" />
+    ```
+
+3. Add `.generated/vite-svg-2-webfont/` to `.gitignore`.
+4. Run Vite before standalone type-checking to generate the declarations. Include this directory in any build-cache outputs needed by later type-check steps.
+
+The old package type entry remains empty for compatibility; it no longer discovers project-specific types. See [type-safe icon components](/vite/examples#type-safe-icon-component) for the `tsconfig.json` alternative.
+
 ## v6 → v7
 
 v7 swaps the unmaintained [`@vusion/webfonts-generator`](https://www.npmjs.com/package/@vusion/webfonts-generator) JS dependency for a native Rust engine, [`@atlowchemi/webfont-generator`](/guide/engine). The plugin's surface is mostly unchanged — the same options, the same virtual CSS module, the same generated assets — but a small number of advanced touchpoints have moved. See the [Webfont Generator overview](/guide/engine) for background on the new engine.

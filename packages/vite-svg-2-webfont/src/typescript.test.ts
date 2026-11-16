@@ -16,14 +16,6 @@ vi.mock(import('@atlowchemi/webfont-generator'), async importOriginal => {
     generateMock.mockImplementation(original.generateWebfonts);
     return { ...original, generateWebfonts: Object.assign(generateMock, original.generateWebfonts) };
 });
-const publication = vi.hoisted(() => ({ directory: '' }));
-vi.mock(import('./virtualTypes'), async importOriginal => {
-    const original = await importOriginal();
-    return {
-        ...original,
-        publishDeclaration: (id: string, source: string, directory = publication.directory) => original.publishDeclaration(id, source, directory),
-    };
-});
 vi.mock(import('node:fs/promises'), async importOriginal => {
     const original = await importOriginal();
     readdirMock.mockImplementation(original.readdir);
@@ -37,9 +29,8 @@ async function temporary() {
     folders.push(folder);
     return folder;
 }
-beforeEach(async () => {
+beforeEach(() => {
     generateMock.mockClear();
-    publication.directory = await temporary();
 });
 afterEach(async () => {
     await Promise.all(folders.splice(0).map(folder => rm(folder, { recursive: true, force: true })));
@@ -143,7 +134,7 @@ it.each([
             expect(runtime.iconClassPrefix).toBe('icon-');
             const transformed = await server.transformRequest(`virtual:${id}`);
             expect(transformed?.code).not.toContain('as const');
-            const declaration = await readFile(join(publication.directory, `${hash('sha256', `virtual:${id}`)}.d.ts`), 'utf8');
+            const declaration = await readFile(join(root, '.generated/vite-svg-2-webfont', `${hash('sha256', `virtual:${id}`)}.d.ts`), 'utf8');
             expect(declaration).toContain('readonly [\n  "add"\n]');
             expect((await readFile(join(root, 'out', tsDest ?? 'iconfont.ts'), 'utf8').catch(() => '')).includes('[\n  "add"\n] as const')).toBe(write);
         } finally {
@@ -246,7 +237,7 @@ it('refreshes virtual runtime and precise declarations after additions, renames 
         await server.listen();
         await server.transformRequest(`virtual:${id}`);
         const invalidate = vi.spyOn(server.moduleGraph, 'invalidateModule');
-        const declaration = join(publication.directory, `${hash('sha256', `virtual:${id}`)}.d.ts`);
+        const declaration = join(root, '.generated/vite-svg-2-webfont', `${hash('sha256', `virtual:${id}`)}.d.ts`);
         await writeFile(join(root, 'remove.svg'), svg);
         await expect.poll(() => readFile(declaration, 'utf8'), { timeout: 5_000 }).toContain('readonly [\n  "add",\n  "remove"\n]');
         await expect.poll(async () => (await server.transformRequest(`virtual:${id}`))?.code, { timeout: 5_000 }).toContain('remove');
