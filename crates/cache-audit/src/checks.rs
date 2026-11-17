@@ -339,7 +339,7 @@ async fn negative(root: &Path, reports: &Path, cancel: &CancellationToken) -> Re
         ),
     ] {
         let mut config = original.clone();
-        let values = config["tasks"]["next:native"][field]
+        let values = config["tasks"]["native"][field]
             .as_array_mut()
             .ok_or("missing baseline declarations")?;
         let before = values.len();
@@ -356,7 +356,7 @@ async fn negative(root: &Path, reports: &Path, cancel: &CancellationToken) -> Re
                 "--reports".into(),
                 directory.clone().into_os_string(),
                 "--task".into(),
-                "next:native".into(),
+                "native".into(),
             ]
             .into_iter(),
             cancel.clone(),
@@ -365,7 +365,7 @@ async fn negative(root: &Path, reports: &Path, cancel: &CancellationToken) -> Re
         if code != 2 {
             return Err(format!("{name}: expected findings (2), got {code}").into());
         }
-        let report: Value = serde_json::from_slice(&fs::read(directory.join("next-native.json"))?)?;
+        let report: Value = serde_json::from_slice(&fs::read(directory.join("native.json"))?)?;
         let found = report["audit"]["findings"]
             .as_array()
             .is_some_and(|findings| {

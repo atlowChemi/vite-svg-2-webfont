@@ -93,33 +93,6 @@ const config: UserConfig = defineConfig({
         '*': 'vp check --fix',
         '*.rs': 'cargo fmt --all --',
     },
-    run: {
-        tasks: {
-            'bench:vitest': {
-                cache: false,
-                command: 'vp test bench --run --reporter=verbose --hideSkippedTests',
-                dependsOn: ['@atlowchemi/webfont-generator#build:release'],
-            },
-            test: {
-                command: 'vp test',
-                dependsOn: ['@atlowchemi/webfont-generator#build', '@atlowchemi/webfont-browser-generator#pack'],
-            },
-            'test:compat': {
-                command: 'vp test --project=compat',
-                dependsOn: ['@atlowchemi/webfont-generator#build'],
-            },
-            coverage: {
-                cache: false,
-                command: "vp test --coverage --project='!*-browser*'",
-                dependsOn: ['@atlowchemi/webfont-generator#build'],
-            },
-            'coverage:scripts': {
-                cache: false,
-                command:
-                    "vp test --run --project=scripts --coverage --coverage.autoAttachSubprocess --coverage.include='scripts/**/*.{ts,mjs}' --coverage.reportsDirectory=coverage/scripts",
-            },
-        },
-    },
     test: {
         ...(process.env.CI_TEST_REPORT
             ? {

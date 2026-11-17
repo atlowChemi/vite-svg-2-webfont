@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp check*'
+      resource: 'pnpm exec vp check*'
       effect: allow
 ---
 
-Run `vp check` from the repository root.
+Run `pnpm exec vp check` from the repository root.
 
 Do not edit files. Return only:
 

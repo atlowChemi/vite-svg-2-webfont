@@ -93,8 +93,8 @@ describe('concurrent workflow steps', () => {
         const dir = mkdtempSync(join(tmpdir(), 'concurrent-staging-'));
         try {
             const script = readWorkflow('release.yaml').jobs['publish-native']!.steps!.find(step => step.name === 'Stage publish per-platform binary packages')!.run!;
-            writeFileSync(join(dir, 'vp'), '#!/bin/bash\nif [[ "$*" == *broken* ]]; then exit 7; fi\nsleep 0.1\necho staged-ok\n');
-            execFileSync('chmod', ['+x', join(dir, 'vp')]);
+            writeFileSync(join(dir, 'pnpm'), '#!/bin/bash\nif [[ "$*" == *broken* ]]; then exit 7; fi\nsleep 0.1\necho staged-ok\n');
+            execFileSync('chmod', ['+x', join(dir, 'pnpm')]);
             const summary = join(dir, 'summary');
             const result = spawnSync('bash', ['-eo', 'pipefail', '-c', script], {
                 env: { ...process.env, PATH: `${dir}:${process.env.PATH}`, DIRS: `packages/ok\npackages/${fail ? 'broken' : 'also-ok'}`, GITHUB_STEP_SUMMARY: summary },

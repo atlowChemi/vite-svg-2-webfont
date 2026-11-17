@@ -64,12 +64,12 @@ jobs:
               with:
                   toolchain: nightly-2026-08-02
 
-            - name: Setup Vite+
-              uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+            - name: Setup pnpm and Node
+              uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
                   cache: true
-                  run-install: true
+                  require-lockfile: true
 
             - name: Cache benchmark build artifacts
               uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -91,7 +91,7 @@ jobs:
                   fi
 
             - name: Build webfont generator release binding
-              run: vp run --ignore-depends-on @atlowchemi/webfont-generator#build:release
+              run: pnpm --dir packages/webfont-generator run build:release
 
             - name: Run Rust benchmarks
               run: |
@@ -111,7 +111,7 @@ jobs:
                   set -euo pipefail
                   mkdir -p "$(dirname "$VITEST_BENCH_OUTPUT")"
                   /usr/bin/time -v -o benchmark-results/vitest/resources.txt \
-                    vp test bench --run --reporter=verbose --reporter=json --outputFile="$VITEST_BENCH_OUTPUT" \
+                    pnpm exec vp test bench --run --reporter=verbose --reporter=json --outputFile="$VITEST_BENCH_OUTPUT" \
                     2>&1 | tee benchmark-results/vitest/run.log
 
             - name: Upload Vitest benchmark diagnostics
@@ -165,7 +165,7 @@ jobs:
                     printf '}\n'
                   } > benchmark-baselines/metadata.json
 
-                  vp --version > benchmark-baselines/tool-versions.txt
+                  pnpm exec vp --version > benchmark-baselines/tool-versions.txt
 
             - name: Commit benchmark baselines
               if: github.event_name != 'pull_request'

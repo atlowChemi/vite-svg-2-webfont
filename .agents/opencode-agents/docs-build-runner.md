@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp run @atlowchemi/vite-svg-webfont-docs#build*'
+      resource: 'pnpm pipeline docs --full*'
       effect: allow
 ---
 
-Run `vp run @atlowchemi/vite-svg-webfont-docs#build` from the repository root.
+Run `pnpm pipeline docs --full` from the repository root.
 
 Do not edit files. Return only:
 

@@ -11,7 +11,7 @@ under `.pnpm/cache-audit-fspy`, verifying the revision and complete patched diff
 Root Cargo configuration points `fspy` at that source for installs and builds;
 its transitive workspace crates use the same patched checkout.
 This keeps the maintained delta reviewable without vendoring the whole upstream
-workspace or relying on an unpublished fork commit. After `vp install`, ordinary
+workspace or relying on an unpublished fork commit. After `pnpm install`, ordinary
 Cargo commands work too. The manifest patch explicitly identifies fspy's upstream
 workspace so Cargo does not attach its path dependency to our product workspace.
 When updating the revision or patch, remove `.pnpm/cache-audit-fspy` and reinstall;

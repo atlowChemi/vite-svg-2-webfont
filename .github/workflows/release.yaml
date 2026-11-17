@@ -50,19 +50,19 @@ jobs:
               # workspace versions without re-resolving every registry dependency.
               run: cargo update -p webfont-generator -p webfont-generator-napi
 
-            - name: Setup Vite+
+            - name: Setup pnpm and Node
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+              uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: true
+                  require-lockfile: true
                   cache: true
 
             - name: Regenerate bindings and commit release outputs
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
               run: |
-                  vp run @atlowchemi/webfont-generator#binding:regenerate
-                  vp fmt
+                  pnpm pipeline binding-regenerate --full
+                  pnpm exec vp fmt
                   git add Cargo.lock pnpm-lock.yaml packages/webfont-generator/binding.js \
                     'crates/*/CHANGELOG.md' 'packages/*/CHANGELOG.md'
                   if ! git diff --cached --quiet; then
@@ -91,10 +91,10 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: true
+                  require-lockfile: true
                   cache: true
 
             - name: Download all binding artifacts
@@ -104,9 +104,9 @@ jobs:
                   pattern: bindings-*
 
             - name: Create npm dirs
-              run: vp exec napi create-npm-dirs --cwd packages/webfont-generator
+              run: pnpm exec napi create-npm-dirs --cwd packages/webfont-generator
             - name: Move artifacts
-              run: vp exec napi artifacts --cwd packages/webfont-generator
+              run: pnpm exec napi artifacts --cwd packages/webfont-generator
 
             # Prepare per-platform package.jsons (version bump, addon copy,
             # main package's optionalDependencies entries) before staging,
@@ -115,7 +115,7 @@ jobs:
             # we skip it via `--ignore-scripts` on the main stage step
             # below so this work isn't duplicated.
             - name: Prepare per-platform packages
-              run: vp exec napi pre-publish -t npm --no-gh-release --skip-optional-publish --cwd packages/webfont-generator
+              run: pnpm exec napi pre-publish -t npm --no-gh-release --skip-optional-publish --cwd packages/webfont-generator
 
             - name: List packages
               id: list-packages
@@ -149,7 +149,7 @@ jobs:
                       pkg=$(basename "$dir")
                       (
                           echo "--- $pkg ---"
-                          vp exec -c "pnpm stage publish '$dir' --no-git-checks"
+                          pnpm stage publish "$dir" --no-git-checks
                       ) > "$logs/$pkg.log" 2>&1 &
                       pids+=("$!")
                   done <<< "$DIRS"
@@ -169,7 +169,7 @@ jobs:
                   echo 'Approve every entry above + this one with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
                   echo '' >> "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
-                  vp exec -c "pnpm stage publish --filter @atlowchemi/webfont-generator --no-git-checks --ignore-scripts" | tee -a "$GITHUB_STEP_SUMMARY"
+                  pnpm stage publish --filter @atlowchemi/webfont-generator --no-git-checks --ignore-scripts | tee -a "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
 
             - name: Upload to native release
@@ -192,10 +192,10 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: true
+                  require-lockfile: true
                   cache: true
             - name: Authenticate with crates.io
               uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
@@ -219,10 +219,10 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: true
+                  require-lockfile: true
                   cache: true
 
             - name: Stage publish from tarball
@@ -232,7 +232,7 @@ jobs:
                   echo 'Approve with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
                   echo '' >> "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
-                  vp run vite-svg-2-webfont#publish | tee -a "$GITHUB_STEP_SUMMARY"
+                  pnpm pipeline plugin-publish --full | tee -a "$GITHUB_STEP_SUMMARY"
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
 
             - name: Upload release assets
@@ -255,16 +255,17 @@ jobs:
               with:
                   targets: wasm32-unknown-unknown
                   toolchain: nightly-2026-08-02
-            - uses: voidzero-dev/setup-vp@cab1ab9eaff52d4857875f4f2c016e36af8f2c76 # v1.22.0
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
               with:
                   node-version-file: .node-version
-                  run-install: true
+                  require-lockfile: true
                   cache: true
+            - uses: ./.github/actions/pipeline-cache
             - name: Stage publish from tarball
               run: |
                   echo '## Staged: @atlowchemi/webfont-browser-generator' >> "$GITHUB_STEP_SUMMARY"
                   echo 'Approve with `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine.' >> "$GITHUB_STEP_SUMMARY"
-                  vp run @atlowchemi/webfont-browser-generator#publish | tee -a "$GITHUB_STEP_SUMMARY"
+                  pnpm pipeline browser-publish --full | tee -a "$GITHUB_STEP_SUMMARY"
             - name: Upload release assets
               uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
               with:

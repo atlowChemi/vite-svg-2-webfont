@@ -2,23 +2,25 @@
 
 ## Tooling
 
-- Use `vp` for normal repo workflows: `vp install`, `vp check`, `vp fmt`, `vp run test`, `vp run coverage`, `vp run <package>#<task>`. Do not call `pnpm`, `vite`, `vitest`, `oxlint`, or `oxfmt` directly unless a checked-in Vite+ task itself does so.
+- Use `pnpm install` and `pnpm pipeline NAME --full` for installation and task orchestration. Invoke workspace-pinned Vite+ tooling with `pnpm exec vp check` / `pnpm exec vp fmt`; bare `vp` is fine inside package scripts. No global Vite+ installation is required.
+- Keep `--full`: use the conservative CI selector before invoking a pipeline, not pnpm's task-level affected selection. `pnpm run` scripts are raw commands without prerequisites; use them only when prerequisites are already supplied or for forwarding tool arguments.
 - Import Vite/Vitest APIs from `vite-plus` (`vite-plus` or `vite-plus/test`), not from direct `vite` or `vitest` packages.
-- After pulling remote changes, run `vp install` before validation.
-- Unified `vp install` requires Rust first. Use `vp add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `vp update crate:…` does not update them in pnpm 12.6.0.
-- Use Conventional Commit messages and PR titles: `type(scope): description` or `type: description`. Before creating or editing either, read `scope-enum` in `commitlint.config.js`; use a listed scope or omit it when none fits. Validate the proposed message/title with `printf '%s\n' 'your title' | vp exec commitlint` before committing or submitting it.
+- After pulling remote changes, run `pnpm install` before validation.
+- Keep `runtimeOnFail: error`: Rust is managed by rustup so installed cross-target libraries and LLVM tools match the compiler used inside pnpm scripts.
+- Unified `pnpm install` requires Rust first. Use `pnpm add crate:NAME@RANGE` in the crate directory to update Rust dependencies; `pnpm update crate:…` does not update them in pnpm 12.6.0.
+- Use Conventional Commit messages and PR titles: `type(scope): description` or `type: description`. Before creating or editing either, read `scope-enum` in `commitlint.config.js`; use a listed scope or omit it when none fits. Validate the proposed message/title with `printf '%s\n' 'your title' | pnpm exec commitlint` before committing or submitting it.
 
 ## Focused Commands
 
 - Never manually modify or restore `packages/webfont-generator/binding.{js,d.ts}` or platform `.node` artifacts unless the user explicitly authorizes it. Build and dependent tasks may regenerate them; stage and commit those generated updates with the source changes that produced them.
-- `vp run @atlowchemi/webfont-generator#build` builds the Rust/NAPI binding and can update `packages/webfont-generator/binding.{js,d.ts}` and platform `.node` artifacts.
-- `vp run @atlowchemi/webfont-generator#binding:regenerate` regenerates only the JS loader for version updates, preserving the last full build's exports; API changes still require `#build`.
-- After changing Rust code, run `vp run @atlowchemi/webfont-generator#check`; it checks the engine's default/CLI builds, the separate NAPI adapter, and workspace Rust formatting.
-- `vp run @atlowchemi/webfont-generator#test` runs Rust checks/tests via the package task; workspace `vp run test` first depends on the NAPI build, then runs JS/Vitest tests.
-- `vp run coverage` measures JS only. Rust coverage tasks require `cargo-llvm-cov`, `cargo-nextest`, and `llvm-tools-preview`; see CONTRIBUTING.md for engine/CLI/adapter task commands. `@atlowchemi/webfont-generator#test:coverage:native` instruments Node execution; keep its addon override package-scoped. Nextest omits doctests, so retain `@atlowchemi/webfont-engine#test:doctests` separately.
-- `vp run @atlowchemi/webfont-generator#bench --no-run` is the compile-only check for Rust benchmark target changes; run targeted Criterion filters only when measured behavior changes.
-- Run the docs only through `vp run @atlowchemi/vite-svg-webfont-docs#dev`, `#build` or `#preview` (which builds first). They first generate the social card and optimized SVGs, and pack `vite-svg-2-webfont` (building the native addon) and `@atlowchemi/webfont-browser-generator` (building the WASM engine). A bare `vp dev` or `vp build` in `packages/docs` skips those, and fails on the missing `virtual:site-icons.css`.
-- `vp run vite-svg-2-webfont#test:fixtures:refresh` regenerates expected font fixtures after changing SVG icons in `packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`.
+- `pnpm pipeline native --full` builds the Rust/NAPI binding and can update `packages/webfont-generator/binding.{js,d.ts}` and platform `.node` artifacts.
+- `pnpm pipeline binding-regenerate --full` regenerates only the JS loader for version updates, preserving the last full build's exports; API changes still require the `native` pipeline.
+- After changing Rust code, run `pnpm pipeline rust-check --full`; it checks the engine's default/CLI builds, the separate NAPI adapter, and workspace Rust formatting.
+- `pnpm pipeline rust-test --full` runs Rust checks/tests; `pnpm pipeline test --full` builds the NAPI/browser packages, then runs JS/Vitest tests.
+- `pnpm pipeline coverage --full` measures JS only. Rust coverage tasks require `cargo-llvm-cov`, `cargo-nextest`, and `llvm-tools-preview`; see CONTRIBUTING.md. `native-coverage` instruments Node execution; keep its addon override package-scoped. Nextest omits doctests, so retain the `doctests` pipeline separately.
+- `pnpm --dir packages/webfont-generator run bench --no-run` is the compile-only check for Rust benchmark target changes; run targeted Criterion filters only when measured behavior changes.
+- `pnpm pipeline docs --full` builds docs and their asset/package prerequisites.
+- `pnpm pipeline fixtures-refresh --full` regenerates expected font fixtures after changing SVG icons in `packages/vite-svg-2-webfont/src/fixtures/webfont-test/svg/`.
 
 ## Public API Sync
 
@@ -30,13 +32,13 @@
 ## Verification Subagents
 
 - Prefer verification subagents for long/noisy commands so logs stay out of the main context.
-- Use `vp-check` for `vp check`.
-- Use `fmt-runner` for isolated `vp fmt` runs.
+- Use `vp-check` for `pnpm exec vp check`.
+- Use `fmt-runner` for isolated `pnpm exec vp fmt` runs.
 - Use `rust-check-runner` after changing Rust code.
-- Use `test-runner` for `vp run test`.
-- Use `coverage-runner` for `vp run coverage`.
-- Use `napi-build-runner` for `vp run @atlowchemi/webfont-generator#build`.
-- Use `bench-build-runner` for `vp run @atlowchemi/webfont-generator#bench --no-run`.
-- Use `docs-build-runner` for `vp run @atlowchemi/vite-svg-webfont-docs#build`.
-- Use `fixture-refresh-runner` for `vp run vite-svg-2-webfont#test:fixtures:refresh`.
+- Use `test-runner` for `pnpm pipeline test --full`.
+- Use `coverage-runner` for `pnpm pipeline coverage --full`.
+- Use `napi-build-runner` for `pnpm pipeline native --full`.
+- Use `bench-build-runner` for `pnpm --dir packages/webfont-generator run bench --no-run`.
+- Use `docs-build-runner` for `pnpm pipeline docs --full`.
+- Use `fixture-refresh-runner` for `pnpm pipeline fixtures-refresh --full`.
 - Run independent verification subagents in parallel and have them return pass/fail, concise failure excerpts, file paths/line numbers, generated-file changes, and the exact command run.

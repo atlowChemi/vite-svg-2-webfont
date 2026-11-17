@@ -27,36 +27,6 @@ const config: UserProjectConfigExport = defineProject({
         include: ['config/**/*.test.ts', 'src/**/*.test.{ts,tsx}'],
         setupFiles: ['config/testSetup.ts'],
     },
-    run: {
-        tasks: {
-            'optimize-svg': {
-                command: 'svgo -r -f assets/svg -o public',
-            },
-            // Regenerates the committed logo and wordmark SVGs in assets/svg; run by hand after brand changes.
-            brand: {
-                command: 'node ./scripts/generate-brand.ts',
-            },
-            'social-card': {
-                command: 'node ./scripts/generate-social-card.ts',
-                dependsOn: ['optimize-svg'],
-            },
-            dev: {
-                cache: false,
-                command: 'vp dev',
-                dependsOn: ['social-card', 'vite-svg-2-webfont#pack', '@atlowchemi/webfont-browser-generator#pack'],
-            },
-            build: {
-                command: 'vp build',
-                cache: { env: ['DOCS_URL'] },
-                dependsOn: ['social-card', 'vite-svg-2-webfont#pack', '@atlowchemi/webfont-browser-generator#pack'],
-            },
-            preview: {
-                cache: false,
-                command: 'vp preview',
-                dependsOn: ['build'],
-            },
-        },
-    },
 });
 
 export default config;

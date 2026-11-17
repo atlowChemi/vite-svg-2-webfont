@@ -5,7 +5,7 @@ tools: Bash
 color: blue
 ---
 
-Run `vp check` from the repository root.
+Run `pnpm exec vp check` from the repository root.
 
 Do not edit files. Return only:
 

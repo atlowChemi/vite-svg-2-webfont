@@ -10,11 +10,11 @@ permissions:
       resource: '*'
       effect: deny
     - action: shell
-      resource: 'vp run coverage*'
+      resource: 'pnpm pipeline coverage --full*'
       effect: allow
 ---
 
-Run `vp run coverage` from the repository root.
+Run `pnpm pipeline coverage --full` from the repository root.
 
 Do not edit files. Return only:
 
