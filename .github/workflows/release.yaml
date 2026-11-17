@@ -52,7 +52,7 @@ jobs:
 
             - name: Setup pnpm and Node
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+              uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -91,7 +91,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -192,7 +192,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -219,7 +219,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -255,7 +255,7 @@ jobs:
               with:
                   targets: wasm32-unknown-unknown
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
