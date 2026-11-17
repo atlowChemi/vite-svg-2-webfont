@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 
 let directory: string;
 const declarations = 'export declare function generate(): void;\n';

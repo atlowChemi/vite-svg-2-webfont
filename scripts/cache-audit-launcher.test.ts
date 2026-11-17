@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 
 it.skipIf(process.platform === 'win32')('forwards audit selectors with or without the package-runner separator', () => {
     const directory = mkdtempSync(join(tmpdir(), 'audit-launcher-'));

@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { basename, join, relative } from 'node:path';
-import type { Plugin } from 'vite-plus';
+import type { Plugin } from 'vite';
 
 const docsRoot = join(import.meta.dirname, '..');
 

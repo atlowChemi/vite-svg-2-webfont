@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parse } from 'yaml';
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 
 it('discovers new pipelines and rejects stale exclusions before execution', () => {
     const workflow = parse(readFileSync(new URL('../../.github/workflows/cache-audit.yaml', import.meta.url), 'utf8'));

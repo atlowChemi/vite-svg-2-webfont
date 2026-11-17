@@ -8,8 +8,17 @@ const root = fileURLToPath(new URL('../../../', import.meta.url));
 const run = (command, args, env = {}) => execFileSync(command, args, { cwd: root, stdio: 'inherit', env: { ...process.env, ...env } });
 setup();
 run(
-    'vp',
-    ['test', '--project=webfont-wasm-browser', '--project=webfont-browser-build', '--coverage', '--coverage.include=src/**', '--coverage.reportsDirectory=coverage/browser-js'],
+    'pnpm',
+    [
+        'exec',
+        'vitest',
+        '--run',
+        '--project=webfont-wasm-browser',
+        '--project=webfont-browser-build',
+        '--coverage',
+        '--coverage.include=src/**',
+        '--coverage.reportsDirectory=coverage/browser-js',
+    ],
     {
         WEBFONT_COVERAGE: '1',
         CI_TEST_REPORT: 'coverage/browser-js/junit.xml',

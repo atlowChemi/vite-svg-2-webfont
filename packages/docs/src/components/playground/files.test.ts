@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import { isSvgMarkup, readSvgFiles, skippedFilesMessage } from './files';
 
 const file = (name: string, content: string, type = '') => new File([content], name, { type });

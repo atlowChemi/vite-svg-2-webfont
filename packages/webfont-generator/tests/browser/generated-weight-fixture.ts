@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { Plugin } from 'vite-plus';
+import type { Plugin } from 'vite';
 
 export function generatedWeightFixture(): Plugin {
     return {

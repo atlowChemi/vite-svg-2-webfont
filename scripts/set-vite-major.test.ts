@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, expect, it } from 'vite-plus/test';
+import { afterEach, beforeEach, expect, it } from 'vitest';
 
 const script = fileURLToPath(new URL('./ci/set-vite-major.ts', import.meta.url));
 const workspace = readFileSync(new URL('../pnpm-workspace.yaml', import.meta.url), 'utf8');
@@ -29,7 +29,7 @@ function run(major: number, ...args: string[]) {
     return spawnSync(process.execPath, [script, String(major), ...args], { cwd: directory, encoding: 'utf8' });
 }
 
-it.each([6, 7, 8])('selects upstream Vite %i without changing the Vite+ toolchain or unrelated dependencies', major => {
+it.each([6, 7, 8])('selects upstream Vite %i without changing the test toolchain or unrelated dependencies', major => {
     const result = run(major);
     expect(result.stderr).toBe('');
     expect(result.status).toBe(0);

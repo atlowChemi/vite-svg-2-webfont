@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it } from 'vitest';
 import { browserLabels, fileIconCss, iconFor } from './fileIcons.ts';
 
 const light = (name: string) => ({ light: `file-type-light-${name}`, dark: `file-type-${name}` });

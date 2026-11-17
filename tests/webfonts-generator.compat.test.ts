@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { inflateSync } from 'node:zlib';
-import { afterEach, describe, expect, it } from 'vite-plus/test';
+import { afterEach, describe, expect, it } from 'vitest';
 import opentype from 'opentype.js';
 import { compile as compileScss } from 'sass';
 import {
@@ -379,7 +379,7 @@ expect.extend({
     },
 });
 
-declare module 'vite-plus/test' {
+declare module 'vitest' {
     interface Matchers<R, T> {
         toNotBeEmptyFile(expected: string): Promise<void>;
     }

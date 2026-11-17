@@ -1,6 +1,6 @@
 import { icons } from '@iconify-json/vscode-icons';
 import { encodeSvgForCss, getIconData, iconToHTML, iconToSVG } from '@iconify/utils';
-import type { Plugin, ViteDevServer } from 'vite-plus';
+import type { Plugin, ViteDevServer } from 'vite';
 
 // File icons beside code-group tabs and code-block titles. The pages render every label as `data-title`; this module
 // serves `virtual:file-icons.css`, which sets `--icon` on each label's `::before` (the tabs and titles size and draw it).

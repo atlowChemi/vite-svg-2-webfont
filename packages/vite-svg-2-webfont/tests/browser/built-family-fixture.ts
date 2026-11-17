@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { build, type Plugin } from 'vite-plus';
+import { build, type Plugin } from 'vite';
 
 /** Exercise the real production plugin and serve its emitted bytes to the browser test. */
 export function builtFamilyFixture(): Plugin {

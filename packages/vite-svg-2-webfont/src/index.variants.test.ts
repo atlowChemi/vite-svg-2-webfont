@@ -1,8 +1,8 @@
 import { mkdtemp, mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { build, createServer } from 'vite-plus';
-import { afterEach, expect, it, vi, type MockInstance } from 'vite-plus/test';
+import { build, createServer } from 'vite';
+import { afterEach, expect, it, vi, type MockInstance } from 'vitest';
 import { viteSvgToWebfont, templates, type IconPluginVariantOptions, type IconPluginOptions } from './index';
 import { parseOptions } from './optionParser';
 import type { GenerateWebfontsResult } from '@atlowchemi/webfont-generator';

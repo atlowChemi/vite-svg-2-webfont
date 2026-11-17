@@ -1,4 +1,4 @@
-import { defineProject, type UserProjectConfigExport } from 'vite-plus';
+import { defineProject, type UserProjectConfigExport } from 'vitest/config';
 import { keepCssModules, scopedName } from './config/cssModules.ts';
 import { fonteDocs } from './config/staticSite.ts';
 

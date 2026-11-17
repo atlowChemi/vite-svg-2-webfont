@@ -190,8 +190,8 @@ fn check_metrics(ttf: &[u8], count: usize) {
 }
 
 fn compare(c: &mut Criterion) {
-    let sources =
-        support::iconify_svgs(600).expect("install the Iconify benchmark dataset with vp install");
+    let sources = support::iconify_svgs(600)
+        .expect("install the Iconify benchmark dataset with pnpm install");
     let mut sizes = Vec::new();
     for count in SIZES {
         for shared_percent in [0, 50, 100] {

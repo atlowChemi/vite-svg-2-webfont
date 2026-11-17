@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import * as optionParser from './optionParser';
 import { globSync } from 'node:fs';
-import { describe, it, expect, vi, afterEach, beforeEach, beforeAll } from 'vite-plus/test';
+import { describe, it, expect, vi, afterEach, beforeEach, beforeAll } from 'vitest';
 import { NoIconsAvailableError, InvalidWriteFilesTypeError } from './errors';
 import type { FontType } from '@atlowchemi/webfont-generator';
 

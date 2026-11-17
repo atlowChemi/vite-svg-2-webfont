@@ -1,6 +1,6 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 
 // A CSS module's import is typed as any string key, so a misspelled class would render as `undefined` and silently lose
 // its styles. Every `styles.name` the code reads must be a class its module defines.

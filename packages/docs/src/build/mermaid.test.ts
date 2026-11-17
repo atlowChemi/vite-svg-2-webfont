@@ -1,5 +1,5 @@
 import type { Browser } from 'playwright';
-import { beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { diagramBrowser } from './diagramBrowser.ts';
 import styles from './mermaid.module.css';
 import { diagramKey, renderDiagrams, themed } from './mermaid.ts';

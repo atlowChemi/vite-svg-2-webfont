@@ -1,5 +1,5 @@
 import type { GenerateWebfontsOptions, WebfontResult } from '@atlowchemi/webfont-browser-generator';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vite-plus/test';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defaultSettings, type PlaygroundIcon, type PlaygroundSettings } from './options.ts';
 import { createWebfontBuilder, type WebfontBuildState } from './webfontBuilder.ts';
 

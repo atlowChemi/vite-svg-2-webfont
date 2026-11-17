@@ -1,5 +1,5 @@
-/// <reference types="vite-plus/client" />
-import { expect, it } from 'vite-plus/test';
+/// <reference types="vite/client" />
+import { expect, it } from 'vitest';
 
 const webkit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent);
 const platform = import.meta.env.VITE_COLOR_PROOF_PLATFORM;

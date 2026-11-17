@@ -1,8 +1,8 @@
 import { mkdir, mkdtemp, readdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { build, createServer, type InlineConfig } from 'vite-plus';
-import { afterEach, describe, expect, it, vi } from 'vite-plus/test';
+import { build, createServer, type InlineConfig } from 'vite';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computeCacheKey } from './cache';
 import { viteSvgToWebfont, type IconPluginOptions, type IconPluginVariantOptions } from './index';
 

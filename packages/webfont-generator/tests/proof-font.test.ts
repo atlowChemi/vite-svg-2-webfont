@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { expect, it } from 'vite-plus/test';
+import { expect, it } from 'vitest';
 import { FontType, generateWebfonts } from '../binding.js';
 
 it('keeps the browser proof fixture reproducible through the NAPI bridge', async () => {
