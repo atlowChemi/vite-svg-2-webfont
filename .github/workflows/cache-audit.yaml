@@ -1,0 +1,82 @@
+name: Dormant pipeline audit
+
+on:
+    pull_request:
+    workflow_dispatch:
+    schedule:
+        - cron: '23 5 * * 1'
+
+permissions:
+    contents: read
+
+jobs:
+    pipelines:
+        name: Execute dormant pipelines
+        runs-on: ubuntu-latest
+        timeout-minutes: 60
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  targets: wasm32-unknown-unknown
+                  components: clippy, rustfmt
+            - uses: voidzero-dev/setup-vp@68f39c78aaf39be468cabd2afb09c162574c84af # v1.21.2
+              with:
+                  node-version-file: .node-version
+                  run-install: |
+                      args: [--frozen-lockfile]
+                  cache: true
+            - run: vp exec playwright install --with-deps chromium firefox webkit
+            - name: Select dormant pipelines
+              shell: bash
+              run: |
+                  vp exec pnpm config get pipelines --location project --json > pipelines.json
+                  jq -r '
+                    {
+                      "next-bench": "Fresh measurements belong to benchmark CI",
+                      "next-engine-bench": "Fresh measurements belong to benchmark CI",
+                      "next-adapter-bench": "Fresh measurements belong to benchmark CI",
+                      "next-engine-coverage": "Requires the dedicated Rust coverage toolchain",
+                      "next-cli-coverage": "Requires the dedicated Rust coverage toolchain",
+                      "next-adapter-coverage": "Requires the dedicated Rust coverage toolchain",
+                      "next-native-coverage": "Requires the dedicated native coverage toolchain",
+                      "next-browser-coverage": "Instrumented browser reports belong to coverage CI",
+                      "next-binding-regenerate": "Mutates generated binding sources",
+                      "next-fixtures-refresh": "Mutates tracked font fixtures",
+                      "next-browser-publish": "Publishes packages to the registry",
+                      "next-plugin-publish": "Publishes packages to the registry",
+                      "next-plugin-dev": "Long-running development server",
+                      "next-example-dev": "Long-running development server",
+                      "next-example-preview": "Long-running preview server",
+                      "next-docs-dev": "Long-running development server",
+                      "next-docs-preview": "Long-running preview server"
+                    } as $blocked
+                    | (($blocked | keys) - keys) as $missing
+                    | if ($missing | length) > 0 then
+                        error("Unknown blocked pipelines: " + ($missing | join(", ")))
+                      else
+                        keys[] | select($blocked[.] == null)
+                      end
+                  ' pipelines.json > selected-pipelines.txt
+            - name: Execute every dormant pipeline uncached
+              shell: bash
+              run: |
+                  mkdir -p artifacts/cache-audit/pipelines
+                  status=0
+                  while IFS= read -r pipeline; do
+                    log="artifacts/cache-audit/pipelines/$pipeline.log"
+                    if vp exec pnpm pipeline "$pipeline" --full --no-cache > "$log" 2>&1; then
+                      echo "$pipeline: passed"
+                    else
+                      echo "::error::$pipeline failed; see $log"
+                      tail -n 80 "$log"
+                      status=1
+                    fi
+                  done < selected-pipelines.txt
+                  exit "$status"
+            - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+              if: always()
+              with:
+                  name: dormant-pipelines-linux-x64
+                  path: artifacts/cache-audit/pipelines/
+                  if-no-files-found: warn

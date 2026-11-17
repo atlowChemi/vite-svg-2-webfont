@@ -26,6 +26,16 @@
         "provenance": true
     },
     "scripts": {
+        "next:test:browser": "vp test --run --root ../.. --project=webfont-generator-browser",
+        "next:test:color-proof": "node scripts/check-color-proof.mjs",
+        "next:test:coverage": "bash ../../scripts/ci/rust-coverage.sh adapter",
+        "next:test:coverage:native": "bash ../../scripts/ci/native-coverage.sh",
+        "next:binding:regenerate": "node ../../scripts/regenerate-webfont-binding.mjs",
+        "next:bench": "cargo bench -p webfont-generator --features bench",
+        "next:build:release": "napi build --platform --esm --js binding.js --dts binding.d.ts --release",
+        "next:build": "napi build --platform --esm --js binding.js --dts binding.d.ts",
+        "next:check": "cargo clippy -p webfont-generator-napi -- -D warnings",
+        "next:test": "cargo test -p webfont-generator-napi --lib",
         "prepublishOnly": "napi pre-publish -t npm --no-gh-release"
     },
     "devDependencies": {

@@ -111,12 +111,14 @@ describe('output cache', () => {
     it('keeps dev and build entries side by side, sharing identical fonts', async () => {
         await using p = await project();
         const serveOnce = async () => {
-            const server = await createServer({ ...p.config(), server: { port: 0 } });
-            await server.listen();
-            const { port } = server.httpServer!.address() as { port: number };
-            const font = Buffer.from(await (await fetch(`http://localhost:${port}/iconfont.woff2`)).arrayBuffer());
-            await server.close();
-            return font;
+            const server = await createServer({ ...p.config(), server: { host: '127.0.0.1', port: 0 } });
+            try {
+                await server.listen();
+                const { port } = server.httpServer!.address() as { port: number };
+                return Buffer.from(await (await fetch(`http://127.0.0.1:${port}/iconfont.woff2`)).arrayBuffer());
+            } finally {
+                await server.close();
+            }
         };
 
         const devFont = await serveOnce();
