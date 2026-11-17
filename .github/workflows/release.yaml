@@ -46,9 +46,11 @@ jobs:
 
             - name: Sync Cargo.lock before frozen installation
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              # Fresh checkout: no pnpm source replacement exists yet. Synchronize
-              # workspace versions without re-resolving every registry dependency.
-              run: cargo update -p webfont-generator -p webfont-generator-napi
+              # Cargo resolves the auditor's local fspy patch even for product-only updates.
+              # Prepare it before installation's frozen Cargo lockfile check.
+              run: |
+                  node crates/cache-audit/scripts/prepare.mjs
+                  cargo update -p webfont-generator -p webfont-generator-napi
 
             - name: Setup pnpm and Node
               if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
