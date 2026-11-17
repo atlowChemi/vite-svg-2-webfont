@@ -1,10 +1,13 @@
 # fspy mutation tracking
 
 `fspy-mutations.patch` applies to upstream revision
-`8db455ef9c2b1c7b33cf70d8ba370c1f2c49d4c9` (MIT licensed).
+`2011a0b9decc8ac330b2415d6dba6f3e0749721d` (MIT licensed).
 It extends the Unix preload and Linux syscall paths with hard-link, rename,
 and deletion access reporting. Source reads and destination writes use the
 existing fspy record format, including attempted operations that fail.
+Upstream now records rename destinations and hard-link writes; the patch retains
+the auditor's source reads, rename-source deletions, exchange writes on both sides,
+and unlink/rmdir reporting. Upstream mkdir and symlink tracking remains enabled.
 
 The root preinstall hook checks out that exact revision and applies this patch
 under `.pnpm/cache-audit-fspy`, verifying the revision and complete patched diff.

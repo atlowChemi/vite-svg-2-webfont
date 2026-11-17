@@ -5,7 +5,7 @@ import { join } from 'node:path';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const upstream = join(root, '.pnpm/cache-audit-fspy');
-const revision = '8db455ef9c2b1c7b33cf70d8ba370c1f2c49d4c9';
+const revision = '2011a0b9decc8ac330b2415d6dba6f3e0749721d';
 const patch = join(root, 'crates/cache-audit/patches/fspy-mutations.patch');
 const git = args => execFileSync('git', args, { cwd: upstream, stdio: 'inherit' });
 mkdirSync(upstream, { recursive: true });

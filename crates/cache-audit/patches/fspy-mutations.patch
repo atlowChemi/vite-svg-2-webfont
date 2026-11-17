@@ -1,5 +1,5 @@
 diff --git a/crates/fspy/Cargo.toml b/crates/fspy/Cargo.toml
-index 16683d743e35e999781c3a27e1a3c38bc0185695..49408a8f40952b5454ce8ca25ad214b671ed988d 100644
+index 049050ac6162cb35e172cd6eb04e79c8d879427b..66d4a1ce12ab6855fb1ffec5eccebc4dc8ae710a 100644
 --- a/crates/fspy/Cargo.toml
 +++ b/crates/fspy/Cargo.toml
 @@ -1,4 +1,5 @@
@@ -40,7 +40,7 @@ index 0000000000000000000000000000000000000000..4df55c5bd90adec0d82add9529032f5e
 +    }
 +}
 diff --git a/crates/fspy/src/unix/syscall_handler/mod.rs b/crates/fspy/src/unix/syscall_handler/mod.rs
-index f3c4661e03838dc3b93bebecc518d743dd136e6b..42096abab83851530488b2665809c4f6bd80b000 100644
+index d55ce8fbbfdc39594dcdcd9a42b57313fae802c0..d2611320f0afb4de170d744c966b1505c3498c42 100644
 --- a/crates/fspy/src/unix/syscall_handler/mod.rs
 +++ b/crates/fspy/src/unix/syscall_handler/mod.rs
 @@ -1,5 +1,7 @@
@@ -48,34 +48,31 @@ index f3c4661e03838dc3b93bebecc518d743dd136e6b..42096abab83851530488b2665809c4f6
  mod getdents;
 +mod link;
 +mod mutation;
+ mod namespace;
  mod open;
  mod stat;
+@@ -115,6 +117,10 @@ impl_handler!(
+     #[cfg(target_arch = "x86_64")] symlink,
+     symlinkat,
  
-@@ -81,6 +83,15 @@ impl_handler!(
-     openat,
-     openat2,
- 
-+    #[cfg(target_arch = "x86_64")] link,
-+    linkat,
-+    #[cfg(target_arch = "x86_64")] rename,
-+    renameat,
-+    renameat2,
 +    #[cfg(target_arch = "x86_64")] unlink,
 +    unlinkat,
 +    #[cfg(target_arch = "x86_64")] rmdir,
 +
-     #[cfg(target_arch = "x86_64")] getdents,
-     getdents64,
- 
+     execve,
+     execveat,
+ );
 diff --git a/crates/fspy/src/unix/syscall_handler/mutation.rs b/crates/fspy/src/unix/syscall_handler/mutation.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..6d04be2f2b99ca45448cc506f1f74442ea24a5bd
+index 0000000000000000000000000000000000000000..69d2852c31f9ef5f19d46ce051c546f93b803578
 --- /dev/null
 +++ b/crates/fspy/src/unix/syscall_handler/mutation.rs
-@@ -0,0 +1,45 @@
-+use super::SyscallHandler;
-+use fspy_seccomp_unotify::supervisor::handler::arg::{CStrPtr, Caller, Fd};
+@@ -0,0 +1,52 @@
 +use std::{ffi::c_uint, io};
++
++use fspy_seccomp_unotify::supervisor::handler::arg::{CStrPtr, Caller, Fd};
++
++use super::SyscallHandler;
 +
 +impl SyscallHandler {
 +    pub(super) fn renameat2(
@@ -91,6 +88,7 @@ index 0000000000000000000000000000000000000000..6d04be2f2b99ca45448cc506f1f74442
 +            if flags & libc::RENAME_EXCHANGE != 0 { libc::O_RDWR } else { libc::O_WRONLY },
 +        )
 +    }
++
 +    pub(super) fn renameat(
 +        &mut self,
 +        caller: Caller,
@@ -98,6 +96,7 @@ index 0000000000000000000000000000000000000000..6d04be2f2b99ca45448cc506f1f74442
 +    ) -> io::Result<()> {
 +        self.renameat2(caller, (old_fd, old, new_fd, new, 0))
 +    }
++
 +    #[cfg(target_arch = "x86_64")]
 +    pub(super) fn rename(
 +        &mut self,
@@ -106,18 +105,90 @@ index 0000000000000000000000000000000000000000..6d04be2f2b99ca45448cc506f1f74442
 +    ) -> io::Result<()> {
 +        self.renameat(caller, (Fd::cwd(), old, Fd::cwd(), new))
 +    }
++
 +    pub(super) fn unlinkat(&mut self, caller: Caller, (fd, path): (Fd, CStrPtr)) -> io::Result<()> {
 +        self.handle_open(caller, fd, path, libc::O_WRONLY)
 +    }
++
 +    #[cfg(target_arch = "x86_64")]
 +    pub(super) fn unlink(&mut self, caller: Caller, (path,): (CStrPtr,)) -> io::Result<()> {
 +        self.unlinkat(caller, (Fd::cwd(), path))
 +    }
++
 +    #[cfg(target_arch = "x86_64")]
 +    pub(super) fn rmdir(&mut self, caller: Caller, (path,): (CStrPtr,)) -> io::Result<()> {
 +        self.unlinkat(caller, (Fd::cwd(), path))
 +    }
 +}
+diff --git a/crates/fspy/src/unix/syscall_handler/namespace.rs b/crates/fspy/src/unix/syscall_handler/namespace.rs
+index 2eccd1f4b12104ae5b68388433dd9a8f864ec388..dc50b95974db779460ccc4ac66f53a3ffd46fa08 100644
+--- a/crates/fspy/src/unix/syscall_handler/namespace.rs
++++ b/crates/fspy/src/unix/syscall_handler/namespace.rs
+@@ -1,11 +1,6 @@
+ //! Syscalls that make an entry at a path without opening it: mkdir, symlink,
+-//! and rename and hard link, which put an existing file or folder at a new
+-//! path. The path of a mkdir is recorded as a mkdir, whether or not the
+-//! folder is there already; the new path of a rename as a rename target,
+-//! which may be a whole folder; and that of a symlink, and of a hard link,
+-//! always a file, as a write. The source of a rename needs no record, and
+-//! neither does the target of a symlink, which is stored as text, not
+-//! accessed.
++//! whose target is stored as text, not accessed. Rename and hard-link
++//! accesses are reported by the audit-specific mutation and link handlers.
+ 
+ use std::io;
+ 
+@@ -28,50 +23,6 @@ impl SyscallHandler {
+         self.handle_path(caller, dir_fd, path, AccessMode::Mkdir)
+     }
+ 
+-    #[cfg(target_arch = "x86_64")]
+-    pub(super) fn rename(
+-        &mut self,
+-        caller: Caller,
+-        (_old, new): (Ignored, CStrPtr),
+-    ) -> io::Result<()> {
+-        self.handle_path(caller, Fd::cwd(), new, AccessMode::RenameTarget)
+-    }
+-
+-    pub(super) fn renameat(
+-        &mut self,
+-        caller: Caller,
+-        (_old_dir_fd, _old, new_dir_fd, new): (Ignored, Ignored, Fd, CStrPtr),
+-    ) -> io::Result<()> {
+-        self.handle_path(caller, new_dir_fd, new, AccessMode::RenameTarget)
+-    }
+-
+-    /// With `RENAME_EXCHANGE` both paths change; only the destination is
+-    /// recorded, as for a plain rename.
+-    pub(super) fn renameat2(
+-        &mut self,
+-        caller: Caller,
+-        (_old_dir_fd, _old, new_dir_fd, new): (Ignored, Ignored, Fd, CStrPtr),
+-    ) -> io::Result<()> {
+-        self.handle_path(caller, new_dir_fd, new, AccessMode::RenameTarget)
+-    }
+-
+-    #[cfg(target_arch = "x86_64")]
+-    pub(super) fn link(
+-        &mut self,
+-        caller: Caller,
+-        (_old, new): (Ignored, CStrPtr),
+-    ) -> io::Result<()> {
+-        self.handle_path(caller, Fd::cwd(), new, AccessMode::Write)
+-    }
+-
+-    pub(super) fn linkat(
+-        &mut self,
+-        caller: Caller,
+-        (_old_dir_fd, _old, new_dir_fd, new): (Ignored, Ignored, Fd, CStrPtr),
+-    ) -> io::Result<()> {
+-        self.handle_path(caller, new_dir_fd, new, AccessMode::Write)
+-    }
+-
+     #[cfg(target_arch = "x86_64")]
+     pub(super) fn symlink(
+         &mut self,
 diff --git a/crates/fspy_preload_unix/src/interceptions/link.rs b/crates/fspy_preload_unix/src/interceptions/link.rs
 new file mode 100644
 index 0000000000000000000000000000000000000000..8566af0a0789036af2c76e485b97f776aed67bd4
@@ -238,7 +309,7 @@ index f351ca1fa4c73ef0b3b8e49544a115f0cbd4126c..786939725756d83dfd6ad370f6ea167c
          // C-style conversions are expected for the variadic syscall arguments.
          #[expect(
 diff --git a/crates/fspy_preload_unix/src/interceptions/mod.rs b/crates/fspy_preload_unix/src/interceptions/mod.rs
-index 4d9712dd1e5443242a842529c85226b8e9e4b918..63c385f055d5161df4a42e9ead946d691b7e7a96 100644
+index 389462e18e2659413e8947617899332d38ac9e05..8b77776cad89a755b7889114f4af3336dc39eb1e 100644
 --- a/crates/fspy_preload_unix/src/interceptions/mod.rs
 +++ b/crates/fspy_preload_unix/src/interceptions/mod.rs
 @@ -2,6 +2,8 @@ mod access;
@@ -247,21 +318,22 @@ index 4d9712dd1e5443242a842529c85226b8e9e4b918..63c385f055d5161df4a42e9ead946d69
  mod dyld;
 +mod link;
 +mod mutation;
+ mod namespace;
  mod open;
  mod spawn;
- mod stat;
 diff --git a/crates/fspy_preload_unix/src/interceptions/mutation.rs b/crates/fspy_preload_unix/src/interceptions/mutation.rs
 new file mode 100644
-index 0000000000000000000000000000000000000000..f1a09516535296e4625de301c79d8e383ae8b111
+index 0000000000000000000000000000000000000000..830ab3a2fefcef735d35a4632186c6c6850eb3c8
 --- /dev/null
 +++ b/crates/fspy_preload_unix/src/interceptions/mutation.rs
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,103 @@
++use fspy_shared::ipc::AccessMode;
++use libc::{c_char, c_int, c_uint};
++
 +use crate::{
 +    client::{convert::PathAt, handle_open},
 +    macros::intercept,
 +};
-+use fspy_shared::ipc::AccessMode;
-+use libc::{c_char, c_int, c_uint};
 +
 +pub(super) unsafe fn report_rename(
 +    old_fd: c_int,
@@ -320,10 +392,15 @@ index 0000000000000000000000000000000000000000..f1a09516535296e4625de301c79d8e38
 +    new: *const c_char,
 +    flags: c_uint,
 +) -> c_int {
++    let Some(original) = renameat2::try_original() else {
++        // SAFETY: errno storage belongs to this thread. glibc before 2.28 lacks renameat2.
++        unsafe { *libc::__errno_location() = libc::ENOSYS };
++        return -1;
++    };
 +    // SAFETY: report and forward the caller's arguments unchanged.
 +    unsafe {
 +        report_rename(old_fd, old, new_fd, new, flags & libc::RENAME_EXCHANGE != 0);
-+        renameat2::original()(old_fd, old, new_fd, new, flags)
++        original(old_fd, old, new_fd, new, flags)
 +    }
 +}
 +
@@ -353,6 +430,131 @@ index 0000000000000000000000000000000000000000..f1a09516535296e4625de301c79d8e38
 +        rmdir::original()(path)
 +    }
 +}
+diff --git a/crates/fspy_preload_unix/src/interceptions/namespace.rs b/crates/fspy_preload_unix/src/interceptions/namespace.rs
+index 7f33c740481868eccb4178deb6240ca96c04047d..14e15f99d9aaceb132ac8911178d9ad8e3f77442 100644
+--- a/crates/fspy_preload_unix/src/interceptions/namespace.rs
++++ b/crates/fspy_preload_unix/src/interceptions/namespace.rs
+@@ -1,11 +1,6 @@
+ //! Calls that make an entry at a path without opening it: mkdir, symlink,
+-//! and rename and hard link, which put an existing file or folder at a new
+-//! path. The path is recorded before the call, so a failed call is recorded
+-//! too: as a mkdir for a mkdir, whose folder may be there already; as a
+-//! rename target for a rename, which may move a whole folder; and as a write
+-//! for a symlink, and for a hard link, always to a file. The source of a
+-//! rename needs no record, and neither does the target of a symlink, which
+-//! is stored as text, not accessed.
++//! whose target is stored as text, not accessed. Rename and hard-link
++//! accesses use the audit-specific mutation and link reporters.
+ 
+ use fspy_shared::ipc::AccessMode;
+ use libc::{c_char, c_int, mode_t};
+@@ -31,52 +26,6 @@ unsafe extern "C" fn mkdirat(dirfd: c_int, path: *const c_char, mode: mode_t) ->
+     unsafe { mkdirat::original()(dirfd, path, mode) }
+ }
+ 
+-intercept!(rename: unsafe extern "C" fn(old: *const c_char, new: *const c_char) -> c_int);
+-unsafe extern "C" fn rename(old: *const c_char, new: *const c_char) -> c_int {
+-    // SAFETY: new is a valid C string pointer provided by the caller of the interposed function
+-    unsafe { handle_open(fspy_nostd::CStr::from_ptr(new.cast()), AccessMode::RenameTarget) };
+-    // SAFETY: calling the original libc rename() with the same arguments forwarded from the interposed function
+-    unsafe { rename::original()(old, new) }
+-}
+-
+-intercept!(renameat: unsafe extern "C" fn(olddirfd: c_int, old: *const c_char, newdirfd: c_int, new: *const c_char) -> c_int);
+-unsafe extern "C" fn renameat(
+-    olddirfd: c_int,
+-    old: *const c_char,
+-    newdirfd: c_int,
+-    new: *const c_char,
+-) -> c_int {
+-    // SAFETY: newdirfd is -1 or a valid file descriptor, and new is a valid C string, provided by the caller of the interposed function
+-    unsafe { handle_open(PathAt::borrow_raw(newdirfd, new), AccessMode::RenameTarget) };
+-    // SAFETY: calling the original libc renameat() with the same arguments forwarded from the interposed function
+-    unsafe { renameat::original()(olddirfd, old, newdirfd, new) }
+-}
+-
+-#[cfg(target_os = "linux")]
+-intercept!(renameat2: unsafe extern "C" fn(olddirfd: c_int, old: *const c_char, newdirfd: c_int, new: *const c_char, flags: libc::c_uint) -> c_int);
+-/// With `RENAME_EXCHANGE` both paths change; only the destination is
+-/// recorded, as for a plain rename.
+-#[cfg(target_os = "linux")]
+-unsafe extern "C" fn renameat2(
+-    olddirfd: c_int,
+-    old: *const c_char,
+-    newdirfd: c_int,
+-    new: *const c_char,
+-    flags: libc::c_uint,
+-) -> c_int {
+-    let Some(original) = renameat2::try_original() else {
+-        // glibc added renameat2 in 2.28. Callers that look it up at run time
+-        // treat ENOSYS as unsupported, as when the kernel lacks it.
+-        // SAFETY: __errno_location returns the calling thread's errno storage on Linux.
+-        unsafe { *libc::__errno_location() = libc::ENOSYS };
+-        return -1;
+-    };
+-    // SAFETY: newdirfd is -1 or a valid file descriptor, and new is a valid C string, provided by the caller of the interposed function
+-    unsafe { handle_open(PathAt::borrow_raw(newdirfd, new), AccessMode::RenameTarget) };
+-    // SAFETY: calling the original libc renameat2() with the same arguments forwarded from the interposed function
+-    unsafe { original(olddirfd, old, newdirfd, new, flags) }
+-}
+-
+ #[cfg(target_os = "macos")]
+ intercept!(renamex_np: unsafe extern "C" fn(old: *const c_char, new: *const c_char, flags: libc::c_uint) -> c_int);
+ #[cfg(target_os = "macos")]
+@@ -86,7 +35,15 @@ unsafe extern "C" fn renamex_np(
+     flags: libc::c_uint,
+ ) -> c_int {
+     // SAFETY: new is a valid C string pointer provided by the caller of the interposed function
+-    unsafe { handle_open(fspy_nostd::CStr::from_ptr(new.cast()), AccessMode::RenameTarget) };
++    unsafe {
++        super::mutation::report_rename(
++            libc::AT_FDCWD,
++            old,
++            libc::AT_FDCWD,
++            new,
++            flags & libc::RENAME_SWAP != 0,
++        )
++    };
+     // SAFETY: calling the original libc renamex_np() with the same arguments forwarded from the interposed function
+     unsafe { renamex_np::original()(old, new, flags) }
+ }
+@@ -102,33 +59,13 @@ unsafe extern "C" fn renameatx_np(
+     flags: libc::c_uint,
+ ) -> c_int {
+     // SAFETY: newdirfd is -1 or a valid file descriptor, and new is a valid C string, provided by the caller of the interposed function
+-    unsafe { handle_open(PathAt::borrow_raw(newdirfd, new), AccessMode::RenameTarget) };
++    unsafe {
++        super::mutation::report_rename(olddirfd, old, newdirfd, new, flags & libc::RENAME_SWAP != 0)
++    };
+     // SAFETY: calling the original libc renameatx_np() with the same arguments forwarded from the interposed function
+     unsafe { renameatx_np::original()(olddirfd, old, newdirfd, new, flags) }
+ }
+ 
+-intercept!(link: unsafe extern "C" fn(old: *const c_char, new: *const c_char) -> c_int);
+-unsafe extern "C" fn link(old: *const c_char, new: *const c_char) -> c_int {
+-    // SAFETY: new is a valid C string pointer provided by the caller of the interposed function
+-    unsafe { handle_open(fspy_nostd::CStr::from_ptr(new.cast()), AccessMode::Write) };
+-    // SAFETY: calling the original libc link() with the same arguments forwarded from the interposed function
+-    unsafe { link::original()(old, new) }
+-}
+-
+-intercept!(linkat: unsafe extern "C" fn(olddirfd: c_int, old: *const c_char, newdirfd: c_int, new: *const c_char, flags: c_int) -> c_int);
+-unsafe extern "C" fn linkat(
+-    olddirfd: c_int,
+-    old: *const c_char,
+-    newdirfd: c_int,
+-    new: *const c_char,
+-    flags: c_int,
+-) -> c_int {
+-    // SAFETY: newdirfd is -1 or a valid file descriptor, and new is a valid C string, provided by the caller of the interposed function
+-    unsafe { handle_open(PathAt::borrow_raw(newdirfd, new), AccessMode::Write) };
+-    // SAFETY: calling the original libc linkat() with the same arguments forwarded from the interposed function
+-    unsafe { linkat::original()(olddirfd, old, newdirfd, new, flags) }
+-}
+-
+ intercept!(symlink: unsafe extern "C" fn(target: *const c_char, link: *const c_char) -> c_int);
+ unsafe extern "C" fn symlink(target: *const c_char, link: *const c_char) -> c_int {
+     // SAFETY: link is a valid C string pointer provided by the caller of the interposed function
 diff --git a/crates/fspy_seccomp_unotify/src/supervisor/handler/arg.rs b/crates/fspy_seccomp_unotify/src/supervisor/handler/arg.rs
 index fa9dc305d2b1e4ab17b6c633fd1e41d78b7a1f3f..0b84ce1a54b5775f8cdc04ccf7837d2b92992004 100644
 --- a/crates/fspy_seccomp_unotify/src/supervisor/handler/arg.rs
