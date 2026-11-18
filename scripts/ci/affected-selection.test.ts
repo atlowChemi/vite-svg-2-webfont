@@ -131,17 +131,17 @@ describe('affected CI', () => {
     });
     it('reserves release matrix artifacts for adapter publication', () => {
         const release = parse(readFileSync(new URL('../../.github/workflows/release.yaml', import.meta.url), 'utf8'));
-        expect(release.jobs['build-native'].if).toBe("needs.release-please.outputs.native-released == 'true'");
-        expect(release.jobs['publish-native'].needs).toEqual(['release-please', 'build-native']);
-        expect(release.jobs['publish-plugin'].needs).toEqual(['release-please']);
-        expect(release.jobs['publish-browser'].needs).toEqual(['release-please']);
+        expect(release.jobs['build-native'].if).toBe("needs.release.outputs.native-released == 'true'");
+        expect(release.jobs['publish-native'].needs).toEqual(['release', 'build-native']);
+        expect(release.jobs['publish-plugin'].needs).toEqual(['release']);
+        expect(release.jobs['publish-browser'].needs).toEqual(['release']);
         for (const [job, output] of [
             ['publish-plugin', 'plugin-released'],
             ['publish-browser', 'browser-released'],
             ['publish-native', 'native-released'],
             ['publish-crate', 'engine-released'],
         ] as const) {
-            expect(release.jobs[job].if).toBe(`needs.release-please.outputs.${output} == 'true'`);
+            expect(release.jobs[job].if).toBe(`needs.release.outputs.${output} == 'true'`);
         }
     });
     it.each([

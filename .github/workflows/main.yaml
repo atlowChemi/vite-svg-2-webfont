@@ -102,6 +102,8 @@ jobs:
                   require-lockfile: true
                   cache: true
             - uses: ./.github/actions/pipeline-cache
+            - name: Validate change intents and synchronized release versions
+              run: pnpm run release:check
             # These shell checks can overlap; JSON-reading actions cannot (actions/runner#4641).
             - parallel:
                   - run: pnpm run check
