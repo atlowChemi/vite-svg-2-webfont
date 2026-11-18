@@ -186,6 +186,26 @@ fn validates_real_accesses_and_rejects_missing_declarations() {
     let (run, report) = audit(&root, ".", "cat missing >/dev/null 2>&1 || true");
     assert!(run.status.success(), "{run:?}\n{report}");
     let absent_input_count = report["audit"]["input_count"].as_u64().unwrap();
+    // An attempted mkdir of an existing ancestor must not invalidate missing-file probes.
+    let (run, report) = audit(
+        &root,
+        ".",
+        "mkdir . 2>/dev/null; cat missing >/dev/null 2>&1 || true",
+    );
+    assert!(run.status.success(), "{run:?}\n{report}");
+    workspace(&root, "[input]", "[nested/output]");
+    fs::write(root.join("policy.yaml"), format!("{policy}      - {{pattern: nested, reason: 'Output directory metadata', kinds: [read], directory: true}}\n")).unwrap();
+    let (run, report) = audit(&root, ".", "mkdir nested; cat input > nested/output");
+    assert!(run.status.success(), "{run:?}\n{report}");
+    fs::write(root.join("policy.yaml"), policy).unwrap();
+    // Empty directories are not restored by file-output caching.
+    let (run, report) = audit(&root, ".", "mkdir untracked-empty");
+    assert_eq!(run.status.code(), Some(2), "{run:?}\n{report}");
+    assert!(
+        report["audit"]["findings"]
+            .to_string()
+            .contains("directory creation")
+    );
     workspace(&root, "[input]", "[output]");
     assert_eq!(
         audit(&root, ".", "cat missing >/dev/null 2>&1 || true")

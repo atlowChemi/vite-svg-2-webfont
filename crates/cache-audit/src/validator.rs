@@ -34,6 +34,7 @@ pub enum Kind {
     Write,
     ReadWrite,
     ReadDir,
+    Mkdir,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -670,6 +671,20 @@ impl Audit {
         for access in &normalized {
             let path = &access.path;
             let ignored = |kind| self.ignored(path, access.kind, kind);
+            // mkdir also reports EEXIST attempts. It neither writes a file nor
+            // makes missing descendants appear; keep it out of `writes` above.
+            // Output files recreate their parent directories on restoration.
+            if access.kind == Kind::Mkdir
+                && !ignored(Kind::Write)
+                && !(path.is_dir()
+                    && (self.before_paths.contains(path)
+                        || after.iter().any(|output| output.starts_with(path))))
+            {
+                findings.insert((
+                    path.clone(),
+                    "directory creation requires restored output descendants or policy".into(),
+                ));
+            }
             if matches!(access.kind, Kind::Write | Kind::ReadWrite)
                 && !ignored(Kind::Write)
                 && !after.contains(path)

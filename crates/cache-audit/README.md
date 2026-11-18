@@ -131,7 +131,10 @@ tasks:
 
 Paths inside the workspace are workspace-relative (`.` for its root); paths
 outside it are absolute. Patterns use wax, like pnpm. `ignore` accepts optional
-`kinds`: `read`, `write`, `read_write`, `read_dir`. Read and write exemptions
+`kinds`: `read`, `write`, `read_write`, `read_dir`, `mkdir`. Directory creation
+accepts write exemptions; existing-directory attempts and parents of restored
+output files need no exemption. New empty directories still require policy.
+Read and write exemptions
 apply independently to a `read_write` access; `read_write` exempts both halves
 of that combined access only. Every rule requires a reason.
 Rules can also specify `contents` for a literal path: its exact UTF-8 contents

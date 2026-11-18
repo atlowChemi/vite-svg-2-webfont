@@ -13,7 +13,7 @@ fn tracks_atomic_publication_and_deletion() {
     assert!(output.status.success(), "{output:?}");
     let manifest: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let accesses = manifest["accesses"].as_array().unwrap();
-    for name in ["linked", "final", "input", "directory", "symlink"] {
+    for name in ["linked", "final", "input", "symlink"] {
         assert!(
             accesses
                 .iter()
@@ -23,5 +23,10 @@ fn tracks_atomic_publication_and_deletion() {
         );
     }
     assert_eq!(fs::read_to_string(dir.join("final")).unwrap(), "value");
+    assert!(
+        accesses
+            .iter()
+            .any(|a| a["path"].as_str() == dir.join("directory").to_str() && a["kind"] == "mkdir")
+    );
     assert!(!dir.join("input").exists());
 }
