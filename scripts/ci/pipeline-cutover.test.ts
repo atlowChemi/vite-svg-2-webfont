@@ -66,7 +66,7 @@ it.each([
     ['browser-publish', ['wasm', 'browser:pack', 'browser:tgz', 'browser:publish']],
 ] as const)('resolves %s with its full prerequisites and release bypasses', (pipeline, expected) => {
     const tasks = graph(pipeline);
-    expect(tasks.map(task => task.script).toSorted()).toEqual(expected.toSorted());
+    expect(tasks.map(task => task.script).toSorted((a, b) => a.localeCompare(b))).toEqual(expected.toSorted((a, b) => a.localeCompare(b)));
     expect(tasks.every(task => task.project === '.')).toBe(true);
     for (const task of tasks) {
         for (const dependency of task.dependsOn) {

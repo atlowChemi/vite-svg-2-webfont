@@ -66,7 +66,10 @@ it.each<Record<string, string>>([{ secondary: 'red' }, { secondary: '#ff000080' 
     async colorSlots => {
         const input = await fixture();
         await Promise.all(
-            [generateWebfonts, native].map(generate => expect(generate({ ...input, types: [FontType.Ttf], colorGlyphs: true, colorSlots })).rejects.toThrow('colorSlots')),
+            [
+                () => generateWebfonts({ ...input, types: ['ttf'], colorGlyphs: true, colorSlots }),
+                () => native({ ...input, types: [FontType.Ttf], colorGlyphs: true, colorSlots }),
+            ].map(generate => expect(generate()).rejects.toThrow('colorSlots')),
         );
     },
 );
