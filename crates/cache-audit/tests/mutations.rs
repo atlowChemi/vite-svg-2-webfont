@@ -8,12 +8,12 @@ fn tracks_atomic_publication_and_deletion() {
     // Python exercises libc wrappers, including relative directory descriptors.
     let output = Command::new(env!("CARGO_BIN_EXE_cache-audit"))
         .current_dir(&dir)
-        .args(["--", "python3", "-c", "import os\nf=os.open('.', os.O_RDONLY)\nos.link('input','linked',src_dir_fd=f,dst_dir_fd=f)\nos.rename('linked','final',src_dir_fd=f,dst_dir_fd=f)\nos.unlink('input',dir_fd=f)\nos.close(f)"])
+        .args(["--", "python3", "-c", "import os\nf=os.open('.', os.O_RDONLY)\nos.link('input','linked',src_dir_fd=f,dst_dir_fd=f)\nos.rename('linked','final',src_dir_fd=f,dst_dir_fd=f)\nos.unlink('input',dir_fd=f)\nos.mkdir('directory',dir_fd=f)\nos.symlink('final','symlink',dir_fd=f)\nos.close(f)"])
         .output().unwrap();
     assert!(output.status.success(), "{output:?}");
     let manifest: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
     let accesses = manifest["accesses"].as_array().unwrap();
-    for name in ["linked", "final", "input"] {
+    for name in ["linked", "final", "input", "symlink"] {
         assert!(
             accesses
                 .iter()
@@ -23,5 +23,10 @@ fn tracks_atomic_publication_and_deletion() {
         );
     }
     assert_eq!(fs::read_to_string(dir.join("final")).unwrap(), "value");
+    assert!(
+        accesses
+            .iter()
+            .any(|a| a["path"].as_str() == dir.join("directory").to_str() && a["kind"] == "mkdir")
+    );
     assert!(!dir.join("input").exists());
 }

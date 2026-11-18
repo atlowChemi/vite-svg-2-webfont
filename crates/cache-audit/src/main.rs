@@ -98,6 +98,8 @@ async fn observe(cancel: tokio_util::sync::CancellationToken) -> Result<i32, Box
         let (kind, path) = match access {
             PathAccess::Read(path) => (Kind::Read, path),
             PathAccess::Write(path) => (Kind::Write, path),
+            PathAccess::Mkdir(path) => (Kind::Mkdir, path),
+            PathAccess::RenameTarget(path) => (Kind::Write, path),
             PathAccess::ReadWrite(path) => (Kind::ReadWrite, path),
             PathAccess::ReadDir(path) => (Kind::ReadDir, path),
         };
