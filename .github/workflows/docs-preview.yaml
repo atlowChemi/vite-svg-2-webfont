@@ -73,7 +73,7 @@ jobs:
                   GH_TOKEN: ${{ github.token }}
                   RUN_ID: ${{ github.event.workflow_run.id }}
               run: gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name docs-site --dir packages/docs/dist
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   install: false
@@ -127,7 +127,7 @@ jobs:
                   fi
                   gh run download "$RUN_ID" --repo "$GITHUB_REPOSITORY" --name docs-site --dir packages/docs/dist
                   echo found=true >> "$GITHUB_OUTPUT"
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               if: ${{ steps.site.outputs.found == 'true' }}
               with:
                   node-version-file: .node-version
@@ -211,7 +211,7 @@ jobs:
               if: ${{ steps.comment.outputs.id != '' }}
               with:
                   ref: ${{ github.event.repository.default_branch }}
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               if: ${{ steps.comment.outputs.id != '' }}
               with:
                   node-version-file: .node-version

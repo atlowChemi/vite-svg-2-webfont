@@ -23,7 +23,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -50,7 +50,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -96,7 +96,7 @@ jobs:
                   path: target
                   key: rust-v3-check-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-${{ hashFiles('Cargo.lock', 'Cargo.toml', '**/Cargo.toml') }}
                   restore-keys: rust-v3-check-${{ runner.os }}-${{ runner.arch }}-${{ steps.rust.outputs.cachekey }}-
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -127,7 +127,7 @@ jobs:
             - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
               with:
                   tool: cargo-llvm-cov,cargo-nextest
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -188,7 +188,7 @@ jobs:
             - uses: taiki-e/install-action@cfdb7ed4ccc7c7dce37759eae89dc5674b469b39 # v2.90.3
               with:
                   tool: cargo-llvm-cov
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -245,7 +245,7 @@ jobs:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -293,7 +293,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -351,7 +351,7 @@ jobs:
                   targets: wasm32-unknown-unknown
                   components: clippy, rustfmt
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   require-lockfile: true
@@ -460,7 +460,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   runtime: node@${{ matrix.node }}
                   cache: true
@@ -512,7 +512,7 @@ jobs:
             - name: extract node version from .node-version
               id: node-version
               run: echo "node_version=$(cat .node-version)" >> "$GITHUB_OUTPUT"
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   runtime: node@${{ steps.node-version.outputs.node_version }}
                   cache: true
@@ -581,7 +581,7 @@ jobs:
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               with:
                   toolchain: nightly-2026-08-02
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   runtime: node@${{ matrix.node_version }}
                   install: false
@@ -655,7 +655,7 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+            - uses: pnpm/setup@731dfb6463bbd11c11fd0ee11fe00ed0e36d48a1 # v3.2.0
               with:
                   node-version-file: .node-version
                   install: false
