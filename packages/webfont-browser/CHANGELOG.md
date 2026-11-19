@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.4.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-browser-generator-v0.3.0...webfont-browser-generator-v0.4.0) (2026-11-18)
+
+
+### Features
+
+* **ci:** add dormant native pnpm task graph ([#659](https://github.com/atlowChemi/vite-svg-2-webfont/issues/659)) ([a6418b9](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a6418b90cd1dc16c9400da21933b69731a236cb3))
+* **ci:** add Rust filesystem cache auditor ([#660](https://github.com/atlowChemi/vite-svg-2-webfont/issues/660)) ([95bb3b2](https://github.com/atlowChemi/vite-svg-2-webfont/commit/95bb3b236c4ca85e03499d89aebeb47050da5934))
+* **ci:** enable validated native pnpm task caches ([#661](https://github.com/atlowChemi/vite-svg-2-webfont/issues/661)) ([84ea6cf](https://github.com/atlowChemi/vite-svg-2-webfont/commit/84ea6cf5452fe5c9552dc88b38b8b91fb1b2c3ce))
+
 ## [0.3.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-browser-generator-v0.2.0...webfont-browser-generator-v0.3.0) (2026-11-13)
 
 ### Features
