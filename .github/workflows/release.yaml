@@ -163,7 +163,7 @@ jobs:
               uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
               id: crates-auth
             - name: Publish to crates.io
-              run: cargo publish --locked -p webfont-generator
+              run: cargo publish --locked --registry crates-io -p webfont-generator
               env:
                   CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
 
