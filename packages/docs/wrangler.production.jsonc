@@ -1,0 +1,12 @@
+// Released docs. Main and pull request previews use wrangler.jsonc.
+{
+    "name": "fonte",
+    "compatibility_date": "2026-10-01",
+    "assets": {
+        "directory": "./dist",
+        "not_found_handling": "404-page",
+    },
+    "routes": [{ "pattern": "fonte.atlow.dev", "custom_domain": true }],
+    "workers_dev": true,
+    "preview_urls": false,
+}
