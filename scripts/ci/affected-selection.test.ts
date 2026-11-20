@@ -144,6 +144,21 @@ describe('affected CI', () => {
             expect(release.jobs[job].if).toBe(`needs.release.outputs.${output} == 'true'`);
         }
     });
+    it('requires intents in mandatory CI and refreshes one release PR from main', () => {
+        const gate = workflow.jobs.ci.steps.find((step: { name?: string }) => step.name === 'Require a new release intent on every PR');
+        expect(gate.if).toBe("github.event_name == 'pull_request'");
+        expect(gate.run).toBe('node scripts/release.mjs intent "$BASE_SHA"');
+        const automation = parse(readFileSync(new URL('../../.github/workflows/release-pr.yaml', import.meta.url), 'utf8'));
+        expect(automation.on.push.branches).toEqual(['main']);
+        expect(automation.concurrency['cancel-in-progress']).toBe(false);
+        const steps = automation.jobs.prepare.steps;
+        expect(steps.find((step: { uses?: string }) => step.uses?.startsWith('actions/checkout@')).with.ref).toBe('main');
+        const pr = steps.find((step: { uses?: string }) => step.uses?.startsWith('peter-evans/create-pull-request@'));
+        expect(pr.with.branch).toBe('automation/pnpm-release');
+        expect(pr.with.token).toBe('${{ steps.app.outputs.token }}');
+        expect(pr.with['delete-branch']).toBe(true);
+        expect(steps.find((step: { name?: string }) => step.name === 'Prepare versions, changelogs, and release intent').run).toContain('node scripts/release.mjs release-intent');
+    });
     it.each([
         'scripts/ci/affected-selection.ts',
         'scripts/ci/concurrent-steps.test.ts',

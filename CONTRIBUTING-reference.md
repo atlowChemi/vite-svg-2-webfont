@@ -370,7 +370,7 @@ For benchmark changes, use the compile-only and targeted commands in [Benchmarks
 
 ## Releasing packages
 
-Record release-worthy changes with pnpm's native change intents:
+Every PR must add a new pnpm change intent, including documentation, tooling, and bot PRs:
 
 ```sh
 pnpm change
@@ -383,8 +383,19 @@ pnpm run release:check
 Commit the generated `.changeset/*.md` alongside the implementation. Summaries become
 changelog entries; Conventional Commit titles alone no longer request releases.
 Choose `patch`, `minor`, or `major` explicitly, including for pre-1.0 packages.
-Use `--bump none` for an explicit no-release decision. CI validates intents and
-engine/adapter version consistency; it does not require every PR to release.
+Use `--bump none` for an explicit no-release decision, with a summary explaining why:
+
+```sh
+pnpm change @atlowchemi/webfont-generator --bump none --summary "Update repository CI; no package behavior changes."
+```
+
+CI requires a newly added `.changeset/*.md` file relative to the PR's merge base,
+with at least one package decision and a nonempty summary. Editing an existing intent,
+adding only a README, or relying on intents already on `main` does not satisfy the gate.
+There are no author, label, or release-PR exceptions. This runs in the mandatory lint/check
+job, whose result is enforced by the branch's required `Required checks` status.
+Repository administrators retain the configured ruleset override.
+CI also validates all pending intents and engine/adapter version consistency.
 
 For engine changes, name `@atlowchemi/webfont-generator`, not the private
 `@atlowchemi/webfont-engine` task shim. Engine and native adapter always release together;
@@ -421,14 +432,14 @@ normal development `pack` task retains its native build prerequisite.
 
 To prepare and complete a release:
 
-1. From an up-to-date `main`, run `pnpm install`, create a release branch, and preview with
-   `pnpm version -r --dry-run`. Ensure the preceding release is publicly available:
-   pnpm treats a version absent from its registry as a first release, without bumping it.
-2. On a clean working tree, run `pnpm run release:prepare`. This applies pending intents
-   and synchronizes the Cargo manifests, engine changelog, lockfiles, and generated loader.
-   Format changed Markdown/JSON/YAML files with `pnpm exec oxfmt <files>`, run
-   `pnpm run release:check`, and commit all release changes, including consumed intent
-   deletions and the ledger. Open a normal PR using your maintainer credentials so CI runs.
+1. Merge contributor PRs with their intents. The [release-PR workflow](./.github/workflows/release-pr.yaml)
+   runs after each push to `main` and creates or updates one PR on `automation/pnpm-release`.
+   It always regenerates from current `main`, not from the previous release proposal,
+   so additional merges accumulate without repeatedly incrementing the proposed versions.
+2. CI runs `pnpm run release:prepare`, synchronizes the Cargo manifests, engine changelog,
+   lockfiles, and generated loader, formats generated files, and adds a fresh `none` intent
+   for the preparation PR itself. An App token ensures its pushes trigger normal PR checks.
+   Only `none` intents pending means no release PR is needed; obsolete proposals are closed.
 3. Review versions, changelogs, lockfiles, and generated loader updates. Merge after the
    selected checks pass, then inspect the workflow's package-specific publication jobs.
 4. For npm releases, use the staging IDs in the workflow summary. Approve with
@@ -439,8 +450,40 @@ To prepare and complete a release:
    assets match the selected releases. Verify installation from the registry, rather
    than from workspace links.
 
+Edit contributor intents on `main` to change a release proposal; the bot owns and
+replaces its generated branch. Use the workflow's manual dispatch to refresh it without
+a new merge. The preceding npm release must be publicly available before preparing its
+successor: pnpm treats an unpublished current version as a first release, without bumping it.
+Preparation refuses to open a release PR if no package version advanced.
+
 Rerun failed workflow jobs for the same release commit; existing tags must point at that
 commit and existing GitHub releases are reused. Do not bump versions again to retry a failed stage.
+
+### Automation App setup
+
+Use a GitHub App installation token so the release bot's PRs trigger CI. The same App
+can authenticate a future self-hosted Renovate runner; each workflow mints its own short-lived token.
+
+1. Create a private App at <https://github.com/settings/apps/new>, owned by the repository
+   owner. Use the repository URL as its homepage. Disable webhooks; no callback URL is needed.
+2. For release automation, grant repository **Contents**, **Pull requests**, and **Workflows**
+   write permission (Metadata read is automatic). For self-hosted Renovate, also grant
+   **Checks**, **Commit statuses**, and **Issues** write, and **Administration** and
+   **Dependabot alerts** read, following its
+   [GitHub App requirements](https://docs.renovatebot.com/modules/platform/github/#running-as-a-github-app).
+   Organization-owned installations additionally need Members read; Merge queues write
+   is needed only when using a merge queue.
+3. Install the App on this repository. Do not add it to branch-ruleset bypass lists:
+   its release PR must pass the same required checks.
+4. Copy the App's **Client ID**, generate a private key, and configure:
+
+    ```sh
+    gh variable set AUTOMATION_APP_CLIENT_ID --repo atlowChemi/vite-svg-2-webfont --body 'YOUR_CLIENT_ID'
+    gh secret set AUTOMATION_APP_PRIVATE_KEY --repo atlowChemi/vite-svg-2-webfont < /path/to/downloaded-private-key.pem
+    ```
+
+The release workflow requests only its three needed write permissions. Renovate setup
+can request its additional permissions separately; its PRs must also add intents.
 
 ## Commit Conventions
 

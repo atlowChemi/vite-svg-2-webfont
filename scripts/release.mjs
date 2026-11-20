@@ -59,7 +59,7 @@ function sync() {
 function plan(base) {
     assert.match(base ?? '', /^[a-f0-9]{40}$/, 'Expected the push base SHA');
     check();
-    const changed = run('git', 'diff', '--name-only', base, 'HEAD').split('\n');
+    const changed = run('git', 'diff', '--name-only', base).split('\n');
     const releases = [];
     for (const [id, dir, component] of packages) {
         const manifest = `${dir}/${id === 'engine' ? 'Cargo.toml' : 'package.json'}`;
@@ -74,8 +74,39 @@ function plan(base) {
     return releases;
 }
 
+async function requireIntent(base) {
+    assert.match(base ?? '', /^[a-f0-9]{40}$/, 'Expected the PR base SHA');
+    const mergeBase = run('git', 'merge-base', base, 'HEAD');
+    const added = run('git', 'diff', '--name-only', '--diff-filter=A', '--no-renames', '-z', mergeBase, 'HEAD', '--', '.changeset/')
+        .split('\0')
+        .filter(path => /^\.changeset\/[^/]+\.md$/.test(path) && path !== '.changeset/README.md');
+    assert.ok(added.length, 'Every PR must add a new intent: run pnpm change (use --bump none for no release).');
+    const { parse } = await import('yaml');
+    for (const path of added) {
+        const match = read(path).match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n([\s\S]*)$/);
+        assert.ok(match, `Invalid intent frontmatter: ${path}`);
+        const releases = parse(match[1]);
+        assert.ok(releases && typeof releases === 'object' && !Array.isArray(releases), `Intent must name packages: ${path}`);
+        const bumps = Object.values(releases);
+        assert.ok(bumps.length && bumps.every(bump => ['none', 'patch', 'minor', 'major'].includes(bump)), `Invalid intent bumps: ${path}`);
+        assert.ok(match[2].trim(), `Intent needs a summary, including for no-release decisions: ${path}`);
+    }
+}
+
 const [command, base] = process.argv.slice(2);
 switch (command) {
+    case 'intent':
+        await requireIntent(base);
+        break;
+    case 'release-intent': {
+        const head = run('git', 'rev-parse', 'HEAD');
+        assert.ok(plan(head).length, 'No versions advanced. Check whether the preceding npm release is publicly available.');
+        writeFileSync(
+            `.changeset/release-${head}.md`,
+            `---\n"@atlowchemi/webfont-generator": none\n---\n\nApply the pending release intents from main at ${head}; this release-preparation PR requests no additional bump.\n`,
+        );
+        break;
+    }
     case 'check':
         check();
         break;
@@ -109,5 +140,5 @@ switch (command) {
         break;
     }
     default:
-        throw new Error('Usage: node scripts/release.mjs check|sync|plan BASE|publish BASE');
+        throw new Error('Usage: node scripts/release.mjs check|sync|intent BASE|release-intent|plan BASE|publish BASE');
 }
