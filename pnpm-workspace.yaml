@@ -21,6 +21,18 @@ catalog:
 cargo:
     enabled: true
 
+versioning:
+    changelog:
+        storage: repository
+    # The engine's npm manifest is only a task shim. Its Cargo release follows
+    # @atlowchemi/webfont-generator through scripts/release.mjs.
+    ignore:
+        - './'
+        - './crates/cache-audit'
+        - './crates/webfont-generator'
+        - './packages/docs'
+        - './packages/example'
+
 # CI and developers install Rust components/targets with rustup. Do not shadow
 # that toolchain with pnpm's separately downloaded Rust runtime.
 runtimeOnFail: error

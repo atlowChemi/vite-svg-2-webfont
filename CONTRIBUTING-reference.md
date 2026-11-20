@@ -282,7 +282,7 @@ Cargo uses the root `Cargo.lock` and `target/`. Templates are tracked solely und
 verify shipped-template parity through the generation API. Engine tests use engine-owned
 SVG fixtures and small custom-template inputs, without reading downstream package assets.
 The library and CLI do not need the npm templates for default rendering.
-Release Please links engine/adapter versions. The engine uses the Rust release strategy;
+Release preparation links engine/adapter versions using the native npm version as the source;
 its private npm manifest uses the fixed placeholder version `0.0.0-internal-only` for workspace packaging and task-graph discovery, not Rust releases. The engine has its own changelog at
 `crates/webfont-generator/CHANGELOG.md` and GitHub releases tagged `webfont-engine-v*`;
 those releases trigger crates.io publication. The npm adapter retains its own changelog
@@ -314,8 +314,9 @@ The pinned nightly uses LLVM 22 to match wasm-bindgen-test's exact minicov 0.3.8
 CI uploads coverage with the `browser-js` and `browser-rust` flags and reports the production
 smoke app's JS, worker and WASM assets as Codecov bundle `webfont-browser-generator-bundle`.
 
-Release-PR preparation updates Cargo.lock through the registry before frozen installation, runs
-`pnpm pipeline binding-regenerate --full`, and formats changes with `pnpm run fmt`.
+`pnpm run release:prepare` synchronizes Cargo manifests and the engine changelog,
+updates Cargo.lock through the registry before installation, updates pnpm-lock.yaml,
+and runs `pnpm pipeline binding-regenerate --full`.
 The regeneration task uses the NAPI generator to update only the JS loader, preserving
 exports from the last full binding build without compiling Rust. Changes to the native API
 still require the normal binding build to refresh both exports and TypeScript declarations.
@@ -369,19 +370,59 @@ For benchmark changes, use the compile-only and targeted commands in [Benchmarks
 
 ## Releasing packages
 
-The [release workflow](./.github/workflows/release.yaml) runs on pushes to `main`.
-Release Please selects versions and releases using
-[`release-please-config.json`](./release-please-config.json); affected CI decisions
-do not select packages for publication.
+Every PR must add a new pnpm change intent, including documentation, tooling, and bot PRs:
 
-| Release Please output   | Publication work                                                                                                             |
+```sh
+pnpm change
+# Or, non-interactively:
+pnpm change @atlowchemi/webfont-generator --bump patch --summary "Fix font generation."
+pnpm change status
+pnpm run release:check
+```
+
+Commit the generated `.changeset/*.md` alongside the implementation. Summaries become
+changelog entries; Conventional Commit titles alone no longer request releases.
+Choose `patch`, `minor`, or `major` explicitly, including for pre-1.0 packages.
+Use `--bump none` for an explicit no-release decision, with a summary explaining why:
+
+```sh
+pnpm change @atlowchemi/webfont-generator --bump none --summary "Update repository CI; no package behavior changes."
+```
+
+CI requires a newly added `.changeset/*.md` file relative to the PR's merge base,
+with at least one package decision and a nonempty summary. Editing an existing intent,
+adding only a README, or relying on intents already on `main` does not satisfy the gate.
+There are no author, label, or release-PR exceptions. This runs in the mandatory lint/check
+job, whose result is enforced by the branch's required `Required checks` status.
+Repository administrators retain the configured ruleset override.
+CI also validates all pending intents and engine/adapter version consistency.
+
+For engine changes, name `@atlowchemi/webfont-generator`, not the private
+`@atlowchemi/webfont-engine` task shim. Engine and native adapter always release together;
+their new changelog section is shared, while each retains its earlier history.
+Also name `@atlowchemi/webfont-browser-generator` when engine changes should ship in WASM.
+The root, docs, example, auditor, and engine task shim are excluded from pnpm versioning.
+pnpm propagates bumps through publishable `workspace:` dependencies, including the plugin.
+
+Changelogs remain in the repository (`versioning.changelog.storage: repository`)
+because the docs include them. Commit `.changeset/ledger.yaml` with release changes;
+pnpm owns intent consumption and this ledger.
+The unused `.release-please-manifest.json` retains the final legacy release baseline;
+it is not consulted by pnpm or the release workflow.
+
+The [release workflow](./.github/workflows/release.yaml) runs on pushes to `main`.
+It compares package versions against the previous branch tip, requires a ledger update,
+and creates the existing component tags and GitHub releases. Ordinary changes and
+unconsumed intents do not publish. Affected CI decisions do not select publications.
+
+| Version changed         | Publication work                                                                                                             |
 | ----------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Engine release created  | Publish `webfont-generator` to crates.io                                                                                     |
 | Adapter release created | Build all nine native targets, stage platform npm packages and `@atlowchemi/webfont-generator`, upload native release assets |
 | Plugin release created  | Bundle the plugin, create its tarball, stage `vite-svg-2-webfont`, upload the tarball                                        |
+| Browser release created | Build WASM and browser bundles, stage `@atlowchemi/webfont-browser-generator`, upload the tarball                            |
 
-Engine and adapter versions are linked by Release Please, so a release may select both.
-Each publication job still requires its own package's `release_created` output.
+Each publication job still requires its own package's release output.
 Any created release also triggers docs deployment.
 
 The plugin's `publish` task is release-only: it explicitly runs `pack` and `pack:tgz`
@@ -389,22 +430,64 @@ with `--ignore-depends-on` before staging the tarball. Its dependencies remain e
 so this path neither compiles Rust nor consumes native release-matrix artifacts. The
 normal development `pack` task retains its native build prerequisite.
 
-To complete a release:
+To prepare and complete a release:
 
-1. Review the Release Please PR, including linked engine/adapter versions, changelogs,
-   lockfiles, and generated loader updates described in [Project Structure](#project-structure).
-2. Merge it after its selected checks pass, then inspect the release workflow's package-specific jobs.
-3. For npm releases, use the staging IDs in the workflow summary. Approve with
+1. Merge contributor PRs with their intents. The [release-PR workflow](./.github/workflows/release-pr.yaml)
+   runs after each push to `main` and creates or updates one PR on `automation/pnpm-release`.
+   It always regenerates from current `main`, not from the previous release proposal,
+   so additional merges accumulate without repeatedly incrementing the proposed versions.
+2. CI runs `pnpm run release:prepare`, synchronizes the Cargo manifests, engine changelog,
+   lockfiles, and generated loader, formats generated files, and adds a fresh `none` intent
+   for the preparation PR itself. An App token ensures its pushes trigger normal PR checks.
+   Only `none` intents pending means no release PR is needed; obsolete proposals are closed.
+3. Review versions, changelogs, lockfiles, and generated loader updates. Merge after the
+   selected checks pass, then inspect the workflow's package-specific publication jobs.
+4. For npm releases, use the staging IDs in the workflow summary. Approve with
    `pnpm stage approve <id> --otp <code>` from a 2FA-enrolled maintainer machine;
    approve platform packages before their adapter package. A successful staging job
    alone is not proof that a package is publicly available.
-4. Confirm the intended versions are available in npm/crates.io and that GitHub release
+5. Confirm the intended versions are available in npm/crates.io and that GitHub release
    assets match the selected releases. Verify installation from the registry, rather
    than from workspace links.
 
+Edit contributor intents on `main` to change a release proposal; the bot owns and
+replaces its generated branch. Use the workflow's manual dispatch to refresh it without
+a new merge. The preceding npm release must be publicly available before preparing its
+successor: pnpm treats an unpublished current version as a first release, without bumping it.
+Preparation refuses to open a release PR if no package version advanced.
+
+Rerun failed workflow jobs for the same release commit; existing tags must point at that
+commit and existing GitHub releases are reused. Do not bump versions again to retry a failed stage.
+
+### Automation App setup
+
+Use a GitHub App installation token so the release bot's PRs trigger CI. The same App
+can authenticate a future self-hosted Renovate runner; each workflow mints its own short-lived token.
+
+1. Create a private App at <https://github.com/settings/apps/new>, owned by the repository
+   owner. Use the repository URL as its homepage. Disable webhooks; no callback URL is needed.
+2. For release automation, grant repository **Contents**, **Pull requests**, and **Workflows**
+   write permission (Metadata read is automatic). For self-hosted Renovate, also grant
+   **Checks**, **Commit statuses**, and **Issues** write, and **Administration** and
+   **Dependabot alerts** read, following its
+   [GitHub App requirements](https://docs.renovatebot.com/modules/platform/github/#running-as-a-github-app).
+   Organization-owned installations additionally need Members read; Merge queues write
+   is needed only when using a merge queue.
+3. Install the App on this repository. Do not add it to branch-ruleset bypass lists:
+   its release PR must pass the same required checks.
+4. Copy the App's **Client ID**, generate a private key, and configure:
+
+    ```sh
+    gh variable set AUTOMATION_APP_CLIENT_ID --repo atlowChemi/vite-svg-2-webfont --body 'YOUR_CLIENT_ID'
+    gh secret set AUTOMATION_APP_PRIVATE_KEY --repo atlowChemi/vite-svg-2-webfont < /path/to/downloaded-private-key.pem
+    ```
+
+The release workflow requests only its three needed write permissions. Renovate setup
+can request its additional permissions separately; its PRs must also add intents.
+
 ## Commit Conventions
 
-This project uses [Conventional Commits](https://www.conventionalcommits.org/) format for commit messages and PR titles. This is required for automated changelog generation via release-please.
+This project uses [Conventional Commits](https://www.conventionalcommits.org/) format for commit messages and PR titles. Release notes and bump selection come from `pnpm change` intents.
 
 The format is:
 

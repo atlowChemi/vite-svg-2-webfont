@@ -1,0 +1,81 @@
+name: Prepare release PR
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: release-pr-main
+    cancel-in-progress: false
+
+jobs:
+    prepare:
+        runs-on: ubuntu-latest
+        steps:
+            # App-authenticated pushes/PRs trigger the same checks as contributor PRs.
+            - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+              id: app
+              with:
+                  client-id: ${{ vars.AUTOMATION_APP_CLIENT_ID }}
+                  private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+                  permission-contents: write
+                  permission-pull-requests: write
+                  permission-workflows: write
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: main
+                  fetch-depth: 0
+                  token: ${{ steps.app.outputs.token }}
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+              with:
+                  node-version-file: .node-version
+                  require-lockfile: true
+                  cache: true
+            - name: Preview pending releases
+              id: pending
+              run: |
+                  pnpm run release:check
+                  preview=$(pnpm version -r --dry-run --json)
+                  printf '%s\n' "$preview"
+                  if [[ "$preview" != '[]' ]]; then
+                    echo 'release=true' >> "$GITHUB_OUTPUT"
+                  fi
+            - name: Prepare versions, changelogs, and release intent
+              if: steps.pending.outputs.release == 'true'
+              run: |
+                  pnpm run release:prepare
+                  git add .changeset Cargo.lock pnpm-lock.yaml \
+                    'packages/*/package.json' 'packages/*/Cargo.toml' 'crates/*/Cargo.toml' \
+                    'packages/*/CHANGELOG.md' 'crates/*/CHANGELOG.md' \
+                    packages/webfont-generator/binding.js
+                  node scripts/release.mjs release-intent
+                  git add .changeset
+                  # Only format generated files, not unrelated repository files.
+                  git diff --name-only --diff-filter=AM -z HEAD -- '*.md' '*.json' '*.yaml' |
+                    xargs -0 -r pnpm exec oxfmt
+                  pnpm run release:check
+            # On no pending release, the action also closes/removes an obsolete bot branch.
+            - uses: peter-evans/create-pull-request@3ffccacd46053766916f087ce41d627c0b8cf2d1 # v8.1.3
+              with:
+                  token: ${{ steps.app.outputs.token }}
+                  branch: automation/pnpm-release
+                  base: main
+                  delete-branch: true
+                  title: 'chore: release packages'
+                  commit-message: 'chore: release packages'
+                  body: |
+                      Automated pnpm release, refreshed from main after each merge.
+
+                      Review version bumps, changelogs, Cargo/pnpm lockfiles, and the generated native loader.
+                      Merging publishes the selected versions through the existing release workflow.
+                      npm staging approvals are still required.
+
+                      The included `none` intent records preparation only; it requests no additional bump.
+                      Edit contributor intents on main rather than editing this generated branch.

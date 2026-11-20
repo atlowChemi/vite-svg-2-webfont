@@ -8,82 +8,42 @@ on:
 permissions:
     contents: write
     id-token: write
-    issues: write
     pages: write
-    pull-requests: write
 
 jobs:
-    release-please:
-        name: Release Please
+    release:
+        name: Create pnpm releases
         runs-on: ubuntu-latest
         outputs:
-            plugin-released: ${{ steps.release.outputs['packages/vite-svg-2-webfont--release_created'] }}
-            plugin-tag: ${{ steps.release.outputs['packages/vite-svg-2-webfont--tag_name'] }}
-            native-released: ${{ steps.release.outputs['packages/webfont-generator--release_created'] }}
-            native-tag: ${{ steps.release.outputs['packages/webfont-generator--tag_name'] }}
-            engine-released: ${{ steps.release.outputs['crates/webfont-generator--release_created'] }}
-            browser-released: ${{ steps.release.outputs['packages/webfont-browser--release_created'] }}
-            browser-tag: ${{ steps.release.outputs['packages/webfont-browser--tag_name'] }}
-            any-released: ${{ steps.release.outputs.releases_created }}
+            plugin-released: ${{ steps.release.outputs.plugin-released }}
+            plugin-tag: ${{ steps.release.outputs.plugin-tag }}
+            native-released: ${{ steps.release.outputs.native-released }}
+            native-tag: ${{ steps.release.outputs.native-tag }}
+            engine-released: ${{ steps.release.outputs.engine-released }}
+            browser-released: ${{ steps.release.outputs.browser-released }}
+            browser-tag: ${{ steps.release.outputs.browser-tag }}
+            any-released: ${{ steps.release.outputs.any-released }}
         steps:
-            - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  fetch-depth: 0
+            - name: Tag reviewed version changes and create GitHub releases
               id: release
-              with:
-                  config-file: release-please-config.json
-                  manifest-file: .release-please-manifest.json
-
-            - name: Checkout release PR branch
-              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-              with:
-                  ref: ${{ fromJSON(steps.release.outputs.prs)[0].headBranchName }}
-
-            - name: Setup Rust toolchain
-              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
-              with:
-                  toolchain: nightly-2026-08-02
-
-            - name: Sync Cargo.lock before frozen installation
-              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              # Cargo resolves the auditor's local fspy patch even for product-only updates.
-              # Prepare it before installation's frozen Cargo lockfile check.
-              run: |
-                  node crates/cache-audit/scripts/prepare.mjs
-                  cargo update -p webfont-generator -p webfont-generator-napi
-
-            - name: Setup pnpm and Node
-              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
-              with:
-                  node-version-file: .node-version
-                  require-lockfile: true
-                  cache: true
-
-            - name: Regenerate bindings and commit release outputs
-              if: steps.release.outputs.prs && steps.release.outputs.prs != '[]' && steps.release.outputs.releases_created != 'true'
-              run: |
-                  pnpm pipeline binding-regenerate --full
-                  pnpm run fmt
-                  git add Cargo.lock pnpm-lock.yaml packages/webfont-generator/binding.js \
-                    'crates/*/CHANGELOG.md' 'packages/*/CHANGELOG.md'
-                  if ! git diff --cached --quiet; then
-                    git config user.name "github-actions[bot]"
-                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-                    git commit --no-verify -m "chore: sync release lockfile and generated bindings"
-                    git push
-                  fi
+              run: node scripts/release.mjs publish "$BASE_SHA"
+              env:
+                  BASE_SHA: ${{ github.event.before }}
+                  GH_TOKEN: ${{ github.token }}
 
     build-native:
         name: Build native binaries
-        needs: [release-please]
-        if: needs.release-please.outputs.native-released == 'true'
+        needs: [release]
+        if: needs.release.outputs.native-released == 'true'
         uses: ./.github/workflows/build-native.yaml
 
     publish-native:
         name: Publish @atlowchemi/webfont-generator
-        needs: [release-please, build-native]
-        if: needs.release-please.outputs.native-released == 'true'
+        needs: [release, build-native]
+        if: needs.release.outputs.native-released == 'true'
         runs-on: ubuntu-latest
         environment:
             name: npm
@@ -175,16 +135,16 @@ jobs:
                   echo '```' >> "$GITHUB_STEP_SUMMARY"
 
             - name: Upload to native release
-              if: needs.release-please.outputs.native-released == 'true'
+              if: needs.release.outputs.native-released == 'true'
               uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
               with:
-                  tag_name: ${{ needs.release-please.outputs.native-tag }}
+                  tag_name: ${{ needs.release.outputs.native-tag }}
                   files: packages/webfont-generator/**/*.node
 
     publish-crate:
         name: Publish to crates.io
-        needs: [release-please]
-        if: needs.release-please.outputs.engine-released == 'true'
+        needs: [release]
+        if: needs.release.outputs.engine-released == 'true'
         runs-on: ubuntu-latest
         environment:
             name: crates-io
@@ -203,15 +163,15 @@ jobs:
               uses: rust-lang/crates-io-auth-action@3268eb413133e2960fa4ae0e963ca76380c54cd9 # v1.0.6
               id: crates-auth
             - name: Publish to crates.io
-              run: cargo publish --locked -p webfont-generator
+              run: cargo publish --locked --registry crates-io -p webfont-generator
               env:
                   CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
 
     publish-plugin:
         name: Publish vite-svg-2-webfont
         # The publish task packages the plugin without building or consuming native bindings.
-        needs: [release-please]
-        if: needs.release-please.outputs.plugin-released == 'true'
+        needs: [release]
+        if: needs.release.outputs.plugin-released == 'true'
         runs-on: ubuntu-latest
         environment:
             name: npm
@@ -240,13 +200,13 @@ jobs:
             - name: Upload release assets
               uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
               with:
-                  tag_name: ${{ needs.release-please.outputs.plugin-tag }}
+                  tag_name: ${{ needs.release.outputs.plugin-tag }}
                   files: packages/vite-svg-2-webfont/*.tgz
 
     publish-browser:
         name: Publish @atlowchemi/webfont-browser-generator
-        needs: [release-please]
-        if: needs.release-please.outputs.browser-released == 'true'
+        needs: [release]
+        if: needs.release.outputs.browser-released == 'true'
         runs-on: ubuntu-latest
         environment:
             name: npm
@@ -271,13 +231,13 @@ jobs:
             - name: Upload release assets
               uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3.0.4
               with:
-                  tag_name: ${{ needs.release-please.outputs.browser-tag }}
+                  tag_name: ${{ needs.release.outputs.browser-tag }}
                   files: packages/webfont-browser/*.tgz
 
     deploy-docs:
         name: Deploy docs
-        needs: [release-please]
-        if: needs.release-please.outputs.any-released == 'true'
+        needs: [release]
+        if: needs.release.outputs.any-released == 'true'
         uses: ./.github/workflows/docs.yaml
         permissions:
             contents: read
