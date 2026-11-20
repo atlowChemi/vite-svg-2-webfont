@@ -81,9 +81,14 @@ it('versions intents with pnpm, synchronizes Cargo, and publishes only reviewed 
         run('node', script, 'sync');
         run('node', script, 'check');
         const notes = read(`${engine}/CHANGELOG.md`);
-        expect(notes).toContain('## 1.1.0');
+        expect(notes).toContain('## [1.1.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v1.0.0...webfont-engine-v1.1.0)');
+        expect(notes).toMatch(/\) \(\d{4}-\d{2}-\d{2}\)\n/);
         expect(notes).toContain('Fix engine output.');
+        expect(notes).toContain('### Minor Changes');
         expect(notes).toContain('Existing history.');
+        expect(read(`${native}/CHANGELOG.md`)).toContain('/compare/webfont-generator-v1.0.0...webfont-generator-v1.1.0');
+        expect(read(`${plugin}/CHANGELOG.md`)).toContain('/compare/vite-svg-2-webfont-v1.0.0...vite-svg-2-webfont-v1.0.1');
+        expect(read(`${browser}/CHANGELOG.md`)).toBe('# Changelog\n\n## 1.0.0\n\nExisting history.\n');
         run('node', script, 'sync');
         expect(read(`${engine}/CHANGELOG.md`)).toBe(notes);
         expect(read(`${native}/Cargo.toml`)).toContain('version = "1.1.0"');
@@ -97,6 +102,8 @@ it('versions intents with pnpm, synchronizes Cargo, and publishes only reviewed 
         expect(run('pnpm', 'version', '-r', '--dry-run', '--json')).toBe('[]');
         const plan = JSON.parse(run('node', script, 'plan', base));
         expect(plan.map(({ tag }: { tag: string }) => tag)).toEqual(['webfont-generator-v1.1.0', 'webfont-engine-v1.1.0', 'vite-svg-2-webfont-v1.0.1']);
+        expect(plan[1].notes).toContain('/compare/webfont-engine-v1.0.0...webfont-engine-v1.1.0');
+        expect(plan[1].notes).not.toContain('Existing history.');
         expect(JSON.parse(run('node', script, 'plan', run('git', 'rev-parse', 'HEAD')))).toEqual([]);
         // A later merge regenerates the live proposal from main, not from its prior bumps.
         run('git', 'checkout', '--detach', releaseBase);
@@ -113,7 +120,8 @@ it('versions intents with pnpm, synchronizes Cargo, and publishes only reviewed 
         run('node', script, 'intent', refreshedBase);
         expect(JSON.parse(read(`${native}/package.json`)).version).toBe('1.1.0');
         expect(JSON.parse(read(`${browser}/package.json`)).version).toBe('1.0.1');
-        expect(read(`${engine}/CHANGELOG.md`).match(/## 1\.1\.0/g)).toHaveLength(1);
+        expect(read(`${engine}/CHANGELOG.md`).match(/## \[1\.1\.0\]/g)).toHaveLength(1);
+        expect(read(`${browser}/CHANGELOG.md`)).toContain('/compare/webfont-browser-generator-v1.0.0...webfont-browser-generator-v1.0.1');
         // A version edit alone must not initiate publication.
         const previous = run('git', 'rev-parse', 'HEAD');
         write(`${browser}/package.json`, JSON.stringify({ name: '@atlowchemi/webfont-browser-generator', version: '1.0.2', private: true }));

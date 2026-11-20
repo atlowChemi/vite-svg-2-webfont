@@ -407,6 +407,9 @@ pnpm propagates bumps through publishable `workspace:` dependencies, including t
 Changelogs remain in the repository (`versioning.changelog.storage: repository`)
 because the docs include them. Commit `.changeset/ledger.yaml` with release changes;
 pnpm owns intent consumption and this ledger.
+New version headings include package-specific GitHub compare links and the UTC
+preparation date. pnpm's Major/Minor/Patch Changes sections are retained. Refreshing
+the live PR from `main` uses that preparation's date; publication does not rewrite it.
 
 The [release workflow](./.github/workflows/release.yaml) runs on pushes to `main`.
 It compares package versions against the previous branch tip, requires a ledger update,

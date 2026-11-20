@@ -26,7 +26,7 @@ function check() {
 function section(dir, current) {
     const notes = read(`${dir}/CHANGELOG.md`)
         .split(/(?=^## )/m)
-        .find(part => part.startsWith(`## ${current}\n`));
+        .find(part => part.startsWith(`## ${current}\n`) || part.startsWith(`## [${current}](`));
     assert.ok(notes, `Missing pnpm changelog section for ${dir}@${current}`);
     return notes.trim();
 }
@@ -35,7 +35,8 @@ function sync() {
     const current = version(nativeDir);
     assert.match(current, /^\d+\.\d+\.\d+$/, 'Releases currently use stable versions');
     if (cargoVersion(engineDir) !== current) {
-        const notes = section(nativeDir, current);
+        // The engine gets its own compare link, even if native notes are already formatted.
+        const notes = section(nativeDir, current).replace(/^## [^\n]+/, `## ${current}`);
         const path = `${engineDir}/CHANGELOG.md`;
         const existing = read(path);
         const heading = existing.match(/^# .*\n+/)?.[0] ?? '';
@@ -54,6 +55,24 @@ function sync() {
         writeFileSync(path, text);
     }
     check();
+    const date = new Date().toISOString().slice(0, 10);
+    for (const [id, dir, component] of packages) {
+        const engine = id === 'engine';
+        const manifest = run('git', 'show', `HEAD:${dir}/${engine ? 'Cargo.toml' : 'package.json'}`);
+        const before = engine ? manifest.match(packageVersion)?.[2] : JSON.parse(manifest).version;
+        const next = engine ? cargoVersion(dir) : version(dir);
+        if (before === next) continue;
+        assert.match(before, /^\d+\.\d+\.\d+$/);
+        assert.match(next, /^\d+\.\d+\.\d+$/);
+        const path = `${dir}/CHANGELOG.md`;
+        const text = read(path);
+        const notes = section(dir, next);
+        const heading = `## [${next}](https://github.com/atlowChemi/vite-svg-2-webfont/compare/${component}-v${before}...${component}-v${next}) (${date})`;
+        // Only decorate the newly generated plain heading; preserve history and rerun dates.
+        if (notes.split('\n')[0] === `## ${next}`) {
+            writeFileSync(path, text.replace(notes, notes.replace(/^## [^\n]+/, heading)));
+        }
+    }
 }
 
 function plan(base) {
