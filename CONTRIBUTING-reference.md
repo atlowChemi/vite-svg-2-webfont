@@ -407,8 +407,6 @@ pnpm propagates bumps through publishable `workspace:` dependencies, including t
 Changelogs remain in the repository (`versioning.changelog.storage: repository`)
 because the docs include them. Commit `.changeset/ledger.yaml` with release changes;
 pnpm owns intent consumption and this ledger.
-The unused `.release-please-manifest.json` retains the final legacy release baseline;
-it is not consulted by pnpm or the release workflow.
 
 The [release workflow](./.github/workflows/release.yaml) runs on pushes to `main`.
 It compares package versions against the previous branch tip, requires a ledger update,
@@ -458,32 +456,6 @@ Preparation refuses to open a release PR if no package version advanced.
 
 Rerun failed workflow jobs for the same release commit; existing tags must point at that
 commit and existing GitHub releases are reused. Do not bump versions again to retry a failed stage.
-
-### Automation App setup
-
-Use a GitHub App installation token so the release bot's PRs trigger CI. The same App
-can authenticate a future self-hosted Renovate runner; each workflow mints its own short-lived token.
-
-1. Create a private App at <https://github.com/settings/apps/new>, owned by the repository
-   owner. Use the repository URL as its homepage. Disable webhooks; no callback URL is needed.
-2. For release automation, grant repository **Contents**, **Pull requests**, and **Workflows**
-   write permission (Metadata read is automatic). For self-hosted Renovate, also grant
-   **Checks**, **Commit statuses**, and **Issues** write, and **Administration** and
-   **Dependabot alerts** read, following its
-   [GitHub App requirements](https://docs.renovatebot.com/modules/platform/github/#running-as-a-github-app).
-   Organization-owned installations additionally need Members read; Merge queues write
-   is needed only when using a merge queue.
-3. Install the App on this repository. Do not add it to branch-ruleset bypass lists:
-   its release PR must pass the same required checks.
-4. Copy the App's **Client ID**, generate a private key, and configure:
-
-    ```sh
-    gh variable set AUTOMATION_APP_CLIENT_ID --repo atlowChemi/vite-svg-2-webfont --body 'YOUR_CLIENT_ID'
-    gh secret set AUTOMATION_APP_PRIVATE_KEY --repo atlowChemi/vite-svg-2-webfont < /path/to/downloaded-private-key.pem
-    ```
-
-The release workflow requests only its three needed write permissions. Renovate setup
-can request its additional permissions separately; its PRs must also add intents.
 
 ## Commit Conventions
 
