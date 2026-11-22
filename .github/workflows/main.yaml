@@ -86,6 +86,8 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  fetch-depth: 0
             - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
               id: rust
               with:
@@ -102,6 +104,13 @@ jobs:
                   require-lockfile: true
                   cache: true
             - uses: ./.github/actions/pipeline-cache
+            - name: Validate change intents and synchronized release versions
+              run: pnpm run release:check
+            - name: Require a new release intent on every PR
+              if: github.event_name == 'pull_request'
+              run: node scripts/release.mjs intent "$BASE_SHA"
+              env:
+                  BASE_SHA: ${{ github.event.pull_request.base.sha }}
             # These shell checks can overlap; JSON-reading actions cannot (actions/runner#4641).
             - parallel:
                   - run: pnpm run check
