@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.13.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.12.0...webfont-engine-v0.13.0) (2026-11-18)
+
+
+### Features
+
+* **ci:** add dormant native pnpm task graph ([#659](https://github.com/atlowChemi/vite-svg-2-webfont/issues/659)) ([a6418b9](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a6418b90cd1dc16c9400da21933b69731a236cb3))
+
+
+### Bug Fixes
+
+* **deps:** update rust crate usvg to 0.50.0 ([#751](https://github.com/atlowChemi/vite-svg-2-webfont/issues/751)) ([5bc7a00](https://github.com/atlowChemi/vite-svg-2-webfont/commit/5bc7a002a5ed13a614c96d899bcb75fc6c24fc04))
+* **deps:** update rust crate write-fonts to 0.56.0 ([#747](https://github.com/atlowChemi/vite-svg-2-webfont/issues/747)) ([4a41853](https://github.com/atlowChemi/vite-svg-2-webfont/commit/4a41853f26535ab4841bdb4ed36d1a4f2c0f3aff))
+
 ## [0.12.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.11.0...webfont-engine-v0.12.0) (2026-11-13)
 
 ### Features

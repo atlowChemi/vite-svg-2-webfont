@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.13.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.12.0...webfont-generator-v0.13.0) (2026-11-18)
+
+
+### Features
+
+* **ci:** add dormant native pnpm task graph ([#659](https://github.com/atlowChemi/vite-svg-2-webfont/issues/659)) ([a6418b9](https://github.com/atlowChemi/vite-svg-2-webfont/commit/a6418b90cd1dc16c9400da21933b69731a236cb3))
+
 ## [0.12.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-generator-v0.11.0...webfont-generator-v0.12.0) (2026-11-13)
 
 ### Features
