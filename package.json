@@ -13,7 +13,7 @@
         "check": "oxfmt --check && oxlint --type-aware --type-check",
         "fmt": "oxfmt",
         "release:check": "pnpm change check && node scripts/release.mjs check",
-        "release:prepare": "pnpm run release:check && pnpm version -r && node scripts/release.mjs sync && cargo update -p webfont-generator -p webfont-generator-napi && pnpm install --lockfile-only && pnpm pipeline binding-regenerate --full",
+        "release:prepare": "pnpm run release:check && node scripts/release.mjs version && node scripts/release.mjs sync && cargo update -p webfont-generator -p webfont-generator-napi && pnpm install --lockfile-only && pnpm pipeline binding-regenerate --full",
         "bench:vitest": "vitest bench --run --reporter=verbose --hideSkippedTests",
         "test:compat": "vitest --run --project=compat",
         "coverage:scripts": "vitest --run --project=scripts --coverage --coverage.autoAttachSubprocess --coverage.include='scripts/**/*.{ts,mjs}' --coverage.reportsDirectory=coverage/scripts",

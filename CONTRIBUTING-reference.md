@@ -455,7 +455,8 @@ Edit contributor intents on `main` to change a release proposal; the bot owns an
 replaces its generated branch. Use the workflow's manual dispatch to refresh it without
 a new merge. The preceding npm release must be publicly available before preparing its
 successor: pnpm treats an unpublished current version as a first release, without bumping it.
-Preparation refuses to open a release PR if no package version advanced.
+Preparation checks pnpm's result for every requested release and refuses to open
+a release PR if any version did not advance, even when other packages were bumped.
 
 Rerun failed workflow jobs for the same release commit; existing tags must point at that
 commit and existing GitHub releases are reused. Do not bump versions again to retry a failed stage.

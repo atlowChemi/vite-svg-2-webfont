@@ -1,8 +1,11 @@
 import { execFileSync } from 'node:child_process';
+import { execFile } from 'node:child_process';
+import { createServer } from 'node:http';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { promisify } from 'node:util';
 import { expect, it } from 'vitest';
 import { parse, stringify } from 'yaml';
 
@@ -76,7 +79,7 @@ it('versions intents with pnpm, synchronizes Cargo, and publishes only reviewed 
         run('git', 'add', '.');
         run('git', 'commit', '-m', 'intent');
         const releaseBase = run('git', 'rev-parse', 'HEAD');
-        run('pnpm', 'version', '-r');
+        run('node', script, 'version');
         expect(() => run('node', script, 'check')).toThrow(/Engine\/native versions must match/);
         run('node', script, 'sync');
         run('node', script, 'check');
@@ -111,7 +114,7 @@ it('versions intents with pnpm, synchronizes Cargo, and publishes only reviewed 
         run('git', 'add', '.');
         run('git', 'commit', '-m', 'another merged intent');
         const refreshedBase = run('git', 'rev-parse', 'HEAD');
-        run('pnpm', 'version', '-r');
+        run('node', script, 'version');
         run('node', script, 'sync');
         run('git', 'add', '.');
         run('node', script, 'release-intent');
@@ -129,6 +132,64 @@ it('versions intents with pnpm, synchronizes Cargo, and publishes only reviewed 
         run('git', 'commit', '-m', 'unplanned version');
         expect(() => run('node', script, 'plan', previous)).toThrow(/ledger update/);
     } finally {
+        rmSync(root, { recursive: true, force: true });
+    }
+}, 30_000);
+
+it('rejects a mixed release when one current version is still unpublished', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'pnpm-partial-release-'));
+    const script = fileURLToPath(new URL('./release.mjs', import.meta.url));
+    let nativePublished = false;
+    const registry = createServer((request, response) => {
+        const name = decodeURIComponent(request.url!.slice(1));
+        const published = name === 'browser-fixture' || nativePublished;
+        response.setHeader('Content-Type', 'application/json');
+        response.end(
+            JSON.stringify({
+                name,
+                'dist-tags': published ? { latest: '1.0.0' } : {},
+                versions: published ? { '1.0.0': { name, version: '1.0.0', dist: { tarball: 'https://example.test/unused.tgz' } } } : {},
+            }),
+        );
+    });
+    await new Promise<void>(resolve => registry.listen(0, '127.0.0.1', resolve));
+    const address = registry.address() as { port: number };
+    const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith('GIT_')));
+    const run = async (command: string, ...args: string[]) => (await promisify(execFile)(command, args, { cwd: root, env })).stdout.trim();
+    try {
+        writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'fixture', private: true }));
+        writeFileSync(
+            join(root, 'pnpm-workspace.yaml'),
+            stringify({
+                packages: ['packages/*'],
+                registry: `http://127.0.0.1:${address.port}`,
+                versioning: { changelog: { storage: 'repository' } },
+            }),
+        );
+        for (const name of ['native-fixture', 'browser-fixture']) {
+            mkdirSync(join(root, 'packages', name), { recursive: true });
+            writeFileSync(join(root, 'packages', name, 'package.json'), JSON.stringify({ name, version: '1.0.0' }));
+        }
+        mkdirSync(join(root, '.changeset'));
+        writeFileSync(join(root, '.changeset/fixes.md'), '---\nnative-fixture: patch\nbrowser-fixture: patch\n---\n\nFix both packages.\n');
+        await run('git', 'init');
+        await run('git', 'config', 'user.name', 'Release Test');
+        await run('git', 'config', 'user.email', 'release@example.test');
+        await run('git', 'config', 'core.hooksPath', '/dev/null');
+        await run('git', 'add', '.');
+        await run('git', 'commit', '-m', 'pending fixes');
+        await expect(run('node', script, 'version')).rejects.toThrow(/Requested releases did not advance: native-fixture/);
+        expect(JSON.parse(readFileSync(join(root, 'packages/native-fixture/package.json'), 'utf8')).version).toBe('1.0.0');
+        expect(JSON.parse(readFileSync(join(root, 'packages/browser-fixture/package.json'), 'utf8')).version).toBe('1.0.1');
+        // A fresh attempt from the committed intents succeeds once both versions are published.
+        await run('git', 'reset', '--hard', 'HEAD');
+        await run('git', 'clean', '-fd');
+        nativePublished = true;
+        const releases = JSON.parse(await run('node', script, 'version'));
+        expect(releases).toHaveLength(2);
+        expect(releases.every((release: { newVersion: string }) => release.newVersion === '1.0.1')).toBe(true);
+    } finally {
+        await new Promise<void>((resolve, reject) => registry.close(error => (error ? reject(error) : resolve())));
         rmSync(root, { recursive: true, force: true });
     }
 }, 30_000);

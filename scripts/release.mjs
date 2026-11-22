@@ -114,6 +114,17 @@ async function requireIntent(base) {
 
 const [command, base] = process.argv.slice(2);
 switch (command) {
+    case 'version': {
+        const applied = JSON.parse(run('pnpm', 'version', '-r', '--json'));
+        const unbumped = applied.filter(release => release.currentVersion === release.newVersion);
+        assert.equal(
+            unbumped.length,
+            0,
+            `Requested releases did not advance: ${unbumped.map(release => release.name).join(', ')}. Publish/approve their preceding npm versions before preparing a release.`,
+        );
+        console.log(JSON.stringify(applied));
+        break;
+    }
     case 'intent':
         await requireIntent(base);
         break;
@@ -159,5 +170,5 @@ switch (command) {
         break;
     }
     default:
-        throw new Error('Usage: node scripts/release.mjs check|sync|intent BASE|release-intent|plan BASE|publish BASE');
+        throw new Error('Usage: node scripts/release.mjs version|check|sync|intent BASE|release-intent|plan BASE|publish BASE');
 }
