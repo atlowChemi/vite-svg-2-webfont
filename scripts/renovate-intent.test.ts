@@ -5,12 +5,14 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it } from 'vitest';
+import config from '../.github/renovate-config';
 
 it('Renovate intents are repeatable and request patches for every published npm package', () => {
+    assert.ok(config.postUpgradeTasks?.dataFileTemplate?.includes('{{{newDigest}}}'));
     const cwd = mkdtempSync(join(tmpdir(), 'renovate-intent-'));
     try {
         const data = join(cwd, 'updates');
-        writeFileSync(data, 'renovate/example\nexample: 2.0.0\n');
+        writeFileSync(data, 'renovate/example\nexample: 2.0.0 first-digest\n');
         const run = () =>
             execFileSync(process.execPath, [fileURLToPath(new URL('./renovate-intent.mjs', import.meta.url))], {
                 cwd,
@@ -25,7 +27,7 @@ it('Renovate intents are repeatable and request patches for every published npm 
             const { name } = JSON.parse(readFileSync(new URL(`../packages/${dir}/package.json`, import.meta.url), 'utf8'));
             assert.ok(content.includes(`"${name}": patch`));
         }
-        writeFileSync(data, 'renovate/example\nexample: 3.0.0\n');
+        writeFileSync(data, 'renovate/example\nexample: 2.0.0 second-digest\n');
         run();
         assert.equal(readdirSync(join(cwd, '.changeset')).length, 2);
     } finally {

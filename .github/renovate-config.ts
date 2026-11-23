@@ -15,7 +15,7 @@ const config: AllConfig = {
     postUpgradeTasks: {
         commands: [intentCommand],
         executionMode: 'branch',
-        dataFileTemplate: '{{{branchName}}}\n{{#each upgrades}}{{{depName}}}: {{{newValue}}}\n{{/each}}',
+        dataFileTemplate: '{{{branchName}}}\n{{#each upgrades}}{{{depName}}}: {{{newValue}}} {{{newDigest}}}\n{{/each}}',
         fileFilters: ['.changeset/renovate-*.md'],
     },
 };
