@@ -1,0 +1,57 @@
+name: Renovate
+
+on:
+    schedule:
+        - cron: '23 * * * *'
+    workflow_dispatch:
+    issues:
+        types: [edited]
+    pull_request_target:
+        types: [edited]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: renovate
+    cancel-in-progress: false
+
+jobs:
+    renovate:
+        # Only the repository owner's checkbox edits start an immediate run.
+        if: >-
+            github.event_name == 'schedule' ||
+            github.event_name == 'workflow_dispatch' ||
+            (github.actor == github.repository_owner &&
+            github.event.changes.body &&
+            ((github.event_name == 'issues' && github.event.issue.title == 'Dependency Dashboard') ||
+            (github.event_name == 'pull_request_target' && startsWith(github.event.pull_request.head.ref, 'renovate/'))))
+        runs-on: ubuntu-latest
+        timeout-minutes: 50
+        steps:
+            - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+              with:
+                  ref: main
+                  persist-credentials: false
+            - uses: actions/create-github-app-token@f418cff399f7aef4c2f0ad47e25ca7a6abbdd6fc # v3.4.0
+              id: app
+              with:
+                  client-id: ${{ vars.AUTOMATION_APP_CLIENT_ID }}
+                  private-key: ${{ secrets.AUTOMATION_APP_PRIVATE_KEY }}
+                  permission-contents: write
+                  permission-pull-requests: write
+                  permission-issues: write
+                  permission-workflows: write
+            - uses: dtolnay/rust-toolchain@b725eda525362e7cf34af9a7243cac1e3f01a7ec # stable
+              with:
+                  toolchain: nightly-2026-08-02
+            - uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+              with:
+                  node-version-file: .node-version
+                  install: false
+            - name: Run Renovate
+              env:
+                  RENOVATE_TOKEN: ${{ steps.app.outputs.token }}
+                  RENOVATE_CONFIG_FILE: ${{ github.workspace }}/.github/renovate-config.ts
+                  LOG_LEVEL: debug
+              run: pnpm dlx renovate@44.257.9

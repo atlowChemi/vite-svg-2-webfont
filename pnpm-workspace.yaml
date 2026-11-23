@@ -54,3 +54,20 @@ peerDependencyRules:
     allowedVersions:
         vite: '*'
         vitest: '*'
+permissions:
+    core-js-pure:
+        build: false
+    dtrace-provider:
+        build: false
+    protobufjs:
+        build: false
+    re2:
+        build: false
+    tsdown:
+        skills: true
+skills:
+    dirs:
+        - .agents/skills
+        - .claude/skills
+        - .cursor/skills
+        - .github/skills
