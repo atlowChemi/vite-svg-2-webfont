@@ -6,7 +6,7 @@ on:
     workflow_dispatch:
     issues:
         types: [edited]
-    pull_request_target:
+    pull_request:
         types: [edited]
 
 permissions:
@@ -25,7 +25,9 @@ jobs:
             (github.actor == github.repository_owner &&
             github.event.changes.body &&
             ((github.event_name == 'issues' && github.event.issue.title == 'Dependency Dashboard') ||
-            (github.event_name == 'pull_request_target' && startsWith(github.event.pull_request.head.ref, 'renovate/'))))
+            (github.event_name == 'pull_request' &&
+            github.event.pull_request.head.repo.full_name == github.repository &&
+            startsWith(github.event.pull_request.head.ref, 'renovate/'))))
         runs-on: ubuntu-latest
         timeout-minutes: 50
         steps:
