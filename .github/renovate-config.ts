@@ -11,6 +11,9 @@ const config: AllConfig = {
     onboarding: false,
     requireConfig: 'required',
     binarySource: 'global',
+    // Adopt PRs and the dashboard created by the former Mend bot.
+    ignorePrAuthor: true,
+    exitCodeForErrors: true,
     allowedCommands: [`^${intentCommand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`],
     postUpgradeTasks: {
         commands: [intentCommand],
