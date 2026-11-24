@@ -5,9 +5,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { it } from 'vitest';
+import { format } from 'oxfmt';
 import config from '../.github/renovate-config';
 
-it('Renovate intents are repeatable and request patches for every published npm package', () => {
+it('Renovate intents are formatted, repeatable, and request patches for every published npm package', async () => {
     assert.ok(config.postUpgradeTasks?.dataFileTemplate?.includes('{{{newDigest}}}'));
     const cwd = mkdtempSync(join(tmpdir(), 'renovate-intent-'));
     try {
@@ -23,9 +24,13 @@ it('Renovate intents are repeatable and request patches for every published npm 
         const intents = readdirSync(join(cwd, '.changeset'));
         assert.equal(intents.length, 1);
         const content = readFileSync(join(cwd, '.changeset', intents[0]!), 'utf8');
+        const options = JSON.parse(readFileSync(new URL('../.oxfmtrc.json', import.meta.url), 'utf8'));
+        const formatted = await format(`.changeset/${intents[0]}`, content, options);
+        assert.deepEqual(formatted.errors, []);
+        assert.equal(content, formatted.code);
         for (const dir of ['webfont-generator', 'webfont-browser', 'vite-svg-2-webfont']) {
             const { name } = JSON.parse(readFileSync(new URL(`../packages/${dir}/package.json`, import.meta.url), 'utf8'));
-            assert.ok(content.includes(`"${name}": patch`));
+            assert.ok(content.includes(`'${name}': patch`));
         }
         writeFileSync(data, 'renovate/example\nexample: 2.0.0 second-digest\n');
         run();
