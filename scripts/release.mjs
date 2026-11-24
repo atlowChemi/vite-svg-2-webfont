@@ -128,13 +128,9 @@ switch (command) {
     case 'intent':
         await requireIntent(base);
         break;
-    case 'release-intent': {
+    case 'prepare-check': {
         const head = run('git', 'rev-parse', 'HEAD');
         assert.ok(plan(head).length, 'No versions advanced. Check whether the preceding npm release is publicly available.');
-        writeFileSync(
-            `.changeset/release-${head}.md`,
-            `---\n"@atlowchemi/webfont-generator": none\n---\n\nApply the pending release intents from main at ${head}; this release-preparation PR requests no additional bump.\n`,
-        );
         break;
     }
     case 'check':
@@ -170,5 +166,5 @@ switch (command) {
         break;
     }
     default:
-        throw new Error('Usage: node scripts/release.mjs version|check|sync|intent BASE|release-intent|plan BASE|publish BASE');
+        throw new Error('Usage: node scripts/release.mjs version|check|sync|intent BASE|prepare-check|plan BASE|publish BASE');
 }

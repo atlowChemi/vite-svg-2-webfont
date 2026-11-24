@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { runInNewContext } from 'node:vm';
 import { parse } from 'yaml';
 import { determineValidationScope, resolveSelection, packageNames, selectJobs, type Selection } from './affected-selection';
 import { verifyRequiredChecks } from './required-checks';
@@ -145,8 +146,25 @@ describe('affected CI', () => {
         }
     });
     it('requires intents in mandatory CI and refreshes one release PR from main', () => {
-        const gate = workflow.jobs.ci.steps.find((step: { name?: string }) => step.name === 'Require a new release intent on every PR');
-        expect(gate.if).toBe("github.event_name == 'pull_request'");
+        const gate = workflow.jobs.ci.steps.find((step: { name?: string }) => step.name === 'Require a new intent outside bot release PRs');
+        // This condition uses only operators shared by GitHub expressions and JavaScript.
+        for (const [event, author, branch, repository, required] of [
+            ['pull_request', 'fonte-bot[bot]', 'automation/pnpm-release', 'owner/repo', false],
+            ['pull_request', 'contributor', 'automation/pnpm-release', 'owner/repo', true],
+            ['pull_request', 'fonte-bot[bot]', 'renovate/dependencies', 'owner/repo', true],
+            ['pull_request', 'fonte-bot[bot]', 'automation/pnpm-release', 'fork/repo', true],
+            ['push', 'contributor', 'main', 'owner/repo', false],
+        ] as const) {
+            expect(
+                runInNewContext(gate.if, {
+                    github: {
+                        event_name: event,
+                        repository: 'owner/repo',
+                        event: { pull_request: { user: { login: author }, head: { ref: branch, repo: { full_name: repository } } } },
+                    },
+                }),
+            ).toBe(required);
+        }
         expect(gate.run).toBe('node scripts/release.mjs intent "$BASE_SHA"');
         const automation = parse(readFileSync(new URL('../../.github/workflows/release-pr.yaml', import.meta.url), 'utf8'));
         expect(automation.on.push.branches).toEqual(['main']);
@@ -157,7 +175,7 @@ describe('affected CI', () => {
         expect(pr.with.branch).toBe('automation/pnpm-release');
         expect(pr.with.token).toBe('${{ steps.app.outputs.token }}');
         expect(pr.with['delete-branch']).toBe(true);
-        expect(steps.find((step: { name?: string }) => step.name === 'Prepare versions, changelogs, and release intent').run).toContain('node scripts/release.mjs release-intent');
+        expect(steps.find((step: { name?: string }) => step.name === 'Prepare versions and changelogs').run).toContain('node scripts/release.mjs prepare-check');
     });
     it.each([
         'scripts/ci/affected-selection.ts',

@@ -97,11 +97,10 @@ it('versions intents with pnpm, synchronizes Cargo, and publishes only reviewed 
         expect(read(`${native}/Cargo.toml`)).toContain('version = "1.1.0"');
         expect(JSON.parse(read(`${engine}/package.json`)).version).toBe('1.0.0');
         run('git', 'add', '.');
-        run('node', script, 'release-intent');
-        expect(read(`.changeset/release-${releaseBase}.md`)).toContain('none');
-        run('git', 'add', '.');
+        run('node', script, 'prepare-check');
+        expect(run('git', 'ls-files', '--others', '--exclude-standard', '.changeset')).toBe('');
         run('git', 'commit', '-m', 'release');
-        run('node', script, 'intent', releaseBase);
+        expect(() => run('node', script, 'intent', releaseBase)).toThrow(/Every PR must add a new intent/);
         expect(run('pnpm', 'version', '-r', '--dry-run', '--json')).toBe('[]');
         const plan = JSON.parse(run('node', script, 'plan', base));
         expect(plan.map(({ tag }: { tag: string }) => tag)).toEqual(['webfont-generator-v1.1.0', 'webfont-engine-v1.1.0', 'vite-svg-2-webfont-v1.0.1']);
@@ -117,10 +116,9 @@ it('versions intents with pnpm, synchronizes Cargo, and publishes only reviewed 
         run('node', script, 'version');
         run('node', script, 'sync');
         run('git', 'add', '.');
-        run('node', script, 'release-intent');
-        run('git', 'add', '.');
+        run('node', script, 'prepare-check');
         run('git', 'commit', '-m', 'refreshed release');
-        run('node', script, 'intent', refreshedBase);
+        expect(() => run('node', script, 'intent', refreshedBase)).toThrow(/Every PR must add a new intent/);
         expect(JSON.parse(read(`${native}/package.json`)).version).toBe('1.1.0');
         expect(JSON.parse(read(`${browser}/package.json`)).version).toBe('1.0.1');
         expect(read(`${engine}/CHANGELOG.md`).match(/## \[1\.1\.0\]/g)).toHaveLength(1);
