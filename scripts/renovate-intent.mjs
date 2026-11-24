@@ -10,9 +10,9 @@ mkdirSync('.changeset', { recursive: true });
 writeFileSync(
     `.changeset/renovate-${id}.md`,
     `---
-"@atlowchemi/webfont-generator": patch
-"@atlowchemi/webfont-browser-generator": patch
-"vite-svg-2-webfont": patch
+'@atlowchemi/webfont-generator': patch
+'@atlowchemi/webfont-browser-generator': patch
+'vite-svg-2-webfont': patch
 ---
 
 Update dependencies and tooling.
