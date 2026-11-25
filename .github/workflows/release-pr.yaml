@@ -47,7 +47,7 @@ jobs:
                   if [[ "$preview" != '[]' ]]; then
                     echo 'release=true' >> "$GITHUB_OUTPUT"
                   fi
-            - name: Prepare versions, changelogs, and release intent
+            - name: Prepare versions and changelogs
               if: steps.pending.outputs.release == 'true'
               run: |
                   pnpm run release:prepare
@@ -55,8 +55,7 @@ jobs:
                     'packages/*/package.json' 'packages/*/Cargo.toml' 'crates/*/Cargo.toml' \
                     'packages/*/CHANGELOG.md' 'crates/*/CHANGELOG.md' \
                     packages/webfont-generator/binding.js
-                  node scripts/release.mjs release-intent
-                  git add .changeset
+                  node scripts/release.mjs prepare-check
                   # Only format generated files, not unrelated repository files.
                   git diff --name-only --diff-filter=AM -z HEAD -- '*.md' '*.json' '*.yaml' |
                     xargs -0 -r pnpm exec oxfmt
@@ -78,5 +77,5 @@ jobs:
                       Merging publishes the selected versions through the existing release workflow.
                       npm staging approvals are still required.
 
-                      The included `none` intent records preparation only; it requests no additional bump.
+                      This bot-managed release PR consumes existing intents and is exempt from adding a new one.
                       Edit contributor intents on main rather than editing this generated branch.

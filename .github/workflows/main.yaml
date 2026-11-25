@@ -106,8 +106,12 @@ jobs:
             - uses: ./.github/actions/pipeline-cache
             - name: Validate change intents and synchronized release versions
               run: pnpm run release:check
-            - name: Require a new release intent on every PR
-              if: github.event_name == 'pull_request'
+            - name: Require a new intent outside bot release PRs
+              if: >-
+                  github.event_name == 'pull_request' &&
+                  !(github.event.pull_request.user.login == 'fonte-bot[bot]' &&
+                  github.event.pull_request.head.ref == 'automation/pnpm-release' &&
+                  github.event.pull_request.head.repo.full_name == github.repository)
               run: node scripts/release.mjs intent "$BASE_SHA"
               env:
                   BASE_SHA: ${{ github.event.pull_request.base.sha }}

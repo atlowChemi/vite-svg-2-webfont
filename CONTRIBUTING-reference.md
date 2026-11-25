@@ -370,7 +370,7 @@ For benchmark changes, use the compile-only and targeted commands in [Benchmarks
 
 ## Releasing packages
 
-Every PR must add a new pnpm change intent, including documentation, tooling, and bot PRs:
+Every contributor PR must add a new pnpm change intent, including documentation, tooling, and dependency-update bot PRs:
 
 ```sh
 pnpm change
@@ -392,7 +392,9 @@ pnpm change @atlowchemi/webfont-generator --bump none --summary "Update reposito
 CI requires a newly added `.changeset/*.md` file relative to the PR's merge base,
 with at least one package decision and a nonempty summary. Editing an existing intent,
 adding only a README, or relying on intents already on `main` does not satisfy the gate.
-There are no author, label, or release-PR exceptions. This runs in the mandatory lint/check
+The only exception is the same-repository `automation/pnpm-release` PR opened by
+`fonte-bot[bot]`: it consumes existing intents rather than requesting a new release.
+Branch names or labels alone do not grant an exemption. This runs in the mandatory lint/check
 job, whose result is enforced by the branch's required `Required checks` status.
 Repository administrators retain the configured ruleset override.
 CI also validates all pending intents and engine/adapter version consistency.
@@ -438,8 +440,8 @@ To prepare and complete a release:
    It always regenerates from current `main`, not from the previous release proposal,
    so additional merges accumulate without repeatedly incrementing the proposed versions.
 2. CI runs `pnpm run release:prepare`, synchronizes the Cargo manifests, engine changelog,
-   lockfiles, and generated loader, formats generated files, and adds a fresh `none` intent
-   for the preparation PR itself. An App token ensures its pushes trigger normal PR checks.
+   lockfiles, and generated loader, and formats generated files. The generated release PR
+   does not add an intent of its own. An App token ensures its pushes trigger normal PR checks.
    Only `none` intents pending means no release PR is needed; obsolete proposals are closed.
 3. Review versions, changelogs, lockfiles, and generated loader updates. Merge after the
    selected checks pass, then inspect the workflow's package-specific publication jobs.
