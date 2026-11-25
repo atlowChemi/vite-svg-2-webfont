@@ -44,6 +44,7 @@ jobs:
                   permission-pull-requests: write
                   permission-issues: write
                   permission-statuses: write
+                  permission-vulnerability-alerts: read
                   permission-workflows: write
             - uses: dtolnay/rust-toolchain@39008827e6b4319a349e9a42dfc90579dd25f1ca # stable
               with:
@@ -52,6 +53,14 @@ jobs:
               with:
                   node-version-file: .node-version
                   install: false
+            - name: Prepare Cargo path patch for Renovate clones
+              run: |
+                  node crates/cache-audit/scripts/prepare.mjs
+                  # Cargo config overrides the manifest's clone-relative path.
+                  # Share the trusted, patched checkout without enabling lifecycle scripts.
+                  mkdir -p "$HOME/.cargo"
+                  printf '\n[patch."https://github.com/voidzero-dev/vite-task"]\nfspy = { path = "%s/.pnpm/cache-audit-fspy/crates/fspy" }\n' \
+                    "$GITHUB_WORKSPACE" >> "$HOME/.cargo/config.toml"
             - name: Run Renovate
               env:
                   RENOVATE_TOKEN: ${{ steps.app.outputs.token }}
