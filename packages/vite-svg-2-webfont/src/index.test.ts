@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import type { IndexHtmlTransformContext, InlineConfig, PreviewServer, ViteDevServer } from 'vite';
 import { build, createServer, normalizePath, preview, version as viteVersion } from 'vite';
 import { afterAll, beforeAll, describe, expect, it, vi, type MockInstance } from 'vitest';
-import { viteSvgToWebfont } from './index';
+import { templates, viteSvgToWebfont } from './index';
 import type { IconPluginFileOptions } from './optionParser';
 import { MIME_TYPES } from './utils';
 import type { AddressInfo } from 'node:net';
@@ -1576,6 +1576,124 @@ describe('serve - releases retained watch state on close', () => {
         await server.close();
 
         expect(setupWatcherMock).toHaveBeenCalled();
+    });
+});
+
+const bundledConfig = (overrides?: Partial<IconPluginFileOptions>): InlineConfig => ({
+    ...getConfig(ConfigType.Basic, { types: ['woff2', 'svg'], formatOptions: { woff2: { compressionQuality: 11 } }, ...overrides }),
+    experimental: { bundledDev: true },
+});
+
+/** Loads the page, which builds (or rebuilds a stale) bundle, and returns its entry chunk. */
+const fetchBundle = async (server: ViteDevServer) => {
+    const html = await fetchTextContent(server, '/');
+    const src = html && /<script type="module"[^>]*src="([^"]+\.js)"/.exec(html)?.[1];
+    if (!src) throw new Error('Bundle not built yet');
+    const code = await fetchTextContent(server, src);
+    if (!code?.includes('@font-face')) throw new Error('Bundle has no font CSS yet');
+    return code;
+};
+
+// Vite 8's bundled dev (`experimental.bundledDev`) serves a Rolldown bundle, which runs buildStart/buildEnd for every
+// build instead of once per server, and rebuilds only for files Rolldown watches.
+describe.runIf(Number(viteVersion.split('.')[0]) >= 8)('serve (bundledDev)', () => {
+    const filename = '__bundled-dev__.svg';
+    const svgUrl = new URL(`webfont-test/svg/${filename}`, root);
+
+    afterAll(async () => {
+        await rm(svgUrl, { force: true });
+    });
+
+    it('keeps serving the font after the first bundle is built, and tears down only on close', { timeout: 30_000 }, async () => {
+        const rmDirCallsBefore = rmDirMock.mock.calls.length;
+        const flushCache = vi.fn<() => Promise<void>>();
+        const { generateWebfonts: realGen } = await vi.importActual<typeof import('@atlowchemi/webfont-generator')>('@atlowchemi/webfont-generator');
+        generateWebfontsMock.mockImplementationOnce(async options => {
+            const result = await realGen(options);
+            const flush = result.flushCache.bind(result);
+            result.flushCache = () => flushCache.mockImplementation(flush)();
+            return result;
+        });
+        const server = await (await createServer(bundledConfig())).listen();
+        let closed = false;
+        try {
+            const code = await vi.waitFor(() => fetchBundle(server), { timeout: 15_000, interval: 100 });
+            const [url] = [...code.matchAll(/url\(\\"([^"\\]+\.woff2[^"\\]*)\\"\)/g)].map(match => match[1]!);
+            expect(url).toMatch(/^\/iconfont\.woff2\?[\da-f]{64}$/);
+
+            const res = await fetchFromServer(server, url!);
+            expect(res.status).toBe(200);
+            expect(res.headers.get('content-type')).toBe(MIME_TYPES.woff2);
+            expect(await res.arrayBuffer()).toStrictEqual(await loadFileContent('fonts/iconfont.woff2', 'buffer'));
+            expect(rmDirMock.mock.calls.length).toBe(rmDirCallsBefore);
+            expect(flushCache).not.toHaveBeenCalled();
+
+            await server.close();
+            closed = true;
+            expect(rmDirMock.mock.calls.length).toBe(rmDirCallsBefore + 1);
+            expect(flushCache).toHaveBeenCalledOnce();
+            expect(setupWatcherMock).not.toHaveBeenCalled();
+        } finally {
+            if (!closed) await server.close();
+        }
+    });
+
+    it('rebuilds the virtual CSS with the glyph of an added SVG', { timeout: 30_000 }, async () => {
+        const server = await (await createServer(bundledConfig())).listen();
+        try {
+            const before = await vi.waitFor(() => fetchBundle(server), { timeout: 15_000, interval: 100 });
+            expect(before).not.toContain('icon-__bundled-dev__');
+
+            await writeFile(svgUrl, '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg>');
+            const after = await vi.waitFor(
+                async () => {
+                    const code = await fetchBundle(server);
+                    if (!code.includes('icon-__bundled-dev__')) throw new Error('Bundle not rebuilt yet');
+                    return code;
+                },
+                { timeout: 15_000, interval: 100 },
+            );
+
+            // The bundle carries the CSS as a JS string literal, so its newlines and quotes arrive escaped.
+            const codepoint = /\.icon-__bundled-dev__::?before \{[^}]*?content: \\"\\\\([\da-f]+)\\"/i.exec(after)?.[1];
+            expect(codepoint).toBeDefined();
+            const svgFontUrl = /url\(\\"(\/iconfont\.svg\?[^"\\#]+)/.exec(after)?.[1];
+            const svgFont = await fetchTextContent(server, svgFontUrl!);
+            expect(svgFont).toMatch(new RegExp(`glyph-name="__bundled-dev__"[^>]*unicode="&#x${codepoint};"|unicode="&#x${codepoint};"[^>]*glyph-name="__bundled-dev__"`, 'i'));
+
+            await rm(svgUrl);
+            await vi.waitFor(
+                async () => {
+                    if ((await fetchBundle(server)).includes('icon-__bundled-dev__')) throw new Error('Bundle not rebuilt yet');
+                },
+                { timeout: 15_000, interval: 100 },
+            );
+        } finally {
+            await Promise.all([server.close(), rm(svgUrl, { force: true })]);
+        }
+    });
+
+    it('regenerates the virtual CSS when its template changes', { timeout: 30_000 }, async () => {
+        const dir = await mkdtemp(pathJoin(tmpdir(), 'vsw-bundled-template-'));
+        const cssTemplate = pathJoin(dir, 'icons.css.hbs');
+        const template = await readFile(templates.css, 'utf8');
+        await writeFile(cssTemplate, `${template}\n.template-marker-one {}\n`);
+        const server = await (await createServer(bundledConfig({ cssTemplate }))).listen();
+        try {
+            expect(await vi.waitFor(() => fetchBundle(server), { timeout: 15_000, interval: 100 })).toContain('template-marker-one');
+
+            await writeFile(cssTemplate, `${template}\n.template-marker-two {}\n`);
+            await vi.waitFor(
+                async () => {
+                    const code = await fetchBundle(server);
+                    if (!code.includes('template-marker-two')) throw new Error('Bundle not rebuilt yet');
+                    expect(code).not.toContain('template-marker-one');
+                },
+                { timeout: 15_000, interval: 100 },
+            );
+        } finally {
+            await Promise.all([server.close(), rm(dir, { recursive: true, force: true })]);
+        }
     });
 });
 

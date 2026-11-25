@@ -15,7 +15,7 @@
   <a href="https://packagequality.com/#?package=vite-svg-2-webfont"><img src="https://packagequality.com/shield/vite-svg-2-webfont.svg" alt="Package Quality" /></a>
 </p>
 
-The [fonte](https://fonte.atlow.dev/) Vite plugin. It turns a folder of SVG icons into an icon font as part of your Vite dev server and build, and serves it through a virtual stylesheet. Editing an icon reloads it in the dev server.
+The [fonte](https://fonte.atlow.dev/) Vite plugin. It turns a folder of SVG icons into an icon font as part of your Vite dev server and build, and serves it through a virtual stylesheet. Editing an icon reloads it in the dev server, including Vite 8's bundled dev mode (`experimental.bundledDev`).
 
 ## Installation
 

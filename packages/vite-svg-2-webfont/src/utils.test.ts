@@ -1,9 +1,10 @@
 import * as fs from 'node:fs/promises';
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { addAbortListener } from 'node:events';
 import { join as pathJoin } from 'node:path';
 import { setTimeout } from 'node:timers/promises';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import * as utils from './utils';
 
 vi.mock('fs/promises', async () => {
@@ -13,6 +14,25 @@ vi.mock('fs/promises', async () => {
 });
 
 describe('utils', () => {
+    describe('canonicalPath', () => {
+        // fs/promises is mocked in this file, so the fixtures use the synchronous API.
+        const root = realpathSync(mkdtempSync(pathJoin(tmpdir(), 'webfont-canonical-')));
+        const real = pathJoin(root, 'real');
+        const link = pathJoin(root, 'link');
+        mkdirSync(real);
+        writeFileSync(pathJoin(real, 'a.svg'), '<svg/>');
+        symlinkSync(real, link, 'junction');
+        afterAll(() => rmSync(root, { recursive: true, force: true }));
+
+        it('resolves symlinks in an existing path', () => {
+            expect(utils.canonicalPath(pathJoin(link, 'a.svg'))).toBe(pathJoin(real, 'a.svg'));
+        });
+
+        it('resolves a missing file through its nearest existing parent', () => {
+            expect(utils.canonicalPath(pathJoin(link, 'gone', 'b.svg'))).toBe(pathJoin(real, 'gone', 'b.svg'));
+        });
+    });
+
     describe('createLock', () => {
         const folders: string[] = [];
         async function temporary() {

@@ -31,7 +31,7 @@ export function regenerationFiles(options: Pick<ParsedOptions, 'files' | 'varian
     return { files: options.files! };
 }
 
-function familyPaths(inputs: RegenerationFiles) {
+export function familyPaths(inputs: RegenerationFiles) {
     return new Set(inputs.variants ? inputs.variants.flatMap(variant => variant.files) : inputs.files);
 }
 
