@@ -152,7 +152,12 @@ async fn compatibility(root: &Path, reports: &Path, cancel: &CancellationToken) 
         )
         .await?;
     }
-    for inputs in [vec!["source.*"], vec![], vec!["+source.*"]] {
+    for inputs in [
+        Some(vec!["source.*"]),
+        Some(vec![]),
+        Some(vec!["+source.*"]),
+        None,
+    ] {
         fs::write(
             fixture.join("pnpm-workspace.yaml"),
             serde_yaml_ng::to_string(&json!({
@@ -167,13 +172,19 @@ async fn compatibility(root: &Path, reports: &Path, cancel: &CancellationToken) 
                     "dependency":{"cache":true,"inputs":["dependency.txt"],"outputs":["dependency.out"],"dependsOn":[]}
                 }
         });
+        if inputs.is_none() {
+            definitions["tasks"]["build"]
+                .as_object_mut()
+                .unwrap()
+                .remove("inputs");
+        }
         fs::write(
             fixture.join("tasks.yaml"),
             serde_yaml_ng::to_string(&definitions)?,
         )?;
         cache_run(&fixture, &log, false, "a", cancel).await?;
         cache_run(&fixture, &log, true, "a", cancel).await?;
-        if inputs == ["source.*"] {
+        if inputs.as_deref() == Some(&["source.*"]) {
             fs::remove_file(fixture.join("result"))?;
             cache_run(&fixture, &log, true, "a", cancel).await?;
             fs::write(fixture.join("ignored"), "ignored")?;
@@ -205,7 +216,7 @@ async fn compatibility(root: &Path, reports: &Path, cancel: &CancellationToken) 
             cache_run(&fixture, &log, true, "b", cancel).await?;
         } else {
             fs::write(fixture.join("unrelated"), serde_json::to_vec(&inputs)?)?;
-            cache_run(&fixture, &log, false, "a", cancel).await?;
+            cache_run(&fixture, &log, inputs.as_deref() == Some(&[]), "a", cancel).await?;
             fs::write(fixture.join("ignored"), serde_json::to_vec(&inputs)?)?;
             cache_run(&fixture, &log, true, "a", cancel).await?;
         }

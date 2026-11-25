@@ -213,8 +213,11 @@ fn files(project: &Path) -> Result<BTreeSet<PathBuf>> {
     Ok(files)
 }
 
-// Matches pnpm 12.13.0 cache/inputs.rs, including inputs: [] meaning defaults.
+// An explicit empty input list hashes no files; omitted inputs use defaults.
 fn selected(task: &Task, files: &BTreeSet<PathBuf>) -> Result<BTreeSet<PathBuf>> {
+    if task.inputs.as_deref() == Some(&[]) {
+        return Ok(BTreeSet::new());
+    }
     let patterns = task.inputs.as_deref().unwrap_or_default();
     let replace = globs(
         &patterns
@@ -430,10 +433,10 @@ impl Audit {
             .and_then(|version| version.strip_prefix("pnpm@12."))
             .and_then(|version| version.split_once('.'))
             .is_some_and(|(minor, patch)| {
-                minor.parse::<u32>().is_ok_and(|minor| minor >= 13) && patch.parse::<u32>().is_ok()
+                minor.parse::<u32>().is_ok_and(|minor| minor >= 22) && patch.parse::<u32>().is_ok()
             });
         if !supported {
-            return Err("validator requires stable pnpm 12.13 or newer within major 12; validate cache semantics before adopting another major".into());
+            return Err("validator requires stable pnpm 12.22 or newer within major 12; validate cache semantics before adopting another major".into());
         }
         let text = workspace_document(&root)?.text;
         if text.contains("${") {
@@ -827,6 +830,15 @@ fn check_environment(assertions: &[(PathBuf, String)]) -> Result<()> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn empty_inputs_are_distinct_from_omitted_inputs() {
+        let files = BTreeSet::from([PathBuf::from("source.txt")]);
+        let omitted: Task = serde_json::from_value(serde_json::json!({})).unwrap();
+        let empty: Task = serde_json::from_value(serde_json::json!({"inputs": []})).unwrap();
+        assert_eq!(selected(&omitted, &files).unwrap(), files);
+        assert!(selected(&empty, &files).unwrap().is_empty());
+    }
 
     #[test]
     fn repeated_separators_match_the_same_missing_input_policy() {

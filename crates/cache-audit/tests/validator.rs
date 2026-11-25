@@ -55,7 +55,7 @@ fn validates_real_accesses_and_rejects_missing_declarations() {
             .status
             .success()
     );
-    let manifest = json!({"packageManager":"pnpm@12.14.0", "scripts":{"build":"fixture", "dependency":"fixture"}});
+    let manifest = json!({"packageManager":"pnpm@12.22.0", "scripts":{"build":"fixture", "dependency":"fixture"}});
     fs::write(root.join("package.json"), manifest.to_string()).unwrap();
     fs::write(root.join(".gitignore"), "output\ndependency.out\nignored\n").unwrap();
     for file in [
@@ -70,7 +70,7 @@ fn validates_real_accesses_and_rejects_missing_declarations() {
     let policy = "version: 1\ntasks:\n  '.#build':\n    missingInputs:\n      - {pattern: missing, reason: 'Optional regular-file fixture'}\n      - {pattern: ignored, reason: 'Ignored paths must still fail'}\n      - {pattern: '**/package.json', reason: 'Node package scope probes'}\n    ignore:\n      - {pattern: '/**', reason: 'System paths outside fixture'}\n      - {pattern: '.', reason: 'Working directory probes', kinds: [read, read_dir]}\n";
     fs::write(root.join("policy.yaml"), policy).unwrap();
     workspace(&root, "[input]", "[output]");
-    for version in ["pnpm@12.13.0", "pnpm@12.14.0", "pnpm@12.99.1"] {
+    for version in ["pnpm@12.22.0", "pnpm@12.23.0", "pnpm@12.99.1"] {
         let mut candidate = manifest.clone();
         candidate["packageManager"] = json!(version);
         fs::write(root.join("package.json"), candidate.to_string()).unwrap();
@@ -78,6 +78,7 @@ fn validates_real_accesses_and_rejects_missing_declarations() {
     }
     for version in [
         "pnpm@12.12.0",
+        "pnpm@12.21.0",
         "pnpm@13.0.0",
         "pnpm@12.14.0-rc.1",
         "npm@12.14.0",
@@ -470,12 +471,18 @@ fn validates_real_accesses_and_rejects_missing_declarations() {
     assert_eq!(run.status.code(), Some(2));
     assert!(report["audit"]["findings"].to_string().contains("/ignored"));
 
-    // An all-additive or empty input list retains pnpm's default input set.
-    for inputs in ["['+input']", "[]"] {
-        workspace(&root, inputs, "[output]");
-        let (run, report) = audit(&root, ".", "cat unlisted > output");
-        assert!(run.status.success(), "{run:?}\n{report}");
-    }
+    // All-additive inputs retain defaults; an empty list selects no files.
+    workspace(&root, "['+input']", "[output]");
+    let (run, report) = audit(&root, ".", "cat unlisted > output");
+    assert!(run.status.success(), "{run:?}\n{report}");
+    workspace(&root, "[]", "[output]");
+    let (run, report) = audit(&root, ".", "cat unlisted > output");
+    assert_eq!(run.status.code(), Some(2));
+    assert!(
+        report["audit"]["findings"]
+            .to_string()
+            .contains("/unlisted")
+    );
     workspace(&root, "[input, '+unlisted']", "[output]");
     assert!(
         audit(&root, ".", "cat unlisted > output")
