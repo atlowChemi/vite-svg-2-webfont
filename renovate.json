@@ -20,8 +20,22 @@
             "automerge": true
         },
         {
-            "groupName": "vitest",
-            "matchPackageNames": ["vitest", "@vitest/coverage-v8", "@vitest/browser-playwright"]
+            "groupName": "vite-tooling",
+            "matchPackageNames": [
+                "oxfmt",
+                "oxlint",
+                "oxlint-tsgolint",
+                "/^oxc-/",
+                "/^@oxc-project\\//",
+                "tsrs",
+                "tsdown",
+                "vite",
+                "/^@vitejs\\//",
+                "vitest",
+                "/^@vitest\\//",
+                "rolldown",
+                "/^@rolldown\\//"
+            ]
         },
         {
             "groupName": "pnpm",
