@@ -10,7 +10,7 @@ fn isolated_cache_compatibility_and_negative_checks_preserve_source_workspace() 
     fs::create_dir_all(root.join("crates/webfont-generator/src")).unwrap();
     fs::create_dir_all(root.join("packages/webfont-generator")).unwrap();
     fs::write(root.join("package.json"), json!({
-        "name":"negative-fixture", "private":true, "packageManager":"pnpm@12.15.0",
+        "name":"negative-fixture", "private":true, "packageManager":"pnpm@12.22.0",
         "scripts":{"native":"cat crates/webfont-generator/src/lib.rs > packages/webfont-generator/binding.d.ts; printf 'export {};' > packages/webfont-generator/binding.js"}
     }).to_string()).unwrap();
     fs::write(

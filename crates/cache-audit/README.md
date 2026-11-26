@@ -174,18 +174,17 @@ audit, not approval of a result-cache contract. Other ignored files remain findi
 
 ## Supported coverage semantics and boundaries
 
-- Supports stable pnpm **12.x starting at 12.13** and uses **wax 0.7.0**.
+- Supports stable pnpm **12.x starting at 12.22** and uses **wax 0.7.0**.
   Routine minor/patch upgrades do not require editing a version allowlist. CI runs
   `cache-audit compat` against the installed pnpm to check replacement/default/
   additive inputs, ignored and untracked files, dependency/environment invalidation,
   and output restoration. Explicit unsupported configuration still fails. New
-  majors and prereleases require a semantics review. The cache implementation and
-  pipeline configuration code are unchanged between 12.13.0 and 12.14.0.
+  majors and prereleases require a semantics review.
 - Git enumerates tracked and untracked nonignored project-local files **before**
   execution. Parent-path input patterns cannot extend that set. Missing files
   are skipped, outputs removed, replacement/additive patterns applied, and the
-  workspace lockfile included as pnpm does. Empty/all-additive input lists retain
-  the default set.
+  workspace lockfile included as pnpm does. Omitted/all-additive inputs retain
+  the default set; an explicit empty input list selects no source files.
 - Explicit same-project task dependencies contribute source coverage and their
   prepared output files. Dependency outputs are trusted only on the assumption
   that their producer is separately audited. Upstream `^task` dependencies,
