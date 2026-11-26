@@ -15,8 +15,9 @@ vi.mock('fs/promises', async () => {
 
 describe('utils', () => {
     describe('canonicalPath', () => {
-        // fs/promises is mocked in this file, so the fixtures use the synchronous API.
-        const root = realpathSync(mkdtempSync(pathJoin(tmpdir(), 'webfont-canonical-')));
+        // fs/promises is mocked in this file, so the fixtures use the synchronous API. The native realpath also expands
+        // Windows 8.3 short names (C:\Users\RUNNER~1), as canonicalPath does.
+        const root = realpathSync.native(mkdtempSync(pathJoin(tmpdir(), 'webfont-canonical-')));
         const real = pathJoin(root, 'real');
         const link = pathJoin(root, 'link');
         mkdirSync(real);
