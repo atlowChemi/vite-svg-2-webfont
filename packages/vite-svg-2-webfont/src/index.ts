@@ -1,10 +1,10 @@
-import { join as pathJoin } from 'node:path';
+import { join as pathJoin, isAbsolute, relative, resolve, sep } from 'node:path';
 import type { Connect, ModuleGraph, ModuleNode, Plugin } from 'vite';
 import { moduleSource, publishDeclaration } from './virtualTypes';
-import { setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
+import { canonicalPath, setupWatcher, MIME_TYPES, ensureDirExistsAndWriteFile, getTmpDir, getBufferHash, rmDir } from './utils';
 import { parseOptions, resolveSources, parsePreloadFormatsOption } from './optionParser';
 import type { ParsedOptions } from './optionParser';
-import { createGenerationQueue, regenerationFiles, reconcileChanges, watchRoots } from './regeneration';
+import { createGenerationQueue, familyPaths, regenerationFiles, reconcileChanges, watchRoots } from './regeneration';
 import { CACHE_PLACEHOLDER, computeCacheKey, fontFileName, readCacheEntry, writeCacheEntry } from './cache';
 import type { CacheEntry } from './cache';
 import * as templatesImport from '@atlowchemi/webfont-generator/templates';
@@ -50,6 +50,14 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     const useCache = options.cache !== false;
     const preloadFormats = parsePreloadFormatsOption<T>(options).filter((type): type is T => processedOptions.types.includes(type as any));
     let isBuild: boolean;
+    /**
+     * Vite 8's `experimental.bundledDev`: Rolldown runs buildStart/buildEnd for every bundle it builds, and rebuilds
+     * modules only for the files it watches. Dev state then lives until the server closes, and Rolldown's watcher
+     * replaces the plugin's own.
+     */
+    let bundledDev = false;
+    /** Whether the bundled dev server's state is set up; later builds of the same server reuse it. */
+    let bundledDevStarted = false;
     let cacheFolder: string;
     /** The dev server's public base path, where the font middleware serves each font. */
     let devBase = '/';
@@ -170,6 +178,8 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     };
 
     const reloadVirtualModule = async () => {
+        // Bundled dev has no module graph to reload from: Rolldown reloads the modules once `watchChange` resolves.
+        if (bundledDev) return;
         await Promise.all(
             [resolvedVirtualModuleId, resolvedTsModuleId]
                 .filter(id => id !== resolvedTsModuleId || getTs() !== lastVirtualTsOutput)
@@ -298,7 +308,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
     };
 
     /** Rebuild on watch events, incrementally reusing cached glyphs, else a full rebuild. */
-    const regenerateFromWatch = async (changes: WatchedChangeBatch) => {
+    const regenerateFromWatch = async (changes: WatchedChangeBatch, reconcile = reconcileWatchEvents) => {
         if (changes.length === 0) {
             return;
         }
@@ -311,7 +321,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
         try {
             const sources = regenerationFiles(resolveSources(options));
-            const hints = reconcileWatchEvents ? reconcileChanges(publishedSources, sources, changes) : changes.map(change => ({ path: change.path, changeType: change.kind }));
+            const hints = reconcile ? reconcileChanges(publishedSources, sources, changes) : changes.map(change => ({ path: change.path, changeType: change.kind }));
             if (hints?.length === 0 && JSON.stringify(sources) === JSON.stringify(publishedSources)) return;
             const replacement = await generatedFonts.regenerateAsync(sources, hints);
             if (ac.signal.aborted) {
@@ -335,6 +345,48 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         }
         await reloadVirtualModule();
     };
+    /** Stop watching, drain pending generation and release this run's fonts. */
+    const teardown = async () => {
+        ac.abort();
+        await watcherTask;
+        await generationQueue.idle();
+        if (!isBuild) await generatedFonts?.flushCache().catch(() => undefined);
+        watcherTask = undefined;
+        rmDir(tmpDir);
+        generatedFonts = undefined;
+        generatedFontBuffers.clear();
+        outputs = undefined;
+        _moduleGraph = undefined;
+        _reloadModule = undefined;
+    };
+
+    const templateFiles = () => [processedOptions.cssTemplate, processedOptions.htmlTemplate].filter(file => file !== undefined);
+    const resolvedWatchRoots = () => [watchRoots(options)].flat().map(root => resolve(root));
+
+    /** Bundled dev: map a file Rolldown reports changed onto a regeneration, before Rolldown reloads the virtual modules. */
+    const regenerateFromBundledWatch = (id: string, event: 'create' | 'update' | 'delete') => {
+        // Rolldown reports real paths (macOS's /var is /private/var), so compare every path through its symlinks.
+        const path = canonicalPath(id);
+        if (templateFiles().some(file => canonicalPath(file) === path)) {
+            // Templates feed every rendered output, so they need a full generation rather than a glyph update.
+            return generationQueue.run(() => generate(true));
+        }
+        const inWatchRoots = resolvedWatchRoots().some(root => {
+            const rel = relative(canonicalPath(root), path);
+            return rel !== '' && !isAbsolute(rel) && rel !== '..' && !rel.startsWith(`..${sep}`);
+        });
+        if (!path.endsWith('.svg') || !inWatchRoots) {
+            return undefined;
+        }
+        // Rolldown's event labels are unreliable across platforms (an edit can surface as `create`); membership decides,
+        // so report the path in the shape the published sources use.
+        const published =
+            familyPaths(publishedSources)
+                .values()
+                .find(file => canonicalPath(file) === path) ?? id;
+        return generationQueue.run(() => regenerateFromWatch([{ path: published, kind: event === 'delete' ? 'removed' : 'changed' }], true));
+    };
+
     return {
         name: 'vite-svg-2-webfont',
         enforce: 'pre',
@@ -345,6 +397,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
         },
         configResolved(_config) {
             isBuild = _config.command === 'build';
+            bundledDev = !isBuild && Boolean((_config as { experimental?: { bundledDev?: boolean } }).experimental?.bundledDev);
             cacheFolder = `${_config.cacheDir}/vite-svg-2-webfont`;
             // In dev, Vite resolves `base` to a path ending in `/`: a relative base becomes `/`, and a full URL keeps its pathname.
             devBase = _config.base ?? '/';
@@ -424,6 +477,14 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             return (outputs?.moduleCss ?? renderModuleCss(currentDevFontPaths())).replaceAll(`${CACHE_PLACEHOLDER}/`, devBase);
         },
         load(id) {
+            if (bundledDev && (id === resolvedTsModuleId || id === resolvedVirtualModuleId)) {
+                // These modules have no file behind them, so tell Rolldown what they're rendered from. The roots also
+                // cover SVGs added later; `watchChange` regenerates before Rolldown reloads the module. Rolldown matches
+                // the real paths its watcher reports against these, so they go in with symlinks resolved.
+                for (const file of [...resolvedWatchRoots(), ...familyPaths(publishedSources), ...templateFiles()]) {
+                    this.addWatchFile(canonicalPath(file));
+                }
+            }
             if (id === resolvedTsModuleId) {
                 lastVirtualTsOutput = getTs();
                 return moduleSource(lastVirtualTsOutput);
@@ -433,7 +494,18 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
             return resolvedVirtualModuleId;
         },
+        async watchChange(id, { event }) {
+            if (!bundledDev || !bundledDevStarted) return;
+            await regenerateFromBundledWatch(id, event)?.catch(error => {
+                this.warn(`Font regeneration failed: ${String(error)}`);
+            });
+        },
         async buildStart() {
+            if (bundledDev) {
+                // Each bundle of the same server runs buildStart again; keep the fonts and watcher of the first.
+                if (bundledDevStarted) return generationQueue.idle();
+                bundledDevStarted = true;
+            }
             if (ac.signal.aborted) {
                 // Hosts such as VitePress (client + SSR) or Vite's environment builder reuse one plugin
                 // instance across builds; the previous buildEnd aborted its signal and removed its temp dir.
@@ -442,7 +514,7 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
                 tmpDir = getTmpDir();
             }
             const initial = generationQueue.run(() => generate());
-            if (!isBuild) {
+            if (!isBuild && !bundledDev) {
                 watcherTask = setupWatcher(watchRoots(options), ac.signal, changes =>
                     generationQueue
                         .run(() => regenerateFromWatch(changes))
@@ -473,9 +545,14 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             const { middlewares } = server;
             for (const fontType of processedOptions.types) {
                 const fileName = `${processedOptions.fontName}.${fontType}`;
-                const serveFont: Connect.SimpleHandleFunction = (_req, res) => {
-                    const font = getGeneratedFont(fontType as T);
-                    /* v8 ignore next 4 -- buildStart awaits generate() before the server listens, so fonts are always available by the time middleware fires */
+                const serveFont: Connect.SimpleHandleFunction = async (_req, res) => {
+                    // Bundled dev starts its first build without awaiting it, so a request can arrive mid-generation.
+                    let font = getGeneratedFont(fontType as T);
+                    if (!font) {
+                        await generationQueue.idle();
+                        font = getGeneratedFont(fontType as T);
+                    }
+                    /* v8 ignore next 4 -- generation either produced every type or failed buildStart */
                     if (!font) {
                         res.statusCode = 404;
                         return res.end();
@@ -492,17 +569,14 @@ export function viteSvgToWebfont<T extends FontType = FontType>(options: IconPlu
             }
         },
         async buildEnd() {
-            ac.abort();
-            await watcherTask;
-            await generationQueue.idle();
-            if (!isBuild) await generatedFonts?.flushCache().catch(() => undefined);
-            watcherTask = undefined;
-            rmDir(tmpDir);
-            generatedFonts = undefined;
-            generatedFontBuffers.clear();
-            outputs = undefined;
-            _moduleGraph = undefined;
-            _reloadModule = undefined;
+            // Bundled dev ends a build per bundle while the server keeps serving; closeBundle runs when it closes.
+            if (bundledDev) return;
+            await teardown();
+        },
+        async closeBundle() {
+            if (!bundledDev || !bundledDevStarted) return;
+            bundledDevStarted = false;
+            await teardown();
         },
     };
 }

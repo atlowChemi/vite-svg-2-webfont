@@ -45,7 +45,15 @@ flowchart LR
 | Single design with nested globs, such as `**/*.svg`        | The `context` folder recursively, including subfolders created while running  |
 | Multi-weight (`variants`)                                  | Each design's folder, recursively, including subfolders created while running |
 
-Only `.svg` files trigger rebuilds. In recursively watched folders, SVGs that your globs don't match are ignored. Changes to a custom [`cssTemplate`](/vite/configuration#csstemplate) or [`htmlTemplate`](/vite/configuration#htmltemplate) and to `vite.config.ts` itself need a dev server restart.
+Only `.svg` files trigger rebuilds. In recursively watched folders, SVGs that your globs don't match are ignored. Changes to a custom [`cssTemplate`](/vite/configuration#csstemplate) or [`htmlTemplate`](/vite/configuration#htmltemplate) and to `vite.config.ts` itself need a dev server restart, except in [bundled dev](#bundled-dev).
+
+### Bundled dev
+
+Vite 8's `experimental.bundledDev` option serves a Rolldown bundle instead of individual modules. The plugin supports it with the same in-memory fonts, URLs and incremental rebuilds, with these differences:
+
+- **Rolldown watches the inputs.** The virtual modules register your icon folders, SVG files and any custom `cssTemplate` or `htmlTemplate` with Rolldown, instead of the plugin running its own watcher. When one changes, the plugin rebuilds the font first, and Rolldown then rebuilds the bundle with the new CSS.
+- **Template edits apply without a restart.** A changed `cssTemplate` or `htmlTemplate` triggers a full rebuild.
+- **State lasts for the whole server.** Rolldown runs a build for each bundle it produces; the plugin keeps serving the same fonts across them and releases them, flushing the engine cache, when the dev server closes.
 
 ## Build
 

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { tmpdir as osTmpdir } from 'node:os';
-import { constants, rm as fsRm, mkdtempSync } from 'node:fs';
-import { resolve, dirname, join as pathJoin } from 'node:path';
+import { constants, rm as fsRm, mkdtempSync, realpathSync } from 'node:fs';
+import { resolve, dirname, basename, join as pathJoin } from 'node:path';
 import { watch, access, mkdir, open, rm, writeFile, stat } from 'node:fs/promises';
 import { setTimeout } from 'node:timers/promises';
 import type { FontType } from '@atlowchemi/webfont-generator';
@@ -21,6 +21,16 @@ export async function doesFileExist(folderPath: string, fileName: string): Promi
         return true;
     } catch {
         return false;
+    }
+}
+
+/** An absolute path with symlinks resolved; a missing file (e.g. just deleted) resolves through its parent directory. */
+export function canonicalPath(path: string): string {
+    try {
+        return realpathSync.native(path);
+    } catch {
+        const parent = dirname(resolve(path));
+        return parent === resolve(path) ? parent : pathJoin(canonicalPath(parent), basename(path));
     }
 }
 
