@@ -15,6 +15,11 @@
 //! practice. Trade-off: a genuinely-intended *filled* nested region of the same paint (rare) would
 //! be turned into a hole. Validated visually across a large real icon set.
 //!
+//! Containment alone mistakes one case for nesting: a contour inside another element's outer edge
+//! that also crosses that element's own hole (a stroke running from a frame's opening onto the
+//! frame — lucide's `image` / `image-upscale`). It overlaps the element rather than sitting in
+//! it, so it keeps its container's winding and unions with it instead of cancelling the overlap.
+//!
 //! Selected evenodd color layers use [`normalize_evenodd`] instead: curve-aware
 //! nesting for ordinary disjoint boundaries, without changing this fallback heuristic.
 
@@ -94,6 +99,8 @@ enum Step {
 }
 
 struct Contour {
+    /// Index of the input path (one per SVG element) this contour came from.
+    path: usize,
     start: Point,
     steps: Vec<Step>,
     poly: Vec<Point>,
@@ -118,8 +125,12 @@ pub(crate) fn normalize_winding(paths: Vec<TinyPath>) -> Vec<TinyPath> {
     }
 
     let mut contours: Vec<Contour> = Vec::new();
-    for path in &paths {
+    for (index, path) in paths.iter().enumerate() {
+        let first = contours.len();
         decompose(path, &mut contours);
+        for contour in &mut contours[first..] {
+            contour.path = index;
+        }
     }
     if contours.len() < 2 {
         return paths; // a single contour can't contain another — skip all flattening
@@ -140,6 +151,9 @@ pub(crate) fn normalize_winding(paths: Vec<TinyPath>) -> Vec<TinyPath> {
     for &i in &order {
         let parent = immediate_parent(&contours, i);
         let want = match parent {
+            // Straddling the container's own outline — a stroke laid across a frame's opening —
+            // is overlap, not nesting: union with the container instead of punching a hole in it.
+            Some(p) if straddles_parent(&contours, i, p) => final_sign[p],
             Some(p) => -final_sign[p],
             None => sign(contours[i].area2),
         };
@@ -180,6 +194,7 @@ fn decompose(path: &TinyPath, out: &mut Vec<Contour>) {
             return;
         }
         out.push(Contour {
+            path: 0,
             start,
             steps: std::mem::take(steps),
             poly: Vec::new(),
@@ -257,6 +272,25 @@ fn emit_reversed(builder: &mut PathBuilder, c: &Contour) {
         }
     }
     builder.close();
+}
+
+/// True when contour `i` crosses another contour of the same element as its container `p` (the
+/// container's own hole, say), i.e. `i` lies partly in that element's filled band and partly in
+/// its opening. Crossing a *different* element's contour does not count, so knockouts that cross
+/// each other (a white X over a filled disk) stay holes.
+fn straddles_parent(contours: &[Contour], i: usize, p: usize) -> bool {
+    let inner = &contours[i];
+    contours.iter().enumerate().any(|(k, other)| {
+        k != i
+            && k != p
+            && other.path == contours[p].path
+            && inner.min.x <= other.max.x
+            && other.min.x <= inner.max.x
+            && inner.min.y <= other.max.y
+            && other.min.y <= inner.max.y
+            && edges(&inner.poly)
+                .any(|a| edges(&other.poly).any(|b| segments_intersect(a.0, a.1, b.0, b.1)))
+    })
 }
 
 /// The smallest-area contour that fully contains contour `i`.
