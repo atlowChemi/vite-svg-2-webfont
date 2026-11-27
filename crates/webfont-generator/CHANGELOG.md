@@ -1,5 +1,53 @@
 # Changelog
 
+## [0.13.1](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.13.0...webfont-engine-v0.13.1) (2026-11-27)
+
+### Patch Changes
+
+- Fix dependency automation permissions, adopt existing Renovate pull requests and the dashboard, and report failed runs in CI.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Allow dependency automation to read vulnerability alerts and resolve the prepared Cargo path patch during lockfile updates.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Use same-repository pull request edit events to trigger dependency automation.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Update dependencies and tooling.
+
+- Generate dependency release intents with formatting that passes repository checks.
+
+- Run dependency updates with the repository automation app and generate patch release intents.
+
 ## [0.13.0](https://github.com/atlowChemi/vite-svg-2-webfont/compare/webfont-engine-v0.12.0...webfont-engine-v0.13.0) (2026-11-18)
 
 
